@@ -9,16 +9,15 @@ export function GuestLoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { setTokens } = useAuth()
+  const { setAuthenticated } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      const response = await api.post('/auth/guest/login', { pin })
-      const { access_token } = response.data
-      setTokens(access_token, '', null, 'guest')
+      await api.post('/auth/guest/login', { pin }, { withCredentials: true })
+      setAuthenticated(null, 'guest')
       navigate('/')
     } catch (err: any) {
       setError(getApiErrorMessage(err) || 'PIN invalido')

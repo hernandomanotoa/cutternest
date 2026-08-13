@@ -1,12 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from pathlib import Path
 
-from app.database import init_db
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from sqlalchemy import text
+
+from app.config import get_settings
+from app.database import SessionLocal, init_db
+from app.limiter import limiter
+from app.models import BackupCode
 from app.routers import auth, optimizer, inventory, projects, templates
+
+settings = get_settings()
 
 EXPORTS_DIR = Path('/app/data/exports')
 BACKUPS_DIR = Path('/app/backups')
@@ -14,9 +24,27 @@ EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _migrate_backup_codes() -> None:
+    """Migra códigos de backup del formato JSON antiguo a la tabla backup_codes."""
+    db = SessionLocal()
+    try:
+        if db.query(BackupCode).first():
+            return
+        rows = db.execute(text("SELECT id, backup_codes_hash FROM users WHERE backup_codes_hash IS NOT NULL"))
+        for row in rows:
+            codes = row.backup_codes_hash
+            if isinstance(codes, list):
+                for hashed in codes:
+                    db.add(BackupCode(user_id=row.id, code_hash=hashed))
+        db.commit()
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    _migrate_backup_codes()
     yield
 
 
@@ -26,10 +54,12 @@ app = FastAPI(
     version='1.0.0',
     lifespan=lifespan
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

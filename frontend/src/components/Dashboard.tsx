@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from '../api/client'
 import { useAuth } from '../hooks/useAuth'
 
 export function Dashboard() {
@@ -9,7 +10,12 @@ export function Dashboard() {
     fetchUser()
   }, [fetchUser])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      // ignorar: siempre limpiar estado local
+    }
     clear()
     window.location.href = '/login'
   }

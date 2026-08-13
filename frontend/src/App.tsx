@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { useEffect, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
+import { api } from './api/client'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoginPage } from './components/auth/LoginPage'
 import { RegisterPage } from './components/auth/RegisterPage'
@@ -12,6 +14,38 @@ import { InventoryPage } from './components/taller/InventoryPage'
 import { QuotePage } from './components/cotizacion/QuotePage'
 import { AssemblyPage } from './components/mueble/AssemblyPage'
 import { ProjectsPage } from './components/projects/ProjectsPage'
+
+function AuthInit({ children }: { children: React.ReactNode }) {
+  const { setAuthenticated, setUser, clear } = useAuth()
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    api
+      .get('/auth/session')
+      .then((response) => {
+        const { mode, user } = response.data
+        if (mode === 'principal' && user) {
+          setUser(user)
+          setAuthenticated(user, 'principal')
+        } else if (mode === 'guest') {
+          setAuthenticated(null, 'guest')
+        } else {
+          clear()
+        }
+      })
+      .catch(() => clear())
+      .finally(() => setReady(true))
+  }, [setAuthenticated, setUser, clear])
+
+  if (!ready) {
+    return (
+      <div className='min-h-screen flex items-center justify-center bg-gray-50'>
+        <div className='text-slate-600'>Cargando...</div>
+      </div>
+    )
+  }
+  return <>{children}</>
+}
 
 function ProtectedRoute({ children, guestAllowed = false }: { children: React.ReactNode; guestAllowed?: boolean }) {
   const { isAuthenticated, isGuest } = useAuth()
@@ -25,7 +59,8 @@ function App() {
     <BrowserRouter>
       <Toaster position='top-right' />
       <ErrorBoundary>
-        <Routes>
+        <AuthInit>
+          <Routes>
           <Route path='/login' element={<LoginPage />} />
           <Route path='/register' element={<RegisterPage />} />
           <Route path='/verify' element={<TOTPVerifyPage />} />
@@ -78,7 +113,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
+          </Routes>
+        </AuthInit>
       </ErrorBoundary>
     </BrowserRouter>
   )

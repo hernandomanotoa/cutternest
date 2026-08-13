@@ -5,9 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
+    message: str = "Autenticado"
     expires_in: int
 
 

@@ -6,7 +6,7 @@ services:
     container_name: cutternest-postgres
     environment:
       POSTGRES_USER: cutternest
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cutternest_pass_change_me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: cutternest
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -27,7 +27,7 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-redis_pass_change_me}
+      --requirepass ${REDIS_PASSWORD}
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
     volumes:
@@ -35,7 +35,7 @@ services:
     networks:
       - cutternest-net
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_pass_change_me}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,7 +47,7 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_USER: cutternest
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cutternest_pass_change_me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: cutternest
       BACKUP_DIR: /backups
       RETENTION_DAYS: 7
@@ -75,8 +75,8 @@ services:
 
   backend:
     environment:
-      - DATABASE_URL=postgresql://cutternest:${POSTGRES_PASSWORD:-cutternest_pass_change_me}@postgres:5432/cutternest
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass_change_me}@redis:6379/0
+      - DATABASE_URL=postgresql://cutternest:${POSTGRES_PASSWORD}@postgres:5432/cutternest
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy

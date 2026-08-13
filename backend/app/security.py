@@ -6,8 +6,7 @@ import pyotp
 import qrcode
 import qrcode.image.pil
 from cryptography.fernet import Fernet
-from jose import JWTError, jwt
-from jose.exceptions import ExpiredSignatureError
+import jwt
 from passlib.context import CryptContext
 
 from app.config import get_settings
@@ -26,7 +25,7 @@ def _derive_fernet_key(secret: str) -> bytes:
 
 
 def get_fernet() -> Fernet:
-    return Fernet(_derive_fernet_key(settings.jwt_secret_key))
+    return Fernet(_derive_fernet_key(settings.totp_encryption_key))
 
 
 def hash_password(password: str) -> str:
@@ -69,22 +68,24 @@ def verify_totp_code(encrypted_secret: str, code: str) -> bool:
     return totp.verify(code, valid_window=1)
 
 
-def generate_backup_codes(count: int = 10) -> Tuple[List[str], List[str]]:
-    """Genera códigos de backup. Devuelve (plain_codes, hashed_codes)."""
+def generate_backup_codes(count: int = 10) -> List[str]:
+    """Genera códigos de backup planos. Devuelve una lista de strings."""
     codes = []
-    hashed = []
     for _ in range(count):
         code = secrets.token_hex(4).upper()[:8]
         codes.append(code)
-        hashed.append(pwd_context.hash(code))
-    return codes, hashed
+    return codes
 
 
-def verify_backup_code(encrypted_backup_codes: list, code: str) -> bool:
-    for hashed in encrypted_backup_codes:
-        if pwd_context.verify(code, hashed):
-            return True
-    return False
+def verify_backup_code(backup_codes: list, code: str):
+    """Busca un código de backup no usado que coincida con el hash.
+    
+    Devuelve el objeto BackupCode si coincide y no está usado, o None.
+    """
+    for bc in backup_codes:
+        if bc.used_at is None and pwd_context.verify(code, bc.code_hash):
+            return bc
+    return None
 
 
 def create_token(subject: str, token_type: str, expires_delta: timedelta, extra: dict) -> str:
@@ -105,9 +106,9 @@ def create_token(subject: str, token_type: str, expires_delta: timedelta, extra:
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.jwt_secret_key, algorithms=["HS256"])
-    except ExpiredSignatureError as e:
+    except jwt.ExpiredSignatureError as e:
         raise e
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise ValueError("Token invalido")
 
 

@@ -9,7 +9,7 @@ export function TOTPVerifyPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { setTokens, fetchUser } = useAuth()
+  const { setAuthenticated, fetchUser } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,9 +17,8 @@ export function TOTPVerifyPage() {
     setLoading(true)
     try {
       const tempToken = localStorage.getItem('tempToken')
-      const response = await api.post('/auth/verify', { temp_token: tempToken, code })
-      const { access_token, refresh_token } = response.data
-      setTokens(access_token, refresh_token, null, 'principal')
+      await api.post('/auth/verify', { temp_token: tempToken, code }, { withCredentials: true })
+      setAuthenticated(null, 'principal')
       localStorage.removeItem('tempToken')
       await fetchUser()
       navigate('/')

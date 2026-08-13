@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import GuestSession, Session as UserSession, User
+from app.models import BackupCode, GuestSession, Session as UserSession, User
 from app.schemas import RegisterResponse, UserRead
 from app.security import (
     create_access_token,
@@ -40,19 +40,22 @@ def register_user(
 
     is_first_user = db.query(User).first() is None
     totp_secret = generate_totp_secret()
-    plain_codes, hashed_codes = generate_backup_codes(10)
+    plain_codes = generate_backup_codes(10)
 
     user = User(
         username=username,
         email=email,
         password_hash=hash_password(password),
         totp_secret_encrypted=encrypt_totp_secret(totp_secret),
-        backup_codes_hash=hashed_codes,
         role="admin" if is_first_user else "user",
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    for plain in plain_codes:
+        db.add(BackupCode(user_id=user.id, code_hash=hash_password(plain)))
+    db.commit()
 
     qr_base64 = generate_qr_base64(username, totp_secret)
     return RegisterResponse(
@@ -98,8 +101,10 @@ def verify_login(
             detail="Usuario no encontrado",
         )
 
+    used_backup_code = None
     if not verify_totp_code(user.totp_secret_encrypted, code):
-        if not verify_backup_code(user.backup_codes_hash, code):
+        used_backup_code = verify_backup_code(user.backup_codes, code)
+        if not used_backup_code:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Codigo TOTP o backup invalido",
@@ -122,6 +127,10 @@ def verify_login(
     )
     new_session.refresh_token_hash = hash_token(refresh_token)
     new_session.expires_at = refresh_exp
+
+    if used_backup_code:
+        used_backup_code.used_at = datetime.utcnow()
+
     db.commit()
     return user, access_token, refresh_token
 

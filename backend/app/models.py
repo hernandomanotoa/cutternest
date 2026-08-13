@@ -37,7 +37,6 @@ class User(Base):
     email = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     totp_secret_encrypted = Column(Text, nullable=False)
-    backup_codes_hash = Column(JSON, nullable=False, default=list)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.user)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -45,6 +44,19 @@ class User(Base):
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
     guest_pins = relationship("GuestSession", back_populates="created_by_user", cascade="all, delete-orphan")
+    backup_codes = relationship("BackupCode", back_populates="user", cascade="all, delete-orphan")
+
+
+class BackupCode(Base):
+    __tablename__ = "backup_codes"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    user_id = Column(VARCHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    code_hash = Column(String(255), nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="backup_codes")
 
 
 class Session(Base):

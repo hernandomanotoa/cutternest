@@ -1,18 +1,31 @@
 import os
 from functools import lru_cache
+from typing import List
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/cutternest.db"
     jwt_secret_key: str = "change-me-in-production-min-32-chars"
+    totp_encryption_key: str = "change-me-in-production-min-32-chars"
+    cors_origins: List[str] = ["http://localhost:3000"]
+    cookie_secure: bool = False
+    cookie_samesite: str = "Lax"
     jwt_access_expire_minutes: int = 15
     jwt_refresh_expire_days: int = 7
     guest_session_hours: int = 4
     offcut_threshold_cm: float = 30.0
     kerf_mm: float = 3.0
     margen_mm: float = 2.0
+
+    @field_validator("jwt_secret_key", "totp_encryption_key")
+    @classmethod
+    def _validate_secret_length(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("El secreto debe tener al menos 32 caracteres")
+        return v
 
     class Config:
         env_file = ".env"

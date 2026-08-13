@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 
 from app import projects as projects_service
 from app.database import get_db
-from app.dependencies import get_current_user, get_current_user_or_guest
+from app.dependencies import (
+    PrincipalOrGuest,
+    get_current_user,
+    get_current_user_or_guest,
+    require_project_owner,
+)
 from app.models import User
 from app.schemas import (
     AssemblyResponse,
@@ -22,9 +27,9 @@ router = APIRouter()
 @router.get("", response_model=List[ProjectRead])
 def list_projects(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: PrincipalOrGuest = Depends(get_current_user_or_guest),
 ):
-    if hasattr(current_user, "role"):
+    if isinstance(current_user, User):
         return projects_service.list_projects(db, owner=current_user)
     return []
 
@@ -33,19 +38,18 @@ def list_projects(
 def create_project(
     payload: ProjectCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
-    owner = current_user if hasattr(current_user, "role") else None
-    return projects_service.create_project(db, payload, owner=owner)
+    return projects_service.create_project(db, payload, owner=current_user)
 
 
 @router.get("/{project_id}", response_model=ProjectRead)
 def get_project(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
-    return projects_service.get_project(db, project_id)
+    return require_project_owner(db, project_id, current_user)
 
 
 @router.post("/{project_id}/optimize")
@@ -53,8 +57,9 @@ def optimize_project(
     project_id: str,
     payload: OptimizeRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     return projects_service.optimize_project(db, project_id, payload)
 
 
@@ -62,8 +67,9 @@ def optimize_project(
 def list_layouts(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     return projects_service.get_layouts(db, project_id)
 
 
@@ -72,8 +78,9 @@ def create_quote(
     project_id: str,
     payload: QuoteRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     return projects_service.create_quote(db, project_id, payload)
 
 
@@ -81,8 +88,9 @@ def create_quote(
 def generate_cutlist(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     path = projects_service.generate_cutlist(db, project_id)
     return {"pdf_path": path}
 
@@ -91,8 +99,9 @@ def generate_cutlist(
 def generate_labels(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     path = projects_service.generate_labels(db, project_id)
     return {"pdf_path": path}
 
@@ -101,8 +110,9 @@ def generate_labels(
 def get_assembly(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     return projects_service.get_assembly(db, project_id)
 
 
@@ -110,7 +120,8 @@ def get_assembly(
 def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_or_guest),
+    current_user: User = Depends(get_current_user),
 ):
+    require_project_owner(db, project_id, current_user)
     projects_service.delete_project(db, project_id)
     return None

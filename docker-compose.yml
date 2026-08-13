@@ -13,7 +13,8 @@ services:
       - ./backups:/app/backups
     environment:
       - DATABASE_URL=sqlite:///data/cutternest.db
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production-min-32-chars}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}
       - JWT_ACCESS_EXPIRE_MINUTES=15
       - JWT_REFRESH_EXPIRE_DAYS=7
       - GUEST_SESSION_HOURS=4
