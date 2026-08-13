@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Data & backups
+*.db
+*.sqlite
+*.sqlite3
+backups/*.sql
+!backups/.gitkeep
+data/exports/*
+!data/exports/.gitkeep
+
+# Agent / internal memory (not for public repo)
+.agents/
+.kimi-memory.md
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+*.pid
+
+# Certs/keys (solo montar en runtime; no versionar)
+*.pem
+*.key
+*.crt
+!certs/.gitkeep
+!certs/README.md
+
+# Vite / caches
+.vite/
+*.cache
+data/frontend-vite-cache/
+
+# Coverage / tests
+.coverage
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Misc virtual envs
+.venv-*/
+
+# Windows alternate data streams
+*Zone.Identifier*
+*Zone.Identifier

@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cutternest-postgres
+    environment:
+      POSTGRES_USER: cutternest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cutternest_pass_change_me}
+      POSTGRES_DB: cutternest
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - cutternest-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cutternest -d cutternest"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: cutternest-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-redis_pass_change_me}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - cutternest-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_pass_change_me}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backup:
+    image: postgres:15-alpine
+    container_name: cutternest-backup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: cutternest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cutternest_pass_change_me}
+      POSTGRES_DB: cutternest
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: 7
+    volumes:
+      - ./backups:/backups
+    networks:
+      - cutternest-net
+    command: >
+      sh -c "
+        echo 'Backup service started. Waiting 60s for postgres...';
+        sleep 60;
+        while true; do
+          echo 'Creating backup at ' $$(date +%Y%m%d_%H%M%S);
+          PGPASSWORD=$$POSTGRES_PASSWORD pg_dump -h $$POSTGRES_HOST -U $$POSTGRES_USER $$POSTGRES_DB > $$BACKUP_DIR/cutternest_$$(date +%Y%m%d_%H%M%S).sql;
+          echo 'Backup done. Size:' $$(ls -lh $$BACKUP_DIR/cutternest_$$(date +%Y%m%d_%H%M%S).sql | awk '{print $$5}');
+          ls -t $$BACKUP_DIR/cutternest_*.sql | tail -n +$$((RETENTION_DAYS + 1)) | xargs -r rm -f;
+          echo 'Retention cleaned. Next backup in 24h.';
+          sleep 86400;
+        done
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://cutternest:${POSTGRES_PASSWORD:-cutternest_pass_change_me}@postgres:5432/cutternest
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass_change_me}@redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

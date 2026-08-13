@@ -1,0 +1,3 @@
+# Incluir requirements.txt + requirements.fase2.txt + estas adicionales
+httpx==0.25.2
+aiosmtplib==3.0.1

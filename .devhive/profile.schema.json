@@ -1,0 +1,273 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://devhive.local/profile.schema.json",
+  "title": "DevHive Project Profile",
+  "description": "Schema for .devhive/profile.yaml — project metadata, stack, commands and agent configuration consumed by DevHive templates and tooling.",
+  "type": "object",
+  "required": ["devhive_version", "project", "stack", "commands", "agents"],
+  "properties": {
+    "devhive_version": {
+      "type": "string",
+      "description": "DevHive framework version this profile targets.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "project": {
+      "type": "object",
+      "required": ["id", "name", "workspace_path", "repo_root"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Machine-readable project identifier.",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable project name."
+        },
+        "description": {
+          "type": "string"
+        },
+        "workspace_path": {
+          "type": "string",
+          "description": "Absolute path to the project workspace."
+        },
+        "repo_root": {
+          "type": "string",
+          "description": "Relative path from workspace_path to the repository root."
+        },
+        "owner": {
+          "type": "string"
+        },
+        "contact": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "additionalProperties": true
+    },
+    "stack": {
+      "type": "object",
+      "required": ["languages", "backend", "frontend", "database", "package_manager"],
+      "properties": {
+        "languages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "backend": {
+          "type": "object",
+          "required": ["framework", "runtime"],
+          "properties": {
+            "framework": { "type": "string" },
+            "runtime": { "type": "string" },
+            "version": { "type": "string" },
+            "language": { "type": "string" },
+            "test_framework": { "type": "string" },
+            "entry": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "frontend": {
+          "type": ["object", "null"],
+          "required": ["framework", "bundler"],
+          "properties": {
+            "framework": { "type": "string" },
+            "bundler": { "type": "string" },
+            "version": { "type": "string" },
+            "language": { "type": "string" },
+            "test_framework": { "type": "string" },
+            "path": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "database": {
+          "type": ["object", "null"],
+          "required": ["engine"],
+          "properties": {
+            "engine": { "type": "string" },
+            "version": { "type": "string" },
+            "init_path": { "type": "string" },
+            "schema_file": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "cache": {
+          "type": ["object", "string", "null"],
+          "description": "Cache engine as a string or detailed object.",
+          "properties": {
+            "engine": { "type": "string" },
+            "version": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "package_manager": {
+          "type": "string",
+          "enum": ["pnpm", "npm", "yarn", "bun"]
+        },
+        "container_orchestrator": {
+          "type": "string"
+        },
+        "reverse_proxy": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "paths": {
+      "type": "object",
+      "properties": {
+        "agents": { "type": "string" },
+        "devhive": { "type": "string" },
+        "backend_src": { "type": "string" },
+        "frontend_src": { "type": "string" },
+        "tests": { "type": "string" },
+        "scripts": { "type": "string" },
+        "docs": { "type": "string" },
+        "config": { "type": "string" },
+        "middleware": { "type": "string" },
+        "services": { "type": "string" },
+        "routes": { "type": "string" },
+        "utils": { "type": "string" },
+        "types": { "type": "string" },
+        "frontend_services": { "type": "string" },
+        "frontend_components": { "type": "string" },
+        "certs": { "type": "string" },
+        "data": { "type": "string" },
+        "nginx": { "type": "string" },
+        "guardian_scripts": { "type": "string" },
+        "ldap_data": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "services": {
+      "type": "object",
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "host": { "type": "string" },
+            "port": { "type": "integer" }
+          },
+          "additionalProperties": true
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "host": { "type": "string" },
+            "port": { "type": "integer" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "commands": {
+      "type": "object",
+      "description": "Named shell commands used by agents and CI templates.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9_]+$"
+      },
+      "additionalProperties": { "type": "string" },
+      "minProperties": 1
+    },
+    "agents": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "plugins": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "auth_methods": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "sensitive_env_keys": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cookie_policy": { "type": "string" },
+        "min_bcrypt_rounds": { "type": "integer", "minimum": 1 },
+        "blocked_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "blocked_commands": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "blocked_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "knowledge_graph": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "agent": { "type": "string" },
+        "memory_dir": { "type": "string" },
+        "queries": { "type": "string" },
+        "edges": { "type": "string" },
+        "nodes_dir": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "devhive": {
+      "type": "object",
+      "properties": {
+        "profile": { "type": "string" },
+        "schema": { "type": "string" },
+        "project_brief": { "type": "string" },
+        "conventions": { "type": "string" },
+        "current_sprint": { "type": "string" },
+        "decisions": { "type": "string" },
+        "architecture": { "type": "string" },
+        "security_policy": { "type": "string" },
+        "domain_rules": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "guardian": {
+      "type": "object",
+      "properties": {
+        "policies": { "type": "string" },
+        "skill": { "type": "string" },
+        "deliverable_template": { "type": "string" },
+        "audit_log": { "type": "string" },
+        "queue": { "type": "string" },
+        "active_tasks": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "agent": {
+      "type": "object",
+      "description": "Skeleton values used when rendering the generic agent-skill.md.hbs template.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "description": { "type": "string" },
+        "scope": { "type": "string" },
+        "skill_path": { "type": "string" },
+        "active_tasks_path": { "type": "string" },
+        "queue_path": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

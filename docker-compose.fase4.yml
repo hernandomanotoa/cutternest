@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  whatsapp-gateway:
+    build:
+      context: ./whatsapp-gateway
+      dockerfile: Dockerfile
+    container_name: cutternest-whatsapp
+    environment:
+      - NODE_ENV=production
+      - API_KEY=${WHATSAPP_API_KEY}
+      - WEBHOOK_URL=http://backend:8000/api/v1/webhook/whatsapp
+      - PORT=8080
+    volumes:
+      - whatsapp_auth:/app/auth
+    ports:
+      - "8081:8080"
+    networks:
+      - cutternest-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    environment:
+      - WHATSAPP_ENABLED=true
+      - WHATSAPP_API_KEY=${WHATSAPP_API_KEY}
+      - WHATSAPP_GATEWAY_URL=http://whatsapp-gateway:8080
+      - SMS_ENABLED=${SMS_ENABLED:-false}
+      - SMS_GATEWAY_URL=${SMS_GATEWAY_URL:-}
+      - SMS_GATEWAY_TOKEN=${SMS_GATEWAY_TOKEN:-}
+      - NOTIFICAR_CAMBIO_ESTADO=true
+      - NOTIFICAR_ENTREGA=true
+    depends_on:
+      whatsapp-gateway:
+        condition: service_healthy
+
+volumes:
+  whatsapp_auth:
+    driver: local

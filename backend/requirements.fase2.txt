@@ -1,0 +1,4 @@
+# Incluir requirements.txt del MVP + estas adicionales
+asyncpg==0.29.0
+redis==5.0.1
+alembic==1.12.1

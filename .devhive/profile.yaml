@@ -1,0 +1,213 @@
+---
+# DevHive project profile
+# This file is the single source of truth for project metadata, stack,
+# commands and agent configuration. It is consumed by the renderer at
+# scripts/render-devhive-templates.mjs to instantiate generic templates.
+devhive_version: "2.2.0"
+
+project:
+  id: flujo-autentificacion
+  name: "Wiki DITIC"
+  mcp_name: "workspace-flujo-autentificacion"
+  description: "Sistema de documentación técnica para el INEC Ecuador con autenticación dual LDAP + local."
+  workspace_path: /workspace/flujo-autentificacion
+  repo_root: .
+  owner: INEC Ecuador / DITIC
+  contact: example@example.com
+
+stack:
+  languages:
+    - typescript
+  backend:
+    framework: Express
+    runtime: Node.js
+    version: "24"
+    language: TypeScript
+    test_framework: jest
+    entry: backend/src/app.ts
+  frontend:
+    framework: React
+    bundler: Vite
+    version: "18"
+    language: TypeScript
+    test_framework: vitest
+    path: frontend
+  database:
+    engine: PostgreSQL
+    version: "16"
+    init_path: init-scripts
+    schema_file: init-scripts/01-init.sql
+  cache:
+    engine: Redis
+    version: "7"
+  package_manager: pnpm
+  container_orchestrator: docker-compose
+  compose_files:
+    core: docker-compose.yml
+    dev: docker-compose.dev.yml
+    tunnels: docker-compose.tunnels.yml
+  reverse_proxy: nginx
+
+paths:
+  agents: .agents
+  devhive: .devhive
+  backend_src: backend/src
+  frontend_src: frontend/src
+  infra_docker: infra/docker
+  sms_gateway_client_dockerfile: services/sms-gateway-client/Dockerfile
+  tests: tests
+  scripts: scripts
+  docs: docs
+  config: backend/src/config
+  middleware: backend/src/middleware
+  services: backend/src/services
+  routes: backend/src/routes
+  utils: backend/src/utils
+  types: backend/src/types
+  frontend_services: frontend/src/services
+  frontend_components: frontend/src/components
+  certs: certs
+  data: data
+  nginx: nginx
+  guardian_scripts: .agents/guardian/scripts
+  ldap_data: data/ldap
+  tunnel_scripts: scripts/tunnel
+  tunnels: docker-compose.tunnels.yml
+
+services:
+  postgres:
+    host: postgres
+    port: 5432
+  redis:
+    host: cache
+    port: 6379
+
+commands:
+  install: pnpm install
+  install_frontend: cd frontend && pnpm install
+  test_backend: pnpm test
+  test_frontend: cd frontend && pnpm test
+  build_backend: pnpm build
+  build_frontend: cd frontend && pnpm build
+  typecheck_backend: pnpm run typecheck
+  typecheck_frontend: cd frontend && pnpm run typecheck
+  dev_backend: pnpm run dev
+  dev_frontend: cd frontend && pnpm run dev
+  docker_up: docker compose up -d --build --remove-orphans
+  docker_up_dev: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --remove-orphans
+  docker_up_tunnels: docker compose -f docker-compose.yml -f docker-compose.tunnels.yml --profile cloudflared up -d --build --remove-orphans
+  docker_down: docker compose down
+  docker_down_dev: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+  audit_backend: pnpm audit
+  audit_frontend: cd frontend && pnpm audit
+  outdated_backend: pnpm outdated
+  outdated_frontend: cd frontend && pnpm outdated
+  validate_devhive: node scripts/validate-devhive.mjs
+
+agents:
+  enabled:
+    - architect
+    - backend-agent
+    - frontend-agent
+    - frontend-template-agent
+    - db-agent
+    - auth-agent
+    - deploy-agent
+    - test-agent
+    - docs-agent
+    - knowledge-graph-agent
+  plugins:
+    - code-reviewer
+    - dependency-checker
+    - ldap-agent
+    - integration-validator
+    - tunnel-agent
+    - ui-ux-agent
+
+security:
+  auth_methods:
+    - ldap
+    - local
+    - totp
+    - sms
+    - email
+    - backup_codes
+  sensitive_env_keys:
+    - JWT_SECRET
+    - COOKIE_SECRET
+    - TOTP_ENCRYPTION_KEY
+    - EMAIL_TOTP_ENCRYPTION_KEY
+    - DATABASE_URL
+    - REDIS_URL
+    - LDAP_URL
+  cookie_policy: httpOnly
+  min_bcrypt_rounds: 12
+  blocked_paths:
+    - ".env*"
+    - "certs/server.key"
+    - "certs/ca.key"
+  blocked_commands:
+    - "rm -rf /"
+    - "DROP DATABASE"
+    - "docker system prune"
+    - "chmod -R 777 /"
+  blocked_actions:
+    - "modify .env files"
+    - "read private keys"
+    - "modify guardian SKILL.md"
+    - "modify policies.json"
+
+devhive:
+  profile: .devhive/profile.yaml
+  schema: .devhive/profile.schema.json
+  project_brief: .devhive/project-brief.md
+  conventions: .devhive/conventions.md
+  current_sprint: .devhive/current-sprint.md
+  decisions: .devhive/decisions/*.md
+  architecture: .devhive/architecture.md
+  security_policy: .devhive/security-policy.md
+  domain_rules: .devhive/domain-rules.md
+  conventions_core: .devhive/conventions-core.md
+  conventions_backend: .devhive/conventions-backend.md
+  conventions_frontend: .devhive/conventions-frontend.md
+  conventions_db: .devhive/conventions-db.md
+  conventions_deploy: .devhive/conventions-deploy.md
+  conventions_test: .devhive/conventions-test.md
+  conventions_auth: .devhive/conventions-auth.md
+  conventions_agents: .devhive/conventions-agents.md
+  sprint_archive: .devhive/sprints/archive/sprint-2026-07-completed.md
+
+knowledge_graph:
+  enabled: true
+  agent: knowledge-graph-agent
+  memory_dir: .agents/knowledge-graph-agent/memory
+  queries: .agents/knowledge-graph-agent/memory/queries.md
+  queries_cold: .agents/knowledge-graph-agent/memory/queries.cold.md
+  edges: .agents/knowledge-graph-agent/memory/edges.md
+  nodes_dir: .agents/knowledge-graph-agent/memory/graph/
+
+guardian:
+  policies: .agents/guardian/policies.json
+  skill: .agents/guardian/SKILL.md
+  deliverable_template: .agents/guardian/templates/deliverable-template.md
+  audit_log: .agents/guardian/audit.log
+  queue: .agents/guardian/memory/queue.md
+  active_tasks: .agents/guardian/memory/active-tasks.md
+
+# Skeleton used when rendering .agents/templates/agent-skill.md.hbs.
+# Replace {agent_id} with the concrete agent name when creating a new agent.
+agent:
+  id: "{agent_id}"
+  name: "{agent_id}"
+  role: "Specialized DevHive Agent"
+  description: "Responsible for {agent_id} tasks in {{project.name}}."
+  scope: "TBD"
+  skill_path: "{{paths.agents}}/{agent_id}/SKILL.md"
+  active_tasks_path: "{{paths.agents}}/{agent_id}/memory/active-tasks.md"
+  completed_tasks_path: "{{paths.agents}}/{agent_id}/memory/completed-tasks.md"
+  queue_path: "{{paths.agents}}/{agent_id}/memory/queue.md"
+
+# Variable convention for templates:
+# Use {{project.name}}, {{project.workspace_path}}, {{stack.backend.framework}},
+# {{commands.test_backend}}, etc. Dot notation walks nested objects.
+# Top-level keys like {{devhive_version}} are also available.

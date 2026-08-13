@@ -1,0 +1,24 @@
+# Sesiones de trabajo DevHive
+
+Este directorio contiene logs de sesiones diarias del equipo de agentes.
+
+Formato de archivo: `YYYY-MM-DD.md`
+
+Ejemplo:
+```markdown
+# Sesión 2026-07-02
+
+## Agentes activos
+- architect
+- backend-agent
+- frontend-agent
+
+## Tareas completadas
+- Migración de agentes a DevHive v1.0
+
+## Bloqueadores
+- Ninguno
+
+## Próximos pasos
+- Validar E2E LDAP + TOTP
+```
