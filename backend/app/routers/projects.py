@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app import projects as projects_service
@@ -11,6 +11,7 @@ from app.dependencies import (
     get_current_user_or_guest,
     require_project_owner,
 )
+from app.limiter import limiter
 from app.models import User
 from app.schemas import (
     AssemblyResponse,
@@ -53,7 +54,9 @@ def get_project(
 
 
 @router.post("/{project_id}/optimize")
+@limiter.limit("10/minute")
 def optimize_project(
+    request: Request,
     project_id: str,
     payload: OptimizeRequest,
     db: Session = Depends(get_db),
