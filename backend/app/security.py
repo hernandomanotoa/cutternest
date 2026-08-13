@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 import pyotp
 import qrcode
 import qrcode.image.pil
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 import jwt
 from passlib.context import CryptContext
 
@@ -63,7 +63,10 @@ def generate_qr_base64(username: str, secret: str) -> str:
 
 
 def verify_totp_code(encrypted_secret: str, code: str) -> bool:
-    secret = decrypt_totp_secret(encrypted_secret)
+    try:
+        secret = decrypt_totp_secret(encrypted_secret)
+    except InvalidToken:
+        return False
     totp = pyotp.TOTP(secret)
     return totp.verify(code, valid_window=1)
 

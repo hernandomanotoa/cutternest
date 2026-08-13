@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import auth as auth_service
 from app.config import get_settings
 from app.database import get_db
-from app.dependencies import PrincipalOrGuest, get_current_user, get_current_user_or_guest
+from app.dependencies import PrincipalOrGuest, get_current_user, get_current_user_or_guest, get_current_user_or_guest_optional
 from app.models import User
 from app.limiter import limiter
 from app.schemas import (
@@ -117,7 +117,9 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/session")
-def get_session(current_user: PrincipalOrGuest = Depends(get_current_user_or_guest)):
+def get_session(current_user: PrincipalOrGuest | None = Depends(get_current_user_or_guest_optional)):
+    if current_user is None:
+        return {"mode": None, "user": None}
     if isinstance(current_user, User):
         return {"mode": "principal", "user": UserRead.model_validate(current_user)}
     return {"mode": "guest", "user": None}

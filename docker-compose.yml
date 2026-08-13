@@ -15,6 +15,9 @@ services:
       - DATABASE_URL=sqlite:///data/cutternest.db
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-Lax}
       - JWT_ACCESS_EXPIRE_MINUTES=15
       - JWT_REFRESH_EXPIRE_DAYS=7
       - GUEST_SESSION_HOURS=4

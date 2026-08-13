@@ -25,12 +25,16 @@ BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _migrate_backup_codes() -> None:
-    """Migra códigos de backup del formato JSON antiguo a la tabla backup_codes."""
+    """Migra codigos de backup del formato JSON antiguo a la tabla backup_codes."""
     db = SessionLocal()
     try:
         if db.query(BackupCode).first():
             return
-        rows = db.execute(text("SELECT id, backup_codes_hash FROM users WHERE backup_codes_hash IS NOT NULL"))
+        try:
+            rows = db.execute(text("SELECT id, backup_codes_hash FROM users WHERE backup_codes_hash IS NOT NULL"))
+        except Exception:
+            # Columna o tabla antigua no existe; nada que migrar.
+            return
         for row in rows:
             codes = row.backup_codes_hash
             if isinstance(codes, list):
@@ -59,7 +63,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
