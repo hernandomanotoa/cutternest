@@ -45,9 +45,22 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
     )
 
 
+def _set_temp_token_cookie(response: Response, temp_token: str) -> None:
+    response.set_cookie(
+        key="temp_token",
+        value=temp_token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        max_age=300,
+        path="/api/v1/auth",
+    )
+
+
 def _clear_auth_cookies(response: Response) -> None:
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh")
+    response.delete_cookie("temp_token", path="/api/v1/auth")
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
@@ -57,18 +70,23 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=LoginStep1Response)
 @limiter.limit("5/minute")
-def login(request: Request, payload: LoginStep1Request, db: Session = Depends(get_db)):
+def login(request: Request, response: Response, payload: LoginStep1Request, db: Session = Depends(get_db)):
     temp_token = auth_service.login_step1(db, payload.username, payload.password)
-    return LoginStep1Response(temp_token=temp_token)
+    _set_temp_token_cookie(response, temp_token)
+    return LoginStep1Response()
 
 
 @router.post("/verify", response_model=TokenResponse)
 @limiter.limit("5/minute")
 def verify(request: Request, response: Response, payload: VerifyRequest, db: Session = Depends(get_db)):
+    temp_token = request.cookies.get("temp_token") or payload.temp_token
+    if not temp_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token temporal no encontrado")
     user, access_token, refresh_token = auth_service.verify_login(
-        db, payload.temp_token, payload.code
+        db, temp_token, payload.code
     )
     _set_auth_cookies(response, access_token, refresh_token)
+    response.delete_cookie("temp_token", path="/api/v1/auth")
     return TokenResponse(
         message="Autenticado",
         expires_in=15 * 60,

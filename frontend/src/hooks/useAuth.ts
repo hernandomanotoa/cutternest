@@ -37,7 +37,6 @@ export const useAuth = create<AuthStore>()((set, get) => ({
     }
   },
   clear: () => {
-    localStorage.removeItem('tempToken');
     set({
       user: null,
       mode: null,

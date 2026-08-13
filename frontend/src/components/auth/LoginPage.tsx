@@ -15,8 +15,7 @@ export function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const response = await api.post('/auth/login', { username, password })
-      localStorage.setItem('tempToken', response.data.temp_token)
+      await api.post('/auth/login', { username, password })
       navigate('/verify', { state: { username } })
     } catch (err: any) {
       setError(getApiErrorMessage(err) || 'Error al iniciar sesion')

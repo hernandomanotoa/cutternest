@@ -23,20 +23,19 @@ def test_register_and_login_flow():
         json={"username": "testuser", "password": "SecurePassword123!"},
     )
     assert response.status_code == 200
-    temp_token = response.json()["temp_token"]
-    assert temp_token
+    assert "temp_token" in response.cookies
 
     # Verify con codigo incorrecto debe fallar
     response = client.post(
         "/api/v1/auth/verify",
-        json={"temp_token": temp_token, "code": "000000"},
+        json={"code": "000000"},
     )
     assert response.status_code == 401
 
     # Verify con backup code correcto debe funcionar y devolver cookies
     response = client.post(
         "/api/v1/auth/verify",
-        json={"temp_token": temp_token, "code": backup_code},
+        json={"code": backup_code},
     )
     assert response.status_code == 200
     assert "access_token" in response.cookies
@@ -66,12 +65,11 @@ def test_backup_code_cannot_be_reused():
         "/api/v1/auth/login",
         json={"username": "testuser2", "password": "SecurePassword123!"},
     )
-    temp_token = response.json()["temp_token"]
 
     # Primer uso OK
     response = client.post(
         "/api/v1/auth/verify",
-        json={"temp_token": temp_token, "code": backup_code},
+        json={"code": backup_code},
     )
     assert response.status_code == 200
 
@@ -80,9 +78,9 @@ def test_backup_code_cannot_be_reused():
         "/api/v1/auth/login",
         json={"username": "testuser2", "password": "SecurePassword123!"},
     )
-    temp_token = response.json()["temp_token"]
+
     response = client.post(
         "/api/v1/auth/verify",
-        json={"temp_token": temp_token, "code": backup_code},
+        json={"code": backup_code},
     )
     assert response.status_code == 401

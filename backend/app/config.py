@@ -1,4 +1,3 @@
-import os
 from functools import lru_cache
 from typing import List
 
@@ -8,8 +7,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/cutternest.db"
-    jwt_secret_key: str = "change-me-in-production-min-32-chars"
-    totp_encryption_key: str = "change-me-in-production-min-32-chars"
+    jwt_secret_key: str
+    totp_encryption_key: str
     cors_origins: str = "http://localhost:3000"
     cookie_secure: bool = False
     cookie_samesite: str = "Lax"

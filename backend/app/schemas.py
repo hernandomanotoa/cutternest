@@ -38,12 +38,12 @@ class LoginStep1Request(BaseModel):
 
 
 class LoginStep1Response(BaseModel):
-    temp_token: str
+    message: str = "Credenciales validas, continue con la verificacion TOTP"
 
 
 class VerifyRequest(BaseModel):
-    temp_token: str
     code: str = Field(..., min_length=6, max_length=8)
+    temp_token: Optional[str] = None
 
 
 class GuestPinRequest(BaseModel):

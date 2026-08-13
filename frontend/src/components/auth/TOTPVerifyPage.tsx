@@ -16,10 +16,8 @@ export function TOTPVerifyPage() {
     setError('')
     setLoading(true)
     try {
-      const tempToken = localStorage.getItem('tempToken')
-      await api.post('/auth/verify', { temp_token: tempToken, code }, { withCredentials: true })
+      await api.post('/auth/verify', { code }, { withCredentials: true })
       setAuthenticated(null, 'principal')
-      localStorage.removeItem('tempToken')
       await fetchUser()
       navigate('/')
     } catch (err: any) {

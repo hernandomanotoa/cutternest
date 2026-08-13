@@ -14,11 +14,12 @@ def _register_and_login(username: str, password: str = "SecurePassword123!") -> 
     backup_codes = response.json()["backup_codes"]
 
     response = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    temp_token = response.json()["temp_token"]
+    assert response.status_code == 200
+    assert "temp_token" in response.cookies
 
     response = client.post(
         "/api/v1/auth/verify",
-        json={"temp_token": temp_token, "code": backup_codes[0]},
+        json={"code": backup_codes[0]},
     )
     assert response.status_code == 200
     return backup_codes
@@ -26,10 +27,10 @@ def _register_and_login(username: str, password: str = "SecurePassword123!") -> 
 
 def _login_with_backup(username: str, backup_code: str, password: str = "SecurePassword123!"):
     response = client.post("/api/v1/auth/login", json={"username": username, "password": password})
-    temp_token = response.json()["temp_token"]
+    assert response.status_code == 200
     response = client.post(
         "/api/v1/auth/verify",
-        json={"temp_token": temp_token, "code": backup_code},
+        json={"code": backup_code},
     )
     assert response.status_code == 200
 
