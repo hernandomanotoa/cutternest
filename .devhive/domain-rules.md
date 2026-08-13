@@ -1,113 +1,88 @@
-# DevHive Domain Rules
+# DevHive Domain Rules — CutterNest
 
-This document defines the business and domain-specific rules for the Wiki DITIC authentication system. It complements `.devhive/security-policy.md` (technical security rules) with project-specific flows, entities, roles and integration patterns. Every agent must load this document when working on authentication, authorization, audit, WhatsApp/Tor proxy or system configuration.
+This document defines the business and domain-specific rules for CutterNest. It complements `.devhive/security-policy.md` (technical security rules) with project-specific flows, entities, roles and integration patterns. Every agent must load this document when working on authentication, authorization, optimization, inventory, projects, templates or exports.
 
 ## 1. Authentication Methods
 
-The system supports the following authentication factors, which may be combined based on user role and system configuration:
+The MVP supports the following authentication factors:
 
-- **LDAP** — corporate directory, primary factor for DITIC/INEC users.
-- **Local password** — fallback for users not in LDAP or during directory outage.
-- **TOTP** — time-based one-time password, mandatory for roles that require it.
-- **SMS code** — one-time code sent via SMS gateway.
-- **Email code** — one-time code sent via SMTP.
-- **Backup codes** — static recovery codes.
+- **Local password** — username/password stored in SQLite.
+- **TOTP** — time-based one-time password using `pyotp`.
+- **Backup codes** — static 8-character recovery codes, single-use.
+- **Guest PIN** — 4-digit temporary PIN for workshop operators.
 
-New methods or factor removal require approval from `@auth-agent` and the Guardian.
+New methods (SMS, email, WhatsApp, LDAP, OAuth) require approval from `@auth-agent` and the Guardian, and are only allowed in Fase 2+.
 
 ## 2. TOTP Setup Flow
 
-- During setup, the raw TOTP secret must be written to the `users.totp_secret_pending` column.
-- The secret must **not** be moved to `users.totp_secret` until the user verifies the **first generated code successfully**.
-- After first successful verification:
-  - copy the secret from `totp_secret_pending` to `totp_secret`;
-  - set `users.totp_enabled = TRUE`;
-  - clear `totp_secret_pending`.
-- This flow prevents enabling TOTP before the user has proven they can generate valid codes.
+- During registration, the backend generates a raw TOTP secret, encrypts it with `TOTP_ENCRYPTION_KEY`, and stores it in `users.totp_secret_encrypted`.
+- The QR code is displayed to the user once as a base64 PNG during registration.
+- Backup codes are generated, hashed with bcrypt, and stored in the `backup_codes` table linked to the user.
+- Both the plain TOTP secret and plain backup codes are shown only once; they are not recoverable afterwards.
 
 ## 3. Multi-Factor Authentication (MFA) Flow
 
-1. After primary authentication (LDAP or local password), if MFA is required, the backend returns a `tempToken` to the frontend.
-2. The frontend keeps the `tempToken` in `sessionStorage` **only** during the verification step.
-3. The frontend keeps `pendingUsername` in `sessionStorage` **only** while the MFA step is active.
-4. On successful verification, the backend issues `accessToken`, `refreshToken` and `session` as httpOnly cookies and revokes the `tempToken` immediately.
-5. The frontend deletes `tempToken` and `pendingUsername` from `sessionStorage` on successful verification and on component unmount if the user abandons the flow.
-6. The `tempToken` is a short-lived server-side token stored in the cache engine (Redis). It must be verified with `verifyTempToken` and revoked with `revokeTempToken` immediately after success.
+1. After local password validation, the backend sets a `temp_token` as an **httpOnly cookie**.
+2. The frontend does **not** store the `temp_token` in `localStorage` or `sessionStorage`.
+3. On successful verification, the backend issues `access_token` and `refresh_token` as httpOnly cookies and deletes the `temp_token` cookie.
+4. The frontend deletes any non-sensitive UI state on successful verification and on component unmount if the user abandons the flow.
 
-## 4. Trusted Devices
+## 4. Guest PIN Flow
 
-- The frontend may generate and store a `deviceToken` in `localStorage` as a long-lived trusted-device identifier.
-- The `deviceToken` must be preserved across logouts.
-- On login, the frontend sends the `deviceToken` to the backend.
-- The backend may skip the MFA step when the device is recognized **and** the user's role/policy allows it.
-- Trusted-device status is an optimization; it does not replace authorization or RBAC checks.
+- The principal user can generate a 4-digit PIN (`POST /api/v1/auth/guest/pin`).
+- The PIN is displayed once on the principal user's screen; it is never sent via email, SMS, WhatsApp or any external channel.
+- The PIN expires in 5 minutes if unused and is invalidated after first use.
+- Guest sessions last 4 hours by default.
+- Guest users cannot access inventory management, user management, or other users' projects.
 
 ## 5. Refresh Token Rotation
 
-- Provide `POST /api/auth/refresh`.
-- The endpoint reads the `refreshToken` from the httpOnly cookie sent by the browser.
-- It issues a new `accessToken` as an httpOnly cookie.
+- Provide `POST /api/v1/auth/refresh`.
+- The endpoint reads the `refresh_token` from the httpOnly cookie.
+- It issues a new `access_token` as an httpOnly cookie and rotates the `refresh_token`.
 - Do not return tokens in the JSON body.
 
-## 6. RBAC and Roles
+## 6. Roles and Authorization
 
-The canonical roles are defined in `backend/src/middleware/rbac.ts` (or equivalent) and stored in the database:
+MVP roles are minimal:
 
-- `SUPERUSUARIO`
-- `ADMINISTRADOR`
-- `SUPERVISOR`
-- `OPERADOR`
-- `AUDITOR`
+- **principal** — full access to their own projects, inventory, templates and reports.
+- **guest** — limited access: can view/create projects, use optimizer, assembly and quote views; cannot access inventory, user management, or historical data from other users.
 
-Rules:
+Changes to roles or RBAC require Guardian and `@auth-agent` approval.
 
-- Permissions must be read from the database, not hardcoded per role (except for the role names themselves).
-- Legacy or Spanish-prefixed role names are obsolete. Do not introduce new role names without approval from `@auth-agent` and the Guardian.
-- Changes to base roles or permission logic require Guardian approval.
+## 7. Project Ownership
 
-## 7. Audit Logging
+- Every project has an `owner_id` pointing to the principal user who created it.
+- Endpoints that read, update, delete or optimize a project must verify that the current user is the owner (or a guest with appropriate access).
+- The helper `require_project_owner` in `backend/app/dependencies.py` enforces this check.
 
-- Log all relevant authentication, authorization and configuration actions to the `audit_logs` table.
-- Include: action type, actor, target resource, timestamp, result (success/failure), and contextual metadata.
-- Do **not** log passwords, secrets, tokens, encryption keys or private keys.
-- The Guardian also writes every decision to its own `audit.log` file.
+## 8. Inventory and Offcuts
 
-## 8. Core Entities
+- Inventory tracks boards (`tipo`, `espesor_mm`, `ancho_cm`, `alto_cm`, `cantidad`, `estado`).
+- States: `nuevo`, `usado`, `sobrante`.
+- When optimization uses `use_offcuts=true`, the optimizer attempts to place small pieces on `sobrante` boards first before consuming new boards.
+- Offcuts can be added to inventory from optimization results.
 
-The database schema includes at least these tables:
+## 9. Optimization and Export Rules
 
-- `users` — accounts, passwords, TOTP fields (`totp_secret`, `totp_secret_pending`, `totp_enabled`), roles, MFA preferences.
-- `audit_logs` — security audit trail.
-- `documents` — wiki documents managed by the system.
-- `system_config` — runtime configuration (e.g., feature flags, LDAP settings, MFA policy).
+- The optimizer uses `rectpack` with `GuillotineBssfSas` or fallback algorithms.
+- Inputs: board dimensions, piece list with dimensions, `kerf_mm`, `margin_mm`, rotation flags.
+- Outputs: SVG/PNG layout, PDF cut list, PDF labels, PDF quote, CSV efficiency report.
+- All exports are generated locally and served as static files from `/app/data/exports/`.
 
-When changing any of these tables, update the canonical schema file (`init-scripts/01-init.sql`) and provide a migration script for existing databases.
+## 10. Templates
 
-## 9. LDAP Integration
-
-- The `ldap-agent` owns the `ldap-dev` service and LDIF files.
-- The development OpenLDAP service uses TLS on port **1636** (LDAPS).
-- The backend maps LDAP attributes to local user fields (e.g., `uid`, `cn`, `mail`).
-- Bind credentials and LDAP URLs must be loaded from `.env`; do not hardcode them.
-- Coordinate attribute mapping and bind credentials with `@backend-agent`.
-
-## 10. WhatsApp / Tor Proxy
-
-The system supports outbound WhatsApp notifications through the Baileys library and SOCKS5/Tor proxying for environments behind restrictive corporate firewalls.
-
-- The `backend/src/services/whatsappService.ts` service owns the Baileys integration.
-- The `backend/src/utils/proxyAgent.ts` utility provides SOCKS5/Tor proxy configuration.
-- WhatsApp configuration (enabled flag, admin number, proxy settings) is managed via `system_config` and the `SystemConfig` UI component.
-- A dedicated WhatsApp admin role controls who can manage the integration (see `.devhive/decisions/007-whatsapp-admin-role.md`).
-- Tor proxy testing helpers live in `scripts/test-tor-proxy.js` and `tests/tor-browser.test.ts`.
-- Changes to the proxy or WhatsApp integration require Guardian approval.
+- Predefined furniture templates (closet, estantería, etc.) generate a piece list from user parameters.
+- Templates are backend-defined in `backend/app/templates.py` and exposed via `/api/v1/templates/*`.
+- The frontend renders a parameter form based on the template metadata.
 
 ## 11. Documentation Requirements
 
-- OpenAPI specs must state that `accessToken`, `refreshToken` and `session` are delivered as httpOnly cookies and are not returned in response bodies.
-- TOTP setup documentation must describe the pending-secret flow (`totp_secret_pending` → `totp_secret` on first verification).
+- OpenAPI specs must state that `access_token` and `refresh_token` are delivered as httpOnly cookies and are not returned in response bodies.
+- TOTP setup documentation must describe that the QR code is displayed once during registration.
 - User-facing guides must not reveal secret keys, encryption keys or credentials.
 
 ## 12. Changing This Document
 
-Any change to these domain rules requires approval from `@auth-agent`, `@architect` and the Guardian. When porting DevHive to another project, replace this file with the new project's business rules.
+Any change to these domain rules requires approval from `@auth-agent`, `@architect` and the Guardian.

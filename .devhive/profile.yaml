@@ -6,25 +6,26 @@
 devhive_version: "2.2.0"
 
 project:
-  id: flujo-autentificacion
-  name: "Wiki DITIC"
-  mcp_name: "workspace-flujo-autentificacion"
-  description: "Sistema de documentación técnica para el INEC Ecuador con autenticación dual LDAP + local."
-  workspace_path: /workspace/flujo-autentificacion
+  id: cutternest
+  name: "CutterNest"
+  mcp_name: "workspace-cutternest-kit"
+  description: "Sistema autocontenido de optimización de cortes para fabricación de muebles (MDF, melamina, madera) con visualización 2D/3D, cotización local, inventario de sobrantes y autenticación TOTP + Guest PIN."
+  workspace_path: /workspace/cutternest-kit
   repo_root: .
-  owner: INEC Ecuador / DITIC
-  contact: example@example.com
+  owner: CutterNest Open Source
+  contact: maintainer@cutternest.example
 
 stack:
   languages:
+    - python
     - typescript
   backend:
-    framework: Express
-    runtime: Node.js
-    version: "24"
-    language: TypeScript
-    test_framework: jest
-    entry: backend/src/app.ts
+    framework: FastAPI
+    runtime: Python
+    version: "3.11"
+    language: Python
+    test_framework: pytest
+    entry: backend/app/main.py
   frontend:
     framework: React
     bundler: Vite
@@ -33,48 +34,54 @@ stack:
     test_framework: vitest
     path: frontend
   database:
-    engine: PostgreSQL
-    version: "16"
-    init_path: init-scripts
-    schema_file: init-scripts/01-init.sql
+    engine: SQLite
+    version: "3"
+    init_path: init.sql
+    schema_file: init.sql
   cache:
-    engine: Redis
-    version: "7"
-  package_manager: pnpm
+    engine: none
+  package_manager: pip / pnpm
   container_orchestrator: docker-compose
   compose_files:
     core: docker-compose.yml
-    dev: docker-compose.dev.yml
-    tunnels: docker-compose.tunnels.yml
+    fase2: docker-compose.fase2.yml
+    fase4: docker-compose.fase4.yml
   reverse_proxy: nginx
 
 paths:
   agents: .agents
   devhive: .devhive
-  backend_src: backend/src
+  backend_src: backend/app
   frontend_src: frontend/src
-  infra_docker: infra/docker
-  sms_gateway_client_dockerfile: services/sms-gateway-client/Dockerfile
-  tests: tests
+  infra_docker: ""
+  tests: backend/tests
   scripts: scripts
-  docs: docs
-  config: backend/src/config
-  middleware: backend/src/middleware
-  services: backend/src/services
-  routes: backend/src/routes
-  utils: backend/src/utils
-  types: backend/src/types
-  frontend_services: frontend/src/services
+  docs: ""
+  config: backend/app
+  middleware: backend/app
+  services: backend/app
+  routes: backend/app/routers
+  utils: backend/app
+  types: frontend/src/types
+  frontend_services: frontend/src/api
   frontend_components: frontend/src/components
   certs: certs
   data: data
-  nginx: nginx
+  nginx: frontend/nginx.conf
   guardian_scripts: .agents/guardian/scripts
-  ldap_data: data/ldap
-  tunnel_scripts: scripts/tunnel
-  tunnels: docker-compose.tunnels.yml
+  tunnel_scripts: scripts
+  ldap_data: data
 
 services:
+  backend:
+    host: backend
+    port: 8000
+  frontend:
+    host: frontend
+    port: 80
+  whatsapp_gateway:
+    host: whatsapp-gateway
+    port: 3000
   postgres:
     host: postgres
     port: 5432
@@ -84,32 +91,33 @@ services:
 
 commands:
   install: pnpm install
+  install_backend: cd backend && pip install -r requirements.txt
   install_frontend: cd frontend && pnpm install
-  test_backend: pnpm test
+  test_backend: cd backend && pytest
   test_frontend: cd frontend && pnpm test
-  build_backend: pnpm build
+  test_docker: docker compose up -d --build && docker exec cutternest-backend pytest
+  build_backend: cd backend && echo "no build step for Python backend"
   build_frontend: cd frontend && pnpm build
-  typecheck_backend: pnpm run typecheck
+  typecheck_backend: cd backend && echo "no typecheck step for Python backend"
   typecheck_frontend: cd frontend && pnpm run typecheck
-  dev_backend: pnpm run dev
-  dev_frontend: cd frontend && pnpm run dev
+  audit_backend: cd backend && echo "no audit step for Python backend"
+  dev_backend: cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  dev_frontend: cd frontend && pnpm dev
   docker_up: docker compose up -d --build --remove-orphans
-  docker_up_dev: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --remove-orphans
-  docker_up_tunnels: docker compose -f docker-compose.yml -f docker-compose.tunnels.yml --profile cloudflared up -d --build --remove-orphans
+  docker_up_fase2: docker compose -f docker-compose.yml -f docker-compose.fase2.yml up -d --build --remove-orphans
+  docker_up_fase4: docker compose -f docker-compose.yml -f docker-compose.fase2.yml -f docker-compose.fase4.yml up -d --build --remove-orphans
   docker_down: docker compose down
-  docker_down_dev: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
-  audit_backend: pnpm audit
-  audit_frontend: cd frontend && pnpm audit
-  outdated_backend: pnpm outdated
-  outdated_frontend: cd frontend && pnpm outdated
   validate_devhive: node scripts/validate-devhive.mjs
+  validate_devhive_full: node scripts/validate-devhive-full.mjs
+  optimize: node scripts/optimize.mjs
+  checkpoint: node scripts/checkpoint.mjs
+  resume: node scripts/resume.mjs
 
 agents:
   enabled:
     - architect
     - backend-agent
     - frontend-agent
-    - frontend-template-agent
     - db-agent
     - auth-agent
     - deploy-agent
@@ -119,32 +127,24 @@ agents:
   plugins:
     - code-reviewer
     - dependency-checker
-    - ldap-agent
     - integration-validator
-    - tunnel-agent
     - ui-ux-agent
 
 security:
   auth_methods:
-    - ldap
     - local
     - totp
-    - sms
-    - email
     - backup_codes
+    - guest_pin
   sensitive_env_keys:
-    - JWT_SECRET
-    - COOKIE_SECRET
+    - JWT_SECRET_KEY
     - TOTP_ENCRYPTION_KEY
-    - EMAIL_TOTP_ENCRYPTION_KEY
     - DATABASE_URL
-    - REDIS_URL
-    - LDAP_URL
   cookie_policy: httpOnly
-  min_bcrypt_rounds: 12
+  min_bcrypt_rounds: 10
   blocked_paths:
     - ".env*"
-    - "certs/server.key"
+    - "certs/*.key"
     - "certs/ca.key"
   blocked_commands:
     - "rm -rf /"
@@ -175,7 +175,7 @@ devhive:
   conventions_test: .devhive/conventions-test.md
   conventions_auth: .devhive/conventions-auth.md
   conventions_agents: .devhive/conventions-agents.md
-  sprint_archive: .devhive/sprints/archive/sprint-2026-07-completed.md
+  sprint_archive: .devhive/sprints/archive/*.md
 
 knowledge_graph:
   enabled: true

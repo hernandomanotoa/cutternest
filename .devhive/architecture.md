@@ -1,207 +1,152 @@
-# Arquitectura del Sistema
+# Arquitectura del Sistema — CutterNest
 
-## Diagrama de componentes
+## Diagrama de componentes (MVP)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         CLIENTE                             │
-│              (Navegador - React + Vite)                       │
+│              (Navegador - React + Vite + Three.js)          │
 └──────────────────────┬──────────────────────────────────────┘
-                       │ HTTPS :3443
+                       │ HTTP :3000
                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     NGINX (Proxy TLS)                         │
-│              Terminación TLS + Reverse Proxy                │
+│                     NGINX (frontend)                        │
+│              Static files + Reverse proxy /api/v1           │
 └──────────────────────┬──────────────────────────────────────┘
                        │
-         ┌─────────────┴─────────────┐
-         │                           │
-         ▼                           ▼
-┌─────────────────┐      ┌──────────────────────────┐
-│  FRONTEND       │      │  BACKEND (Node.js)       │
-│  React + Vite   │      │  Express + TypeScript    │
-│  Puerto: 5173   │      │  Puerto: 3000            │
-└─────────────────┘      └──────────┬───────────────┘
-                                    │
-              ┌─────────────────────┼─────────────────────┐
-              │                     │                     │
-              ▼                     ▼                     ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  PostgreSQL 16   │  │  Redis           │  │  LDAP            │
-│  Auth + Docs     │  │  Sessions        │  │  Corporativo     │
-│  Puerto: 5432    │  │  Rate Limit      │  │  INEC            │
-│  (host: 5431)    │  │  2FA Codes       │  │  Puerto: 389/636 │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-              │                     │                     │
-              └─────────────────────┼─────────────────────┘
-                                  │
-              ┌─────────────────────┼─────────────────────┐
-              │                     │                     │
-              ▼                     ▼                     ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  SMTP (MailHog)  │  │  SMS Simulator   │  │  pgAdmin         │
-│  Puerto: 1025    │  │  Puerto: 4000    │  │  Puerto: 5051    │
-│  WebUI: 8025     │  │                  │  │                  │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-              │                     │                     │
-              └─────────────────────┼─────────────────────┘
-                                  │
-              ┌─────────────────────┼─────────────────────┐
-              │                     │                     │
-              ▼                     ▼                     ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  Tor SOCKS5      │  │  WhatsApp        │  │                  │
-│  Proxy           │  │  Gateway         │  │                  │
-│  (Opcional)      │  │  Baileys         │  │                  │
-│  Puerto: 9150    │  │                  │  │                  │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│              BACKEND (Python 3.11 + FastAPI)                │
+│              Puerto: 8000                                     │
+│  auth · optimizer · inventory · projects · templates · pdf  │
+└──────────────┬──────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│              SQLite (./data/cutternest.db)                  │
+│  users · sessions · guest_sessions · projects · inventory   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-> **Nota sobre Docker Compose:** el diagrama agrupa todos los servicios en una sola vista, pero el proyecto ahora los separa en tres archivos:
-> - **`docker-compose.yml`** (core): PostgreSQL, Redis, backend, frontend, nginx, y los servicios del SMS Gateway privado (`sms-gateway-db`, `sms-gateway`, `sms-gateway-client`, `sms-gateway-worker`).
-> - **`docker-compose.dev.yml`** (desarrollo): `pgadmin`, `ldap-dev` (OpenLDAP de prueba), `sms-simulator`, `smtp-dev` (MailHog).
-> - **`docker-compose.tunnels.yml`** (túneles): `cloudflared`, `tailscale`, `ngrok` (perfiles).
-> 
-> El servicio `auth` solo requiere `postgres` y `cache` para arrancar; no depende de `ldap-dev` ni `smtp-dev`.
+> **Nota sobre Docker Compose:** el MVP se levanta con `docker-compose.yml` únicamente. Fases futuras amplían servicios:
+> - **`docker-compose.fase2.yml`**: PostgreSQL 15 + Redis 7 + backups automáticos.
+> - **`docker-compose.fase4.yml`**: WhatsApp gateway (Baileys) + SMS gateway.
+>
+> El MVP no requiere PostgreSQL, Redis, LDAP, SMTP, SMS ni WhatsApp.
 
 ## Grafo de Conocimiento
 
 - **Ubicación**: `.agents/knowledge-graph-agent/memory/`
-- **Propósito**: Mapeo MCP-first de componentes, dependencias y flujos de datos para reducir el consumo de tokens. MCP es la fuente de verdad; los archivos manuales son audit trail.
-- **Nodos**: stubs delgados en `.agents/knowledge-graph-agent/memory/graph/` (≤50 tokens cada uno, 74 nodos).
-  - Componentes core: `auth-service.md`, `jwt-utils.md`, `ldap-service.md`, `user-table.md`, `session-redis.md`, `totp-flow.md`, `document-service.md`, `upload-service.md`, `frontend-auth-hook.md`, `nginx-proxy.md`, `postgres-db.md`, `redis-cache.md`, `sms-gateway.md`, `sms-gateway-client.md`, `sms-gateway-db.md`, `sms-gateway-worker.md`, `system-config-db.md`, `system-config-sms.md`, `quick-tunnel-sms.md`, `docker-compose-core.md`, `docker-compose-dev.md`, `docker-compose-tunnels.md`.
-  - Servicios de desarrollo: `pgadmin.md`, `ldap-dev.md`, `sms-simulator.md`, `smtp-dev.md`.
-  - Túneles: `cloudflared.md`, `tailscale.md`, `ngrok.md`.
-  - Agente/Plugin: `tunnel-agent.md`.
-- **Relaciones**: relaciones críticas cross-cutting únicamente en `.agents/knowledge-graph-agent/memory/edges.md`. Las relaciones de código (`CALLS`, `IMPORTS`, `USAGE`) se derivan de MCP con `trace_path`.
+- **Propósito**: mapeo MCP-first de componentes, dependencias y flujos de datos para reducir el consumo de tokens. MCP es la fuente de verdad; los archivos manuales son audit trail.
+- **Nodos**: stubs delgados en `.agents/knowledge-graph-agent/memory/graph/` (≤50 tokens cada uno).
+  - Componentes core: `fastapi-backend.md`, `react-frontend.md`, `sqlite-db.md`, `nginx-proxy.md`, `auth-flow.md`, `totp-flow.md`, `guest-pin-flow.md`, `optimizer.md`, `svg-generator.md`, `pdf-generator.md`, `inventory.md`, `templates.md`, `docker-compose-mvp.md`.
+- **Relaciones**: relaciones críticas cross-cutting en `.agents/knowledge-graph-agent/memory/edges.md`. Las relaciones de código (`CALLS`, `IMPORTS`, `USAGE`) se derivan de MCP con `trace_path`.
 - **Consultas**:
   - `.agents/knowledge-graph-agent/memory/queries.md` — recetas MCP de alta frecuencia (hot load).
-  - `.agents/knowledge-graph-agent/memory/queries.cold.md` — recetas de baja frecuencia y caché estable (cold load, bajo demanda).
+  - `.agents/knowledge-graph-agent/memory/queries.cold.md` — recetas de baja frecuencia (cold load, bajo demanda).
 - **Auditoría de tokens**: `scripts/audit-stub-tokens.mjs` verifica que ningún stub exceda 50 tokens.
 
-Antes de modificar un servicio, solicitar al Guardian que consulte al `knowledge-graph-agent` vía MCP para entender el impacto en dependencias y flujos de datos. Las recetas de consulta viven en `queries.md` (hot) y `queries.cold.md` (cold).
+Antes de modificar un servicio, solicitar al Guardian que consulte al `knowledge-graph-agent` vía MCP para entender el impacto en dependencias y flujos de datos.
 
-## WhatsApp/Tor Gateway
-
-El backend expone un gateway de WhatsApp basado en `@whiskeysockets/baileys` (`backend/src/services/whatsappService.ts`). La configuración se persiste en la tabla `system_config` y se expone a través de los endpoints de `backend/src/routes/config.ts`:
-
-- `GET /api/config` (incluye `whatsappConfig`)
-- `PUT /api/config` (guarda `whatsappConfig`)
-- `GET /api/config/whatsapp-status`
-- `POST /api/config/whatsapp-reconnect`
-- `POST /api/config/whatsapp-reset`
-
-Para evitar bloqueos de firewall/antivirus en entornos corporativos, el socket de Baileys puede rutearse a través de un proxy SOCKS5 (por ejemplo, Tor) usando `socks-proxy-agent` (`SocksProxyAgent`) construido en `backend/src/utils/proxyAgent.ts`. El proxy se aplica tanto en la opción `agent` como en `fetchAgent` de `makeWASocket`. Los campos de configuración son: `enabled`, `sessionPath`, `cooldownMs`, `maxRetries`, `retryDelayMs`, `codeTtl`, `maxSends`, `sendWindow`, `proxyEnabled`, `proxyUrl` (default `socks5://172.31.0.1:9150` para WSL2 → Tor Browser en Windows).
-
-El frontend expone la configuración en la pestaña **WhatsApp** del componente `frontend/src/components/SystemConfig.tsx`. Los tipos `WhatsAppConfig`/`WhatsAppStatusResponse` están en `frontend/src/types/api.ts` y los servicios (`getWhatsAppStatus`, `reconnectWhatsApp`, `resetWhatsApp`) en `frontend/src/services/auth.ts`.
-
-## Flujo de autentificación
+## Flujo de autenticación
 
 ```
-1. Usuario ingresa credenciales
+1. Registro
+   Usuario crea username/password
+   Backend genera TOTP secret + QR base64 + 10 backup codes
    ↓
-2. Backend valida:
-   a. Si LDAP: consulta LDAP → valida contraseña → sincroniza atributos
-   b. Si local: bcrypt.compare → valida contraseña
+2. Login step 1
+   POST /api/v1/auth/login con username/password
+   Backend devuelve mensaje y setea temp_token como cookie httpOnly
    ↓
-3. Si 2FA requerido:
-   a. TOTP app: valida speakeasy.totp.verify
-   b. TOTP email: envía código SMTP → valida en Redis
-   c. TOTP SMS: envía código API → valida en Redis
-   d. Backup codes: valida contra PostgreSQL
+3. Verificación TOTP / backup
+   POST /api/v1/auth/verify con { code }
+   Backend lee temp_token de cookie, valida TOTP o backup code
+   Setea access_token y refresh_token como cookies httpOnly
+   Invalida temp_token
    ↓
-4. Genera tokens:
-   - accessToken (JWT, corto)
-   - refreshToken (JWT, largo, en cookie httpOnly)
-   - sessionToken (sesión Redis)
+4. Sesión autenticada
+   access_token en cookie para requests a /api/v1/*
+   refresh_token en cookie para /api/v1/auth/refresh
    ↓
-5. Registra sesión en Redis + audit_log en PostgreSQL
-   ↓
-6. Devuelve cookies httpOnly al frontend
+5. Logout
+   POST /api/v1/auth/logout
+   Revoca sesión y limpia cookies
 ```
 
-## Modelo de datos (simplificado)
+## Guest PIN
+
+```
+1. Usuario principal genera PIN
+   POST /api/v1/auth/guest/pin (requiere auth)
+   Backend crea guest_session con PIN de 4 dígitos, expira en 5 min
+   ↓
+2. Operario ingresa PIN
+   POST /api/v1/auth/guest/login con { pin }
+   Backend valida PIN no usado, no revocado, no expirado
+   Setea access_token como cookie httpOnly
+   ↓
+3. Sesión guest
+   Acceso limitado a funciones marcadas como guestAllowed
+   No puede ver proyectos de otros ni administrar usuarios
+```
+
+## Modelo de datos (MVP)
 
 ```
 users
 ├── id (PK)
 ├── username (UNIQUE)
 ├── email
-├── phone_number
-├── password_hash (solo local)
-├── ldap_dn (solo LDAP)
-├── identity_origin ('LDAP' | 'LOCAL' | 'SUPER')
-├── roles (array)
-├── totp_enabled
-├── totp_secret (encriptado)
-├── totp_secret_pending (encriptado)
-├── active
-├── failed_attempts
-├── locked_until
-├── last_login
-├── created_at
-└── updated_at
+├── password_hash
+├── totp_secret_encrypted
+├── role
+├── is_active
+└── created_at
 
 sessions
 ├── id (PK)
 ├── user_id (FK)
-├── token
-├── fingerprint
-├── ip_address
-├── user_agent
+├── refresh_token_hash
 ├── expires_at
-├── revoked
+├── revoked_at
 └── created_at
 
-audit_logs
+guest_sessions
 ├── id (PK)
-├── user_id (FK)
-├── action
-├── entity_type
-├── entity_id
-├── old_value (JSONB)
-├── new_value (JSONB)
-├── ip_address
-├── user_agent
-├── session_id
-├── success
-├── error_message
+├── pin
+├── created_by (FK → users)
+├── used_at
+├── revoked_at
+├── expires_at
 └── created_at
 
-documents
+projects
 ├── id (PK)
-├── title
-├── slug (UNIQUE)
-├── content_raw (Markdown)
-├── content_html
-├── metadata_json (JSONB)
-├── category
-├── tags (array)
-├── author_id (FK)
-├── visibility
-├── version
-├── view_count
+├── owner_id (FK → users)
+├── name
+├── description
+├── board_width_cm
+├── board_height_cm
+├── board_thickness_mm
+├── kerf_mm
+├── margin_mm
+├── material_type
+├── use_offcuts
+├── pieces (JSON)
+├── layouts (JSON)
 ├── created_at
 └── updated_at
 
-uploads
+inventory
 ├── id (PK)
-├── filename
-├── original_name
-├── mime_type
-├── size_bytes
-├── path
-├── uploaded_by (FK)
-├── document_id (FK)
-└── created_at
-
-trusted_devices
-├── id (PK)
-├── user_id (FK)
-├── device_token
-├── fingerprint
-├── ip_address
-├── user_agent
-├── expires_at
+├── tipo
+├── espesor_mm
+├── ancho_cm
+├── alto_cm
+├── cantidad
+├── estado
+├── area_m2
+├── proyecto_origen
 └── created_at
 ```
