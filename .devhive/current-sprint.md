@@ -28,7 +28,7 @@ Consolidar el MVP funcional y seguro de CutterNest, alinear el equipo de agentes
 | D2 | Actualizar `architecture.md`, `domain-rules.md`, `security-policy.md`, `guardian/SKILL.md` | Guardian | ✅ Completado | Documentos adaptados al MVP. |
 | D3 | Limpiar stubs y memorias obsoletas | Guardian | ✅ Completado | Stubs, audit logs y agentes/plugins no usados (LDAP, tunnel, frontend-template) archivados en `.agents/memory/archive/`. |
 | D4 | Crear ADRs para decisiones críticas recientes | Guardian | ✅ Completado | 5 ADRs en `.devhive/decisions/`: PyJWT, cookies httpOnly, TOTP cifrado, rate limiting, DevHive DCOP. |
-| D5 | Reindexar MCP y versionar cambios | Guardian | 🔄 En progreso | Validación DevHive full pasa; pendiente tests + reindex + commit. |
+| D5 | Reindexar MCP y versionar cambios | Guardian | ✅ Completado | MCP reindexado (1282 nodos, 2897 aristas); commit `ef50d07`. Validación full pasa. |
 
 ## Leyenda estados
 
@@ -64,10 +64,9 @@ Ninguno.
 
 ## Next actions
 
-1. Limpiar stubs y memorias obsoletas del proyecto anterior.
-2. Crear ADRs formales en `.devhive/decisions/`.
-3. Ejecutar `#optimize` o `#checkpoint` para refrescar `session-state.md` y `optimization.log`.
-4. Reindexar MCP y versionar.
+1. Continuar iteraciones de funcionalidad sobre el MVP (optimizador 3D, mejoras UI, reportes).
+2. Mantener ADRs actualizados ante nuevas decisiones arquitectónicas.
+3. Ejecutar `#optimize` periódicamente según DCOP.
 
 ## Criterios de éxito del MVP
 
