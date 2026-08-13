@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, type ChangeEvent } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import toast from 'react-hot-toast'
 import { Link, useLocation } from 'react-router-dom'
@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '../../utils/apiError'
 import type { BoardResult, PieceInput, Project } from '../../types'
 import { Tablero3D } from './Tablero3D'
 import { Layout2D } from './Layout2D'
+import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 
 const ejemploEstanteria: PieceInput[] = [
   { id: 'base', nombre: 'Base', ancho: 120, alto: 60, cantidad: 1, rotar: true, color: '#FF6B6B', espesor: 18, cantos: 'T,B,L,R' },
@@ -48,6 +49,7 @@ export function OptimizerPage() {
   const [view3D, setView3D] = useState(false)
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const addPiece = () => {
     if (!currentPiece.nombre || currentPiece.ancho <= 0 || currentPiece.alto <= 0) {
@@ -66,6 +68,34 @@ export function OptimizerPage() {
   const cargarEjemplo = () => {
     setPiezas([...ejemploEstanteria])
     toast.success('Ejemplo cargado: Estanteria Modular')
+  }
+
+  const descargarCsv = () => {
+    const csv = generateCsv(piezas)
+    const slug = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    downloadCsv(csv, `${slug || 'proyecto'}-piezas.csv`)
+  }
+
+  const cargarCsv = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = String(event.target?.result || '')
+      const result = parseCsv(text)
+      if (result.valid) {
+        setPiezas(result.pieces)
+        toast.success(`${result.pieces.length} piezas cargadas desde el archivo`)
+      } else {
+        toast.error(result.error)
+      }
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+    reader.onerror = () => {
+      toast.error('Error al leer el archivo')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+    reader.readAsText(file)
   }
 
   useEffect(() => {
@@ -216,7 +246,10 @@ export function OptimizerPage() {
             <div className='card'>
               <div className='flex items-center justify-between mb-4'>
                 <h2 className='text-lg font-semibold'>Piezas ({piezas.length})</h2>
-                <div className='flex gap-2'>
+                <div className='flex gap-2 flex-wrap'>
+                  <button onClick={descargarCsv} className='btn-secondary text-sm'>Descargar formato</button>
+                  <button onClick={() => fileInputRef.current?.click()} className='btn-secondary text-sm'>Cargar piezas</button>
+                  <input ref={fileInputRef} type='file' accept='.csv' onChange={cargarCsv} className='hidden' />
                   <button onClick={cargarEjemplo} className='btn-secondary text-sm'>Cargar ejemplo</button>
                   <button onClick={() => setPiezas([])} className='btn-secondary text-sm'>Limpiar</button>
                 </div>
