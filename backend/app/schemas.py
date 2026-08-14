@@ -224,16 +224,36 @@ class QuoteRead(BaseModel):
 
 
 # Ensamblaje
+class Point3D(BaseModel):
+    x: float
+    y: float
+    z: float
+
+
+class AssemblyPiece3D(BaseModel):
+    id: str
+    nombre: str
+    ancho: float
+    alto: float
+    profundidad: float
+    color: str
+    posicion: Point3D
+    rotacion: Point3D
+
+
 class AssemblyStep(BaseModel):
     numero: int
     titulo: str
+    descripcion: str
     piezas: List[str]
+    piezas_3d: List[AssemblyPiece3D]
     herramientas: List[str]
     tiempo_estimado_min: int
 
 
 class AssemblyResponse(BaseModel):
     pasos: List[AssemblyStep]
+    vista_completa: List[AssemblyPiece3D]
 
 
 # Reportes

@@ -118,10 +118,34 @@ export interface Quote {
   created_at: string;
 }
 
+export interface Point3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface AssemblyPiece3D {
+  id: string;
+  nombre: string;
+  ancho: number;
+  alto: number;
+  profundidad: number;
+  color: string;
+  posicion: Point3D;
+  rotacion: Point3D;
+}
+
 export interface AssemblyStep {
   numero: number;
   titulo: string;
+  descripcion: string;
   piezas: string[];
+  piezas_3d: AssemblyPiece3D[];
   herramientas: string[];
   tiempo_estimado_min: number;
+}
+
+export interface AssemblyResponse {
+  pasos: AssemblyStep[];
+  vista_completa: AssemblyPiece3D[];
 }
