@@ -19,6 +19,7 @@ from app.schemas import (
     AssemblyResponse,
     AssemblyStepValidation,
     OptimizeRequest,
+    PiecesUpdateRequest,
     ProjectCreate,
     ProjectRead,
     QuoteRequest,
@@ -67,6 +68,17 @@ def optimize_project(
 ):
     require_project_owner(db, project_id, current_user)
     return projects_service.optimize_project(db, project_id, payload)
+
+
+@router.post("/{project_id}/pieces", response_model=AssemblyResponse)
+def update_pieces(
+    project_id: str,
+    payload: PiecesUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_project_owner(db, project_id, current_user)
+    return projects_service.save_pieces(db, project_id, [p.model_dump() for p in payload.piezas])
 
 
 @router.get("/{project_id}/layouts")

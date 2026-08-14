@@ -50,7 +50,8 @@ def list_projects(db: Session, owner: Optional[User] = None) -> List[Project]:
 
 
 def add_pieces_to_project(db: Session, project: Project, pieces: List[Dict[str, Any]]) -> Project:
-    for p in pieces:
+    coded_pieces = assembly_service.assign_piece_codes(pieces)
+    for p in coded_pieces:
         db.add(
             Piece(
                 project_id=project.id,
@@ -70,6 +71,16 @@ def add_pieces_to_project(db: Session, project: Project, pieces: List[Dict[str, 
     return project
 
 
+def save_pieces(db: Session, project_id: str, pieces: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Guarda/reemplaza las piezas de un proyecto sin optimizar. Genera el ensamblaje."""
+    project = get_project(db, project_id)
+    db.query(Piece).filter(Piece.project_id == project.id).delete()
+    db.query(Layout).filter(Layout.project_id == project.id).delete()
+    db.commit()
+    add_pieces_to_project(db, project, pieces)
+    return assembly_service.generate_for_project(db, project.id)
+
+
 def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> Dict[str, Any]:
     project = get_project(db, project_id)
 
@@ -80,6 +91,8 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
         project.board_thickness_mm = payload.tablero.espesor
         project.kerf_mm = payload.tablero.kerf_mm
         project.margin_mm = payload.tablero.margen_mm
+    if payload.material_type:
+        project.material_type = payload.material_type
     project.use_offcuts = payload.usar_sobrantes
     db.commit()
 

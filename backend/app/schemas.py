@@ -82,12 +82,18 @@ class PieceInput(BaseModel):
     color: str = "#3B82F6"
     espesor: float = 18.0
     cantos: Optional[str] = ""
+    modulo: Optional[str] = None
 
 
 class OptimizeRequest(BaseModel):
     tablero: BoardInput
     piezas: List[PieceInput]
     usar_sobrantes: bool = False
+    material_type: Optional[str] = None
+
+
+class PiecesUpdateRequest(BaseModel):
+    piezas: List[PieceInput]
 
 
 class PlacementRead(BaseModel):
@@ -197,7 +203,7 @@ class HardwareItem(BaseModel):
 
 class QuoteRequest(BaseModel):
     hardware: List[HardwareItem]
-    costo_m2_mdf: float = Field(..., gt=0)
+    costo_m2_mdf: Optional[float] = Field(None, ge=0)
     costo_hora_mano_obra: float = Field(..., gt=0)
     margen: float = Field(1.3, gt=1.0)
 

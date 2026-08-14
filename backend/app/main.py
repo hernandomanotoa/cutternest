@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.limiter import limiter
 from app.models import BackupCode
-from app.routers import auth, optimizer, inventory, projects, templates
+from app.routers import auth, catalog, optimizer, inventory, projects, templates
 
 settings = get_settings()
 
@@ -74,6 +74,7 @@ async def health_check():
     return {'status': 'ok', 'version': '1.0.0'}
 
 app.include_router(auth.router, prefix='/api/v1/auth', tags=['auth'])
+app.include_router(catalog.router, prefix='/api/v1', tags=['catalog'])
 app.include_router(optimizer.router, prefix='/api/v1', tags=['optimizer'])
 app.include_router(inventory.router, prefix='/api/v1/inventory', tags=['inventory'])
 app.include_router(projects.router, prefix='/api/v1/projects', tags=['projects'])

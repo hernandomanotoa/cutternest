@@ -14,6 +14,7 @@ describe('piecesCsv', () => {
       color: '#FF6B6B',
       espesor: 18,
       cantos: 'T,B,L,R',
+      modulo: undefined,
     },
     {
       id: 'lateral-izq',
@@ -25,6 +26,7 @@ describe('piecesCsv', () => {
       color: '#45B7D1',
       espesor: 18,
       cantos: 'T,B,L',
+      modulo: undefined,
     },
   ]
 
@@ -32,9 +34,9 @@ describe('piecesCsv', () => {
     const csv = generateCsv(sample)
     expect(csv).toContain('CutterNest Piezas v1')
     expect(csv).toContain(`hash: ${TEMPLATE_HASH}`)
-    expect(csv).toContain('id,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos')
-    expect(csv).toContain('Base,120,60,1,si,#FF6B6B,18,"T,B,L,R"')
-    expect(csv).toContain('Lateral Izq,50,180,2,no,#45B7D1,18,"T,B,L"')
+    expect(csv).toContain('id,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos,modulo')
+    expect(csv).toContain('Base,120,60,1,si,#FF6B6B,18,"T,B,L,R",')
+    expect(csv).toContain('Lateral Izq,50,180,2,no,#45B7D1,18,"T,B,L",')
   })
 
   it('parses a generated CSV and returns pieces', () => {
@@ -47,27 +49,35 @@ describe('piecesCsv', () => {
     expect(result.pieces[1]).toEqual(sample[1])
   })
 
-  it('rejects CSV with missing version header', () => {
-    const result = parseCsv('id,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\n')
-    expect(result.valid).toBe(false)
-    if (result.valid) return
-    expect(result.error).toContain('cabecera')
-  })
-
-  it('rejects CSV with wrong template hash', () => {
+  it('accepts CSV with missing or unknown hash', () => {
     const csv = '# CutterNest Piezas v1\n# hash: 0000000000000000000000000000000000000000000000000000000000000000\nid,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\n'
     const result = parseCsv(csv)
-    expect(result.valid).toBe(false)
-    if (result.valid) return
-    expect(result.error).toContain('hash')
+    expect(result.valid).toBe(true)
+    if (!result.valid) return
+    expect(result.pieces).toHaveLength(0)
   })
 
+  it('parses CSV with optional modulo column', () => {
+    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos,modulo\nbase,Base,120,60,1,si,#FF6B6B,18,,SUP-M01`
+    const result = parseCsv(csv)
+    expect(result.valid).toBe(true)
+    if (!result.valid) return
+    expect(result.pieces).toHaveLength(1)
+    expect(result.pieces[0].modulo).toBe('SUP-M01')
+  })
   it('rejects CSV with wrong columns', () => {
     const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nnombre,ancho\nBase,120\n`
     const result = parseCsv(csv)
     expect(result.valid).toBe(false)
     if (result.valid) return
     expect(result.error).toContain('columnas')
+  })
+
+  it('rejects CSV with missing version header', () => {
+    const result = parseCsv('id,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\n')
+    expect(result.valid).toBe(false)
+    if (result.valid) return
+    expect(result.error).toContain('cabecera')
   })
 
   it('rejects row with invalid dimensions', () => {

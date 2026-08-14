@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { api } from '../../api/client'
-import type { HardwareItem } from '../../types'
+import type { HardwareItem, Project, CatalogResponse, CatalogMaterial } from '../../types'
 import { getApiErrorMessage } from '../../utils/apiError'
+import { fetchCatalog } from '../../utils/catalog'
 
 export function QuotePage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -13,6 +14,33 @@ export function QuotePage() {
   const [costoHora, setCostoHora] = useState(5.0)
   const [margen, setMargen] = useState(1.3)
   const [result, setResult] = useState<any>(null)
+  const [project, setProject] = useState<Project | null>(null)
+  const [catalog, setCatalog] = useState<CatalogResponse | null>(null)
+
+  useEffect(() => {
+    if (!projectId) return
+    api.get(`/projects/${projectId}`)
+      .then((res) => {
+        const p: Project = res.data
+        setProject(p)
+      })
+      .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar proyecto'))
+    fetchCatalog()
+      .then((data) => {
+        setCatalog(data)
+      })
+      .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar catálogo'))
+  }, [projectId])
+
+  useEffect(() => {
+    if (!project || !catalog) return
+    const material = catalog.materials.find((m: CatalogMaterial) => m.name === (project.material_type || 'MDF Melamina'))
+    const thickness = project.board_thickness_mm || 18
+    const price = material?.prices?.[String(thickness)]
+    if (price) {
+      setCostoM2(price)
+    }
+  }, [project, catalog])
 
   const addItem = () => {
     if (!itemForm.item) return
@@ -44,6 +72,24 @@ export function QuotePage() {
     <div className='min-h-screen bg-gray-50 p-4 md:p-6'>
       <div className='max-w-4xl mx-auto'>
         <h1 className='text-2xl font-bold text-slate-800 mb-6'>Cotizacion</h1>
+        {project && (
+          <div className='card mb-6'>
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-700'>
+              <div>
+                <span className='block text-xs font-medium text-slate-500'>Material</span>
+                {project.material_type || 'MDF Melamina'}
+              </div>
+              <div>
+                <span className='block text-xs font-medium text-slate-500'>Espesor</span>
+                {project.board_thickness_mm || 18} mm
+              </div>
+              <div>
+                <span className='block text-xs font-medium text-slate-500'>Formato</span>
+                {project.board_width_cm}×{project.board_height_cm} cm
+              </div>
+            </div>
+          </div>
+        )}
         <div className='card mb-6'>
           <h2 className='text-lg font-semibold mb-4'>Hardware</h2>
           <div className='grid grid-cols-1 md:grid-cols-4 gap-3 mb-3'>
@@ -62,7 +108,7 @@ export function QuotePage() {
           </ul>
           <div className='grid grid-cols-1 md:grid-cols-3 gap-3 mt-4'>
             <div>
-              <label className='block text-xs font-medium text-slate-600 mb-1'>Costo m2 MDF</label>
+              <label className='block text-xs font-medium text-slate-600 mb-1'>Costo m2 material (USD)</label>
               <input type='number' value={costoM2} onChange={(e) => setCostoM2(parseFloat(e.target.value) || 0)} className='input-field' />
             </div>
             <div>

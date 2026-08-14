@@ -2,6 +2,7 @@ import math
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -110,6 +111,34 @@ def _piece_type(piece: Piece) -> str:
     return "other"
 
 
+def _type_by_dimensions(width_cm: float, height_cm: float, thickness_mm: float) -> str:
+    """Clasificación genérica por proporciones cuando no hay keyword."""
+    w = width_cm
+    h = height_cm
+    t = thickness_mm / 10.0  # cm
+    if w > 0 and h > 0:
+        ratio = max(w, h) / min(w, h)
+        thin = min(w, h) <= t * 2.5
+        if thin:
+            return "fondo"
+        if ratio >= 3.0:
+            if h > w:
+                return "lateral"
+            return "base"
+        if ratio >= 1.5:
+            if h > w:
+                return "lateral"
+            return "estante"
+    return "other"
+
+
+def _piece_type_with_fallback(piece: Piece) -> str:
+    kind = _piece_type(piece)
+    if kind != "other":
+        return kind
+    return _type_by_dimensions(piece.width_cm, piece.height_cm, piece.thickness_mm)
+
+
 def _infer_module(piece: Piece) -> str:
     match = _MODULE_RE.match(piece.external_id)
     if match:
@@ -133,6 +162,64 @@ def _module_category(module_code: str, pieces: List[Piece]) -> str:
     if has_inf:
         return "INF"
     return "GLOBAL"
+
+
+def _parse_module_override(modulo: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """Devuelve (categoria, codigo_modulo) desde un string como 'SUP-M01' o 'M01'."""
+    if not modulo:
+        return None, None
+    text = modulo.strip().upper()
+    cat: Optional[str] = None
+    if text.startswith("SUP"):
+        cat = "SUP"
+    elif text.startswith("INF"):
+        cat = "INF"
+    match = _MODULE_RE.search(text)
+    if match:
+        return cat, f"M{int(match.group(2)):02d}"
+    return cat, None
+
+
+def assign_piece_codes(pieces: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Asigna external_id canónico [CAT]-[MOD]-[TIPO]-[SEQ] a cada pieza.
+
+    - Si la pieza trae 'modulo', se usa para derivar categoría y código de módulo.
+    - Se infiere el tipo por nombre y, como fallback, por dimensiones.
+    - El resultado conserva todos los demás campos y reemplaza 'id' por el código.
+    """
+    seq_by_module_type: Dict[Tuple[str, str], int] = {}
+    result: List[Dict[str, Any]] = []
+
+    for p in pieces:
+        cat_override, module_override = _parse_module_override(p.get("modulo"))
+        dummy = SimpleNamespace(
+            external_id=str(p.get("id", "")),
+            name=str(p.get("nombre", "")),
+            width_cm=float(p.get("ancho", 0) or 0),
+            height_cm=float(p.get("alto", 0) or 0),
+            thickness_mm=float(p.get("espesor", 18) or 18),
+        )
+        kind = _piece_type_with_fallback(dummy)
+        module_code = module_override or _infer_module(dummy)
+        if module_code == "GLB":
+            module_code = "M01"
+
+        cat = cat_override or "GLB"
+        if not cat_override:
+            text = f"{dummy.external_id.lower()} {dummy.name.lower()}"
+            if any(k in text for k in ["sup", "alto", "top", "colgante", "superior"]):
+                cat = "SUP"
+            elif any(k in text for k in ["inf", "bajo", "bottom", "zocalo", "inferior"]):
+                cat = "INF"
+
+        seq_key = (module_code, kind)
+        seq = seq_by_module_type.get(seq_key, 0) + 1
+        seq_by_module_type[seq_key] = seq
+        code = _piece_code(cat, module_code, kind, seq)
+        updated = dict(p)
+        updated["id"] = code
+        result.append(updated)
+    return result
 
 
 def _type_abbr(kind: str) -> str:
@@ -365,7 +452,7 @@ class AssemblyEngine:
             if left_div:
                 placed.append(_build_division_piece(left_div, mod, "left", left_piece))
             elif left_piece:
-                placed.append(_build_placed_piece(left_piece, mod, "lateral_izq", seq_by_module_type[mod.code]))
+                placed.append(_build_placed_piece(left_piece, mod, "lateral_izq", seq_by_module_type[mod.code], seq_key="lateral"))
             elif len(modules) == 1:
                 # Fallback: un único módulo sin laterales no genera lateral ficticio
                 pass
@@ -375,7 +462,7 @@ class AssemblyEngine:
             if right_div:
                 placed.append(_build_division_piece(right_div, mod, "right", right_piece))
             elif right_piece:
-                placed.append(_build_placed_piece(right_piece, mod, "lateral_der", seq_by_module_type[mod.code]))
+                placed.append(_build_placed_piece(right_piece, mod, "lateral_der", seq_by_module_type[mod.code], seq_key="lateral"))
 
             # Base
             if base:
@@ -404,6 +491,13 @@ class AssemblyEngine:
             # Puertas
             for idx, p in enumerate(puertas):
                 placed.append(_build_placed_piece(p, mod, "puerta", seq_by_module_type[mod.code], index=idx, count=len(puertas)))
+
+            # Piezas genéricas no clasificadas (other)
+            placed_codes = {pp.piece_id for pp in placed if pp.module_code == mod.code}
+            for p in mod_pieces:
+                if p.id not in placed_codes and _piece_type_with_fallback(p) == "other":
+                    placed.append(_build_placed_piece(p, mod, "other", seq_by_module_type[mod.code]))
+                    placed_codes.add(p.id)
 
         # 5. Generar conectores
         connectors = _generate_connectors(placed, modules, divisions)
@@ -886,14 +980,14 @@ def update_progress(db: Session, step_id: str, update: AssemblyProgressUpdate) -
 # -----------------------------------------------------------------------------
 def _thickness_of_kind(pieces: List[Piece], kind: str) -> Optional[float]:
     for p in pieces:
-        if _piece_type(p) == kind or (kind == "lateral" and _piece_type(p).startswith("lateral")):
+        if _piece_type_with_fallback(p) == kind or (kind == "lateral" and _piece_type_with_fallback(p).startswith("lateral")):
             return float(p.thickness_mm)
     return None
 
 
 def _module_width(pieces: List[Piece]) -> float:
     horizontals = {"base", "tapa", "estante", "repisa", "puerta", "zapatero", "zocalo", "cajon"}
-    vals = [_to_mm(p.width_cm) for p in pieces if _piece_type(p) in horizontals]
+    vals = [_to_mm(p.width_cm) for p in pieces if _piece_type_with_fallback(p) in horizontals]
     if not vals:
         vals = [_to_mm(p.width_cm) for p in pieces]
     return max(vals, default=0.0)
@@ -901,7 +995,7 @@ def _module_width(pieces: List[Piece]) -> float:
 
 def _module_height(pieces: List[Piece]) -> float:
     verticals = {"lateral", "lateral_izq", "lateral_der", "fondo", "puerta"}
-    vals = [_to_mm(p.height_cm) for p in pieces if _piece_type(p) in verticals]
+    vals = [_to_mm(p.height_cm) for p in pieces if _piece_type_with_fallback(p) in verticals]
     if not vals:
         vals = [_to_mm(p.height_cm) for p in pieces]
     return max(vals, default=0.0)
@@ -911,7 +1005,7 @@ def _module_depth(pieces: List[Piece]) -> float:
     # Laterales aportan su ancho como profundidad; base/tapa aportan su alto; fondo/puerta su espesor
     vals: List[float] = []
     for p in pieces:
-        kind = _piece_type(p)
+        kind = _piece_type_with_fallback(p)
         if kind.startswith("lateral"):
             vals.append(_to_mm(p.width_cm))
         elif kind in ("base", "tapa", "estante", "repisa", "zapatero", "zocalo", "cajon"):
@@ -930,13 +1024,13 @@ def _higher_category(a: str, b: str) -> str:
 
 def _first_of_kind(pieces: List[Piece], kind: str) -> Optional[Piece]:
     for p in pieces:
-        if _piece_type(p) == kind:
+        if _piece_type_with_fallback(p) == kind:
             return p
     return None
 
 
 def _all_of_kind(pieces: List[Piece], kind: str) -> List[Piece]:
-    return [p for p in pieces if _piece_type(p) == kind]
+    return [p for p in pieces if _piece_type_with_fallback(p) == kind]
 
 
 def _next_seq(seqs: Dict[str, int], kind: str) -> int:
@@ -951,8 +1045,9 @@ def _build_placed_piece(
     seqs: Dict[str, int],
     index: int = 0,
     count: int = 1,
+    seq_key: Optional[str] = None,
 ) -> _PlacedPiece:
-    code = _piece_code(mod.category, mod.code, kind, _next_seq(seqs, kind))
+    code = _piece_code(mod.category, mod.code, seq_key or kind, _next_seq(seqs, seq_key or kind))
     dims = _box_dimensions(piece, kind)
     width_mm, height_mm, depth_mm = dims
     position = _position_for_kind(kind, mod, dims, index, count, piece)
@@ -1390,6 +1485,28 @@ def _steps_for_module(
             pieces=fondo_pieces,
             connectors=_mod_connectors([p.code for p in fondo_pieces]),
             tools=_STEP_TOOLS["fondo"],
+            tiempo=15,
+            dependencies=deps,
+            modules=modules,
+            divisions=divisions,
+        ))
+        n += 1
+
+    handled_kinds = {
+        "base", "pata", "lateral", "lateral_izq", "lateral_der", "division",
+        "estante", "repisa", "tapa", "fondo",
+    }
+    remaining_pieces = [p for p in mod_pieces if p.kind not in handled_kinds]
+    if remaining_pieces:
+        deps = [steps[-1].code] if steps else []
+        steps.append(_create_step(
+            step_number=n,
+            title="Colocar piezas restantes",
+            description="Fijar las piezas adicionales del módulo según el plano.",
+            module_code=mod.code,
+            pieces=remaining_pieces,
+            connectors=_mod_connectors([p.code for p in remaining_pieces]),
+            tools=["Destornillador", "Taladro", "Nivel"],
             tiempo=15,
             dependencies=deps,
             modules=modules,

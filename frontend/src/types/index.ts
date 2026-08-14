@@ -31,6 +31,7 @@ export interface PieceInput {
   color: string;
   espesor: number;
   cantos?: string;
+  modulo?: string;
 }
 
 export interface Placement {
@@ -223,4 +224,29 @@ export interface AssemblyValidationResult {
 export interface AssemblyProgressUpdate {
   piece_updates?: Record<string, Transform3D>;
   status?: string;
+}
+
+export interface BoardFormat {
+  name: string;
+  width_cm: number;
+  height_cm: number;
+  country: string;
+}
+
+export interface CatalogMaterial {
+  name: string;
+  description: string;
+  thicknesses: number[];
+  prices: Record<string, number>;
+}
+
+export interface CatalogColor {
+  name: string;
+  hex: string;
+}
+
+export interface CatalogResponse {
+  board_formats: BoardFormat[];
+  materials: CatalogMaterial[];
+  colors: CatalogColor[];
 }

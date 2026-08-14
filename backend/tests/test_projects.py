@@ -89,3 +89,56 @@ def test_guest_cannot_access_projects():
 
     response = client.post("/api/v1/projects", json={"name": "Proyecto Guest"})
     assert response.status_code == 401
+
+
+def test_catalog_returns_materials_and_formats():
+    _register_and_login("catalog_user")
+    response = client.get("/api/v1/catalog")
+    assert response.status_code == 200
+    data = response.json()
+    assert "board_formats" in data
+    assert "materials" in data
+    assert "colors" in data
+    assert any("Ecuador" in f["name"] for f in data["board_formats"])
+    assert any("MDF Melamina" == m["name"] for m in data["materials"])
+
+
+def test_quote_uses_catalog_price_when_costo_not_provided():
+    _register_and_login("quote_catalog_user")
+
+    response = client.post(
+        "/api/v1/projects",
+        json={
+            "name": "Cotización con catálogo",
+            "board_width_cm": 183,
+            "board_height_cm": 244,
+            "board_thickness_mm": 18,
+            "material_type": "MDF Melamina",
+        },
+    )
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/optimize",
+        json={
+            "tablero": {"ancho": 183, "alto": 244, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
+            "piezas": [
+                {"id": "base", "nombre": "Base", "ancho": 90, "alto": 60, "cantidad": 1, "rotar": True, "color": "#FFFFFF", "espesor": 18},
+            ],
+            "usar_sobrantes": False,
+        },
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/quote",
+        json={
+            "hardware": [],
+            "costo_hora_mano_obra": 5.0,
+            "margen": 1.3,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["breakdown"]["material"] > 0

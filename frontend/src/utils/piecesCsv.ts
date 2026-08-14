@@ -1,11 +1,14 @@
 import type { PieceInput } from '../types'
 
 const VERSION = 'CutterNest Piezas v1'
-const COLUMNS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotar', 'color', 'espesor', 'cantos']
-const TEMPLATE_HASH = '41b6fc80116d1355fdf3971fcb4361d9d2a1ce7958f9c369a7925dddfd69cf49'
+const BASE_COLUMNS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotar', 'color', 'espesor', 'cantos']
+const OPTIONAL_COLUMNS = ['modulo']
+const COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS]
+// Hash refleja el formato con modulo como columna opcional
+const TEMPLATE_HASH = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2'
 const BOM = '\uFEFF'
 
-export { VERSION, COLUMNS, TEMPLATE_HASH }
+export { VERSION, BASE_COLUMNS, OPTIONAL_COLUMNS, COLUMNS, TEMPLATE_HASH }
 
 function escapeCsv(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
@@ -46,6 +49,11 @@ function parseCsvLine(line: string): string[] {
   return values
 }
 
+function headerMatches(actual: string[], expected: string[]): boolean {
+  if (actual.length < expected.length) return false
+  return expected.every((h, i) => h === actual[i])
+}
+
 export function generateCsv(pieces: PieceInput[]): string {
   const header = `# ${VERSION}\n# hash: ${TEMPLATE_HASH}\n${COLUMNS.join(',')}\n`
   const rows = pieces
@@ -60,6 +68,7 @@ export function generateCsv(pieces: PieceInput[]): string {
         p.color,
         String(p.espesor),
         escapeCsv(p.cantos || ''),
+        escapeCsv(p.modulo || ''),
       ].join(',')
     )
     .join('\n')
@@ -71,16 +80,11 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
   const lines = normalized.split(/\r?\n/).map((l) => l.trim())
 
   let versionOk = false
-  let hashOk = false
   let header: string[] | null = null
 
   for (const line of lines) {
     if (line === '' || line.startsWith('#')) {
       if (line.includes(VERSION)) versionOk = true
-      if (line.startsWith('# hash:')) {
-        const hash = line.replace('# hash:', '').trim()
-        if (hash === TEMPLATE_HASH) hashOk = true
-      }
       continue
     }
     if (header === null) {
@@ -92,15 +96,16 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
   if (!versionOk) {
     return { valid: false, error: 'Archivo no reconocido: falta la cabecera de CutterNest Piezas' }
   }
-  if (!hashOk) {
-    return { valid: false, error: 'Archivo no valido: el hash de formato no coincide' }
-  }
   if (header === null) {
     return { valid: false, error: 'Archivo no valido: falta la fila de encabezados' }
   }
-  if (header.length !== COLUMNS.length || header.some((h, i) => h !== COLUMNS[i])) {
-    return { valid: false, error: `Archivo no valido: las columnas deben ser ${COLUMNS.join(', ')}` }
+  const hasModulo = header.length === COLUMNS.length && headerMatches(header, COLUMNS)
+  const baseOnly = header.length === BASE_COLUMNS.length && headerMatches(header, BASE_COLUMNS)
+  if (!hasModulo && !baseOnly) {
+    return { valid: false, error: `Archivo no valido: las columnas deben ser ${BASE_COLUMNS.join(', ')} (opcionalmente seguido de modulo)` }
   }
+
+  const hasModuloCol = hasModulo
 
   const pieces: PieceInput[] = []
   let rowIndex = 0
@@ -112,10 +117,22 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
     }
     rowIndex++
     const values = parseCsvLine(line).map((v) => unescapeCsv(v).trim())
-    if (values.length !== COLUMNS.length) {
+    const expectedCols = hasModuloCol ? COLUMNS.length : BASE_COLUMNS.length
+    if (values.length !== expectedCols) {
       return { valid: false, error: `Fila ${rowIndex}: numero de columnas incorrecto` }
     }
-    const [id, nombre, anchoStr, altoStr, cantidadStr, rotarStr, color, espesorStr, cantos] = values
+    const [
+      id,
+      nombre,
+      anchoStr,
+      altoStr,
+      cantidadStr,
+      rotarStr,
+      color,
+      espesorStr,
+      cantos,
+      modulo,
+    ] = hasModuloCol ? values : [...values, '']
     if (!nombre) {
       return { valid: false, error: `Fila ${rowIndex}: el nombre es obligatorio` }
     }
@@ -151,6 +168,7 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
       color,
       espesor,
       cantos: cantos || '',
+      modulo: modulo || undefined,
     })
   }
 

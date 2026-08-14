@@ -1,22 +1,33 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app import catalog as catalog_service
 from app.config import get_settings
 from app.models import Layout, Piece, Project, Quote
 
 settings = get_settings()
 
 
+def _resolve_costo_m2_mdf(project: Project, override: Optional[float]) -> float:
+    if override is not None and override > 0:
+        return override
+    price = catalog_service.get_price_per_m2(project.material_type or "MDF Melamina", project.board_thickness_mm or 18)
+    if price is not None:
+        return price
+    return 8.5
+
+
 def calculate_quote(
     db: Session,
     project: Project,
     hardware: List[Dict[str, Any]],
-    costo_m2_mdf: float,
+    costo_m2_mdf: Optional[float],
     costo_hora_mano_obra: float,
     margin: float,
 ) -> Dict[str, Any]:
+    costo_m2_mdf = _resolve_costo_m2_mdf(project, costo_m2_mdf)
     # Area total de tableros usados
     layouts = db.query(Layout).filter(Layout.project_id == project.id).all()
     if layouts:

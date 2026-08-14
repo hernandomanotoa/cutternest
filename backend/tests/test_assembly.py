@@ -94,7 +94,7 @@ def test_assembly_no_recognized_structure():
     pieces = [_piece("panel-a", "Panel A", 80.0, 80.0)]
     result = build_assembly_steps(_project(), pieces)
     assert len(result["pasos"]) == 1
-    assert result["pasos"][0]["titulo"] == "Ensamblaje general"
+    assert result["pasos"][0]["titulo"] == "Colocar piezas restantes"
 
 
 def test_assembly_generates_modules_and_codes():
@@ -252,3 +252,45 @@ def test_assembly_progress_endpoint_updates_state():
     assert updated_piece["estado"] in ("ALIGNED", "LOCKED", "COMPLETED")
     assert updated_piece["posicion_actual"] is not None
     assert updated_piece["posicion_actual"]["x"] == base_piece["posicion"]["x"]
+
+
+def test_save_pieces_endpoint_generates_generic_assembly():
+    """Guardar piezas sin optimizar debe generar códigos, módulos y ensamblaje genérico."""
+    _register_and_login("save_pieces_user")
+
+    response = client.post("/api/v1/projects", json={"name": "Closet generico", "description": "test csv"})
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+
+    pieces_payload = [
+        {"id": "b1", "nombre": "Base", "ancho": 90.0, "alto": 60.0, "cantidad": 1, "rotar": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "l1", "nombre": "Lateral", "ancho": 60.0, "alto": 210.0, "cantidad": 2, "rotar": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "e1", "nombre": "Estante", "ancho": 84.0, "alto": 40.0, "cantidad": 3, "rotar": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "t1", "nombre": "Tapa", "ancho": 90.0, "alto": 60.0, "cantidad": 1, "rotar": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "f1", "nombre": "Fondo", "ancho": 90.0, "alto": 210.0, "cantidad": 1, "rotar": True, "color": "#eeeeee", "espesor": 4.0},
+        {"id": "s1", "nombre": "Soporte extra", "ancho": 20.0, "alto": 20.0, "cantidad": 1, "rotar": True, "color": "#ffffff", "espesor": 18.0},
+    ]
+
+    response = client.post(f"/api/v1/projects/{project_id}/pieces", json={"piezas": pieces_payload})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["modules"]) >= 1
+    # Se coloca cada pieza del payload (más la duplicación interna del lateral izq/der)
+    assert len(data["vista_completa"]) == len(pieces_payload) + 1
+    assert any("OTR" in p["id"] for p in data["vista_completa"])
+
+    # Los códigos deben seguir el patrón [CAT]-[MOD]-[TIPO]-[SEQ]
+    codes = {p["id"] for p in data["vista_completa"]}
+    assert all(len(c.split("-")) == 4 for c in codes)
+
+    response = client.get(f"/api/v1/projects/{project_id}/assembly")
+    assert response.status_code == 200
+    assembly = response.json()
+    assert len(assembly["pasos"]) >= 5
+    titles = [p["titulo"] for p in assembly["pasos"]]
+    assert "Colocar base" in titles
+    assert "Atornillar laterales" in titles
+    assert "Colocar estantes" in titles
+    assert "Colocar tapa" in titles
+    assert "Fijar fondo" in titles
+    assert "Colocar piezas restantes" in titles

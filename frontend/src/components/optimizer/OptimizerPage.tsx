@@ -4,13 +4,14 @@ import toast from 'react-hot-toast'
 import { Link, useLocation } from 'react-router-dom'
 import { api } from '../../api/client'
 import { getApiErrorMessage } from '../../utils/apiError'
-import type { BoardResult, PieceInput, Project } from '../../types'
+import type { BoardResult, BoardFormat, CatalogColor, CatalogMaterial, CatalogResponse, PieceInput, Project } from '../../types'
 import { Tablero3D } from './Tablero3D'
 import { Layout2D } from './Layout2D'
 import { PieceCountTab } from './PieceCountTab'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
 import { loadTemplate, saveTemplate, clearTemplate, hasTemplate } from '../../utils/pieceTemplate'
+import { fetchCatalog } from '../../utils/catalog'
 
 const ejemploEstanteria: PieceInput[] = [
   { id: 'base', nombre: 'Base', ancho: 120, alto: 60, cantidad: 1, rotar: true, color: '#FF6B6B', espesor: 18, cantos: 'T,B,L,R' },
@@ -26,6 +27,9 @@ const ejemploEstanteria: PieceInput[] = [
   { id: 'fondo', nombre: 'Fondo', ancho: 60, alto: 180, cantidad: 1, rotar: false, color: '#DDA0DD', espesor: 3, cantos: '' },
 ]
 
+const DEFAULT_MATERIAL = 'MDF Melamina'
+const DEFAULT_THICKNESS = 18
+
 export function OptimizerPage() {
   const location = useLocation()
   const initialProjectId = (location.state as any)?.projectId as string | undefined
@@ -33,7 +37,8 @@ export function OptimizerPage() {
 
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null)
   const [projectName, setProjectName] = useState('Proyecto nuevo')
-  const [tablero, setTablero] = useState({ ancho: 244, alto: 122, espesor: 18, kerf_mm: 3, margen_mm: 2 })
+  const [tablero, setTablero] = useState({ ancho: 183, alto: 244, espesor: DEFAULT_THICKNESS, kerf_mm: 3, margen_mm: 2 })
+  const [materialType, setMaterialType] = useState(DEFAULT_MATERIAL)
   const [piezas, setPiezas] = useState<PieceInput[]>(() => loadTemplate(initialPieces ? [...initialPieces] : [...ejemploEstanteria]))
   const [currentPiece, setCurrentPiece] = useState<PieceInput>({
     id: '',
@@ -43,7 +48,7 @@ export function OptimizerPage() {
     cantidad: 1,
     rotar: true,
     color: '#3B82F6',
-    espesor: 18,
+    espesor: DEFAULT_THICKNESS,
     cantos: '',
   })
   const [showColorPicker, setShowColorPicker] = useState(false)
@@ -54,12 +59,35 @@ export function OptimizerPage() {
   const [useOffcuts, setUseOffcuts] = useState(false)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo'>('piezas')
   const [page, setPage] = useState(1)
+  const [catalog, setCatalog] = useState<CatalogResponse | null>(null)
   const perPage = 10
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    fetchCatalog()
+      .then((data) => {
+        setCatalog(data)
+        const ecuadorFormat = data.board_formats.find((f) => f.name.includes('Ecuador 183×244')) || data.board_formats[0]
+        if (ecuadorFormat) {
+          setTablero((t) => ({ ...t, ancho: ecuadorFormat.width_cm, alto: ecuadorFormat.height_cm }))
+        }
+      })
+      .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar catálogo'))
+  }, [])
+
+  useEffect(() => {
     setPage(1)
   }, [piezas.length])
+
+  const material = useMemo(() => catalog?.materials.find((m) => m.name === materialType), [catalog, materialType])
+  const thicknessOptions = useMemo(() => material?.thicknesses || [DEFAULT_THICKNESS], [material])
+  const colorPresets = useMemo(() => catalog?.colors || [], [catalog])
+
+  useEffect(() => {
+    if (material && !material.thicknesses.includes(tablero.espesor)) {
+      setTablero((t) => ({ ...t, espesor: material.thicknesses[0] }))
+    }
+  }, [material, tablero.espesor])
 
   const addPiece = () => {
     if (!currentPiece.nombre || currentPiece.ancho <= 0 || currentPiece.alto <= 0) {
@@ -67,8 +95,8 @@ export function OptimizerPage() {
       return
     }
     const id = currentPiece.id || currentPiece.nombre.toLowerCase().replace(/\s+/g, '-')
-    setPiezas([...piezas, { ...currentPiece, id }])
-    setCurrentPiece({ id: '', nombre: '', ancho: 0, alto: 0, cantidad: 1, rotar: true, color: '#3B82F6', espesor: 18, cantos: '' })
+    setPiezas([...piezas, { ...currentPiece, id, espesor: currentPiece.espesor || tablero.espesor }])
+    setCurrentPiece({ id: '', nombre: '', ancho: 0, alto: 0, cantidad: 1, rotar: true, color: '#3B82F6', espesor: tablero.espesor, cantos: '' })
   }
 
   const removePiece = (index: number) => {
@@ -98,17 +126,25 @@ export function OptimizerPage() {
     downloadCsv(csv, `${slug || 'proyecto'}-piezas.csv`)
   }
 
-  const cargarCsv = (e: ChangeEvent<HTMLInputElement>) => {
+  const cargarCsv = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const text = String(event.target?.result || '')
       const result = parseCsv(text)
       if (result.valid) {
         setPiezas(result.pieces)
         saveTemplate(result.pieces)
         toast.success(`${result.pieces.length} piezas cargadas y guardadas como plantilla`)
+        if (projectId) {
+          try {
+            await api.post(`/projects/${projectId}/pieces`, { piezas: result.pieces })
+            toast.success('Piezas guardadas en el proyecto')
+          } catch (err: any) {
+            toast.error(getApiErrorMessage(err) || 'Error al guardar piezas')
+          }
+        }
       } else {
         toast.error(result.error)
       }
@@ -133,6 +169,9 @@ export function OptimizerPage() {
             alto: project.board_height_cm || t.alto,
             espesor: project.board_thickness_mm || t.espesor,
           }))
+          if (project.material_type) {
+            setMaterialType(project.material_type)
+          }
         })
         .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar proyecto'))
     }
@@ -156,6 +195,7 @@ export function OptimizerPage() {
         board_width_cm: tablero.ancho,
         board_height_cm: tablero.alto,
         board_thickness_mm: tablero.espesor,
+        material_type: materialType,
       })
       const project: Project = response.data
       setProjectId(project.id)
@@ -179,12 +219,27 @@ export function OptimizerPage() {
         tablero,
         piezas,
         usar_sobrantes: useOffcuts,
+        material_type: materialType,
       })
       setResult(response.data.tableros)
       setSelectedBoard(0)
       toast.success(`Optimizado en ${response.data.total_tableros} tablero(s)`)
     } catch (err: any) {
       toast.error(getApiErrorMessage(err) || 'Error al optimizar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const savePieces = async () => {
+    const pid = await ensureProject()
+    if (!pid) return
+    setLoading(true)
+    try {
+      await api.post(`/projects/${pid}/pieces`, { piezas })
+      toast.success('Piezas guardadas en el proyecto')
+    } catch (err: any) {
+      toast.error(getApiErrorMessage(err) || 'Error al guardar piezas')
     } finally {
       setLoading(false)
     }
@@ -202,6 +257,14 @@ export function OptimizerPage() {
     } catch (err: any) {
       toast.error(getApiErrorMessage(err) || 'Error al generar PDF')
     }
+  }
+
+  const applyBoardFormat = (format: BoardFormat) => {
+    setTablero((t) => ({ ...t, ancho: format.width_cm, alto: format.height_cm }))
+  }
+
+  const setColor = (hex: string) => {
+    setCurrentPiece((p) => ({ ...p, color: hex }))
   }
 
   return (
@@ -222,28 +285,71 @@ export function OptimizerPage() {
           <div className='space-y-6'>
             <div className='card'>
               <h2 className='text-lg font-semibold mb-4'>Tablero</h2>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='space-y-3'>
                 <div>
-                  <label className='block text-xs font-medium text-slate-600 mb-1'>Ancho (cm)</label>
-                  <input type='number' value={tablero.ancho} onChange={(e) => setTablero({ ...tablero, ancho: parseFloat(e.target.value) || 0 })} className='input-field' />
-                </div>
-                <div>
-                  <label className='block text-xs font-medium text-slate-600 mb-1'>Alto (cm)</label>
-                  <input type='number' value={tablero.alto} onChange={(e) => setTablero({ ...tablero, alto: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  <label className='block text-xs font-medium text-slate-600 mb-1'>Material</label>
+                  <select
+                    value={materialType}
+                    onChange={(e) => setMaterialType(e.target.value)}
+                    className='input-field w-full'
+                  >
+                    {catalog?.materials.map((m: CatalogMaterial) => (
+                      <option key={m.name} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className='block text-xs font-medium text-slate-600 mb-1'>Espesor (mm)</label>
-                  <input type='number' value={tablero.espesor} onChange={(e) => setTablero({ ...tablero, espesor: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  <select
+                    value={tablero.espesor}
+                    onChange={(e) => setTablero({ ...tablero, espesor: parseFloat(e.target.value) || DEFAULT_THICKNESS })}
+                    className='input-field w-full'
+                  >
+                    {thicknessOptions.map((t) => (
+                      <option key={t} value={t}>{t} mm</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className='block text-xs font-medium text-slate-600 mb-1'>Kerf (mm)</label>
-                  <input type='number' value={tablero.kerf_mm} onChange={(e) => setTablero({ ...tablero, kerf_mm: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  <label className='block text-xs font-medium text-slate-600 mb-1'>Formato de placa</label>
+                  <select
+                    value={`${tablero.ancho}x${tablero.alto}`}
+                    onChange={(e) => {
+                      const format = catalog?.board_formats.find((f) => `${f.width_cm}x${f.height_cm}` === e.target.value)
+                      if (format) applyBoardFormat(format)
+                    }}
+                    className='input-field w-full'
+                  >
+                    {catalog?.board_formats.map((f: BoardFormat) => (
+                      <option key={`${f.width_cm}x${f.height_cm}`} value={`${f.width_cm}x${f.height_cm}`}>{f.name} ({f.width_cm}×{f.height_cm} cm)</option>
+                    ))}
+                  </select>
                 </div>
+                <div className='grid grid-cols-2 gap-3'>
+                  <div>
+                    <label className='block text-xs font-medium text-slate-600 mb-1'>Ancho (cm)</label>
+                    <input type='number' value={tablero.ancho} onChange={(e) => setTablero({ ...tablero, ancho: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  </div>
+                  <div>
+                    <label className='block text-xs font-medium text-slate-600 mb-1'>Alto (cm)</label>
+                    <input type='number' value={tablero.alto} onChange={(e) => setTablero({ ...tablero, alto: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  </div>
+                </div>
+                <div className='grid grid-cols-2 gap-3'>
+                  <div>
+                    <label className='block text-xs font-medium text-slate-600 mb-1'>Kerf (mm)</label>
+                    <input type='number' value={tablero.kerf_mm} onChange={(e) => setTablero({ ...tablero, kerf_mm: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  </div>
+                  <div>
+                    <label className='block text-xs font-medium text-slate-600 mb-1'>Margen (mm)</label>
+                    <input type='number' value={tablero.margen_mm} onChange={(e) => setTablero({ ...tablero, margen_mm: parseFloat(e.target.value) || 0 })} className='input-field' />
+                  </div>
+                </div>
+                <label className='flex items-center mt-2 text-sm text-slate-700'>
+                  <input type='checkbox' checked={useOffcuts} onChange={(e) => setUseOffcuts(e.target.checked)} className='mr-2' />
+                  Usar sobrantes del inventario primero
+                </label>
               </div>
-              <label className='flex items-center mt-4 text-sm text-slate-700'>
-                <input type='checkbox' checked={useOffcuts} onChange={(e) => setUseOffcuts(e.target.checked)} className='mr-2' />
-                Usar sobrantes del inventario primero
-              </label>
             </div>
 
             <div className='card'>
@@ -259,9 +365,20 @@ export function OptimizerPage() {
                   <button onClick={() => setShowColorPicker(!showColorPicker)} className='w-8 h-8 rounded border' style={{ backgroundColor: currentPiece.color }} />
                   {showColorPicker && (
                     <div className='absolute z-10 mt-8'>
-                      <HexColorPicker color={currentPiece.color} onChange={(c) => setCurrentPiece({ ...currentPiece, color: c })} />
+                      <HexColorPicker color={currentPiece.color} onChange={setColor} />
                     </div>
                   )}
+                </div>
+                <div className='flex flex-wrap gap-2'>
+                  {colorPresets.map((c: CatalogColor) => (
+                    <button
+                      key={c.hex}
+                      title={c.name}
+                      onClick={() => setColor(c.hex)}
+                      className='w-6 h-6 rounded border border-slate-300'
+                      style={{ backgroundColor: c.hex }}
+                    />
+                  ))}
                 </div>
                 <label className='flex items-center text-sm text-slate-700'>
                   <input type='checkbox' checked={currentPiece.rotar} onChange={(e) => setCurrentPiece({ ...currentPiece, rotar: e.target.checked })} className='mr-2' />
@@ -345,9 +462,14 @@ export function OptimizerPage() {
                 />
               )}
 
-              <button onClick={optimize} disabled={loading || piezas.length === 0} className='w-full mt-4 btn-primary disabled:opacity-50'>
-                {loading ? 'Optimizando...' : 'Optimizar'}
-              </button>
+              <div className='flex gap-3 mt-4'>
+                <button onClick={savePieces} disabled={loading || piezas.length === 0} className='flex-1 btn-secondary text-sm disabled:opacity-50'>
+                  {loading ? 'Guardando...' : 'Guardar piezas'}
+                </button>
+                <button onClick={optimize} disabled={loading || piezas.length === 0} className='flex-1 btn-primary text-sm disabled:opacity-50'>
+                  {loading ? 'Optimizando...' : 'Optimizar'}
+                </button>
+              </div>
             </div>
 
             {result && (

@@ -37,9 +37,11 @@ export function AssemblyPage() {
   const [validation, setValidation] = useState<AssemblyValidationResult | null>(null)
   const [validating, setValidating] = useState(false)
   const [completing, setCompleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const loadAssembly = useCallback(() => {
     if (!projectId) return
+    setError(null)
     api
       .get(`/projects/${projectId}/assembly`)
       .then((res) => {
@@ -48,7 +50,11 @@ export function AssemblyPage() {
         setCurrentTransforms(buildInitialTransforms(data.vista_completa ?? []))
         setValidation(null)
       })
-      .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar ensamblaje'))
+      .catch((err) => {
+        const msg = getApiErrorMessage(err) || 'Error al cargar ensamblaje'
+        setError(msg)
+        toast.error(msg)
+      })
   }, [projectId])
 
   useEffect(() => {
@@ -180,8 +186,34 @@ export function AssemblyPage() {
     }
   }, [projectId, step, stepPieceUpdates, loadAssembly, current, steps.length])
 
+  if (error) {
+    return (
+      <div className='min-h-screen bg-gray-50 p-8 text-center'>
+        <div className='max-w-xl mx-auto card space-y-4'>
+          <h2 className='text-xl font-bold text-slate-800'>No se pudo cargar el ensamblaje</h2>
+          <p className='text-slate-600'>{error}</p>
+          <p className='text-sm text-slate-500'>
+            Asegúrate de haber guardado u optimizado piezas en el proyecto. El ensamblaje se genera automáticamente desde las piezas del proyecto.
+          </p>
+          <div className='flex justify-center gap-3'>
+            <Link to={`/optimizer`} state={{ projectId }} className='btn-primary'>Ir al optimizador</Link>
+            <button onClick={loadAssembly} className='btn-secondary'>Reintentar</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!response || response.pasos.length === 0) {
-    return <div className='p-8 text-center text-slate-600'>Cargando ensamblaje...</div>
+    return (
+      <div className='min-h-screen bg-gray-50 p-8 text-center'>
+        <div className='max-w-xl mx-auto card space-y-4'>
+          <h2 className='text-xl font-bold text-slate-800'>Ensamblaje no disponible</h2>
+          <p className='text-slate-600'>El proyecto no tiene piezas guardadas. Carga un CSV o agrega piezas en el optimizador y presiona "Guardar piezas".</p>
+          <Link to='/optimizer' state={{ projectId }} className='btn-primary'>Ir al optimizador</Link>
+        </div>
+      </div>
+    )
   }
 
   return (
