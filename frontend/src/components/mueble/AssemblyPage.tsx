@@ -20,24 +20,29 @@ export function AssemblyPage() {
       .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar ensamblaje'))
   }, [projectId])
 
-  if (!response || response.pasos.length === 0) {
-    return <div className='p-8 text-center text-slate-600'>Cargando ensamblaje...</div>
-  }
+  const steps = response?.pasos ?? []
+  const step = steps[current] ?? null
 
-  const steps = response.pasos
-  const step = steps[current]
-  const totalTime = steps.reduce((sum, s) => sum + s.tiempo_estimado_min, 0)
+  const totalTime = useMemo(() => steps.reduce((sum, s) => sum + s.tiempo_estimado_min, 0), [steps])
 
   const accumulatedPieces = useMemo<AssemblyPiece3D[]>(() => {
-    if (showComplete) return response.vista_completa
+    if (!response) return []
+    if (showComplete) return response.vista_completa ?? []
     const pieces: AssemblyPiece3D[] = []
     for (let i = 0; i <= current; i++) {
-      pieces.push(...steps[i].piezas_3d)
+      if (steps[i]) pieces.push(...steps[i].piezas_3d)
     }
     return pieces
   }, [response, steps, current, showComplete])
 
-  const highlightedIds = showComplete ? [] : step.piezas_3d.map((p) => p.id)
+  const highlightedIds = useMemo(() => {
+    if (showComplete || !step) return []
+    return step.piezas_3d.map((p) => p.id)
+  }, [showComplete, step])
+
+  if (!response || response.pasos.length === 0) {
+    return <div className='p-8 text-center text-slate-600'>Cargando ensamblaje...</div>
+  }
 
   return (
     <div className='min-h-screen bg-gray-50 p-4 md:p-6'>
