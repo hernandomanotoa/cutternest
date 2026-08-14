@@ -27,6 +27,7 @@ Consolidar el MVP funcional y seguro de CutterNest, alinear el equipo de agentes
 | M17 | Carga/descarga de piezas via CSV con hash de formato | frontend + Guardian | ✅ Completado | `frontend/src/utils/piecesCsv.ts`, botones en `OptimizerPage.tsx`, tests Vitest. |
 | M18 | Paginación y pestaña de conteo por dimensiones | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceCounter.ts`, `PieceCountTab.tsx`, paginación 10 piezas/página en `OptimizerPage.tsx`. |
 | M19 | Plantilla personalizada persistente en localStorage | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceTemplate.ts`, botones Guardar/Cargar/Restaurar en `OptimizerPage.tsx`, guardado automático al cargar CSV. |
+| M20 | Ensamblaje 3D coherente paso a paso | backend + frontend + Guardian | ✅ Completado | `backend/app/assembly.py`, `Assembly3D.tsx`, `AssemblyPage.tsx`, tests `test_assembly.py`. |
 | D1 | Actualizar `profile.yaml` y DevHive al stack CutterNest | Guardian | ✅ Completado | Perfil ahora refleja Python/FastAPI, React/Vite, SQLite, Docker Compose por fases. |
 | D2 | Actualizar `architecture.md`, `domain-rules.md`, `security-policy.md`, `guardian/SKILL.md` | Guardian | ✅ Completado | Documentos adaptados al MVP. |
 | D3 | Limpiar stubs y memorias obsoletas | Guardian | ✅ Completado | Stubs, audit logs y agentes/plugins no usados (LDAP, tunnel, frontend-template) archivados en `.agents/memory/archive/`. |
@@ -59,7 +60,7 @@ Ninguno.
 
 ## Métricas actuales
 
-- Tests backend: 5 passed.
+- Tests backend: 8 passed.
 - Tests frontend: 15 passed.
 - Docker Compose MVP: healthy.
 - Bugs críticos abiertos: 0.
