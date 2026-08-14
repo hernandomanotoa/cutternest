@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app import assembly as assembly_service
 from app import projects as projects_service
 from app.database import get_db
 from app.dependencies import (
@@ -14,7 +15,9 @@ from app.dependencies import (
 from app.limiter import limiter
 from app.models import User
 from app.schemas import (
+    AssemblyProgressUpdate,
     AssemblyResponse,
+    AssemblyStepValidation,
     OptimizeRequest,
     ProjectCreate,
     ProjectRead,
@@ -117,6 +120,40 @@ def get_assembly(
 ):
     require_project_owner(db, project_id, current_user)
     return projects_service.get_assembly(db, project_id)
+
+
+@router.post("/{project_id}/assembly/generate", response_model=AssemblyResponse)
+def generate_assembly(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_project_owner(db, project_id, current_user)
+    return projects_service.generate_assembly(db, project_id)
+
+
+@router.post("/{project_id}/assembly/steps/{step_id}/validate")
+def validate_assembly_step(
+    project_id: str,
+    step_id: str,
+    payload: AssemblyStepValidation,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_project_owner(db, project_id, current_user)
+    return assembly_service.validate_step(db, step_id, payload.piece_transforms)
+
+
+@router.post("/{project_id}/assembly/steps/{step_id}/progress")
+def update_assembly_progress(
+    project_id: str,
+    step_id: str,
+    payload: AssemblyProgressUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_project_owner(db, project_id, current_user)
+    return assembly_service.update_progress(db, step_id, payload)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

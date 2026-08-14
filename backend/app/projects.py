@@ -198,3 +198,7 @@ def delete_project(db: Session, project_id: str) -> None:
 
 def get_assembly(db: Session, project_id: str) -> Dict[str, Any]:
     return assembly_service.get_assembly(db, project_id)
+
+
+def generate_assembly(db: Session, project_id: str) -> Dict[str, Any]:
+    return assembly_service.generate_for_project(db, project_id)

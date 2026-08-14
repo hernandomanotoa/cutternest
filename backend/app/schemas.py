@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -230,6 +230,22 @@ class Point3D(BaseModel):
     z: float
 
 
+class Rotation3D(BaseModel):
+    x: float
+    y: float
+    z: float
+
+
+class Transform3D(BaseModel):
+    position: Point3D
+    rotation: Rotation3D
+
+
+class Tolerance3D(BaseModel):
+    position_mm: float = 2.0
+    rotation_deg: float = 5.0
+
+
 class AssemblyPiece3D(BaseModel):
     id: str
     nombre: str
@@ -238,34 +254,112 @@ class AssemblyPiece3D(BaseModel):
     profundidad: float
     color: str
     posicion: Point3D
-    rotacion: Point3D
+    rotacion: Rotation3D
 
 
 class AssemblyConnector(BaseModel):
-    tipo: str
-    posicion: Point3D
-    direccion: Point3D
-    piezas: List[str]
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    id: Optional[str] = None
+    project_id: Optional[str] = None
+    code: str
+    tipo: str = Field(..., validation_alias="connector_type")
+    posicion: Point3D = Field(..., validation_alias="position")
+    direccion: Point3D = Field(..., validation_alias="direction")
+    piezas: List[str] = Field(..., validation_alias="piece_codes")
+    step_id: Optional[str] = None
+
+
+class AssemblyModule(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    id: Optional[str] = None
+    project_id: Optional[str] = None
+    code: str
+    categoria: str = Field(..., validation_alias="category")
+    nombre: str = Field(..., validation_alias="name")
+    posicion: Point3D = Field(..., validation_alias="position")
+    dimensiones: Point3D = Field(..., validation_alias="dimensions")
+    order_index: int
+
+
+class AssemblyPiece(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    id: Optional[str] = None
+    project_id: Optional[str] = None
+    module_id: Optional[str] = None
+    piece_id: Optional[str] = None
+    codigo: str = Field(..., validation_alias="code")
+    categoria: str = Field(..., validation_alias="category")
+    tipo_pieza: str = Field(..., validation_alias="piece_type")
+    posicion_esperada: Point3D = Field(..., validation_alias="expected_position")
+    rotacion_esperada: Rotation3D = Field(..., validation_alias="expected_rotation")
+    posicion_actual: Optional[Point3D] = Field(None, validation_alias="current_position")
+    rotacion_actual: Optional[Rotation3D] = Field(None, validation_alias="current_rotation")
+    tolerancia_posicion_mm: float = Field(2.0, validation_alias="tolerance_position_mm")
+    tolerancia_rotacion_deg: float = Field(5.0, validation_alias="tolerance_rotation_deg")
+    estado: str = Field("NOT_STARTED", validation_alias="status")
+    dependencias: List[str] = Field(..., validation_alias="dependencies")
+    metadatos: Dict[str, Any] = Field(..., validation_alias="extra_data")
 
 
 class AssemblyStep(BaseModel):
-    numero: int
-    titulo: str
-    descripcion: str
-    piezas: List[str]
-    piezas_3d: List[AssemblyPiece3D]
-    conectores: List[AssemblyConnector]
-    herramientas: List[str]
-    tiempo_estimado_min: int
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    id: Optional[str] = None
+    project_id: Optional[str] = None
+    numero: int = Field(..., validation_alias="step_number")
+    code: str
+    titulo: str = Field(..., validation_alias="title")
+    descripcion: str = Field(..., validation_alias="description")
+    module_id: Optional[str] = None
+    piezas: List[str] = Field(..., validation_alias="piece_codes")
+    connector_ids: List[str]
+    herramientas: List[str] = Field(..., validation_alias="tool_ids")
+    dependencies: List[str]
+    camera: Optional[Dict[str, Any]] = None
+    animation: Optional[Dict[str, Any]] = None
+    status: str = "PENDING"
+    piezas_3d: Optional[List[AssemblyPiece3D]] = None
+    conectores: Optional[List[AssemblyConnector]] = None
+    tiempo_estimado_min: Optional[int] = None
+
+
+class AssemblyState(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    id: Optional[str] = None
+    project_id: Optional[str] = None
+    current_step_id: Optional[str] = None
+    completed_step_ids: List[str]
+    started_at: datetime
+    updated_at: datetime
+
+
+class AssemblyStepValidation(BaseModel):
+    step_id: str
+    piece_transforms: Dict[str, Transform3D]
+
+
+class AssemblyValidationResult(BaseModel):
+    step_id: str
+    valid: bool
+    piece_results: Dict[str, Dict[str, Any]]
+    errors: List[str]
+    next_step_id: Optional[str] = None
+
+
+class AssemblyProgressUpdate(BaseModel):
+    piece_updates: Optional[Dict[str, Transform3D]] = None
+    status: Optional[str] = None
 
 
 class AssemblyResponse(BaseModel):
     pasos: List[AssemblyStep]
     vista_completa: List[AssemblyPiece3D]
     conectores_completos: List[AssemblyConnector]
+    modules: List[AssemblyModule]
+    pieces: List[AssemblyPiece]
+    connectors: List[AssemblyConnector]
+    steps: List[AssemblyStep]
+    state: Optional[AssemblyState] = None
 
-
-# Reportes
 class EfficiencyReport(BaseModel):
     project_id: str
     project_name: str

@@ -185,3 +185,116 @@ class Quote(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="quotes")
+
+class AssemblyModuleCategory(str, enum.Enum):
+    superior = "SUP"
+    inferior = "INF"
+    global_ = "GLOBAL"
+
+
+class AssemblyPieceStatus(str, enum.Enum):
+    not_started = "NOT_STARTED"
+    ready = "READY"
+    placed = "PLACED"
+    aligned = "ALIGNED"
+    locked = "LOCKED"
+    error = "ERROR"
+    completed = "COMPLETED"
+
+
+class AssemblyStepStatus(str, enum.Enum):
+    pending = "PENDING"
+    in_progress = "IN_PROGRESS"
+    completed = "COMPLETED"
+    blocked = "BLOCKED"
+
+
+class AssemblyModule(Base):
+    __tablename__ = "assembly_modules"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    code = Column(String(32), nullable=False)
+    category = Column(Enum(AssemblyModuleCategory), nullable=False, default=AssemblyModuleCategory.global_)
+    name = Column(String(128), nullable=False)
+    position = Column(JSON, nullable=False, default=dict)
+    dimensions = Column(JSON, nullable=False, default=dict)
+    order_index = Column(Integer, nullable=False, default=0)
+
+    project = relationship("Project")
+
+
+class AssemblyPiece(Base):
+    __tablename__ = "assembly_pieces"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    module_id = Column(VARCHAR(36), ForeignKey("assembly_modules.id", ondelete="CASCADE"), nullable=True, index=True)
+    piece_id = Column(VARCHAR(36), ForeignKey("pieces.id", ondelete="SET NULL"), nullable=True, index=True)
+    code = Column(String(32), nullable=False, index=True)
+    category = Column(String(16), nullable=False)
+    piece_type = Column(String(16), nullable=False)
+    expected_position = Column(JSON, nullable=False, default=dict)
+    expected_rotation = Column(JSON, nullable=False, default=dict)
+    current_position = Column(JSON, nullable=True)
+    current_rotation = Column(JSON, nullable=True)
+    tolerance_position_mm = Column(Float, nullable=False, default=2.0)
+    tolerance_rotation_deg = Column(Float, nullable=False, default=5.0)
+    status = Column(Enum(AssemblyPieceStatus), nullable=False, default=AssemblyPieceStatus.not_started)
+    dependencies = Column(JSON, nullable=False, default=list)
+    extra_data = Column(JSON, nullable=False, default=dict)
+
+    project = relationship("Project")
+    module = relationship("AssemblyModule")
+    piece = relationship("Piece")
+
+
+class AssemblyConnector(Base):
+    __tablename__ = "assembly_connectors"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    code = Column(String(32), nullable=False)
+    connector_type = Column(String(32), nullable=False)
+    position = Column(JSON, nullable=False, default=dict)
+    direction = Column(JSON, nullable=False, default=dict)
+    piece_codes = Column(JSON, nullable=False, default=list)
+    step_id = Column(VARCHAR(36), ForeignKey("assembly_steps.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    project = relationship("Project")
+    step = relationship("AssemblyStep")
+
+
+class AssemblyStep(Base):
+    __tablename__ = "assembly_steps"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_number = Column(Integer, nullable=False)
+    code = Column(String(32), nullable=False)
+    title = Column(String(128), nullable=False)
+    description = Column(Text, nullable=False)
+    module_id = Column(VARCHAR(36), ForeignKey("assembly_modules.id", ondelete="SET NULL"), nullable=True, index=True)
+    piece_codes = Column(JSON, nullable=False, default=list)
+    connector_ids = Column(JSON, nullable=False, default=list)
+    tool_ids = Column(JSON, nullable=False, default=list)
+    dependencies = Column(JSON, nullable=False, default=list)
+    camera = Column(JSON, nullable=True)
+    animation = Column(JSON, nullable=True)
+    status = Column(Enum(AssemblyStepStatus), nullable=False, default=AssemblyStepStatus.pending)
+
+    project = relationship("Project")
+    module = relationship("AssemblyModule")
+
+
+class AssemblyState(Base):
+    __tablename__ = "assembly_states"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    current_step_id = Column(VARCHAR(36), ForeignKey("assembly_steps.id", ondelete="SET NULL"), nullable=True)
+    completed_step_ids = Column(JSON, nullable=False, default=list)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project")
