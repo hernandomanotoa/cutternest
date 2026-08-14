@@ -124,6 +124,11 @@ export interface Point3D {
   z: number;
 }
 
+export interface Transform3D {
+  position: Point3D;
+  rotation: Point3D;
+}
+
 export interface AssemblyPiece3D {
   id: string;
   nombre: string;
@@ -136,25 +141,86 @@ export interface AssemblyPiece3D {
 }
 
 export interface AssemblyConnector {
+  id?: string;
   tipo: string;
   posicion: Point3D;
   direccion: Point3D;
   piezas: string[];
+  step_id?: string;
 }
 
 export interface AssemblyStep {
+  id: string;
   numero: number;
+  code: string;
   titulo: string;
   descripcion: string;
+  module_id?: string;
   piezas: string[];
   piezas_3d: AssemblyPiece3D[];
   conectores: AssemblyConnector[];
+  connector_ids: string[];
   herramientas: string[];
+  dependencies: string[];
   tiempo_estimado_min: number;
+  status: string;
+  camera?: Record<string, unknown>;
+  animation?: Record<string, unknown>;
+}
+
+export interface AssemblyModule {
+  id: string;
+  code: string;
+  categoria: string;
+  nombre: string;
+  posicion: Point3D;
+  dimensiones: Point3D;
+  order_index: number;
+}
+
+export interface AssemblyPieceState {
+  id: string;
+  codigo: string;
+  categoria: string;
+  tipo_pieza: string;
+  posicion_esperada: Point3D;
+  rotacion_esperada: Point3D;
+  posicion_actual?: Point3D | null;
+  rotacion_actual?: Point3D | null;
+  tolerancia_posicion_mm: number;
+  tolerancia_rotacion_deg: number;
+  estado: string;
+  dependencias: string[];
+}
+
+export interface AssemblyState {
+  id: string;
+  current_step_id?: string;
+  completed_step_ids: string[];
+  started_at: string;
+  updated_at: string;
 }
 
 export interface AssemblyResponse {
   pasos: AssemblyStep[];
   vista_completa: AssemblyPiece3D[];
   conectores_completos: AssemblyConnector[];
+  modules: AssemblyModule[];
+  pieces: AssemblyPieceState[];
+  connectors: AssemblyConnector[];
+  steps: AssemblyStep[];
+  state?: AssemblyState;
+}
+
+export interface AssemblyValidationResult {
+  step_id: string;
+  valid: boolean;
+  piece_results: Record<string, { valid: boolean; errors: string[] }>;
+  errors: string[];
+  next_step_id?: string;
+}
+
+export interface AssemblyProgressUpdate {
+  piece_updates?: Record<string, Transform3D>;
+  status?: string;
 }
