@@ -10,6 +10,7 @@ import { Layout2D } from './Layout2D'
 import { PieceCountTab } from './PieceCountTab'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
+import { loadTemplate, saveTemplate, clearTemplate, hasTemplate } from '../../utils/pieceTemplate'
 
 const ejemploEstanteria: PieceInput[] = [
   { id: 'base', nombre: 'Base', ancho: 120, alto: 60, cantidad: 1, rotar: true, color: '#FF6B6B', espesor: 18, cantos: 'T,B,L,R' },
@@ -33,7 +34,7 @@ export function OptimizerPage() {
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null)
   const [projectName, setProjectName] = useState('Proyecto nuevo')
   const [tablero, setTablero] = useState({ ancho: 244, alto: 122, espesor: 18, kerf_mm: 3, margen_mm: 2 })
-  const [piezas, setPiezas] = useState<PieceInput[]>(initialPieces ? [...initialPieces] : [...ejemploEstanteria])
+  const [piezas, setPiezas] = useState<PieceInput[]>(() => loadTemplate(initialPieces ? [...initialPieces] : [...ejemploEstanteria]))
   const [currentPiece, setCurrentPiece] = useState<PieceInput>({
     id: '',
     nombre: '',
@@ -74,9 +75,21 @@ export function OptimizerPage() {
     setPiezas(piezas.filter((_, i) => i !== index))
   }
 
-  const cargarEjemplo = () => {
+  const cargarPlantilla = () => {
+    const template = loadTemplate(ejemploEstanteria)
+    setPiezas([...template])
+    toast.success(hasTemplate() ? 'Plantilla personalizada cargada' : 'Ejemplo cargado: Estanteria Modular')
+  }
+
+  const guardarPlantilla = () => {
+    saveTemplate(piezas)
+    toast.success('Plantilla guardada para nuevos ingresos')
+  }
+
+  const restaurarEjemplo = () => {
+    clearTemplate()
     setPiezas([...ejemploEstanteria])
-    toast.success('Ejemplo cargado: Estanteria Modular')
+    toast.success('Ejemplo restaurado: Estanteria Modular')
   }
 
   const descargarCsv = () => {
@@ -94,7 +107,8 @@ export function OptimizerPage() {
       const result = parseCsv(text)
       if (result.valid) {
         setPiezas(result.pieces)
-        toast.success(`${result.pieces.length} piezas cargadas desde el archivo`)
+        saveTemplate(result.pieces)
+        toast.success(`${result.pieces.length} piezas cargadas y guardadas como plantilla`)
       } else {
         toast.error(result.error)
       }
@@ -279,7 +293,9 @@ export function OptimizerPage() {
                   <button onClick={descargarCsv} className='btn-secondary text-sm'>Descargar formato</button>
                   <button onClick={() => fileInputRef.current?.click()} className='btn-secondary text-sm'>Cargar piezas</button>
                   <input ref={fileInputRef} type='file' accept='.csv' onChange={cargarCsv} className='hidden' />
-                  <button onClick={cargarEjemplo} className='btn-secondary text-sm'>Cargar ejemplo</button>
+                  <button onClick={guardarPlantilla} className='btn-secondary text-sm'>Guardar plantilla</button>
+                  <button onClick={cargarPlantilla} className='btn-secondary text-sm'>Cargar plantilla</button>
+                  <button onClick={restaurarEjemplo} className='btn-secondary text-sm'>Restaurar ejemplo</button>
                   <button onClick={() => setPiezas([])} className='btn-secondary text-sm'>Limpiar</button>
                 </div>
               </div>
