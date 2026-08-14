@@ -241,12 +241,20 @@ class AssemblyPiece3D(BaseModel):
     rotacion: Point3D
 
 
+class AssemblyConnector(BaseModel):
+    tipo: str
+    posicion: Point3D
+    direccion: Point3D
+    piezas: List[str]
+
+
 class AssemblyStep(BaseModel):
     numero: int
     titulo: str
     descripcion: str
     piezas: List[str]
     piezas_3d: List[AssemblyPiece3D]
+    conectores: List[AssemblyConnector]
     herramientas: List[str]
     tiempo_estimado_min: int
 
@@ -254,6 +262,7 @@ class AssemblyStep(BaseModel):
 class AssemblyResponse(BaseModel):
     pasos: List[AssemblyStep]
     vista_completa: List[AssemblyPiece3D]
+    conectores_completos: List[AssemblyConnector]
 
 
 # Reportes

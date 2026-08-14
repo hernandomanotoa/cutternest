@@ -2,16 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { api } from '../../api/client'
-import type { AssemblyPiece3D, AssemblyResponse } from '../../types'
+import type { AssemblyConnector, AssemblyPiece3D, AssemblyResponse } from '../../types'
 import { getApiErrorMessage } from '../../utils/apiError'
 import { Link } from 'react-router-dom'
 import { Assembly3D } from './Assembly3D'
+import { Assembly3DV2 } from './Assembly3DV2'
 
 export function AssemblyPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const [response, setResponse] = useState<AssemblyResponse | null>(null)
   const [current, setCurrent] = useState(0)
   const [showComplete, setShowComplete] = useState(false)
+  const [assemblyView, setAssemblyView] = useState<'v1' | 'v2'>('v2')
+  const [exploded, setExploded] = useState(false)
 
   useEffect(() => {
     if (!projectId) return
@@ -33,6 +36,16 @@ export function AssemblyPage() {
       if (steps[i]) pieces.push(...steps[i].piezas_3d)
     }
     return pieces
+  }, [response, steps, current, showComplete])
+
+  const accumulatedConnectors = useMemo<AssemblyConnector[]>(() => {
+    if (!response) return []
+    if (showComplete) return response.conectores_completos ?? []
+    const connectors: AssemblyConnector[] = []
+    for (let i = 0; i <= current; i++) {
+      if (steps[i]) connectors.push(...steps[i].conectores)
+    }
+    return connectors
   }, [response, steps, current, showComplete])
 
   const highlightedIds = useMemo(() => {
@@ -67,8 +80,37 @@ export function AssemblyPage() {
               >
                 Vista completa
               </button>
+              <button
+                onClick={() => setAssemblyView('v1')}
+                className={`px-3 py-1.5 rounded text-sm font-medium ${assemblyView === 'v1' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                Ensamblaje 1
+              </button>
+              <button
+                onClick={() => setAssemblyView('v2')}
+                className={`px-3 py-1.5 rounded text-sm font-medium ${assemblyView === 'v2' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                Ensamblaje 2
+              </button>
+              {assemblyView === 'v2' && (
+                <button
+                  onClick={() => setExploded(!exploded)}
+                  className={`px-3 py-1.5 rounded text-sm font-medium ${exploded ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                >
+                  {exploded ? 'Vista normal' : 'Vista despiece'}
+                </button>
+              )}
             </div>
-            <Assembly3D pieces={accumulatedPieces} highlightedIds={highlightedIds} />
+            {assemblyView === 'v1' ? (
+              <Assembly3D pieces={accumulatedPieces} highlightedIds={highlightedIds} />
+            ) : (
+              <Assembly3DV2
+                pieces={accumulatedPieces}
+                connectors={accumulatedConnectors}
+                highlightedIds={highlightedIds}
+                exploded={exploded}
+              />
+            )}
           </div>
 
           <div className='space-y-6'>
@@ -90,6 +132,20 @@ export function AssemblyPage() {
                 </div>
               </div>
               <div className='mb-4'>
+                <p className='text-xs font-medium text-slate-500 uppercase mb-1'>Conectores en este paso</p>
+                <div className='flex flex-wrap gap-2'>
+                  {step.conectores.length === 0 ? (
+                    <span className='text-sm text-slate-500'>Ninguno</span>
+                  ) : (
+                    step.conectores.map((c, i) => (
+                      <span key={i} className='px-2 py-1 bg-slate-100 rounded text-sm text-slate-700'>
+                        {c.tipo}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className='mb-4'>
                 <p className='text-xs font-medium text-slate-500 uppercase mb-1'>Herramientas</p>
                 <p className='text-sm text-slate-600'>{step.herramientas.join(', ')}</p>
               </div>
@@ -101,6 +157,7 @@ export function AssemblyPage() {
               <p className='text-sm text-slate-600'>Pasos: <span className='font-medium'>{steps.length}</span></p>
               <p className='text-sm text-slate-600'>Tiempo total estimado: <span className='font-medium'>{totalTime} min</span></p>
               <p className='text-sm text-slate-600'>Piezas totales: <span className='font-medium'>{response.vista_completa.length}</span></p>
+              <p className='text-sm text-slate-600'>Conectores totales: <span className='font-medium'>{response.conectores_completos.length}</span></p>
             </div>
 
             <div className='flex gap-3'>

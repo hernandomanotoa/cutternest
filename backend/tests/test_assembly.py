@@ -66,6 +66,11 @@ def test_assembly_estanteria_steps():
     # Full view should contain all positioned pieces
     assert len(result["vista_completa"]) >= 7
 
+    # Connectors should be present for structural joints
+    assert len(result["conectores_completos"]) > 0
+    tipos = {c["tipo"] for c in result["conectores_completos"]}
+    assert "confirmat" in tipos or "taco" in tipos or "tornillo" in tipos
+
 
 def test_assembly_empty():
     result = build_assembly_steps(_project(), [])

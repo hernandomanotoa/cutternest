@@ -208,11 +208,182 @@ def _position_pieces(
     return result
 
 
+def _connector(
+    tipo: str,
+    pos: Tuple[float, float, float],
+    direccion: Tuple[float, float, float],
+    piezas: List[str],
+) -> Dict[str, Any]:
+    return {
+        "tipo": tipo,
+        "posicion": {"x": pos[0], "y": pos[1], "z": pos[2]},
+        "direccion": {"x": direccion[0], "y": direccion[1], "z": direccion[2]},
+        "piezas": piezas,
+    }
+
+
+def _connectors_for_pieces(
+    positioned: Dict[str, List[Dict[str, Any]]],
+    dims: Dict[str, float],
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Generate 3D connectors grouped by the same step keys as positioned pieces."""
+    ancho_total = dims["ancho"]
+    alto_total = dims["alto"]
+    profundidad_total = dims["profundidad"]
+    base_t = dims["base_thickness"]
+    tapa_t = dims["tapa_thickness"]
+
+    connectors: Dict[str, List[Dict[str, Any]]] = {
+        "base_patas": [],
+        "laterales": [],
+        "estantes": [],
+        "tapa": [],
+        "fondo": [],
+        "acabados": [],
+    }
+
+    laterales = positioned.get("laterales", [])
+    base_pieces = positioned.get("base_patas", [])
+    tapa_pieces = positioned.get("tapa", [])
+    estantes = positioned.get("estantes", [])
+    fondo = positioned.get("fondo", [])
+    puertas = [p for p in positioned.get("acabados", []) if "puerta" in p["id"]]
+    patas = [p for p in base_pieces if "pata" in p["id"]]
+    base = next((p for p in base_pieces if "base" in p["id"]), None)
+
+    def lateral_thickness(l: Dict[str, Any]) -> float:
+        return l["ancho"]
+
+    # Base -> lateral confirmats
+    for lat in laterales:
+        lat_t = lateral_thickness(lat)
+        lat_x = lat["posicion"]["x"]
+        side = "izq" if lat_x < ancho_total / 2 else "der"
+        dir_x = 1.0 if side == "izq" else -1.0
+        for z_offset in (5.0, max(5.0, profundidad_total - 5.0)):
+            connectors["laterales"].append(
+                _connector(
+                    "confirmat",
+                    (lat_x + dir_x * lat_t / 2, base_t + 5.0, z_offset),
+                    (dir_x, 0.0, 0.0),
+                    [base["id"] if base else "base", lat["id"]],
+                )
+            )
+            if alto_total > 30.0:
+                connectors["laterales"].append(
+                    _connector(
+                        "confirmat",
+                        (lat_x + dir_x * lat_t / 2, base_t + 15.0, z_offset),
+                        (dir_x, 0.0, 0.0),
+                        [base["id"] if base else "base", lat["id"]],
+                    )
+                )
+
+    # Top -> lateral confirmats
+    for lat in laterales:
+        lat_t = lateral_thickness(lat)
+        lat_x = lat["posicion"]["x"]
+        side = "izq" if lat_x < ancho_total / 2 else "der"
+        dir_x = 1.0 if side == "izq" else -1.0
+        for z_offset in (5.0, max(5.0, profundidad_total - 5.0)):
+            connectors["tapa"].append(
+                _connector(
+                    "confirmat",
+                    (lat_x + dir_x * lat_t / 2, alto_total - tapa_t - 5.0, z_offset),
+                    (dir_x, 0.0, 0.0),
+                    [lat["id"], tapa_pieces[0]["id"] if tapa_pieces else "tapa"],
+                )
+            )
+
+    # Shelves -> lateral confirmats + shelf pegs
+    for est in estantes:
+        est_y = est["posicion"]["y"] + est["alto"] / 2
+        for lat in laterales:
+            lat_t = lateral_thickness(lat)
+            lat_x = lat["posicion"]["x"]
+            side = "izq" if lat_x < ancho_total / 2 else "der"
+            dir_x = 1.0 if side == "izq" else -1.0
+            for z_offset in (5.0, max(5.0, profundidad_total - 5.0)):
+                connectors["estantes"].append(
+                    _connector(
+                        "taco",
+                        (lat_x + dir_x * lat_t / 2, est_y, z_offset),
+                        (dir_x, 0.0, 0.0),
+                        [lat["id"], est["id"]],
+                    )
+                )
+
+    # Back panel screws
+    if fondo:
+        f = fondo[0]
+        f_t = f["profundidad"]
+        corners = [
+            (2.0, base_t + 2.0, f_t / 2),
+            (max(2.0, ancho_total - 2.0), base_t + 2.0, f_t / 2),
+            (2.0, max(base_t + 2.0, alto_total - tapa_t - 2.0), f_t / 2),
+            (max(2.0, ancho_total - 2.0), max(base_t + 2.0, alto_total - tapa_t - 2.0), f_t / 2),
+        ]
+        for cx, cy, cz in corners:
+            connectors["fondo"].append(
+                _connector(
+                    "tornillo",
+                    (cx, cy, cz),
+                    (0.0, 0.0, 1.0),
+                    [f["id"], "lateral"],
+                )
+            )
+
+    # Leg screws
+    for pata in patas:
+        px = pata["posicion"]["x"] + pata["ancho"] / 2
+        py = pata["posicion"]["y"]
+        pz = pata["posicion"]["z"] + pata["profundidad"] / 2
+        connectors["base_patas"].append(
+            _connector(
+                "pata",
+                (px, py, pz),
+                (0.0, 1.0, 0.0),
+                [pata["id"], base["id"] if base else "base"],
+            )
+        )
+
+    # Door hinges + handles
+    for i, pta in enumerate(puertas):
+        pta_ancho = pta["ancho"]
+        pta_alto = pta["alto"]
+        pta_prof = pta["profundidad"]
+        pta_x = pta["posicion"]["x"]
+        pta_y = pta["posicion"]["y"]
+        pta_z = pta["posicion"]["z"]
+        hinge_x = pta_x + (0.5 if i == 0 else pta_ancho - 0.5)
+        for y_rel in (0.2, 0.8):
+            hy = pta_y + pta_alto * y_rel
+            connectors["acabados"].append(
+                _connector(
+                    "bisagra",
+                    (hinge_x, hy, pta_z + pta_prof / 2),
+                    (0.0, 1.0, 0.0),
+                    [pta["id"], "lateral"],
+                )
+            )
+        connectors["acabados"].append(
+            _connector(
+                "tirador",
+                (pta_x + pta_ancho / 2, pta_y + pta_alto / 2, pta_z + pta_prof + 0.5),
+                (0.0, 0.0, 1.0),
+                [pta["id"]],
+            )
+        )
+
+    return connectors
+
+
 def _step(
     numero: int,
     titulo: str,
     descripcion: str,
     piezas_3d: List[Dict[str, Any]],
+    conectores: List[Dict[str, Any]],
     herramientas: List[str],
     tiempo: int,
 ) -> Dict[str, Any]:
@@ -222,6 +393,7 @@ def _step(
         "descripcion": descripcion,
         "piezas": [p["id"] for p in piezas_3d],
         "piezas_3d": piezas_3d,
+        "conectores": conectores,
         "herramientas": herramientas,
         "tiempo_estimado_min": tiempo,
     }
@@ -229,10 +401,11 @@ def _step(
 
 def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any]:
     if not pieces:
-        return {"pasos": [], "vista_completa": []}
+        return {"pasos": [], "vista_completa": [], "conectores_completos": []}
 
     dims = _furniture_dimensions(pieces)
     positioned = _position_pieces(pieces, dims)
+    connectors = _connectors_for_pieces(positioned, dims)
 
     # Pieces with edge banding are listed in the preparation step
     cantos_pieces = [p for p in pieces if p.edge_banding]
@@ -246,6 +419,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 n,
                 "Pegar cantos",
                 "Aplicar la plancha de canto pre-encolada a los bordes indicados en cada pieza.",
+                [],
                 [],
                 ["plancha canto", "cutter", "lijadora"],
                 15,
@@ -261,6 +435,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Colocar base",
                 "Posicionar la base del mueble sobre una superficie plana (y las patas si las hubiera).",
                 base_patas,
+                connectors.get("base_patas", []),
                 ["escuadra", "nivel"],
                 10,
             )
@@ -275,6 +450,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Atornillar laterales",
                 "Fijar los laterales izquierdo y derecho a la base, formando el cuerpo principal.",
                 laterales,
+                connectors.get("laterales", []),
                 ["taladro", "escuadra", "tornillos confirmat"],
                 20,
             )
@@ -289,6 +465,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Colocar estantes",
                 "Insertar los estantes intermedios a la altura indicada por los taladros.",
                 estantes,
+                connectors.get("estantes", []),
                 ["taladro", "nivel", "tacos de madera"],
                 25,
             )
@@ -303,6 +480,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Colocar tapa",
                 "Atornillar la tapa superior cerrando el cuerpo del mueble.",
                 tapa,
+                connectors.get("tapa", []),
                 ["taladro", "escuadra"],
                 15,
             )
@@ -317,6 +495,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Fijar fondo",
                 "Clavar o atornillar el fondo en la parte trasera del mueble.",
                 fondo,
+                connectors.get("fondo", []),
                 ["clavadora", "tornillos"],
                 15,
             )
@@ -331,6 +510,7 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Colocar puertas y acabados",
                 "Instalar las bisagras, puertas, cajones y herrajes restantes.",
                 acabados,
+                connectors.get("acabados", []),
                 ["destornillador", "bisagras", "tiradores"],
                 30,
             )
@@ -348,17 +528,21 @@ def build_assembly_steps(project: Project, pieces: List[Piece]) -> Dict[str, Any
                 "Ensamblaje general",
                 "No se detectó una estructura clara. Revisa las piezas y ensambla según el plano.",
                 all_pieces,
+                [],
                 ["taladro", "escuadra"],
                 30,
             )
         )
 
-    # Build full view by accumulating all positioned pieces
+    # Build full view by accumulating all positioned pieces and all connectors
     vista_completa: List[Dict[str, Any]] = []
+    conectores_completos: List[Dict[str, Any]] = []
     for group in positioned.values():
         vista_completa.extend(group)
+    for group in connectors.values():
+        conectores_completos.extend(group)
 
-    return {"pasos": pasos, "vista_completa": vista_completa}
+    return {"pasos": pasos, "vista_completa": vista_completa, "conectores_completos": conectores_completos}
 
 
 def get_assembly(db: Session, project_id: str) -> Dict[str, Any]:

@@ -135,12 +135,20 @@ export interface AssemblyPiece3D {
   rotacion: Point3D;
 }
 
+export interface AssemblyConnector {
+  tipo: string;
+  posicion: Point3D;
+  direccion: Point3D;
+  piezas: string[];
+}
+
 export interface AssemblyStep {
   numero: number;
   titulo: string;
   descripcion: string;
   piezas: string[];
   piezas_3d: AssemblyPiece3D[];
+  conectores: AssemblyConnector[];
   herramientas: string[];
   tiempo_estimado_min: number;
 }
@@ -148,4 +156,5 @@ export interface AssemblyStep {
 export interface AssemblyResponse {
   pasos: AssemblyStep[];
   vista_completa: AssemblyPiece3D[];
+  conectores_completos: AssemblyConnector[];
 }
