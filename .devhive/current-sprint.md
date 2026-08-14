@@ -25,6 +25,7 @@ Consolidar el MVP funcional y seguro de CutterNest, alinear el equipo de agentes
 | M15 | Tests frontend Vitest | test | ✅ Completado | `frontend/src/types/index.test.ts`; `vitest` en `package.json`. |
 | M16 | Validación Docker Compose MVP | deploy | ✅ Completado | `docker compose up -d --build` levanta backend y frontend healthy. |
 | M17 | Carga/descarga de piezas via CSV con hash de formato | frontend + Guardian | ✅ Completado | `frontend/src/utils/piecesCsv.ts`, botones en `OptimizerPage.tsx`, tests Vitest. |
+| M18 | Paginación y pestaña de conteo por dimensiones | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceCounter.ts`, `PieceCountTab.tsx`, paginación 10 piezas/página en `OptimizerPage.tsx`. |
 | D1 | Actualizar `profile.yaml` y DevHive al stack CutterNest | Guardian | ✅ Completado | Perfil ahora refleja Python/FastAPI, React/Vite, SQLite, Docker Compose por fases. |
 | D2 | Actualizar `architecture.md`, `domain-rules.md`, `security-policy.md`, `guardian/SKILL.md` | Guardian | ✅ Completado | Documentos adaptados al MVP. |
 | D3 | Limpiar stubs y memorias obsoletas | Guardian | ✅ Completado | Stubs, audit logs y agentes/plugins no usados (LDAP, tunnel, frontend-template) archivados en `.agents/memory/archive/`. |
@@ -58,7 +59,7 @@ Ninguno.
 ## Métricas actuales
 
 - Tests backend: 5 passed.
-- Tests frontend: 1 passed.
+- Tests frontend: 11 passed.
 - Docker Compose MVP: healthy.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
