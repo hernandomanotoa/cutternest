@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react'
+import { useState, useEffect, useRef, useMemo, type ChangeEvent } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import toast from 'react-hot-toast'
 import { Link, useLocation } from 'react-router-dom'
@@ -7,7 +7,9 @@ import { getApiErrorMessage } from '../../utils/apiError'
 import type { BoardResult, PieceInput, Project } from '../../types'
 import { Tablero3D } from './Tablero3D'
 import { Layout2D } from './Layout2D'
+import { PieceCountTab } from './PieceCountTab'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
+import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
 
 const ejemploEstanteria: PieceInput[] = [
   { id: 'base', nombre: 'Base', ancho: 120, alto: 60, cantidad: 1, rotar: true, color: '#FF6B6B', espesor: 18, cantos: 'T,B,L,R' },
@@ -49,7 +51,14 @@ export function OptimizerPage() {
   const [view3D, setView3D] = useState(false)
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(false)
+  const [activeTab, setActiveTab] = useState<'piezas' | 'conteo'>('piezas')
+  const [page, setPage] = useState(1)
+  const perPage = 10
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setPage(1)
+  }, [piezas.length])
 
   const addPiece = () => {
     if (!currentPiece.nombre || currentPiece.ancho <= 0 || currentPiece.alto <= 0) {
@@ -114,6 +123,13 @@ export function OptimizerPage() {
         .catch((err) => toast.error(getApiErrorMessage(err) || 'Error al cargar proyecto'))
     }
   }, [projectId])
+
+  const totalPages = Math.max(1, Math.ceil(piezas.length / perPage))
+  const paginatedPieces = useMemo(() => piezas.slice((page - 1) * perPage, page * perPage), [piezas, page])
+  const startItem = piezas.length === 0 ? 0 : (page - 1) * perPage + 1
+  const endItem = Math.min(page * perPage, piezas.length)
+  const groupedPieces = useMemo(() => groupPiecesByDimensions(piezas), [piezas])
+  const totalPiecesCount = useMemo(() => totalPieces(piezas), [piezas])
 
   const ensureProject = async () => {
     if (projectId) return projectId
@@ -244,8 +260,21 @@ export function OptimizerPage() {
 
           <div className='lg:col-span-2 space-y-6'>
             <div className='card'>
-              <div className='flex items-center justify-between mb-4'>
-                <h2 className='text-lg font-semibold'>Piezas ({piezas.length})</h2>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4'>
+                <div className='flex items-center gap-2'>
+                  <button
+                    onClick={() => setActiveTab('piezas')}
+                    className={`px-3 py-1.5 rounded text-sm font-medium ${activeTab === 'piezas' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  >
+                    Piezas ({piezas.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('conteo')}
+                    className={`px-3 py-1.5 rounded text-sm font-medium ${activeTab === 'conteo' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  >
+                    Conteo
+                  </button>
+                </div>
                 <div className='flex gap-2 flex-wrap'>
                   <button onClick={descargarCsv} className='btn-secondary text-sm'>Descargar formato</button>
                   <button onClick={() => fileInputRef.current?.click()} className='btn-secondary text-sm'>Cargar piezas</button>
@@ -254,30 +283,52 @@ export function OptimizerPage() {
                   <button onClick={() => setPiezas([])} className='btn-secondary text-sm'>Limpiar</button>
                 </div>
               </div>
-              <div className='overflow-x-auto'>
-                <table className='w-full text-sm'>
-                  <thead className='bg-slate-100 text-slate-700'>
-                    <tr>
-                      <th className='p-2 text-left'>Nombre</th>
-                      <th className='p-2 text-left'>Dimension</th>
-                      <th className='p-2 text-left'>Cantidad</th>
-                      <th className='p-2 text-left'>Color</th>
-                      <th className='p-2'></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {piezas.map((p, i) => (
-                      <tr key={i} className='border-b border-gray-100'>
-                        <td className='p-2'>{p.nombre}</td>
-                        <td className='p-2'>{p.ancho}x{p.alto} cm</td>
-                        <td className='p-2'>{p.cantidad}</td>
-                        <td className='p-2'><div className='w-4 h-4 rounded' style={{ backgroundColor: p.color }} /></td>
-                        <td className='p-2'><button onClick={() => removePiece(i)} className='text-red-600 hover:underline'>Eliminar</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
+              {activeTab === 'piezas' ? (
+                <>
+                  <div className='overflow-x-auto'>
+                    <table className='w-full text-sm'>
+                      <thead className='bg-slate-100 text-slate-700'>
+                        <tr>
+                          <th className='p-2 text-left'>Nombre</th>
+                          <th className='p-2 text-left'>Dimension</th>
+                          <th className='p-2 text-left'>Cantidad</th>
+                          <th className='p-2 text-left'>Color</th>
+                          <th className='p-2'></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedPieces.map((p, i) => (
+                          <tr key={(page - 1) * perPage + i} className='border-b border-gray-100'>
+                            <td className='p-2'>{p.nombre}</td>
+                            <td className='p-2'>{p.ancho}x{p.alto} cm</td>
+                            <td className='p-2'>{p.cantidad}</td>
+                            <td className='p-2'><div className='w-4 h-4 rounded' style={{ backgroundColor: p.color }} /></td>
+                            <td className='p-2'><button onClick={() => removePiece((page - 1) * perPage + i)} className='text-red-600 hover:underline'>Eliminar</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className='flex items-center justify-between mt-4 text-sm text-slate-600'>
+                      <span>Mostrando {startItem}-{endItem} de {piezas.length}</span>
+                      <div className='flex items-center gap-2'>
+                        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className='btn-secondary text-sm disabled:opacity-50'>Anterior</button>
+                        <span className='px-2'>{page} / {totalPages}</span>
+                        <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className='btn-secondary text-sm disabled:opacity-50'>Siguiente</button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <PieceCountTab
+                  groups={groupedPieces}
+                  totalPieces={totalPiecesCount}
+                  totalGroups={groupedPieces.length}
+                />
+              )}
+
               <button onClick={optimize} disabled={loading || piezas.length === 0} className='w-full mt-4 btn-primary disabled:opacity-50'>
                 {loading ? 'Optimizando...' : 'Optimizar'}
               </button>
