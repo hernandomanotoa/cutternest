@@ -28,6 +28,7 @@ Consolidar el MVP funcional y seguro de CutterNest, alinear el equipo de agentes
 | M18 | Paginación y pestaña de conteo por dimensiones | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceCounter.ts`, `PieceCountTab.tsx`, paginación 10 piezas/página en `OptimizerPage.tsx`. |
 | M19 | Plantilla personalizada persistente en localStorage | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceTemplate.ts`, botones Guardar/Cargar/Restaurar en `OptimizerPage.tsx`, guardado automático al cargar CSV. |
 | M20 | Ensamblaje 3D coherente paso a paso | backend + frontend + Guardian | ✅ Completado | `backend/app/assembly.py`, `Assembly3D.tsx`, `AssemblyPage.tsx`, tests `test_assembly.py`. |
+| M21 | Planificador visual de ensamblaje y manuales HTML/PDF | backend + frontend + Guardian | ✅ Completado | Kahn en `assembly.py` y `topologicalSort.ts`, `AssemblyPlanner.tsx`, `LevelTimeline.tsx`, `AssemblyManual.tsx`, `generateAssemblyHtml.ts`, endpoints `/assembly/plan` y `/assembly/generate`. |
 | D1 | Actualizar `profile.yaml` y DevHive al stack CutterNest | Guardian | ✅ Completado | Perfil ahora refleja Python/FastAPI, React/Vite, SQLite, Docker Compose por fases. |
 | D2 | Actualizar `architecture.md`, `domain-rules.md`, `security-policy.md`, `guardian/SKILL.md` | Guardian | ✅ Completado | Documentos adaptados al MVP. |
 | D3 | Limpiar stubs y memorias obsoletas | Guardian | ✅ Completado | Stubs, audit logs y agentes/plugins no usados (LDAP, tunnel, frontend-template) archivados en `.agents/memory/archive/`. |
@@ -56,15 +57,20 @@ Ninguno.
 - **ADR-006-2026-08-13**: Códigos de backup invalidados tras uso mediante tabla `BackupCode` con `used_at`.
 - **ADR-007-2026-08-13**: Tokens de autenticación entregados como cookies `httpOnly`, incluyendo `temp_token` de verificación TOTP; eliminado todo uso de `localStorage`/`sessionStorage` para tokens.
 - **ADR-008-2026-08-13**: Rate limiting con `slowapi` en endpoints auth, optimize, refresh y guest PIN.
-- **ADR-009-2026-08-13**: Verificación de ownership en todos los endpoints de proyectos (`require_project_owner`).
+- **ADR-010-2026-08-13**: Unificación de todas las medidas a milímetros (mm) en modelos, schemas, frontend, PDFs, SVG, CSV y migración automática de columnas antiguas en cm.
 
 ## Métricas actuales
 
-- Tests backend: 8 passed.
-- Tests frontend: 15 passed.
+- Tests backend: 21 passed.
+- Tests frontend: 71 passed.
 - Docker Compose MVP: healthy.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
+
+## Hotfixes recientes (Assembly Planner)
+
+- **Manual de ensamblaje**: repisas inferiores con `cantidad > 1` se apilan hacia arriba dentro del interior del mueble, evitando que se dibujen debajo de la base (`manualView.js`).
+- **Grafo**: el layout estructural ahora se recalcula y centra automáticamente al cambiar de pestaña o redimensionar el contenedor, usando `ResizeObserver` y reintentos por `requestAnimationFrame` (`graphView.js`).
 
 ## Next actions
 

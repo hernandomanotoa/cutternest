@@ -62,7 +62,33 @@ export function renderGraphView(container) {
     Object.keys(layout).forEach((id) => {
       positions[id] = { ...layout[id] };
     });
-    centerView();
+    scheduleCenterView();
+  }
+
+  function scheduleCenterView() {
+    if (wrap.clientWidth && wrap.clientHeight) {
+      centerView();
+      render();
+    } else {
+      requestAnimationFrame(() => {
+        if (wrap.clientWidth && wrap.clientHeight) {
+          centerView();
+          render();
+        }
+      });
+      setTimeout(() => {
+        if (wrap.clientWidth && wrap.clientHeight) {
+          centerView();
+          render();
+        }
+      }, 80);
+      setTimeout(() => {
+        if (wrap.clientWidth && wrap.clientHeight) {
+          centerView();
+          render();
+        }
+      }, 250);
+    }
   }
 
   function toggleLayout() {
@@ -74,6 +100,16 @@ export function renderGraphView(container) {
 
   const positions = {};
   resetLayout();
+
+  // Recalcular vista cuando el contenedor cambie de tamaño (cambio de pestana, redimension, etc.)
+  let resizeObserver;
+  if (typeof ResizeObserver !== 'undefined' && wrap) {
+    resizeObserver = new ResizeObserver(() => {
+      centerView();
+      render();
+    });
+    resizeObserver.observe(wrap);
+  }
 
   function render() {
     const nodes = pieces.map((p) => ({ ...p, ...positions[p.id] }));
@@ -362,6 +398,10 @@ export function renderGraphView(container) {
     window.removeEventListener('mouseup', onEnd);
     window.removeEventListener('touchmove', moveHandler);
     window.removeEventListener('touchend', onEnd);
+    if (resizeObserver && wrap) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
   };
 
   render();

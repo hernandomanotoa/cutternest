@@ -334,13 +334,15 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
   const shelfH = 18;
   const shelfPad = 10;
 
-  function drawRepisaGroup(group, y, label = '') {
+  function drawRepisaGroup(group, y, label = '', growDown = true) {
     const rep = group[0];
     const isActive = group.some((p) => activeIds.has(p.id));
     const isDone = group.some((p) => completedIds.has(p.id) || activeIds.has(p.id));
     const qty = Math.min(group.length, 8);
+    // Si crece hacia arriba, la coordenada y es la posicion inferior del grupo
+    const startY = growDown ? y : y - (qty - 1) * (shelfH + 4);
     for (let q = 0; q < qty; q++) {
-      const yy = y + q * (shelfH + 4);
+      const yy = startY + q * (shelfH + 4);
       const pieceLabel = q === 0 ? `${rep.nombre.split(' ')[0]}${qty > 1 ? ' ×' + qty : ''}` : label;
       svgParts.push(rect(boxX + 35, yy, boxW - 70, shelfH, rep.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', pieceLabel));
     }
@@ -348,11 +350,12 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
 
   if (repisaSuperior.length) {
     let y = interiorY + shelfPad;
-    repisaSuperior.forEach((g) => { drawRepisaGroup(g, y); y += shelfH + 8; });
+    repisaSuperior.forEach((g) => { drawRepisaGroup(g, y, '', true); y += shelfH + 8; });
   }
   if (repisaInferior.length) {
-    let y = interiorY + interiorH - shelfPad - shelfH;
-    [...repisaInferior].reverse().forEach((g) => { drawRepisaGroup(g, y); y -= shelfH + 8; });
+    // y apunta al borde inferior del grupo inferior; las instancias crecen hacia arriba
+    let y = interiorY + interiorH - shelfPad;
+    [...repisaInferior].reverse().forEach((g) => { drawRepisaGroup(g, y, '', false); y -= shelfH + 8; });
   }
   if (repisaMedio.length) {
     const topUsed = repisaSuperior.length * (shelfH + 8);
@@ -361,7 +364,7 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
     const slotH = available / repisaMedio.length;
     repisaMedio.forEach((g, i) => {
       const y = interiorY + shelfPad + topUsed + i * slotH + slotH / 2 - shelfH / 2;
-      drawRepisaGroup(g, y);
+      drawRepisaGroup(g, y, '', true);
     });
   }
 
