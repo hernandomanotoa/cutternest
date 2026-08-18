@@ -28,6 +28,7 @@ export function renderGraphView(container) {
         <div class="flex justify-between items-center mb-1">
           <h2 class="card__title m-0">Grafo — ${moduleLabel}</h2>
           <div class="flex gap-1">
+            <button id="btn-layout" class="btn btn--secondary btn--sm">Layout: Jerárquico</button>
             <button id="btn-center" class="btn btn--secondary btn--sm">Centrar grafo</button>
             <button id="btn-reset-deps" class="btn btn--secondary btn--sm">Restaurar heurísticas</button>
             <button id="btn-clear-deps" class="btn btn--danger btn--sm">Limpiar</button>
@@ -53,14 +54,22 @@ export function renderGraphView(container) {
   let scale = 1;
   let pan = { x: 0, y: 0 };
   let dragging = null; // { type: 'node'|'pan', ... }
+  let layoutMode = 'hierarchical'; // 'hierarchical' | 'structural'
 
-  // Calcula layout jerárquico inicial
+  // Calcula layout inicial segun modo activo
   function resetLayout() {
     const layout = computeLayout(pieces, wrap.clientWidth, wrap.clientHeight);
     Object.keys(layout).forEach((id) => {
       positions[id] = { ...layout[id] };
     });
     centerView();
+  }
+
+  function toggleLayout() {
+    layoutMode = layoutMode === 'hierarchical' ? 'structural' : 'hierarchical';
+    $('#btn-layout', container).textContent = `Layout: ${layoutMode === 'hierarchical' ? 'Jerárquico' : 'Estructural'}`;
+    resetLayout();
+    render();
   }
 
   const positions = {};
@@ -328,6 +337,10 @@ export function renderGraphView(container) {
     render();
   }, { passive: false });
 
+  $('#btn-layout', container)?.addEventListener('click', () => {
+    toggleLayout();
+  });
+
   $('#btn-reset-deps', container)?.addEventListener('click', () => {
     state.dependencies = sugerirDependencias(state.pieces);
     recalculateAll();
@@ -379,6 +392,13 @@ export function renderGraphView(container) {
   }
 
   function computeLayout(pieces, viewW, viewH) {
+    if (layoutMode === 'structural') {
+      return computeStructuralLayout(pieces);
+    }
+    return computeHierarchicalLayout(pieces, viewW, viewH);
+  }
+
+  function computeHierarchicalLayout(pieces, viewW, viewH) {
     const ids = pieces.map((p) => p.id);
     const result = topologicalLevels(ids, dependencies);
     const levels = result.ok && result.levels.length ? result.levels : [ids];
@@ -398,6 +418,135 @@ export function renderGraphView(container) {
           y: baseY + i * NODE_GAP_Y,
         };
       });
+    });
+
+    return layout;
+  }
+
+  function normalizeName(name) {
+    return String(name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function computeStructuralLayout(pieces) {
+    // Layout tipo "planta" del mueble: base abajo, tapa arriba, laterales lados, fondo centro,
+    // repisas superior/inferior/medio, frentes de cajon insertos, tiradores arriba de frentes.
+    const layout = {};
+    const centerX = 1000;
+    const centerY = 1000;
+    const boxW = 700;
+    const boxH = 500;
+    const left = centerX - boxW / 2;
+    const right = centerX + boxW / 2;
+    const top = centerY - boxH / 2;
+    const bottom = centerY + boxH / 2;
+
+    const groups = {
+      base: [],
+      tapa: [],
+      lateralIzq: [],
+      lateralDer: [],
+      fondo: [],
+      repisaSuperior: [],
+      repisaInferior: [],
+      repisaMedio: [],
+      frenteCajon: [],
+      tirador: [],
+      zocalo: [],
+      puerta: [],
+      cajon: [],
+      barra: [],
+      divisor: [],
+      otro: [],
+    };
+
+    pieces.forEach((p) => {
+      const n = normalizeName(p.nombre);
+      if (n.includes('tirador')) groups.tirador.push(p);
+      else if (n.includes('zocalo')) groups.zocalo.push(p);
+      else if (n.includes('puerta')) groups.puerta.push(p);
+      else if (n.includes('barra')) groups.barra.push(p);
+      else if (n.includes('divisor') || n.includes('division')) groups.divisor.push(p);
+      else if (n.includes('frente') && n.includes('cajon')) groups.frenteCajon.push(p);
+      else if (n.includes('cajon')) groups.cajon.push(p);
+      else if (n.includes('tapa') || n.includes('techo')) groups.tapa.push(p);
+      else if (n.includes('base')) groups.base.push(p);
+      else if (n.includes('lateral')) {
+        if (n.includes('izq')) groups.lateralIzq.push(p);
+        else if (n.includes('der')) groups.lateralDer.push(p);
+        else groups.lateralDer.push(p); // default a derecha
+      } else if (n.includes('fondo') || n.includes('trasera')) groups.fondo.push(p);
+      else if (n.includes('repisa') || n.includes('estante')) {
+        if (n.includes('superior')) groups.repisaSuperior.push(p);
+        else if (n.includes('inferior')) groups.repisaInferior.push(p);
+        else groups.repisaMedio.push(p);
+      } else {
+        groups.otro.push(p);
+      }
+    });
+
+    function placeRow(list, y, startX, endX) {
+      const count = list.length;
+      if (count === 0) return;
+      const gap = (endX - startX) / (count + 1);
+      list.forEach((p, i) => {
+        layout[p.id] = { x: startX + gap * (i + 1), y };
+      });
+    }
+
+    function placeCol(list, x, startY, endY) {
+      const count = list.length;
+      if (count === 0) return;
+      const gap = (endY - startY) / (count + 1);
+      list.forEach((p, i) => {
+        layout[p.id] = { x, y: startY + gap * (i + 1) };
+      });
+    }
+
+    placeRow(groups.tapa, top - 50, left + 60, right - 60);
+    placeRow(groups.base, bottom + 50, left + 60, right - 60);
+    placeRow(groups.zocalo, bottom + 110, left + 60, right - 60);
+
+    placeCol(groups.lateralIzq, left - 60, top + 80, bottom - 80);
+    placeCol(groups.lateralDer, right + 60, top + 80, bottom - 80);
+
+    groups.fondo.forEach((p) => {
+      layout[p.id] = { x: centerX, y: centerY };
+    });
+
+    placeRow(groups.repisaSuperior, top + 70, left + 100, right - 100);
+    placeRow(groups.repisaInferior, bottom - 70, left + 100, right - 100);
+
+    const midCount = groups.repisaMedio.length;
+    if (midCount > 0) {
+      const availableH = bottom - 120 - (top + 120);
+      const gap = availableH / (midCount + 1);
+      groups.repisaMedio.forEach((p, i) => {
+        layout[p.id] = { x: centerX, y: top + 120 + gap * (i + 1) };
+      });
+    }
+
+    if (groups.frenteCajon.length === 2) {
+      layout[groups.frenteCajon[0].id] = { x: centerX, y: top + 140 };
+      layout[groups.frenteCajon[1].id] = { x: centerX, y: bottom - 140 };
+    } else {
+      placeRow(groups.frenteCajon, bottom - 130, left + 120, right - 120);
+    }
+
+    groups.tirador.forEach((p, i) => {
+      layout[p.id] = { x: centerX + (i - (groups.tirador.length - 1) / 2) * 50, y: bottom - 180 };
+    });
+
+    placeRow(groups.puerta, bottom - 60, left + 120, right - 120);
+    placeRow(groups.barra, centerY, left + 120, right - 120);
+    placeRow(groups.divisor, centerY, left + 120, right - 120);
+    placeRow(groups.cajon, centerY, left + 120, right - 120);
+
+    // Piezas no reconocidas: alrededor del borde inferior derecho
+    groups.otro.forEach((p, i) => {
+      layout[p.id] = { x: right + 200 + (i % 3) * 140, y: bottom - 200 + Math.floor(i / 3) * 70 };
     });
 
     return layout;
