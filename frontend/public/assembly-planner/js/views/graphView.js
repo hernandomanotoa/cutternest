@@ -22,13 +22,21 @@ export function renderGraphView(container) {
 
   const moduleLabel = getModuleLabel(state.currentModule, state.pieces);
 
+  // Estado local del grafo (se define antes de pintar para reflejar el modo en el boton)
+  let selectedId = null;
+  let scale = 1;
+  let pan = { x: 0, y: 0 };
+  let dragging = null; // { type: 'node'|'pan', ... }
+  let layoutMode = state.currentModule === 'global' ? 'hierarchical' : 'structural'; // 'hierarchical' | 'structural'
+  const layoutButtonLabel = layoutMode === 'hierarchical' ? 'Jerárquico' : 'Estructural';
+
   container.innerHTML = `
     <div class="card mb-2">
       <div class="card__body">
         <div class="flex justify-between items-center mb-1">
           <h2 class="card__title m-0">Grafo — ${moduleLabel}</h2>
           <div class="flex gap-1">
-            <button id="btn-layout" class="btn btn--secondary btn--sm">Layout: Jerárquico</button>
+            <button id="btn-layout" class="btn btn--secondary btn--sm">Layout: ${layoutButtonLabel}</button>
             <button id="btn-center" class="btn btn--secondary btn--sm">Centrar grafo</button>
             <button id="btn-reset-deps" class="btn btn--secondary btn--sm">Restaurar heurísticas</button>
             <button id="btn-clear-deps" class="btn btn--danger btn--sm">Limpiar</button>
@@ -48,13 +56,6 @@ export function renderGraphView(container) {
   const svg = $('#graph-svg', container);
   const wrap = $('#graph-wrap', container);
   const panel = $('#graph-panel', container);
-
-  // Estado local del grafo
-  let selectedId = null;
-  let scale = 1;
-  let pan = { x: 0, y: 0 };
-  let dragging = null; // { type: 'node'|'pan', ... }
-  let layoutMode = 'hierarchical'; // 'hierarchical' | 'structural'
 
   // Calcula layout inicial segun modo activo
   function resetLayout() {
@@ -433,7 +434,7 @@ export function renderGraphView(container) {
 
   function computeLayout(pieces, viewW, viewH) {
     if (layoutMode === 'structural') {
-      return computeStructuralLayout(pieces);
+      return computeStructuralLayout(pieces, viewW, viewH);
     }
     return computeHierarchicalLayout(pieces, viewW, viewH);
   }
@@ -470,14 +471,17 @@ export function renderGraphView(container) {
       .replace(/[\u0300-\u036f]/g, '');
   }
 
-  function computeStructuralLayout(pieces) {
+  function computeStructuralLayout(pieces, viewW, viewH) {
     // Layout tipo "planta" del mueble: base abajo, tapa arriba, laterales lados, fondo centro,
     // repisas superior/inferior/medio, frentes de cajon insertos, tiradores arriba de frentes.
+    // Usa el tamaño real del contenedor para evitar coordenadas fijas fuera de la vista.
+    const safeW = Math.max(viewW || 0, 600);
+    const safeH = Math.max(viewH || 0, 400);
     const layout = {};
-    const centerX = 1000;
-    const centerY = 1000;
-    const boxW = 700;
-    const boxH = 500;
+    const centerX = safeW / 2;
+    const centerY = safeH / 2;
+    const boxW = Math.min(700, safeW * 0.7);
+    const boxH = Math.min(420, safeH * 0.7);
     const left = centerX - boxW / 2;
     const right = centerX + boxW / 2;
     const top = centerY - boxH / 2;
