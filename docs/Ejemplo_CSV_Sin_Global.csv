@@ -1,0 +1,21 @@
+# CutterNest Piezas v1
+# Ejemplo sin piezas globales: solo modulos con estructura propia.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+m1-base,Base modulo M1,450,520,1,si,#C19A6B,15,"T,B,L,R",1
+m1-tapa,Tapa modulo M1,450,550,1,si,#C19A6B,15,"T,B,L,R",1
+m1-lateral-izq,Lateral izquierdo M1,2300,550,1,no,#C19A6B,15,"T,B,L",1
+m1-lateral-der,Lateral derecho M1,2300,550,1,no,#C19A6B,15,"T,B,R",1
+m1-fondo,Fondo modulo M1,450,2300,1,no,#F2F2F2,15,,1
+m1-estante,Estante regulable M1,390,380,4,si,#D9C2A3,15,"T,B,L,R",1
+
+m2-base,Base modulo M2,460,520,1,si,#8B5A2B,15,"T,B,L,R",2
+m2-tapa,Tapa modulo M2,460,550,1,si,#8B5A2B,15,"T,B,L,R",2
+m2-lateral-izq,Lateral izquierdo M2,2300,560,1,no,#8B5A2B,15,"T,B,L",2
+m2-lateral-der,Lateral derecho M2,2300,560,1,no,#8B5A2B,15,"T,B,R",2
+m2-fondo,Fondo modulo M2,460,2300,1,no,#F2F2F2,15,,2
+m21-cajon-frente,Frente cajon M2,400,180,1,si,#D9C2A3,15,"T,B,L,R",21
+m21-cajon-lateral-izq,Lateral cajon M2,180,450,1,no,#D9C2A3,15,"T,B,L",21
+m21-cajon-lateral-der,Lateral cajon M2,180,450,1,no,#D9C2A3,15,"T,B,R",21
+m21-cajon-fondo,Fondo cajon M2,360,450,1,no,#F2F2F2,15,,21
+m21-cajon-base,Base cajon M2,360,450,1,si,#D9C2A3,15,"T,B,L,R",21
+m21-cajon-tirador,Tirador cajon M2,2,20,1,no,#A0A0A0,5,,21

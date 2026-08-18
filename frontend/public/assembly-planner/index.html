@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CutterNest Assembly Planner</title>
+  <link rel="stylesheet" href="./styles/theme.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <h1>CutterNest <span>Assembly Planner</span></h1>
+      <div class="header-actions">
+        <div class="form-group m-0" style="min-width: 180px;">
+          <select id="module-selector" class="w-full">
+            <option value="global">Global / Estructura</option>
+          </select>
+        </div>
+        <button id="btn-load-example" class="btn btn--secondary">Cargar ejemplo: estantería</button>
+        <button id="btn-load-closet" class="btn btn--secondary">Cargar ejemplo: clóset</button>
+        <label class="btn btn--primary" for="file-input">Importar CSV</label>
+        <input id="file-input" type="file" accept=".csv" hidden />
+        <button id="btn-export-csv" class="btn btn--secondary">Exportar CSV</button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Vistas">
+      <button class="tab tab--active" data-view="csv" role="tab" aria-selected="true">CSV</button>
+      <button class="tab" data-view="estructural" role="tab">Estructural</button>
+      <button class="tab" data-view="grafo" role="tab">Grafo</button>
+      <button class="tab" data-view="ensamblaje" role="tab">Ensamblaje</button>
+      <button class="tab" data-view="manual" role="tab">Manual</button>
+    </nav>
+
+    <main class="main-layout">
+      <section id="view-container" class="view-container"></section>
+
+      <aside class="summary-panel">
+        <h2>Resumen</h2>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span class="summary-label">Módulo</span>
+            <span id="summary-module" class="summary-value">Global</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">Piezas</span>
+            <span id="summary-pieces" class="summary-value">0</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">Pasos</span>
+            <span id="summary-steps" class="summary-value">0</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">Alertas</span>
+            <span id="summary-alerts" class="summary-value">0</span>
+          </div>
+        </div>
+
+        <h3>Herrajes / Insumos</h3>
+        <div id="hardware-list" class="hardware-list">
+          <p class="empty-state">Importa un CSV para ver la lista.</p>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="app-footer">
+      <span id="status-message">Listo. Importa un CSV para comenzar.</span>
+    </footer>
+  </div>
+
+  <script src="./vendor/jspdf.umd.min.js"></script>
+  <script src="./vendor/html2canvas.min.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

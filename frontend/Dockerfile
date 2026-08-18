@@ -21,6 +21,7 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 # Cachear dependencias
 COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+COPY frontend/scripts/copy-pdf-vendor.cjs ./scripts/
 RUN pnpm install --no-lockfile
 
 # Copiar el resto del codigo y compilar
