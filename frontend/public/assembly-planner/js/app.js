@@ -230,7 +230,7 @@ function init() {
     const select = $('#example-selector');
     const path = select?.value;
     if (!path) {
-      showStatus('Selecciona un ejemplo primero', 'warning');
+      showStatus('Selecciona un mueble primero', 'warning');
       return;
     }
     loadExample(path);

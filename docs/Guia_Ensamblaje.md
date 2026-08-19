@@ -77,9 +77,9 @@ El planner detectará que `21` empieza con `2` y creará dependencias del cajón
 - No mezcles piezas del módulo `2` dentro del módulo `1`; rompe el plan y el diagrama.
 - Si un módulo solo tiene puertas, estantes o tiradores sin estructura propia, el Manual solo mostrará esos elementos flotando dentro del fondo global (o nada si no hay fondo global).
 
-#### 5. Ejemplos listos para probar
+#### 5. Muebles de ejemplo
 
-El Assembly Planner incluye **10 ejemplos de muebles** diferentes. Puedes cargarlos desde el selector **Ejemplo** del header o importar manualmente los CSV desde `docs/`.
+El Assembly Planner incluye **10 muebles de ejemplo** diferentes. Puedes cargarlos desde el selector **Mueble** del header o importar manualmente los CSV desde `docs/`.
 
 | Archivo en `docs/` | Vista en UI | Qué representa |
 |---|---|---|
@@ -94,7 +94,7 @@ El Assembly Planner incluye **10 ejemplos de muebles** diferentes. Puedes cargar
 | `Ejemplo_CSV_Escritorio.csv` | Escritorio | Tablero corrido + cajoneras laterales + repisa superior. |
 | `Ejemplo_CSV_Armario_Puertas_Corredizas.csv` | Armario con puertas corredizas | Cuerpo con barra y repisas + puertas corredizas globales. |
 
-Desde la interfaz selecciona el ejemplo en el header y presiona **Cargar ejemplo**.
+Desde la interfaz selecciona el mueble en el header y presiona **Cargar**.
 
 #### 6. Cajones verticales y repisas superior/inferior
 
