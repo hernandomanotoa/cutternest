@@ -168,6 +168,8 @@ const examples = [];
 
   lines.push('# --- Modulo 3: repisa superior ---');
   lines.push(...baseTapaLateralesFondo(3, 3, 1600, 300, 250, '#C19A6B'));
+  lines.push(line('m3-montante-central', 'Montante central M3', 250, 300, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-travesano', 'Travesano trasero M3', 1540, 60, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-superior', 'Repisa superior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-inferior', 'Repisa inferior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
 
