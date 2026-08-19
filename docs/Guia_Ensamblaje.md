@@ -79,14 +79,22 @@ El planner detectará que `21` empieza con `2` y creará dependencias del cajón
 
 #### 5. Ejemplos listos para probar
 
-Los ejemplos del Assembly Planner están en `docs/` y se cargan desde `frontend/public/assembly-planner/data/`:
+El Assembly Planner incluye **10 ejemplos de muebles** diferentes. Puedes cargarlos desde el selector **Ejemplo** del header o importar manualmente los CSV desde `docs/`.
 
-- **`docs/Ejemplo_CSV_Basico.csv`** — estantería simple de 1 módulo, sin global ni submódulos.
-- **`docs/Ejemplo_CSV_Con_Global_y_Submodulo.csv`** — estructura global + módulo de estantes + cajonera con submódulo `21`.
-- **`docs/Ejemplo_CSV_Cajoneras_4_Modulos.csv`** — clóset completo con 4 módulos, estructura global y submódulos padre-hijo.
-- **`docs/Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv`** — módulos con cajones apilados verticalmente y repisas superior/inferior (incluye cantidades > 1).
+| Archivo en `docs/` | Vista en UI | Qué representa |
+|---|---|---|
+| `Ejemplo_CSV_Basico.csv` | Básico — estantería | Estantería simple de 1 módulo, sin global ni submódulos. |
+| `Ejemplo_CSV_Con_Global_y_Submodulo.csv` | Con estructura global y submódulo | Estructura global + módulo de estantes + cajón en submódulo `21`. |
+| `Ejemplo_CSV_Cajoneras_4_Modulos.csv` | Clóset / cajoneras 4 módulos | Clóset completo con 4 módulos, estructura global y submódulos padre-hijo. |
+| `Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv` | Cajones verticales + repisas | Módulos con cajones apilados verticalmente y repisas superior/inferior. |
+| `Ejemplo_CSV_Cocina_Modular.csv` | Cocina modular | Bajo mesada, cajonera triple, alacena y torre horno. |
+| `Ejemplo_CSV_Vanitory.csv` | Vanitory | Vanitory doble cajón, torre auxiliar y repisa abierta. |
+| `Ejemplo_CSV_Comoda_Chifonier.csv` | Cómoda / chifonier | 5 cajones verticales en un solo módulo. |
+| `Ejemplo_CSV_Mueble_TV.csv` | Mueble de TV | Centro abierto con estantes + laterales con cajones y puerta. |
+| `Ejemplo_CSV_Escritorio.csv` | Escritorio | Tablero corrido + cajoneras laterales + repisa superior. |
+| `Ejemplo_CSV_Armario_Puertas_Corredizas.csv` | Armario con puertas corredizas | Cuerpo con barra y repisas + puertas corredizas globales. |
 
-Desde la interfaz puedes cargar los tres primeros con los botones del header; el último se puede importar manualmente desde el botón **Importar CSV**.
+Desde la interfaz selecciona el ejemplo en el header y presiona **Cargar ejemplo**.
 
 #### 6. Cajones verticales y repisas superior/inferior
 

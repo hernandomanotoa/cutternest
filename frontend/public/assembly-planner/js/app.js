@@ -225,16 +225,16 @@ function init() {
     recalculateAll();
   });
 
-  // Botones de ejemplo
-  $('#btn-load-example')?.addEventListener('click', () =>
-    loadExample('./data/ejemplo-basico.csv')
-  );
-  $('#btn-load-global')?.addEventListener('click', () =>
-    loadExample('./data/ejemplo-global.csv')
-  );
-  $('#btn-load-closet')?.addEventListener('click', () =>
-    loadExample('./data/ejemplo-cajonera.csv')
-  );
+  // Boton de ejemplo desde select
+  $('#btn-load-example')?.addEventListener('click', () => {
+    const select = $('#example-selector');
+    const path = select?.value;
+    if (!path) {
+      showStatus('Selecciona un ejemplo primero', 'warning');
+      return;
+    }
+    loadExample(path);
+  });
 
   // Importar CSV
   $('#file-input')?.addEventListener('change', async (e) => {

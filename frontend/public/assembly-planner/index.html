@@ -16,9 +16,23 @@
             <option value="global">Global / Estructura</option>
           </select>
         </div>
-        <button id="btn-load-example" class="btn btn--secondary">Cargar ejemplo: básico</button>
-        <button id="btn-load-global" class="btn btn--secondary">Cargar ejemplo: con global</button>
-        <button id="btn-load-closet" class="btn btn--secondary">Cargar ejemplo: clóset</button>
+        <div class="form-group m-0" style="min-width: 260px;">
+          <label for="example-selector" class="sr-only">Ejemplo</label>
+          <select id="example-selector" class="w-full">
+            <option value="" disabled selected>Seleccionar ejemplo...</option>
+            <option value="./data/ejemplo-basico.csv">Básico — estantería</option>
+            <option value="./data/ejemplo-global.csv">Con estructura global y submódulo</option>
+            <option value="./data/ejemplo-cajonera.csv">Clóset / cajoneras 4 módulos</option>
+            <option value="./data/ejemplo-cajones-verticales.csv">Cajones verticales + repisas</option>
+            <option value="./data/ejemplo-cocina.csv">Cocina modular</option>
+            <option value="./data/ejemplo-vanitory.csv">Vanitory</option>
+            <option value="./data/ejemplo-comoda.csv">Cómoda / chifonier</option>
+            <option value="./data/ejemplo-mueble-tv.csv">Mueble de TV</option>
+            <option value="./data/ejemplo-escritorio.csv">Escritorio</option>
+            <option value="./data/ejemplo-armario.csv">Armario con puertas corredizas</option>
+          </select>
+        </div>
+        <button id="btn-load-example" class="btn btn--secondary">Cargar ejemplo</button>
         <label class="btn btn--primary" for="file-input">Importar CSV</label>
         <input id="file-input" type="file" accept=".csv" hidden />
         <button id="btn-export-csv" class="btn btn--secondary">Exportar CSV</button>
