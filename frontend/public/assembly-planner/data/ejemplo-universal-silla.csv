@@ -1,0 +1,9 @@
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+m4-asiento,Asiento silla,450,450,1,si,#C19A6B,15,"T,B,L,R",4
+m4-respaldo,Respaldo silla,450,500,1,no,#C19A6B,15,"T,B,L,R",4
+m4-pata-front-izq,Pata frontal izquierda,40,450,1,no,#8B5A2B,15,"T,B,L,R",4
+m4-pata-front-der,Pata frontal derecha,40,450,1,no,#8B5A2B,15,"T,B,L,R",4
+m4-pata-back-izq,Pata trasera izquierda,40,450,1,no,#8B5A2B,15,"T,B,L,R",4
+m4-pata-back-der,Pata trasera derecha,40,450,1,no,#8B5A2B,15,"T,B,L,R",4
+m4-travesano-front,Travesano frontal,370,40,1,si,#D9C2A3,15,"T,B,L,R",4
+m4-travesano-back,Travesano trasero,370,40,1,si,#D9C2A3,15,"T,B,L,R",4

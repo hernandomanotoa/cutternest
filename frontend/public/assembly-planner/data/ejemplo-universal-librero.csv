@@ -1,0 +1,17 @@
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+m2-base,Base librero,900,350,1,si,#C19A6B,15,"T,B,L,R",2
+m2-tapa,Tapa librero,900,350,1,si,#C19A6B,15,"T,B,L,R",2
+m2-lateral-izq,Lateral librero izq,350,2230,1,no,#C19A6B,15,"T,B,L",2
+m2-lateral-der,Lateral librero der,350,2230,1,no,#C19A6B,15,"T,B,R",2
+m2-fondo,Fondo librero,900,2230,1,no,#F2F2F2,15,,2
+m2-montante-central,Montante central,350,2230,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-travesano,Travesano trasero,820,60,1,si,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-inf-izq,Divisor inf izq,30,400,1,no,#C19A6B,15,"T,B,L,R",2
+m2-divisor-inf-der,Divisor inf der,30,400,1,no,#C19A6B,15,"T,B,L,R",2
+m2-divisor-med-izq,Divisor med izq,30,400,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-med-der,Divisor med der,30,400,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-sup-izq,Divisor sup izq,30,400,1,no,#C19A6B,15,"T,B,L,R",2
+m2-divisor-sup-der,Divisor sup der,30,400,1,no,#C19A6B,15,"T,B,L,R",2
+m2-estante-inf,Estante inferior,820,200,1,si,#D9C2A3,15,"T,B,L,R",2
+m2-estante-med,Estante medio,820,200,1,si,#D9C2A3,15,"T,B,L,R",2
+m2-estante-sup,Estante superior,820,200,1,si,#D9C2A3,15,"T,B,L,R",2

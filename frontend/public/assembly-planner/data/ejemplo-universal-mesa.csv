@@ -1,0 +1,7 @@
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+m3-tablero,Tablero mesa,800,800,1,si,#8B5A2B,30,"T,B,L,R",3
+m3-pata-izq-front,Pata izquierda frontal,80,450,1,no,#C19A6B,15,"T,B,L,R",3
+m3-pata-der-front,Pata derecha frontal,80,450,1,no,#C19A6B,15,"T,B,L,R",3
+m3-pata-izq-back,Pata izquierda trasera,80,450,1,no,#C19A6B,15,"T,B,L,R",3
+m3-pata-der-back,Pata derecha trasera,80,450,1,no,#C19A6B,15,"T,B,L,R",3
+m3-estante-inf,Estante inferior,600,20,1,si,#D9C2A3,15,"T,B,L,R",3
