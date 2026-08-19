@@ -484,42 +484,16 @@ function generarDiagramaCajon(all, piecesById, completedIds, activeIds, width, h
   const frentesCajon = all.filter((p) => norm(p.nombre).includes('frente'));
   const tiradores = all.filter((p) => norm(p.nombre).includes('tirador'));
 
-  // Tapa arriba, base abajo
-  if (tapa) {
-    const isActive = activeIds.has(tapa.id);
-    const isDone = completedIds.has(tapa.id) || isActive;
-    svgParts.push(rect(boxX + 10, boxY, boxW - 20, 20, tapa.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Tapa'));
-  }
-  if (base) {
-    const isActive = activeIds.has(base.id);
-    const isDone = completedIds.has(base.id) || isActive;
-    svgParts.push(rect(boxX + 10, boxY + boxH - 20, boxW - 20, 20, base.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Base'));
-  }
-
-  // Laterales a los lados
-  laterales.forEach((lat, i) => {
-    const isActive = activeIds.has(lat.id);
-    const isDone = completedIds.has(lat.id) || isActive;
-    const lx = i === 0 ? boxX : boxX + boxW - 30;
-    svgParts.push(rect(lx, boxY + 20, 30, boxH - 40, lat.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Lat'));
-  });
-
-  // Fondo al centro
-  if (fondo) {
-    const isActive = activeIds.has(fondo.id);
-    const isDone = completedIds.has(fondo.id) || isActive;
-    svgParts.push(rect(boxX + 35, boxY + 35, boxW - 70, boxH - 70, fondo.color, isDone ? 0.9 : 0.15, isActive ? '#4ECDC4' : '#334155'));
-  }
-
-  // Frente del cajon por encima
+  // Frente del cajon arriba (equivalente a la tapa/superior en la presentacion)
+  let topOffset = 0;
   if (frentesCajon.length) {
     frentesCajon.forEach((frente) => {
       const isActive = activeIds.has(frente.id);
       const isDone = completedIds.has(frente.id) || isActive;
-      const fw = Math.min(160, boxW - 60);
-      const fh = Math.min(100, boxH - 60);
-      const fx = boxX + (boxW - fw) / 2;
-      const fy = boxY + (boxH - fh) / 2;
+      const fw = boxW - 20;
+      const fh = 25;
+      const fx = boxX + 10;
+      const fy = boxY;
       svgParts.push(rect(fx, fy, fw, fh, frente.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Frente'));
       // Tirador centrado en el frente
       tiradores.forEach((tir) => {
@@ -528,7 +502,41 @@ function generarDiagramaCajon(all, piecesById, completedIds, activeIds, width, h
         svgParts.push(circle(fx + fw / 2, fy + fh / 2, 6, tir.color, isTirDone ? 1 : 0.25, isTirActive ? '#4ECDC4' : '#334155'));
       });
     });
-  } else if (tiradores.length) {
+    topOffset = 25;
+  }
+
+  // Tapa del cajon detras del frente
+  if (tapa) {
+    const isActive = activeIds.has(tapa.id);
+    const isDone = completedIds.has(tapa.id) || isActive;
+    svgParts.push(rect(boxX + 10, boxY + topOffset, boxW - 20, 15, tapa.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Tapa'));
+    topOffset += 15;
+  }
+
+  // Base abajo
+  if (base) {
+    const isActive = activeIds.has(base.id);
+    const isDone = completedIds.has(base.id) || isActive;
+    svgParts.push(rect(boxX + 10, boxY + boxH - 20, boxW - 20, 20, base.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Base'));
+  }
+
+  // Laterales a los lados, entre tapa/frente y base
+  laterales.forEach((lat, i) => {
+    const isActive = activeIds.has(lat.id);
+    const isDone = completedIds.has(lat.id) || isActive;
+    const lx = i === 0 ? boxX : boxX + boxW - 30;
+    svgParts.push(rect(lx, boxY + topOffset + 5, 30, boxH - topOffset - 30, lat.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Lat'));
+  });
+
+  // Fondo al centro
+  if (fondo) {
+    const isActive = activeIds.has(fondo.id);
+    const isDone = completedIds.has(fondo.id) || isActive;
+    svgParts.push(rect(boxX + 35, boxY + topOffset + 15, boxW - 70, boxH - topOffset - 50, fondo.color, isDone ? 0.9 : 0.15, isActive ? '#4ECDC4' : '#334155'));
+  }
+
+  // Si por alguna razon no hay frente pero si tirador, mostrarlo centrado
+  if (!frentesCajon.length && tiradores.length) {
     tiradores.forEach((tir) => {
       const isActive = activeIds.has(tir.id);
       const isDone = completedIds.has(tir.id) || isActive;
