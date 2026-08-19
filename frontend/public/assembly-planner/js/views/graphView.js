@@ -22,13 +22,12 @@ export function renderGraphView(container) {
 
   const moduleLabel = getModuleLabel(state.currentModule, state.pieces);
 
-  // Estado local del grafo (se define antes de pintar para reflejar el modo en el boton)
+  // Estado local del grafo
   let selectedId = null;
   let scale = 1;
   let pan = { x: 0, y: 0 };
   let dragging = null; // { type: 'node'|'pan', ... }
-  let layoutMode = state.currentModule === 'global' ? 'hierarchical' : 'structural'; // 'hierarchical' | 'structural'
-  const layoutButtonLabel = layoutMode === 'hierarchical' ? 'Jerárquico' : 'Estructural';
+  let layoutMode = 'hierarchical'; // 'hierarchical' | 'structural'
 
   container.innerHTML = `
     <div class="card mb-2">
@@ -36,7 +35,7 @@ export function renderGraphView(container) {
         <div class="flex justify-between items-center mb-1">
           <h2 class="card__title m-0">Grafo — ${moduleLabel}</h2>
           <div class="flex gap-1">
-            <button id="btn-layout" class="btn btn--secondary btn--sm">Layout: ${layoutButtonLabel}</button>
+            <button id="btn-layout" class="btn btn--secondary btn--sm">Layout: Jerárquico</button>
             <button id="btn-center" class="btn btn--secondary btn--sm">Centrar grafo</button>
             <button id="btn-reset-deps" class="btn btn--secondary btn--sm">Restaurar heurísticas</button>
             <button id="btn-clear-deps" class="btn btn--danger btn--sm">Limpiar</button>

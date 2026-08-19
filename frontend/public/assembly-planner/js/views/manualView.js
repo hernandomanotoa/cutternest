@@ -115,7 +115,7 @@ export function renderManualView(container) {
       <p class="mb-2">${generarInstruccion(step, piecesById)}</p>
       ${warning ? '<div class="alert alert--warning">Este paso incluye piezas con riesgo estructural. Verifica soportes antes de continuar.</div>' : ''}
       <div class="manual-step mb-2">
-        ${generarDiagramaPaso(step, piecesById, completed, active, stepPieces)}
+        ${generarDiagramaPaso(step, piecesById, completed, active, stepPieces, stepModule)}
       </div>
       <div class="flex gap-2 flex-wrap mb-2">
         <div class="card" style="flex: 1; min-width: 220px;">
@@ -253,7 +253,7 @@ function download(filename, blob) {
   URL.revokeObjectURL(url);
 }
 
-function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActivePieces) {
+function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActivePieces, stepModule) {
   const width = 700;
   const height = 420;
   const margin = { top: 30, right: 30, bottom: 30, left: 30 };
@@ -262,9 +262,19 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
-  // Layout heurístico simple: laterales a los lados, base abajo, tapa arriba, repisas intermedias
   const all = allActivePieces || state.pieces;
   const activeList = Array.from(activeIds).map((id) => piecesById[id]).filter(Boolean);
+
+  // Detectar paso de submodulo de cajon: modulo de 2+ digitos y todas las piezas son del cajon
+  const moduleStr = String(stepModule || '').trim();
+  const isCajonSubmodulo = moduleStr && moduleStr !== 'global' && moduleStr.length >= 2 &&
+    all.some((p) => norm(p.nombre).includes('cajon'));
+
+  if (isCajonSubmodulo) {
+    return generarDiagramaCajon(all, piecesById, completedIds, activeIds, width, height, margin);
+  }
+
+  // Layout heurístico simple: laterales a los lados, base abajo, tapa arriba, repisas intermedias
   const base = all.find((p) => norm(p.nombre).includes('base') && !norm(p.nombre).includes('cajon'));
   const tapa = all.find((p) => norm(p.nombre).includes('tapa') && !norm(p.nombre).includes('cajon'));
   const laterales = all.filter((p) => norm(p.nombre).includes('lateral') && !norm(p.nombre).includes('cajon'));
@@ -417,6 +427,114 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
       svgParts.push(circle(tx, ty, 6, tir.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155'));
     }
   });
+
+  // Leyenda
+  svgParts.push(`
+    <g transform="translate(${width - 150}, 30)">
+      <rect x="0" y="0" width="12" height="12" fill="#10b981" rx="2" />
+      <text x="18" y="11" fill="#f1f5f9" font-size="11">Ensamblada</text>
+      <rect x="0" y="20" width="12" height="12" fill="#4ECDC4" rx="2" />
+      <text x="18" y="31" fill="#f1f5f9" font-size="11">Paso actual</text>
+      <rect x="0" y="40" width="12" height="12" fill="#334155" rx="2" opacity="0.4" />
+      <text x="18" y="51" fill="#f1f5f9" font-size="11">Pendiente</text>
+    </g>
+  `);
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;">
+      ${svgParts.join('')}
+    </svg>
+  `;
+}
+
+function generarDiagramaCajon(all, piecesById, completedIds, activeIds, width, height, margin) {
+  // Vista explotada/de caja para submodulos de cajon: base, tapa, laterales, fondo, frente y tirador.
+  function norm(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function rect(x, y, w, h, color, opacity = 1, stroke = '#334155', label = '') {
+    const sx = x + margin.left;
+    const sy = y + margin.top;
+    return `
+      <rect x="${sx}" y="${sy}" width="${w}" height="${h}" rx="3" fill="${color}" stroke="${stroke}" stroke-width="2" opacity="${opacity}" />
+      ${label ? `<text x="${sx + w/2}" y="${sy + h/2 + 4}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="600">${label}</text>` : ''}
+    `;
+  }
+
+  function circle(x, y, r, color, opacity = 1, stroke = '#334155') {
+    const sx = x + margin.left;
+    const sy = y + margin.top;
+    return `<circle cx="${sx}" cy="${sy}" r="${r}" fill="${color}" stroke="${stroke}" stroke-width="2" opacity="${opacity}" />`;
+  }
+
+  const svgParts = [];
+
+  // Caja de referencia del cajon centrada
+  const boxW = 220;
+  const boxH = 160;
+  const boxX = (width - boxW) / 2 - margin.left;
+  const boxY = (height - boxH) / 2 - margin.top;
+  svgParts.push(`<rect x="${boxX + margin.left}" y="${boxY + margin.top}" width="${boxW}" height="${boxH}" fill="none" stroke="#334155" stroke-dasharray="4 4" opacity="0.4" />`);
+
+  const base = all.find((p) => norm(p.nombre).includes('base'));
+  const tapa = all.find((p) => norm(p.nombre).includes('tapa'));
+  const laterales = all.filter((p) => norm(p.nombre).includes('lateral'));
+  const fondo = all.find((p) => norm(p.nombre).includes('fondo'));
+  const frentesCajon = all.filter((p) => norm(p.nombre).includes('frente'));
+  const tiradores = all.filter((p) => norm(p.nombre).includes('tirador'));
+
+  // Tapa arriba, base abajo
+  if (tapa) {
+    const isActive = activeIds.has(tapa.id);
+    const isDone = completedIds.has(tapa.id) || isActive;
+    svgParts.push(rect(boxX + 10, boxY, boxW - 20, 20, tapa.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Tapa'));
+  }
+  if (base) {
+    const isActive = activeIds.has(base.id);
+    const isDone = completedIds.has(base.id) || isActive;
+    svgParts.push(rect(boxX + 10, boxY + boxH - 20, boxW - 20, 20, base.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Base'));
+  }
+
+  // Laterales a los lados
+  laterales.forEach((lat, i) => {
+    const isActive = activeIds.has(lat.id);
+    const isDone = completedIds.has(lat.id) || isActive;
+    const lx = i === 0 ? boxX : boxX + boxW - 30;
+    svgParts.push(rect(lx, boxY + 20, 30, boxH - 40, lat.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Lat'));
+  });
+
+  // Fondo al centro
+  if (fondo) {
+    const isActive = activeIds.has(fondo.id);
+    const isDone = completedIds.has(fondo.id) || isActive;
+    svgParts.push(rect(boxX + 35, boxY + 35, boxW - 70, boxH - 70, fondo.color, isDone ? 0.9 : 0.15, isActive ? '#4ECDC4' : '#334155'));
+  }
+
+  // Frente del cajon por encima
+  if (frentesCajon.length) {
+    frentesCajon.forEach((frente) => {
+      const isActive = activeIds.has(frente.id);
+      const isDone = completedIds.has(frente.id) || isActive;
+      const fw = Math.min(160, boxW - 60);
+      const fh = Math.min(100, boxH - 60);
+      const fx = boxX + (boxW - fw) / 2;
+      const fy = boxY + (boxH - fh) / 2;
+      svgParts.push(rect(fx, fy, fw, fh, frente.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', 'Frente'));
+      // Tirador centrado en el frente
+      tiradores.forEach((tir) => {
+        const isTirActive = activeIds.has(tir.id);
+        const isTirDone = completedIds.has(tir.id) || isTirActive;
+        svgParts.push(circle(fx + fw / 2, fy + fh / 2, 6, tir.color, isTirDone ? 1 : 0.25, isTirActive ? '#4ECDC4' : '#334155'));
+      });
+    });
+  } else if (tiradores.length) {
+    tiradores.forEach((tir) => {
+      const isActive = activeIds.has(tir.id);
+      const isDone = completedIds.has(tir.id) || isActive;
+      svgParts.push(circle(boxX + boxW / 2, boxY + boxH / 2, 6, tir.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155'));
+    });
+  }
 
   // Leyenda
   svgParts.push(`
