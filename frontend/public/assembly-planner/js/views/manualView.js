@@ -434,9 +434,41 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
     });
   }
 
+  // Soportes estructurales: montantes, travesaños, refuerzos, cantoneras, tirantes
+  const soportePieces = all.filter((p) =>
+    ['soporte', 'montante', 'travesano', 'travesaño', 'refuerzo', 'tirante', 'pata', 'cantonera'].some((k) =>
+      norm(p.nombre).includes(k)
+    ) && !norm(p.nombre).includes('cajon')
+  );
+  const montantes = soportePieces.filter((p) =>
+    norm(p.nombre).includes('montante') || norm(p.nombre).includes('pata') || norm(p.nombre).includes('soporte vertical') || norm(p.nombre).includes('pie derecho')
+  );
+  const travesanos = soportePieces.filter((p) =>
+    norm(p.nombre).includes('travesano') || norm(p.nombre).includes('travesaño') || norm(p.nombre).includes('refuerzo') || norm(p.nombre).includes('soporte intermedio') || norm(p.nombre).includes('cantonera') || norm(p.nombre).includes('tirante')
+  );
+
+  if (montantes.length) {
+    const mw = 14;
+    montantes.forEach((m, i) => {
+      const isActive = activeIds.has(m.id);
+      const isDone = completedIds.has(m.id) || isActive;
+      const mx = interiorX + (interiorW / (montantes.length + 1)) * (i + 1) - mw / 2;
+      const label = m.nombre.split(' ').slice(0, 2).join(' ');
+      svgParts.push(rect(mx, interiorY, mw, interiorH, m.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', label));
+    });
+  }
+  if (travesanos.length) {
+    const th = 8;
+    travesanos.forEach((t, i) => {
+      const isActive = activeIds.has(t.id);
+      const isDone = completedIds.has(t.id) || isActive;
+      const ty = interiorY + 30 + i * 16;
+      const label = t.nombre.split(' ').slice(0, 2).join(' ');
+      svgParts.push(rect(interiorX, ty, interiorW, th, t.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', label));
+    });
+  }
+
   // Frentes de cajón: si son 2 se apilan verticalmente, si no lado a lado
-  const interiorX = boxX + 35;
-  const interiorW = boxW - 70;
   frentesCajon.forEach((frente, i) => {
     const isActive = activeIds.has(frente.id);
     const isDone = completedIds.has(frente.id) || isActive;

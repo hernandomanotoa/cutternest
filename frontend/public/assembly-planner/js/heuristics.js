@@ -20,7 +20,11 @@ function normalize(s) {
 }
 
 function sameModule(a, b) {
-  return a.modulo === b.modulo || a.modulo === 'estructura' || b.modulo === 'estructura';
+  // Las piezas globales (modulo = 'estructura') se conectan solo entre si,
+  // no con las piezas de modulos numericos. Esto evita el grafo global saturado.
+  if (a.modulo === 'estructura' && b.modulo === 'estructura') return true;
+  if (a.modulo === 'estructura' || b.modulo === 'estructura') return false;
+  return a.modulo === b.modulo;
 }
 
 export function sugerirDependencias(piezas) {
