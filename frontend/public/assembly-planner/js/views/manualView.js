@@ -289,8 +289,20 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
   const repisas = Array.from(repisaGroups.values()).map((group) => group[0]);
   const repisaInstances = Array.from(repisaGroups.values());
   const fondo = all.find((p) => norm(p.nombre).includes('fondo') && !norm(p.nombre).includes('cajon'));
-  const frentesCajon = all.filter((p) => norm(p.nombre).includes('frente') && norm(p.nombre).includes('cajon'));
+  let frentesCajon = all.filter((p) => norm(p.nombre).includes('frente') && norm(p.nombre).includes('cajon'));
   const tiradores = all.filter((p) => norm(p.nombre).includes('tirador'));
+
+  // Si este paso es de un modulo padre, incluir los frentes de cajon de sus submodulos en la vista
+  if (!isCajonSubmodulo && moduleStr && moduleStr !== 'global') {
+    const frentesSubmodulos = state.pieces.filter((p) => {
+      const mod = String(p.modulo || '').trim();
+      return mod !== moduleStr && mod.startsWith(moduleStr) &&
+        norm(p.nombre).includes('frente') && norm(p.nombre).includes('cajon');
+    });
+    if (frentesSubmodulos.length) {
+      frentesCajon = frentesCajon.concat(frentesSubmodulos);
+    }
+  }
 
   const svgParts = [];
 
