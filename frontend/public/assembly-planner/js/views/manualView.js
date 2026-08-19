@@ -304,6 +304,21 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
     }
   }
 
+  // Ordenar frentes de cajon: superior arriba, inferior abajo
+  frentesCajon.sort((a, b) => {
+    const na = norm(a.nombre);
+    const nb = norm(b.nombre);
+    const aSup = na.includes('superior');
+    const bSup = nb.includes('superior');
+    const aInf = na.includes('inferior');
+    const bInf = nb.includes('inferior');
+    if (aSup && !bSup) return -1;
+    if (!aSup && bSup) return 1;
+    if (aInf && !bInf) return 1;
+    if (!aInf && bInf) return -1;
+    return 0;
+  });
+
   const svgParts = [];
 
   function rect(x, y, w, h, color, opacity = 1, stroke = '#334155', label = '') {
