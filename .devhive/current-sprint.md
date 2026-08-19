@@ -72,6 +72,23 @@ Ninguno.
 - **Manual de ensamblaje**: repisas inferiores con `cantidad > 1` se apilan hacia arriba dentro del interior del mueble, evitando que se dibujen debajo de la base (`manualView.js`).
 - **Grafo**: el layout estructural ahora se recalcula y centra automáticamente al cambiar de pestaña o redimensionar el contenedor, usando `ResizeObserver` y reintentos por `requestAnimationFrame` (`graphView.js`).
 
+## Ejemplos CSV consolidados
+
+Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
+
+- **Conservados en `docs/`**:
+  - `Ejemplo_CSV_Basico.csv` — estantería simple de 1 módulo.
+  - `Ejemplo_CSV_Con_Global_y_Submodulo.csv` — estructura global + estantes + cajón en submódulo.
+  - `Ejemplo_CSV_Cajoneras_4_Modulos.csv` — clóset completo con 4 módulos y submódulos padre-hijo.
+  - `Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv` — cajones apilados + repisas superior/inferior con cantidades > 1.
+- **Cargables desde la UI** en `frontend/public/assembly-planner/data/`:
+  - `ejemplo-basico.csv`, `ejemplo-global.csv`, `ejemplo-cajonera.csv`.
+- **Eliminados por obsoletos/redundantes**:
+  - `Ejemplo_CSV_Estanteria_Modulos.csv`, `Ejemplo_CSV_Modulos_Independientes.csv`, `Ejemplo_CSV_Sin_Global.csv`, `Ejemplo_CSV_Minimo_Paso_a_Paso.csv`, `Ejemplo_CSV_Manual_Completo.csv`, `Ejemplo_CSV_Modulos_PadreHijo.csv`, `Ejemplo_CSV_Completo_Cajones_Verticales.csv`.
+  - `frontend/public/assembly-planner/data/ejemplo-estanteria.csv` y `ejemplo-closet.csv`.
+- **Documentación actualizada**: `docs/Guia_Ensamblaje.md`, `docs/Flujo_CSV_Ensamblaje.md`, `docs/Formato_CSV_Piezas.md`.
+- **UI actualizada**: `index.html` y `app.js` ahora tienen 3 botones de ejemplo: básico, con global y clóset/cajonera.
+
 ## Next actions
 
 1. Continuar iteraciones de funcionalidad sobre el MVP (optimizador 3D, mejoras UI, reportes).

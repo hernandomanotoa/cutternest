@@ -77,9 +77,16 @@ El planner detectará que `21` empieza con `2` y creará dependencias del cajón
 - No mezcles piezas del módulo `2` dentro del módulo `1`; rompe el plan y el diagrama.
 - Si un módulo solo tiene puertas, estantes o tiradores sin estructura propia, el Manual solo mostrará esos elementos flotando dentro del fondo global (o nada si no hay fondo global).
 
-#### 5. Ejemplo listo para probar
+#### 5. Ejemplos listos para probar
 
-Usa `docs/Ejemplo_CSV_Manual_Completo.csv`. Tiene dos módulos completos (estantes y cajonera) con dimensiones diferentes para evitar agrupación, y un cajón en el submódulo `21`.
+Los ejemplos del Assembly Planner están en `docs/` y se cargan desde `frontend/public/assembly-planner/data/`:
+
+- **`docs/Ejemplo_CSV_Basico.csv`** — estantería simple de 1 módulo, sin global ni submódulos.
+- **`docs/Ejemplo_CSV_Con_Global_y_Submodulo.csv`** — estructura global + módulo de estantes + cajonera con submódulo `21`.
+- **`docs/Ejemplo_CSV_Cajoneras_4_Modulos.csv`** — clóset completo con 4 módulos, estructura global y submódulos padre-hijo.
+- **`docs/Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv`** — módulos con cajones apilados verticalmente y repisas superior/inferior (incluye cantidades > 1).
+
+Desde la interfaz puedes cargar los tres primeros con los botones del header; el último se puede importar manualmente desde el botón **Importar CSV**.
 
 #### 6. Cajones verticales y repisas superior/inferior
 
@@ -112,7 +119,7 @@ m12-cajon-frente,Frente cajon inferior M1,400,180,1,si,#8B5A2B,15,"T,B,L,R",12
 ...
 ```
 
-Un ejemplo completo con cuatro módulos de este tipo (módulos 1 y 2 con cajones verticales, módulos 3 y 4 con 3 repisas inferiores + 1 superior) está en `docs/Ejemplo_CSV_Completo_Cajones_Verticales.csv`.
+Un ejemplo completo con cuatro módulos de este tipo (módulos 1 y 2 con cajones verticales, módulos 3 y 4 con 3 repisas inferiores + 1 superior) está en `docs/Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv`.
 
 ---
 
