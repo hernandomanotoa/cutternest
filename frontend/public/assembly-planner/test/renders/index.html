@@ -7,23 +7,25 @@
 <style>
   body { font-family: system-ui, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 1rem; }
   h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+  p.lead { color: #94a3b8; margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; margin-top: 1rem; }
   .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.75rem; }
-  .card h2 { font-size: 0.9rem; margin: 0 0 0.5rem; color: #f59e0b; }
+  .card h2 { font-size: 0.95rem; margin: 0 0 0.35rem; color: #f59e0b; }
   .meta { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; }
-  .ok { color: #10b981; }
-  .bad { color: #ef4444; }
+  .ok { color: #10b981; font-weight: 600; }
   .svg-wrap { background: #0f172a; border-radius: 0.25rem; overflow: auto; max-height: 320px; }
   .svg-wrap svg { width: 100%; height: auto; display: block; }
+  code { background: #334155; padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-size: 0.85rem; }
 </style>
 </head>
 <body>
 <h1>🛋️ CutterNest SVG Engine v3 — Galería de renders</h1>
-<p>Abrir en el navegador: <code>http://localhost:3000/assembly-planner/test/renders/</code></p>
+<p class="lead">Abrir con el stack levantado: <code>http://localhost:3000/assembly-planner/test/renders/</code></p>
+<p class="lead"><span class="ok">✓ Todos los renders se generan sin solapamientos no intencionales</span></p>
 <div class="grid">
 
   <div class="card">
-    <h2>ejemplo-armario — Módulo 1</h2>
+    <h2>Armario con puertas corredizas — Módulo 1</h2>
     <div class="meta">viewBox 860×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 860 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -56,7 +58,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-armario — Módulo 11</h2>
+    <h2>Armario con puertas corredizas — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -77,7 +79,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-armario — Módulo 2</h2>
+    <h2>Armario con puertas corredizas — Módulo 2</h2>
     <div class="meta">viewBox 860×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 860 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -117,7 +119,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-armario — Módulo 21</h2>
+    <h2>Armario con puertas corredizas — Módulo 21</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -136,7 +138,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-armario — Módulo estructura</h2>
+    <h2>Armario con puertas corredizas — Módulo estructura</h2>
     <div class="meta">viewBox 1660×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1660 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -168,7 +170,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-basico — Módulo 1</h2>
+    <h2>Estantería básica — Módulo 1</h2>
     <div class="meta">viewBox 180×240 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 180 240" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -198,7 +200,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 1</h2>
+    <h2>Clóset / Cajoneras — Módulo 1</h2>
     <div class="meta">viewBox 510×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 510 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -237,7 +239,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 11</h2>
+    <h2>Clóset / Cajoneras — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -258,7 +260,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 12</h2>
+    <h2>Clóset / Cajoneras — Módulo 12</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -279,7 +281,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 2</h2>
+    <h2>Clóset / Cajoneras — Módulo 2</h2>
     <div class="meta">viewBox 520×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 520 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -318,7 +320,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 21</h2>
+    <h2>Clóset / Cajoneras — Módulo 21</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -337,7 +339,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 22</h2>
+    <h2>Clóset / Cajoneras — Módulo 22</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -356,7 +358,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 3</h2>
+    <h2>Clóset / Cajoneras — Módulo 3</h2>
     <div class="meta">viewBox 560×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 560 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -385,7 +387,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cajonera — Módulo 4</h2>
+    <h2>Clóset / Cajoneras — Módulo 4</h2>
     <div class="meta">viewBox 570×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 570 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -414,7 +416,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 1</h2>
+    <h2>Cocina modular — Módulo 1</h2>
     <div class="meta">viewBox 660×760 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 660 760" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -447,7 +449,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 11</h2>
+    <h2>Cocina modular — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -468,7 +470,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 2</h2>
+    <h2>Cocina modular — Módulo 2</h2>
     <div class="meta">viewBox 660×760 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 660 760" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -501,7 +503,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 21</h2>
+    <h2>Cocina modular — Módulo 21</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -520,7 +522,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 22</h2>
+    <h2>Cocina modular — Módulo 22</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -539,7 +541,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 23</h2>
+    <h2>Cocina modular — Módulo 23</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -558,7 +560,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 3</h2>
+    <h2>Cocina modular — Módulo 3</h2>
     <div class="meta">viewBox 660×1260 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 660 1260" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -592,7 +594,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 4</h2>
+    <h2>Cocina modular — Módulo 4</h2>
     <div class="meta">viewBox 660×1260 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 660 1260" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -623,7 +625,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo 41</h2>
+    <h2>Cocina modular — Módulo 41</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -644,7 +646,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-cocina — Módulo estructura</h2>
+    <h2>Cocina modular — Módulo estructura</h2>
     <div class="meta">viewBox 2500×660 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 2500 660" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -671,7 +673,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-comoda — Módulo 1</h2>
+    <h2>Cómoda / Chifonier — Módulo 1</h2>
     <div class="meta">viewBox 960×660 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 660" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -706,7 +708,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-comoda — Módulo 11</h2>
+    <h2>Cómoda / Chifonier — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -727,7 +729,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-comoda — Módulo 12</h2>
+    <h2>Cómoda / Chifonier — Módulo 12</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -748,7 +750,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-comoda — Módulo 13</h2>
+    <h2>Cómoda / Chifonier — Módulo 13</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -769,7 +771,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-comoda — Módulo 14</h2>
+    <h2>Cómoda / Chifonier — Módulo 14</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -790,7 +792,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-comoda — Módulo 15</h2>
+    <h2>Cómoda / Chifonier — Módulo 15</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -811,7 +813,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 1</h2>
+    <h2>Escritorio — Módulo 1</h2>
     <div class="meta">viewBox 460×760 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 460 760" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -842,7 +844,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 11</h2>
+    <h2>Escritorio — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -863,7 +865,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 12</h2>
+    <h2>Escritorio — Módulo 12</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -884,7 +886,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 2</h2>
+    <h2>Escritorio — Módulo 2</h2>
     <div class="meta">viewBox 460×760 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 460 760" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -915,7 +917,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 21</h2>
+    <h2>Escritorio — Módulo 21</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -934,7 +936,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 22</h2>
+    <h2>Escritorio — Módulo 22</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -953,7 +955,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo 3</h2>
+    <h2>Escritorio — Módulo 3</h2>
     <div class="meta">viewBox 1660×360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1660 360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -981,7 +983,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-escritorio — Módulo estructura</h2>
+    <h2>Escritorio — Módulo estructura</h2>
     <div class="meta">viewBox 1660×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1660 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1000,7 +1002,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-global — Módulo 1</h2>
+    <h2>Estructura global + submódulo — Módulo 1</h2>
     <div class="meta">viewBox 510×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 510 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1029,7 +1031,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-global — Módulo 2</h2>
+    <h2>Estructura global + submódulo — Módulo 2</h2>
     <div class="meta">viewBox 520×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 520 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1060,7 +1062,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-global — Módulo 21</h2>
+    <h2>Estructura global + submódulo — Módulo 21</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1081,7 +1083,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-global — Módulo estructura</h2>
+    <h2>Estructura global + submódulo — Módulo estructura</h2>
     <div class="meta">viewBox 970×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 970 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1098,7 +1100,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-librero-alto — Módulo 1</h2>
+    <h2>Librero alto con soportes — Módulo 1</h2>
     <div class="meta">viewBox 960×2290 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2290" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1139,7 +1141,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-librero-alto — Módulo 2</h2>
+    <h2>Librero alto con soportes — Módulo 2</h2>
     <div class="meta">viewBox 970×2290 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 970 2290" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1180,7 +1182,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-librero-alto — Módulo estructura</h2>
+    <h2>Librero alto con soportes — Módulo estructura</h2>
     <div class="meta">viewBox 1945×2290 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1945 2290" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1205,7 +1207,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-mueble-tv — Módulo 1</h2>
+    <h2>Mueble de TV — Módulo 1</h2>
     <div class="meta">viewBox 860×560 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 860 560" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1232,7 +1234,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-mueble-tv — Módulo 2</h2>
+    <h2>Mueble de TV — Módulo 2</h2>
     <div class="meta">viewBox 560×560 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1263,7 +1265,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-mueble-tv — Módulo 21</h2>
+    <h2>Mueble de TV — Módulo 21</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1282,7 +1284,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-mueble-tv — Módulo 22</h2>
+    <h2>Mueble de TV — Módulo 22</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1301,7 +1303,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-mueble-tv — Módulo 3</h2>
+    <h2>Mueble de TV — Módulo 3</h2>
     <div class="meta">viewBox 560×560 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1331,7 +1333,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-mueble-tv — Módulo estructura</h2>
+    <h2>Mueble de TV — Módulo estructura</h2>
     <div class="meta">viewBox 1860×560 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1860 560" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1354,7 +1356,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 1</h2>
+    <h2>Cajonera doble (M1)</h2>
     <div class="meta">viewBox 510×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 510 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1393,7 +1395,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 11</h2>
+    <h2>Muebles universales v3 — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1414,7 +1416,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 12</h2>
+    <h2>Muebles universales v3 — Módulo 12</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1435,7 +1437,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 2</h2>
+    <h2>Librero alto (M2)</h2>
     <div class="meta">viewBox 960×2290 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2290" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1476,7 +1478,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 3</h2>
+    <h2>Mesa de centro (M3)</h2>
     <div class="meta">viewBox 860×540 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 860 540" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1501,7 +1503,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 4</h2>
+    <h2>Silla (M4)</h2>
     <div class="meta">viewBox 515×1025 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 515 1025" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1529,7 +1531,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 5</h2>
+    <h2>Ropero con puertas (M5)</h2>
     <div class="meta">viewBox 1260×2260 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1260 2260" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1565,7 +1567,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-universal — Módulo 6</h2>
+    <h2>Zapatero (M6)</h2>
     <div class="meta">viewBox 860×1260 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 860 1260" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1594,7 +1596,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-vanitory — Módulo 1</h2>
+    <h2>Vanitory — Módulo 1</h2>
     <div class="meta">viewBox 860×560 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 860 560" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1625,7 +1627,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-vanitory — Módulo 11</h2>
+    <h2>Vanitory — Módulo 11</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1646,7 +1648,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-vanitory — Módulo 12</h2>
+    <h2>Vanitory — Módulo 12</h2>
     <div class="meta">viewBox 960×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 960 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1667,7 +1669,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-vanitory — Módulo 2</h2>
+    <h2>Vanitory — Módulo 2</h2>
     <div class="meta">viewBox 460×1260 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 460 1260" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1701,7 +1703,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-vanitory — Módulo 3</h2>
+    <h2>Vanitory — Módulo 3</h2>
     <div class="meta">viewBox 660×460 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 660 460" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
@@ -1728,7 +1730,7 @@
 </svg></div>
   </div>
   <div class="card">
-    <h2>ejemplo-vanitory — Módulo estructura</h2>
+    <h2>Vanitory — Módulo estructura</h2>
     <div class="meta">viewBox 1860×2360 mm · <span class="ok">sin solapamientos</span></div>
     <div class="svg-wrap"><svg viewBox="0 0 1860 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
   <defs>
