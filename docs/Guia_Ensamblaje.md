@@ -93,6 +93,7 @@ El Assembly Planner incluye **10 muebles de ejemplo** diferentes. Puedes cargarl
 | `Ejemplo_CSV_Mueble_TV.csv` | Mueble de TV | Centro abierto con estantes + laterales con cajones y puerta. |
 | `Ejemplo_CSV_Escritorio.csv` | Escritorio | Tablero corrido + cajoneras laterales + repisa superior. |
 | `Ejemplo_CSV_Armario_Puertas_Corredizas.csv` | Armario con puertas corredizas | Cuerpo con barra y repisas + puertas corredizas globales. |
+| `Ejemplo_CSV_Librero_Alto_con_Soportes.csv` | Librero alto con soportes | Librero de 2200 mm con montantes centrales, travesaños y patas/tirantes. |
 
 Desde la interfaz selecciona el mueble en el header y presiona **Cargar**.
 

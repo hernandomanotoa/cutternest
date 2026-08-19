@@ -110,10 +110,39 @@ export function renderManualView(container) {
       return p && (p.riesgo === 'critico' || p.riesgo === 'alto');
     });
 
+    // Alerta de soporte estructural por modulo
+    function normalizeName(s) {
+      return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+    const modulePiecesForSoporte = stepModule === 'global'
+      ? []
+      : state.pieces.filter((p) => String(p.modulo || '').trim() === stepModule);
+    const moduleHeight = modulePiecesForSoporte.reduce((max, p) => Math.max(max, parseInt(p.alto) || 0), 0);
+    const hasSoporteVertical = modulePiecesForSoporte.some((p) => {
+      const n = normalizeName(p.nombre);
+      return n.includes('montante') || n.includes('tirante') || n.includes('pata') || n.includes('soporte vertical') || n.includes('pie derecho');
+    });
+    const hasSoporteIntermedio = modulePiecesForSoporte.some((p) => {
+      const n = normalizeName(p.nombre);
+      return n.includes('travesano') || n.includes('travesaño') || n.includes('refuerzo') || n.includes('soporte intermedio') || n.includes('cantonera');
+    });
+    const wideRepisas = modulePiecesForSoporte.filter((p) => {
+      const n = normalizeName(p.nombre);
+      return (n.includes('repisa') || n.includes('estante')) && (parseInt(p.ancho) || 0) > 1000;
+    });
+    const soporteWarnings = [];
+    if (moduleHeight > 1800 && !hasSoporteVertical) {
+      soporteWarnings.push('Este módulo supera los 1800 mm de alto y no tiene soporte vertical (montante, tirante, pata o pie derecho). Verifica estabilidad.');
+    }
+    if (wideRepisas.length > 0 && !hasSoporteIntermedio) {
+      soporteWarnings.push(`Repisa(s) de ${wideRepisas.map((p) => `${p.ancho}x${p.alto}`).join(', ')} mm sin soporte intermedio. Considera un travesaño, refuerzo o cantonera.`);
+    }
+
     $('#manual-step-content', container).innerHTML = `
       <h3 class="mb-1">PASO ${step.paso}: ${generarInstruccion(step, piecesById).split('.')[0]}${stepModuleLabel}</h3>
       <p class="mb-2">${generarInstruccion(step, piecesById)}</p>
       ${warning ? '<div class="alert alert--warning">Este paso incluye piezas con riesgo estructural. Verifica soportes antes de continuar.</div>' : ''}
+      ${soporteWarnings.map((msg) => `<div class="alert alert--warning">${msg}</div>`).join('')}
       <div class="manual-step mb-2">
         ${generarDiagramaPaso(step, piecesById, completed, active, stepPieces, stepModule)}
       </div>
