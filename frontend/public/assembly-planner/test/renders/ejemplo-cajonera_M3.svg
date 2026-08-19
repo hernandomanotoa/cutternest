@@ -1,0 +1,25 @@
+<svg viewBox="0 0 560 2360" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
+  <defs>
+    <marker id="cn-dim-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f59e0b"/></marker>
+  </defs>
+  <g fill="#F2F2F2">
+    <path d="M0,0h500v2300h-500Z" data-id="m3-fondo" data-type="back_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <text x="250" y="1154" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">m3-fondo</text>
+  </g>
+  <g fill="#C19A6B">
+    <path d="M0,15h15v2270h-15Z" data-id="m3-lateral-izq" data-type="side_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M485,15h15v2270h-15Z" data-id="m3-lateral-der" data-type="side_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M0,0h500v15h-500Z" data-id="m3-tapa" data-type="top_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M0,2285h500v15h-500Z" data-id="m3-base" data-type="bottom_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+  </g>
+  <g fill="#D9C2A3">
+    <path d="M30,457h440v15h-440Z" data-id="m3-repisa-superior" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M30,914h440v15h-440Z" data-id="m3-repisa-inferior-1" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M30,1371h440v15h-440Z" data-id="m3-repisa-inferior-2" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M30,1828h440v15h-440Z" data-id="m3-repisa-inferior-3" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+  </g>
+  <line x1="0" y1="2320" x2="500" y2="2320" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
+  <text x="250" y="2342" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="700" font-family="system-ui,sans-serif">500 mm</text>
+  <line x1="520" y1="0" x2="520" y2="2300" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
+  <text x="542" y="1150" text-anchor="start" fill="#f59e0b" font-size="13" font-weight="700" font-family="system-ui,sans-serif" writing-mode="tb">2300 mm</text>
+</svg>

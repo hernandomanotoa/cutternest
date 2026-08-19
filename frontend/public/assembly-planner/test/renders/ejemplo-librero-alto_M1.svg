@@ -1,0 +1,37 @@
+<svg viewBox="0 0 960 2290" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
+  <defs>
+    <marker id="cn-dim-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f59e0b"/></marker>
+  </defs>
+  <g fill="#F2F2F2">
+    <path d="M0,0h900v2230h-900Z" data-id="m1-fondo" data-type="back_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <text x="450" y="1119" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">m1-fondo</text>
+  </g>
+  <g fill="#C19A6B">
+    <path d="M0,15h15v2200h-15Z" data-id="m1-lateral-izq" data-type="side_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M885,15h15v2200h-15Z" data-id="m1-lateral-der" data-type="side_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M0,0h900v15h-900Z" data-id="m1-tapa" data-type="top_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M0,2215h900v15h-900Z" data-id="m1-base" data-type="bottom_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M25,15h30v400h-30Z" data-id="m1-divisor-inf-izq" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M845,15h30v400h-30Z" data-id="m1-divisor-inf-der" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M25,1215h30v400h-30Z" data-id="m1-divisor-med-sup-izq" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M845,1215h30v400h-30Z" data-id="m1-divisor-med-sup-der" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+  </g>
+  <g fill="#D9C2A3">
+    <path d="M442.5,15h15v2200h-15Z" data-id="m1-montante-central" data-type="side_panel" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M40,415h820v200h-820Z" data-id="m1-estante-sup" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <text x="450" y="519" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">m1-estante-sup</text>
+    <path d="M40,1015h820v200h-820Z" data-id="m1-estante-med" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <text x="450" y="1119" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">m1-estante-med</text>
+    <path d="M40,1615h820v200h-820Z" data-id="m1-estante-inf" data-type="shelf" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <text x="450" y="1719" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">m1-estante-inf</text>
+    <path d="M25,615h30v400h-30Z" data-id="m1-divisor-med-inf-izq" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M845,615h30v400h-30Z" data-id="m1-divisor-med-inf-der" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M25,1815h30v400h-30Z" data-id="m1-divisor-sup-izq" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M845,1815h30v400h-30Z" data-id="m1-divisor-sup-der" data-type="divider" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+    <path d="M40,55h820v15h-820Z" data-id="m1-travesano" data-type="brace" stroke="#1e293b" stroke-width="2" opacity="0.25"/>
+  </g>
+  <line x1="0" y1="2250" x2="900" y2="2250" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
+  <text x="450" y="2272" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="700" font-family="system-ui,sans-serif">900 mm</text>
+  <line x1="920" y1="0" x2="920" y2="2230" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
+  <text x="942" y="1115" text-anchor="start" fill="#f59e0b" font-size="13" font-weight="700" font-family="system-ui,sans-serif" writing-mode="tb">2230 mm</text>
+</svg>
