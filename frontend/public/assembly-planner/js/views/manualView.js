@@ -435,6 +435,8 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
   }
 
   // Soportes estructurales: montantes, travesaños, refuerzos, cantoneras, tirantes
+  const interiorX = boxX + 35;
+  const interiorW = boxW - 70;
   const soportePieces = all.filter((p) =>
     ['soporte', 'montante', 'travesano', 'travesaño', 'refuerzo', 'tirante', 'pata', 'cantonera'].some((k) =>
       norm(p.nombre).includes(k)
