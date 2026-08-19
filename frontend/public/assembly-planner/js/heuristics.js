@@ -96,9 +96,9 @@ export function sugerirDependencias(piezas) {
       .forEach((p) => add(p.id, zoc.id, 'acabado'));
   });
 
-  // Paso 6b: Soportes de refuerzo dependen de la estructura cerrada del mismo modulo
+  // Paso 6b: Soportes de refuerzo dependen de la estructura cerrada del mismo modulo (base, tapa, laterales)
   soportes.forEach((sop) => {
-    [...bases, ...tapas, ...laterales, ...fondos]
+    [...bases, ...tapas, ...laterales]
       .filter((p) => sameModule(p, sop))
       .forEach((p) => add(p.id, sop.id, 'soporte', 'Refuerzo estructural'));
   });
