@@ -1,0 +1,96 @@
+<svg viewBox="0 0 1100 2400" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a; width:100%; height:95vh; display:block;">
+  <defs>
+    <pattern id="g50" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M50 0L0 0 0 50" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#f59e0b"/>
+    </marker>
+    <style>
+      .pc:hover { opacity: 1 !important; filter: brightness(1.15); }
+    </style>
+  </defs>
+  <rect width="1100" height="2400" fill="url(#g50)"/>
+
+  <text x="550" y="40" text-anchor="middle" fill="#f1f5f9" font-size="20" font-weight="700" font-family="system-ui,sans-serif">MÓDULO 2 — Librero Alto</text>
+  <text x="550" y="65" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">900 × 2230 mm | Family: shelving | Anti-pandeo: montante central + divisores</text>
+
+  <g transform="translate(100, 90)">
+    <!-- FONDO -->
+    <rect x="0" y="0" width="900" height="2230" fill="#F2F2F2" stroke="#334155" stroke-width="2" opacity="0.9"/>
+
+    <!-- TAPA -->
+    <rect x="0" y="0" width="900" height="15" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="450" y="11" text-anchor="middle" fill="#0f172a" font-size="9" font-weight="700">TAPA 900×15</text>
+
+    <!-- BASE -->
+    <rect x="0" y="2215" width="900" height="15" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="450" y="2226" text-anchor="middle" fill="#0f172a" font-size="9" font-weight="700">BASE 900×15</text>
+
+    <!-- LATERALES -->
+    <rect x="0" y="15" width="15" height="2200" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="7.5" y="1115" text-anchor="middle" fill="#0f172a" font-size="8" font-weight="700" writing-mode="tb">LAT IZQ 15×2230</text>
+
+    <rect x="885" y="15" width="15" height="2200" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="892.5" y="1115" text-anchor="middle" fill="#0f172a" font-size="8" font-weight="700" writing-mode="tb">LAT DER 15×2230</text>
+
+    <!-- MONTANTE CENTRAL (anti-pandeo principal) -->
+    <rect x="442.5" y="15" width="15" height="2200" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="450" y="1115" text-anchor="middle" fill="#0f172a" font-size="8" font-weight="700" writing-mode="tb">MONTANTE CENTRAL</text>
+
+    <!-- ESTANTES (3 de 820×200) -->
+    <rect x="40" y="415" width="820" height="200" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="450" y="520" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="700">ESTANTE SUPERIOR 820×200</text>
+
+    <rect x="40" y="1015" width="820" height="200" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="450" y="1120" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="700">ESTANTE MEDIO 820×200</text>
+
+    <rect x="40" y="1615" width="820" height="200" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="2" class="pc"/>
+    <text x="450" y="1720" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="700">ESTANTE INFERIOR 820×200</text>
+
+    <!-- DIVISORES VERTICALES (anti-pandeo lateral, 4 huecos × 2 lados) -->
+    <!-- Hueco 1 (sup) -->
+    <rect x="70" y="15" width="30" height="400" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+    <rect x="800" y="15" width="30" height="400" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+
+    <!-- Hueco 2 -->
+    <rect x="70" y="615" width="30" height="400" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+    <rect x="800" y="615" width="30" height="400" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+
+    <!-- Hueco 3 -->
+    <rect x="70" y="1215" width="30" height="400" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+    <rect x="800" y="1215" width="30" height="400" rx="2" fill="#C19A6B" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+
+    <!-- Hueco 4 (inf) -->
+    <rect x="70" y="1815" width="30" height="400" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+    <rect x="800" y="1815" width="30" height="400" rx="2" fill="#D9C2A3" stroke="#1e293b" stroke-width="1.5" opacity="0.85" class="pc"/>
+
+    <!-- TRAVESANO TRASERO (arriba, delgado, no cruza) -->
+    <rect x="40" y="55" width="820" height="40" rx="2" fill="#4ECDC4" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="4 2" opacity="0.4" class="pc"/>
+    <text x="450" y="80" text-anchor="middle" fill="#0f172a" font-size="8" font-weight="700">TRAVESANO TRASERO 820×40</text>
+
+    <!-- DIMENSIONES -->
+    <line x1="0" y1="2260" x2="900" y2="2260" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#ar)" marker-start="url(#ar)"/>
+    <text x="450" y="2285" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="700">900 mm</text>
+
+    <line x1="-30" y1="0" x2="-30" y2="2230" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#ar)" marker-start="url(#ar)"/>
+    <text x="-48" y="1115" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="700" writing-mode="tb">2230 mm</text>
+  </g>
+
+  <!-- LEYENDA -->
+  <g transform="translate(1020, 120)">
+    <rect x="0" y="0" width="150" height="180" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="75" y="22" text-anchor="middle" fill="#f1f5f9" font-size="11" font-weight="700">ESTADOS</text>
+    <rect x="12" y="35" width="18" height="12" rx="2" fill="#C19A6B" stroke="white" stroke-width="1.5"/>
+    <text x="36" y="45" fill="#10b981" font-size="10" font-weight="700">● Ensamblada</text>
+    <rect x="12" y="55" width="18" height="12" rx="2" fill="#D9C2A3" stroke="#4ECDC4" stroke-width="2"/>
+    <text x="36" y="65" fill="#4ECDC4" font-size="10" font-weight="700">● Paso actual</text>
+    <rect x="12" y="75" width="18" height="12" rx="2" fill="#8B5A2B" opacity="0.5" stroke="white" stroke-width="1"/>
+    <text x="36" y="85" fill="#94a3b8" font-size="10">○ Pendiente (0.5)</text>
+    <rect x="12" y="95" width="18" height="12" rx="2" fill="#4ECDC4" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="3 2" opacity="0.4"/>
+    <text x="36" y="105" fill="#94a3b8" font-size="9">Travesano</text>
+    <text x="75" y="130" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">Anti-pandeo activo</text>
+    <text x="75" y="148" text-anchor="middle" fill="#94a3b8" font-size="8">Estante 820mm &gt; 800</text>
+    <text x="75" y="164" text-anchor="middle" fill="#10b981" font-size="8">✓ Montante + 8 divs</text>
+  </g>
+</svg>

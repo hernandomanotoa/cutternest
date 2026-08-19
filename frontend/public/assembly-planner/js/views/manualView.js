@@ -3,6 +3,7 @@
 import { $, $$, isGlobalPiece, getModuleLabel, getModulePieces } from '../utils.js';
 import { state } from '../app.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
+import { buildEngineForModule } from '../svgEngine.js';
 
 export function renderManualView(container) {
   const moduleLabel = getModuleLabel(state.currentModule, state.pieces);
@@ -34,6 +35,9 @@ export function renderManualView(container) {
           <div class="flex justify-between items-center">
             <h2 class="card__title">Manual de ensamblaje — ${moduleLabel}</h2>
             <div class="flex gap-1">
+              <button id="btn-manual-zoom-out" class="btn btn--secondary btn--sm">− Zoom</button>
+              <span id="manual-zoom-level" class="badge badge--secondary" style="align-self:center;">100%</span>
+              <button id="btn-manual-zoom-in" class="btn btn--secondary btn--sm">Zoom +</button>
               <button id="btn-manual-pdf" class="btn btn--primary btn--sm">Exportar PDF</button>
               <button id="btn-manual-html" class="btn btn--secondary btn--sm">Exportar HTML</button>
               <button id="btn-manual-json" class="btn btn--secondary btn--sm">Exportar JSON</button>
@@ -67,6 +71,29 @@ export function renderManualView(container) {
 
   const piecesById = Object.fromEntries(state.pieces.map((p) => [p.id, p]));
   let current = 0;
+  let zoom = state.manualZoom || 1;
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 3;
+  const ZOOM_STEP = 0.25;
+
+  function applyZoom() {
+    const svg = container.querySelector('.manual-step svg');
+    const label = container.querySelector('#manual-zoom-level');
+    if (svg) {
+      const vb = (svg.getAttribute('viewBox') || '0 0 700 420').split(/\s+/).map(Number);
+      const w = vb[2] || 700;
+      const h = vb[3] || 420;
+      if (zoom === 1) {
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+      } else {
+        svg.style.width = `${w * zoom}px`;
+        svg.style.height = `${h * zoom}px`;
+      }
+    }
+    if (label) label.textContent = `${Math.round(zoom * 100)}%`;
+    state.manualZoom = zoom;
+  }
 
   function renderStep() {
     const step = state.steps[current];
@@ -143,8 +170,10 @@ export function renderManualView(container) {
       <p class="mb-2">${generarInstruccion(step, piecesById)}</p>
       ${warning ? '<div class="alert alert--warning">Este paso incluye piezas con riesgo estructural. Verifica soportes antes de continuar.</div>' : ''}
       ${soporteWarnings.map((msg) => `<div class="alert alert--warning">${msg}</div>`).join('')}
-      <div class="manual-step mb-2">
-        ${generarDiagramaPaso(step, piecesById, completed, active, stepPieces, stepModule)}
+      <div class="manual-step-wrapper" style="overflow:auto;width:100%;">
+        <div class="manual-step mb-2">
+          ${generarDiagramaPasoV2(step, piecesById, completed, active, stepPieces, stepModule)}
+        </div>
       </div>
       <div class="flex gap-2 flex-wrap mb-2">
         <div class="card" style="flex: 1; min-width: 220px;">
@@ -175,6 +204,7 @@ export function renderManualView(container) {
         </div>
       </div>
     `;
+    applyZoom();
   }
 
   $('#btn-manual-prev', container)?.addEventListener('click', () => {
@@ -182,6 +212,13 @@ export function renderManualView(container) {
   });
   $('#btn-manual-next', container)?.addEventListener('click', () => {
     if (current < state.steps.length - 1) { current++; renderStep(); }
+  });
+
+  $('#btn-manual-zoom-out', container)?.addEventListener('click', () => {
+    if (zoom > MIN_ZOOM) { zoom = Math.round((zoom - ZOOM_STEP) * 100) / 100; applyZoom(); }
+  });
+  $('#btn-manual-zoom-in', container)?.addEventListener('click', () => {
+    if (zoom < MAX_ZOOM) { zoom = Math.round((zoom + ZOOM_STEP) * 100) / 100; applyZoom(); }
   });
 
   $('#btn-manual-json', container)?.addEventListener('click', () => {
@@ -282,6 +319,39 @@ function download(filename, blob) {
   URL.revokeObjectURL(url);
 }
 
+function generarDiagramaPasoV2(paso, piecesById, completedIds, activeIds, allActivePieces, stepModule) {
+  const moduleStr = String(stepModule || '').trim();
+
+  function normName(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  const isCajonSubmodulo = moduleStr && moduleStr !== 'global' && moduleStr.length >= 2 &&
+    allActivePieces.some((p) => {
+      const n = normName(p.nombre);
+      return n.includes('cajon') && !n.includes('cajonera');
+    });
+
+  if (isCajonSubmodulo) {
+    return generarDiagramaCajon(allActivePieces, piecesById, completedIds, activeIds, 700, 420, { top: 30, right: 30, bottom: 30, left: 30 });
+  }
+
+  const enginePieces = moduleStr && moduleStr !== 'global'
+    ? state.pieces.filter((p) => String(p.modulo || '').trim().startsWith(moduleStr))
+    : allActivePieces;
+
+  const engine = buildEngineForModule(enginePieces, moduleStr);
+  if (!engine) {
+    return generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActivePieces, stepModule);
+  }
+  try {
+    return engine.render({ activeIds, completedIds });
+  } catch (err) {
+    console.error('SVG engine failed:', err);
+    return generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActivePieces, stepModule);
+  }
+}
+
 function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActivePieces, stepModule) {
   const width = 700;
   const height = 420;
@@ -308,7 +378,11 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
   const tapa = all.find((p) => norm(p.nombre).includes('tapa') && !norm(p.nombre).includes('cajon'));
   const laterales = all.filter((p) => norm(p.nombre).includes('lateral') && !norm(p.nombre).includes('cajon'));
   const repisaGroups = all
-    .filter((p) => (norm(p.nombre).includes('repisa') || norm(p.nombre).includes('estante')) && !norm(p.nombre).includes('cajon'))
+    .filter((p) =>
+      (norm(p.nombre).includes('repisa') || norm(p.nombre).includes('estante')) &&
+      !norm(p.nombre).includes('cajon') &&
+      !['divisor', 'division', 'particion', 'partición'].some((k) => norm(p.nombre).includes(k))
+    )
     .reduce((map, p) => {
       const key = p.originalId || p.id;
       if (!map.has(key)) map.set(key, []);
@@ -350,12 +424,17 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
 
   const svgParts = [];
 
-  function rect(x, y, w, h, color, opacity = 1, stroke = '#334155', label = '') {
+  function rect(x, y, w, h, color, opacity = 1, stroke = '#334155', label = '', verticalLabel = false) {
     const sx = x + margin.left;
     const sy = y + margin.top;
+    const labelSvg = label
+      ? verticalLabel
+        ? `<text x="${sx + w/2}" y="${sy + h/2 + 4}" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" transform="rotate(-90, ${sx + w/2}, ${sy + h/2})">${label}</text>`
+        : `<text x="${sx + w/2}" y="${sy + h/2 + 4}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="600">${label}</text>`
+      : '';
     return `
       <rect x="${sx}" y="${sy}" width="${w}" height="${h}" rx="3" fill="${color}" stroke="${stroke}" stroke-width="2" opacity="${opacity}" />
-      ${label ? `<text x="${sx + w/2}" y="${sy + h/2 + 4}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="600">${label}</text>` : ''}
+      ${labelSvg}
     `;
   }
 
@@ -365,8 +444,46 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
     return `<circle cx="${sx}" cy="${sy}" r="${r}" fill="${color}" stroke="${stroke}" stroke-width="2" opacity="${opacity}" />`;
   }
 
+  // Calcular soportes primero para ajustar el ancho del diagrama
+  const soportePieces = all.filter((p) =>
+    ['soporte', 'montante', 'divisor', 'division', 'particion', 'partición', 'travesano', 'travesaño', 'refuerzo', 'tirante', 'pata', 'cantonera'].some((k) =>
+      norm(p.nombre).includes(k)
+    ) && !norm(p.nombre).includes('cajon')
+  );
+  const montantes = soportePieces.filter((p) =>
+    norm(p.nombre).includes('montante') ||
+    norm(p.nombre).includes('divisor') ||
+    norm(p.nombre).includes('division') ||
+    norm(p.nombre).includes('particion') ||
+    norm(p.nombre).includes('partición') ||
+    norm(p.nombre).includes('pata') ||
+    norm(p.nombre).includes('soporte vertical') ||
+    norm(p.nombre).includes('pie derecho')
+  );
+  const travesanos = soportePieces.filter((p) =>
+    norm(p.nombre).includes('travesano') || norm(p.nombre).includes('travesaño') || norm(p.nombre).includes('refuerzo') || norm(p.nombre).includes('soporte intermedio') || norm(p.nombre).includes('cantonera') || norm(p.nombre).includes('tirante')
+  );
+
+  // Agrupar montantes para calcular ancho necesario
+  const montanteGroups = { izq: [], der: [], centro: [] };
+  montantes.forEach((m) => {
+    const n = norm(m.nombre);
+    if (n.includes('izquierdo') || n.includes('izq')) montanteGroups.izq.push(m);
+    else if (n.includes('derecho') || n.includes('der')) montanteGroups.der.push(m);
+    else montanteGroups.centro.push(m);
+  });
+
+  // Ancho dinámico: base 320 + espacio extra según la cantidad de montantes/divisores
+  const maxSideMontantes = Math.max(montanteGroups.izq.length, montanteGroups.der.length, 1);
+  const extraWidth = Math.max(0, (montantes.length - 2) * 28);
+  const baseBoxW = 320;
+  const desiredBoxW = baseBoxW + extraWidth;
+  const boxW = Math.min(Math.max(baseBoxW, desiredBoxW), width - 60);
+  const boxH = 240;
+  const boxX = (width - boxW) / 2;
+  const boxY = 80;
+
   // Estructura de referencia (caja)
-  const boxX = 180, boxY = 80, boxW = 320, boxH = 240;
   svgParts.push(`<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" fill="none" stroke="#334155" stroke-dasharray="4 4" opacity="0.4" />`);
 
   if (base) {
@@ -409,7 +526,9 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
     const startY = growDown ? y : y - (qty - 1) * (shelfH + 4);
     for (let q = 0; q < qty; q++) {
       const yy = startY + q * (shelfH + 4);
-      const pieceLabel = q === 0 ? `${rep.nombre.split(' ')[0]}${qty > 1 ? ' ×' + qty : ''}` : label;
+      const words = rep.nombre.split(' ');
+      const shortName = words.slice(0, 2).join(' ');
+      const pieceLabel = q === 0 ? `${shortName}${qty > 1 ? ' ×' + qty : ''}` : label;
       svgParts.push(rect(boxX + 35, yy, boxW - 70, shelfH, rep.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', pieceLabel));
     }
   }
@@ -437,26 +556,65 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
   // Soportes estructurales: montantes, travesaños, refuerzos, cantoneras, tirantes
   const interiorX = boxX + 35;
   const interiorW = boxW - 70;
-  const soportePieces = all.filter((p) =>
-    ['soporte', 'montante', 'travesano', 'travesaño', 'refuerzo', 'tirante', 'pata', 'cantonera'].some((k) =>
-      norm(p.nombre).includes(k)
-    ) && !norm(p.nombre).includes('cajon')
-  );
-  const montantes = soportePieces.filter((p) =>
-    norm(p.nombre).includes('montante') || norm(p.nombre).includes('pata') || norm(p.nombre).includes('soporte vertical') || norm(p.nombre).includes('pie derecho')
-  );
-  const travesanos = soportePieces.filter((p) =>
-    norm(p.nombre).includes('travesano') || norm(p.nombre).includes('travesaño') || norm(p.nombre).includes('refuerzo') || norm(p.nombre).includes('soporte intermedio') || norm(p.nombre).includes('cantonera') || norm(p.nombre).includes('tirante')
-  );
+
+  function supportLabel(nombre) {
+    const n = norm(nombre);
+    const parts = [];
+    if (n.includes('divisor')) parts.push('Div');
+    else if (n.includes('montante')) parts.push('Mont');
+    else if (n.includes('pata')) parts.push('Pata');
+    else if (n.includes('tirante')) parts.push('Tir');
+    else parts.push('Sop');
+    if (n.includes('medio inferior')) parts.push('med.inf');
+    else if (n.includes('medio superior')) parts.push('med.sup');
+    else if (n.includes('inferior')) parts.push('inf');
+    else if (n.includes('superior')) parts.push('sup');
+    else if (n.includes('medio')) parts.push('med');
+    if (n.includes('izquierdo') || n.includes('izq')) parts.push('izq');
+    else if (n.includes('derecho') || n.includes('der')) parts.push('der');
+    else if (n.includes('central')) parts.push('cent');
+    return parts.join('.');
+  }
 
   if (montantes.length) {
     const mw = 14;
-    montantes.forEach((m, i) => {
-      const isActive = activeIds.has(m.id);
-      const isDone = completedIds.has(m.id) || isActive;
-      const mx = interiorX + (interiorW / (montantes.length + 1)) * (i + 1) - mw / 2;
-      const label = m.nombre.split(' ').slice(0, 2).join(' ');
-      svgParts.push(rect(mx, interiorY, mw, interiorH, m.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', label));
+    const slotH = interiorH / 4;
+    Object.entries(montanteGroups).forEach(([key, list]) => {
+      list.forEach((m, i) => {
+        const isActive = activeIds.has(m.id);
+        const isDone = completedIds.has(m.id) || isActive;
+        const nm = norm(m.nombre);
+        let my, mh;
+        if (nm.includes('medio inferior')) {
+          my = interiorY + slotH;
+          mh = slotH;
+        } else if (nm.includes('medio superior')) {
+          my = interiorY + slotH * 2;
+          mh = slotH;
+        } else if (nm.includes('central') || (!nm.includes('inferior') && !nm.includes('medio') && !nm.includes('superior'))) {
+          my = interiorY;
+          mh = interiorH;
+        } else if (nm.includes('inferior')) {
+          my = interiorY;
+          mh = slotH;
+        } else if (nm.includes('superior')) {
+          my = interiorY + slotH * 3;
+          mh = slotH;
+        } else { // medio generico: cubre huecos centrales
+          my = interiorY + slotH;
+          mh = slotH * 2;
+        }
+        let mx;
+        if (key === 'izq') {
+          mx = interiorX + 10 + i * 16;
+        } else if (key === 'der') {
+          mx = interiorX + interiorW - 24 - (list.length - 1 - i) * 16;
+        } else {
+          mx = interiorX + interiorW / 2 - mw / 2 + (i - (list.length - 1) / 2) * 18;
+        }
+        const label = supportLabel(m.nombre);
+        svgParts.push(rect(mx, my, mw, mh, m.color, isDone ? 1 : 0.25, isActive ? '#4ECDC4' : '#334155', label, true));
+      });
     });
   }
   if (travesanos.length) {
@@ -531,7 +689,7 @@ function generarDiagramaPaso(paso, piecesById, completedIds, activeIds, allActiv
   `);
 
   return `
-    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;">
+    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a; display:block;">
       ${svgParts.join('')}
     </svg>
   `;
@@ -647,7 +805,7 @@ function generarDiagramaCajon(all, piecesById, completedIds, activeIds, width, h
   `);
 
   return `
-    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;">
+    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a; display:block;">
       ${svgParts.join('')}
     </svg>
   `;
