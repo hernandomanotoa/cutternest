@@ -93,6 +93,7 @@ export class IsometricRenderer {
     this.doorAngle = options.doorAngle || 0;
     this.explodeFactor = options.explodeFactor || 0;
     this.labelMode = options.labelMode || 'auto';
+    this.isoFlip = options.isoFlip || false;
   }
 
   render(moduleId, pieces, _dependencies) {
@@ -380,8 +381,12 @@ export class IsometricRenderer {
   // ═══════════════════════════════════════════════════════════
 
   _isoProject(x, y, z, ox, oy) {
+    // Proyección isométrica configurable.
+    // Por defecto la profundidad (y) se proyecta hacia arriba-izquierda.
+    // Si isoFlip=true, se proyecta hacia arriba-derecha.
+    const yFactor = this.isoFlip ? -this.isoDepth : this.isoDepth;
     return {
-      x: ox + (x - y * this.isoDepth) * this.scale,
+      x: ox + (x - y * yFactor) * this.scale,
       y: oy - (z + y * this.isoDepth) * this.scale,
     };
   }

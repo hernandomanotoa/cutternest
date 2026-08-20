@@ -37,6 +37,7 @@ export function renderIsometricView(container, viewState) {
           <button id="btn-iso-zoom-out" class="btn btn--secondary btn--sm">Zoom −</button>
           <button id="btn-iso-reset" class="btn btn--secondary btn--sm">Reset</button>
           <button id="btn-iso-explode" class="btn btn--secondary btn--sm">Explodida</button>
+          <button id="btn-iso-flip" class="btn btn--secondary btn--sm">↔ Invertir perspectiva</button>
           <button id="btn-iso-drawers" class="btn btn--secondary btn--sm">Abrir cajones</button>
           <button id="btn-iso-doors" class="btn btn--secondary btn--sm">Abrir puertas</button>
           <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
@@ -52,6 +53,7 @@ export function renderIsometricView(container, viewState) {
   let explodeFactor = 0;
   let drawerGap = 15;
   let doorAngle = 0;
+  let isoFlip = false;
 
   function render() {
     const renderer = new IsometricRenderer(canvas, {
@@ -63,6 +65,7 @@ export function renderIsometricView(container, viewState) {
       drawerGap,
       doorAngle,
       explodeFactor,
+      isoFlip,
       labelMode: 'auto',
     });
     renderer.render(targetModule, pieces, viewState.dependencies);
@@ -98,6 +101,11 @@ export function renderIsometricView(container, viewState) {
     explodeFactor = explodeFactor > 0 ? 0 : 0.3;
     render();
   });
+  container.querySelector('#btn-iso-flip')?.addEventListener('click', () => {
+    isoFlip = !isoFlip;
+    render();
+  });
+
   container.querySelector('#btn-iso-drawers')?.addEventListener('click', () => {
     drawerGap = drawerGap > 15 ? 15 : 60;
     render();
