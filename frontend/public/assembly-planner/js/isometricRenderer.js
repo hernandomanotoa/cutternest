@@ -123,7 +123,7 @@ export class IsometricRenderer {
     }
 
     const sorted = sortByDepth(geometries);
-    const { viewBox, originX, originY } = this._calculateViewport(sorted, moduleW, moduleD, moduleH);
+    const { viewBox, originX, originY } = this._calculateViewport(geometries);
 
     const svg = this._buildSVG(sorted, viewBox, originX, originY, moduleLabel, moduleW, moduleD, moduleH);
     this.container.innerHTML = svg;
@@ -383,6 +383,11 @@ export class IsometricRenderer {
     const polygons = [];
     const labels = [];
 
+    // viewBox es string "0 0 W H"; extraemos W/H para centrar título/dimensiones
+    const vbParts = viewBox.split(' ').map(Number);
+    const vbW = vbParts[2] || 800;
+    const vbH = vbParts[3] || 600;
+
     geometries.forEach((geo) => {
       const { projected, faces } = this._projectCuboid(geo, ox, oy);
       const colors = getFaceColors(geo.color || '#C19A6B');
@@ -418,9 +423,9 @@ export class IsometricRenderer {
     if (this.showDimensions) extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
 
     return `
-<svg viewBox="0 0 ${viewBox.w} ${viewBox.h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista isométrica${title}" style="background:#0f172a;width:100%;height:auto;display:block;">
-  <text x="${viewBox.w / 2}" y="28" text-anchor="middle" fill="#f1f5f9" font-size="16" font-weight="700">VISTA ISOMÉTRICA${title}</text>
-  <text x="${viewBox.w / 2}" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">${dimsText}</text>
+<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista isométrica${title}" style="background:#0f172a;width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
+  <text x="${vbW / 2}" y="28" text-anchor="middle" fill="#f1f5f9" font-size="16" font-weight="700">VISTA ISOMÉTRICA${title}</text>
+  <text x="${vbW / 2}" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">${dimsText}</text>
   <g transform="translate(0,0)">
     ${polygons.join('\n    ')}
     ${labels.join('\n    ')}
@@ -488,18 +493,16 @@ export class IsometricRenderer {
     return strokes[role] || { color: '#475569', width: 1 };
   }
 
-  _calculateViewport(geometries, moduleW, moduleD, moduleH) {
-    // Calcular bounding box proyectada
+  _calculateViewport(geometries) {
+    // PASADA 1: proyectar TODOS los vértices con origen provisional (0,0)
+    // para descubrir el rango real de coordenadas (incluyendo negativas).
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    const oxTmp = 0;
-    const oyTmp = 0;
-
     geometries.forEach((geo) => {
-      const { projected } = this._projectCuboid(geo, oxTmp, oyTmp);
+      const { projected } = this._projectCuboid(geo, 0, 0);
       projected.forEach((p) => {
         minX = Math.min(minX, p.x);
         minY = Math.min(minY, p.y);
@@ -508,17 +511,28 @@ export class IsometricRenderer {
       });
     });
 
-    // Si no hay geometrías
     if (!isFinite(minX)) {
       minX = 0; minY = 0; maxX = 800; maxY = 600;
     }
 
-    const width = maxX - minX + 2 * this.padding;
-    const height = maxY - minY + 2 * this.padding + 60; // espacio para título
-    const originX = this.padding - minX;
-    const originY = height - this.padding + minY; // invertir Y para que crezca hacia arriba
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const titleSpace = 60;
 
-    return { viewBox: { w: Math.round(width), h: Math.round(height) }, originX, originY };
+    // PASADA 2: desplazar todo al área positiva, dejando padding
+    const originX = -minX + this.padding;
+    const originY = -minY + this.padding + titleSpace;
+
+    const viewBoxW = Math.ceil(contentW + 2 * this.padding);
+    const viewBoxH = Math.ceil(contentH + 2 * this.padding + titleSpace);
+
+    return {
+      viewBox: `0 0 ${viewBoxW} ${viewBoxH}`,
+      originX,
+      originY,
+      width: viewBoxW,
+      height: viewBoxH,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════
