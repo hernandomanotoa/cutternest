@@ -20,17 +20,17 @@ m2-tapa,Tapa modulo M2,500,400,1,si,#8B5A2B,15,"T,B,L,R",2
 m2-lateral-izq,Lateral izquierdo M2,400,500,1,no,#8B5A2B,15,"T,B,L",2
 m2-lateral-der,Lateral derecho M2,400,500,1,no,#8B5A2B,15,"T,B,R",2
 m2-fondo,Fondo modulo M2,500,500,1,no,#F2F2F2,15,"",2
-m21-cajon-frente,Frente cajon superior M2,400,180,1,si,#C19A6B,15,"T,B,L,R",21
-m21-cajon-lateral-izq,Lateral cajon superior M2,180,450,1,no,#D9C2A3,15,"T,B,L",21
-m21-cajon-lateral-der,Lateral cajon superior M2,180,450,1,no,#D9C2A3,15,"T,B,R",21
-m21-cajon-fondo,Fondo cajon superior M2,360,450,1,no,#F2F2F2,15,,21
-m21-cajon-base,Base cajon superior M2,360,450,1,si,#D9C2A3,15,"T,B,L,R",21
+m21-cajon-frente,Frente cajon superior M2,468,180,1,si,#C19A6B,15,"T,B,L,R",21
+m21-cajon-lateral-izq,Lateral cajon superior M2,180,390,1,no,#D9C2A3,15,"T,B,L",21
+m21-cajon-lateral-der,Lateral cajon superior M2,180,390,1,no,#D9C2A3,15,"T,B,R",21
+m21-cajon-fondo,Fondo cajon superior M2,438,390,1,no,#F2F2F2,15,,21
+m21-cajon-base,Base cajon superior M2,438,390,1,si,#D9C2A3,15,"T,B,L,R",21
 m21-cajon-tirador,Tirador cajon superior M2,2,20,1,no,#A0A0A0,5,,21
-m22-cajon-frente,Frente cajon inferior M2,400,180,1,si,#C19A6B,15,"T,B,L,R",22
-m22-cajon-lateral-izq,Lateral cajon inferior M2,180,450,1,no,#D9C2A3,15,"T,B,L",22
-m22-cajon-lateral-der,Lateral cajon inferior M2,180,450,1,no,#D9C2A3,15,"T,B,R",22
-m22-cajon-fondo,Fondo cajon inferior M2,360,450,1,no,#F2F2F2,15,,22
-m22-cajon-base,Base cajon inferior M2,360,450,1,si,#D9C2A3,15,"T,B,L,R",22
+m22-cajon-frente,Frente cajon inferior M2,468,180,1,si,#C19A6B,15,"T,B,L,R",22
+m22-cajon-lateral-izq,Lateral cajon inferior M2,180,390,1,no,#D9C2A3,15,"T,B,L",22
+m22-cajon-lateral-der,Lateral cajon inferior M2,180,390,1,no,#D9C2A3,15,"T,B,R",22
+m22-cajon-fondo,Fondo cajon inferior M2,438,390,1,no,#F2F2F2,15,,22
+m22-cajon-base,Base cajon inferior M2,438,390,1,si,#D9C2A3,15,"T,B,L,R",22
 m22-cajon-tirador,Tirador cajon inferior M2,2,20,1,no,#A0A0A0,5,,22
 # --- Modulo 3: lateral puerta ---
 m3-base,Base modulo M3,500,400,1,si,#8B5A2B,15,"T,B,L,R",3

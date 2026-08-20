@@ -93,6 +93,8 @@ id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos
 base,Base,120,60,1,si,#FF6B6B,18,T,B,L,R
 ```
 
+8. **`rotate=si` solo afecta el optimizador de cortes.** El motor de visualización ignora `rotate` para piezas estructurales (bases, tapas, laterales, fondos). La orientación visual se determina por el nombre de la pieza. Usa `rotate=no` en laterales (`alto` debe ser la dimensión mayor).
+
 ## Buenas prácticas
 
 - Usa nombres consistentes para piezas similares ( facilita el ensamblaje posterior).

@@ -45,6 +45,7 @@ export function parseCSV(text) {
 
   // Detecciones globales
   pieces.forEach((p) => classifyPiece(p, pieces, warnings));
+  validateDimensions(pieces, warnings);
 
   return {
     ok: errors.length === 0,
@@ -52,6 +53,147 @@ export function parseCSV(text) {
     errors,
     warnings,
   };
+}
+
+function normalizeName(s) {
+  return String(s || '').toLowerCase().trim();
+}
+
+function nameMatches(piece, keywords) {
+  const n = normalizeName(piece.nombre);
+  return keywords.some((k) => n.includes(k));
+}
+
+function findPieces(pieces, keywords) {
+  return pieces.filter((p) => nameMatches(p, keywords));
+}
+
+function findPiece(pieces, keywords) {
+  return pieces.find((p) => nameMatches(p, keywords));
+}
+
+function groupByModule(pieces) {
+  const groups = {};
+  pieces.forEach((p) => {
+    const mod = String(p.modulo || '1').trim();
+    if (!groups[mod]) groups[mod] = [];
+    groups[mod].push(p);
+  });
+  return groups;
+}
+
+function isSubModule(modId, parentId) {
+  return modId !== parentId && modId.startsWith(parentId);
+}
+
+function validateDimensions(pieces, warnings) {
+  const modules = groupByModule(pieces);
+  const moduleIds = Object.keys(modules);
+  const globalModules = moduleIds.filter((m) => m.toLowerCase() === 'estructura' || m.toLowerCase() === 'global');
+  const nonGlobal = moduleIds.filter((m) => !globalModules.includes(m));
+
+  const isSubModule = (modId) => nonGlobal.some((other) => other !== modId && modId.startsWith(other) && !other.startsWith(modId));
+  const subModules = nonGlobal.filter(isSubModule);
+  const parentModules = nonGlobal.filter((m) => !isSubModule(m));
+
+  parentModules.forEach((modId) => {
+    const modPieces = modules[modId];
+    const base = findPiece(modPieces, ['base']);
+    const top = findPiece(modPieces, ['tapa', 'techo']);
+    const laterals = findPieces(modPieces, ['lateral']);
+    const back = findPiece(modPieces, ['fondo', 'trasera']);
+
+    const isRectangularCabinet = !modPieces.some((p) =>
+      ['pata', 'pie ', 'tablero', 'superficie', 'asiento', 'respaldo', 'respaldar', 'banco'].some((k) =>
+        normalizeName(p.nombre).includes(k)
+      )
+    );
+
+    if (isRectangularCabinet) {
+      if (!base) warnings.push(`Módulo ${modId}: falta pieza base.`);
+      if (!top) warnings.push(`Módulo ${modId}: falta pieza tapa.`);
+      if (laterals.length < 2) warnings.push(`Módulo ${modId}: faltan laterales (se encontraron ${laterals.length}).`);
+      if (!back) warnings.push(`Módulo ${modId}: falta pieza fondo/trasera.`);
+    }
+
+    if (base && top) {
+      if (Math.abs(base.ancho - top.ancho) > 1) {
+        warnings.push(`Módulo ${modId}: base (${base.ancho} mm) y tapa (${top.ancho} mm) tienen anchos diferentes.`);
+      }
+      if (Math.abs(base.alto - top.alto) > 1) {
+        warnings.push(`Módulo ${modId}: base (${base.alto} mm) y tapa (${top.alto} mm) tienen profundidades diferentes.`);
+      }
+    }
+    if (back && base && Math.abs(back.ancho - base.ancho) > 1) {
+      warnings.push(`Módulo ${modId}: fondo (${back.ancho} mm) y base (${base.ancho} mm) tienen anchos diferentes.`);
+    }
+
+    const sideThickness = laterals.length ? laterals[0].espesor : base ? base.espesor : 0;
+    const lateralHeight = laterals.length ? Math.max(laterals[0].ancho, laterals[0].alto) : 0;
+    const interiorWidth = base ? base.ancho - 2 * sideThickness : 0;
+
+    if (back && laterals.length && Math.abs(back.alto - lateralHeight) > 1) {
+      warnings.push(`Módulo ${modId}: fondo (${back.alto} mm) y lateral (${lateralHeight} mm) tienen alturas diferentes.`);
+    }
+
+    // Estantes/repisas
+    const shelves = findPieces(modPieces, ['estante', 'repisa']);
+    shelves.forEach((s) => {
+      if (interiorWidth > 0 && s.ancho > interiorWidth + 1) {
+        warnings.push(`Módulo ${modId}: "${s.nombre}" (${s.ancho} mm) excede ancho interior (${interiorWidth} mm).`);
+      }
+    });
+
+    // Cajones (submódulos)
+    const drawerSubs = subModules.filter((m) => m.startsWith(modId));
+    drawerSubs.forEach((subId) => {
+      const subPieces = modules[subId];
+      const front = findPiece(subPieces, ['frente']);
+      const subLaterals = findPieces(subPieces, ['lateral']);
+      const subBack = findPiece(subPieces, ['fondo']);
+
+      if (front && interiorWidth > 0 && front.ancho > interiorWidth - 3 + 1) {
+        warnings.push(`Módulo ${modId} → ${subId}: frente cajón (${front.ancho} mm) no cabe en interior (${interiorWidth} mm).`);
+      }
+
+      if (base && subLaterals.length) {
+        const maxDepth = base.alto - 10;
+        subLaterals.forEach((lat) => {
+          const latRealHeight = Math.max(lat.ancho, lat.alto);
+          if (latRealHeight > maxDepth + 1) {
+            warnings.push(`Módulo ${modId} → ${subId}: lateral cajón "${lat.nombre}" (${latRealHeight} mm) excede profundidad disponible (${maxDepth} mm).`);
+          }
+        });
+      }
+
+      if (front && subBack && subLaterals.length) {
+        const expectedBackWidth = front.ancho - 2 * subLaterals[0].espesor;
+        if (Math.abs(subBack.ancho - expectedBackWidth) > 2) {
+          warnings.push(`Módulo ${modId} → ${subId}: fondo cajón (${subBack.ancho} mm) debería ser ≈ ${expectedBackWidth} mm (frente − 2×espesor lateral).`);
+        }
+      }
+    });
+
+    // Laterales con rotate=si
+    laterals.forEach((lat) => {
+      if (lat.rotate && lat.alto <= lat.ancho) {
+        warnings.push(`Módulo ${modId}: "${lat.nombre}" tiene rotate=si pero alto (${lat.alto} mm) ≤ ancho (${lat.ancho} mm). Se recomienda rotate=no para laterales.`);
+      }
+    });
+  });
+
+  // Estructura global
+  globalModules.forEach((gmod) => {
+    const globalPieces = modules[gmod];
+    const zocalo = findPiece(globalPieces, ['zocalo']);
+    const sumaBases = parentModules.reduce((sum, modId) => {
+      const b = findPiece(modules[modId], ['base']);
+      return sum + (b ? b.ancho : 0);
+    }, 0);
+    if (zocalo && sumaBases > 0 && Math.abs(zocalo.ancho - sumaBases) > 1) {
+      warnings.push(`Estructura global: zócalo (${zocalo.ancho} mm) no coincide con suma de bases (${sumaBases} mm). Verifica que incluya solo módulos que toquen el suelo.`);
+    }
+  });
 }
 
 function splitCSVLine(line) {
@@ -128,8 +270,8 @@ function classifyPiece(piece, allPieces, warnings) {
     });
   }
 
-  // Fondo decorativo
-  if (piece.espesor <= 5) {
+  // Fondo decorativo (solo si parece panel decorativo, no accesorio)
+  if (piece.espesor <= 5 && ['fondo', 'trasera', 'posterior', 'decor', 'tapacanto'].some((k) => name.includes(k))) {
     piece.tipo = 'fondo_decorativo';
     warnings.push(`"${piece.nombre}" tiene ${piece.espesor} mm: fondo decorativo, no estructural.`);
   }

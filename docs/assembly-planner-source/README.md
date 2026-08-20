@@ -16,7 +16,7 @@ Este directorio contiene la documentación técnica detallada de los archivos qu
 | [utils.md](./utils.md) | Utilidades compartidas. |
 | [instructions.md](./instructions.md) | Generador de instrucciones de texto por paso. |
 | [hardware.md](./hardware.md) | Cálculo de herrajes/insumos. |
-| [ejemplos/](./ejemplos/) | CSVs de ejemplo (universal, básico). |
+| [ejemplos/](./ejemplos/) | CSVs de ejemplo (universal, básico, escritorio, mueble TV, etc.). |
 
 ## Flujo resumido
 
