@@ -1,27 +1,38 @@
 // js/views/isometricView.js — Vista isométrica 3D SVG
 
-import { getModulePieces, getModuleLabel } from '../utils.js';
+import { getModulePieces, getModuleLabel, getModules } from '../utils.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
-import { state } from '../app.js';
 
 export function renderIsometricView(container, viewState) {
-  const pieces = getModulePieces(viewState.pieces, viewState.currentModule);
+  // Si estamos en global sin piezas, mostrar mensaje útil con selector
+  let targetModule = viewState.currentModule;
+  const modules = getModules(viewState.pieces);
+  const pieces = getModulePieces(viewState.pieces, targetModule);
 
   if (!pieces.length) {
+    const options = modules.map((m) => `<option value="${m}" ${m === targetModule ? 'selected' : ''}>Módulo ${m}</option>`).join('');
     container.innerHTML = `
       <div class="card">
         <div class="card__body">
-          <p class="empty-state">Importa un CSV y selecciona un módulo para ver la vista isométrica.</p>
+          <p class="empty-state mb-2">Selecciona un módulo para ver la vista isométrica.</p>
+          <select id="iso-module-selector" class="input" ${options ? '' : 'disabled'}>
+            ${options || '<option disabled>No hay módulos</option>'}
+          </select>
         </div>
       </div>`;
+    const select = container.querySelector('#iso-module-selector');
+    select?.addEventListener('change', (e) => {
+      viewState.currentModule = e.target.value;
+      renderIsometricView(container, viewState);
+    });
     return;
   }
 
   container.innerHTML = `
-    <div class="card">
+    <div class="card" style="height:100%;display:flex;flex-direction:column;">
       <div class="card__header">
         <h2 class="card__title">Vista isométrica 3D</h2>
-        <div class="isometric-controls flex gap-1">
+        <div class="isometric-controls flex gap-1 flex-wrap">
           <button id="btn-iso-zoom-in" class="btn btn--secondary btn--sm">Zoom +</button>
           <button id="btn-iso-zoom-out" class="btn btn--secondary btn--sm">Zoom −</button>
           <button id="btn-iso-reset" class="btn btn--secondary btn--sm">Reset</button>
@@ -31,8 +42,8 @@ export function renderIsometricView(container, viewState) {
           <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
         </div>
       </div>
-      <div class="card__body">
-        <div id="iso-canvas" class="iso-canvas" style="width:100%;min-height:400px;"></div>
+      <div class="card__body" style="flex:1;min-height:0;">
+        <div id="iso-canvas" class="iso-canvas" style="width:100%;height:100%;min-height:400px;background:#0f172a;border-radius:6px;overflow:hidden;"></div>
       </div>
     </div>`;
 
@@ -41,8 +52,6 @@ export function renderIsometricView(container, viewState) {
   let explodeFactor = 0;
   let drawerGap = 15;
   let doorAngle = 0;
-
-  const label = getModuleLabel(viewState.currentModule, viewState.pieces);
 
   function render() {
     const renderer = new IsometricRenderer(canvas, {
@@ -56,7 +65,15 @@ export function renderIsometricView(container, viewState) {
       explodeFactor,
       labelMode: 'auto',
     });
-    renderer.render(viewState.currentModule, pieces, viewState.dependencies);
+    renderer.render(targetModule, pieces, viewState.dependencies);
+    // Asegurar que el SVG llene el contenedor
+    const svg = canvas.querySelector('svg');
+    if (svg) {
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+      svg.style.maxHeight = 'none';
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    }
   }
 
   render();
@@ -96,7 +113,7 @@ export function renderIsometricView(container, viewState) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cutternest-iso-${viewState.currentModule}.svg`;
+    a.download = `cutternest-iso-${targetModule}.svg`;
     document.body.appendChild(a);
     a.click();
     a.remove();
