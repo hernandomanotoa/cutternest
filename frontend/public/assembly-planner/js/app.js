@@ -9,6 +9,7 @@ import { renderGraphView } from './views/graphView.js';
 import { renderStructuralView } from './views/structuralView.js';
 import { renderAssemblyView } from './views/assemblyView.js';
 import { renderManualView } from './views/manualView.js';
+import { renderIsometricView } from './views/isometricView.js';
 import { calculateHardware } from './hardware.js';
 
 export const state = {
@@ -35,6 +36,7 @@ const viewRenderers = {
   grafo: renderGraphView,
   ensamblaje: renderAssemblyView,
   manual: renderManualView,
+  isometric: renderIsometricView,
 };
 
 export function setStatus(message, type = '') {

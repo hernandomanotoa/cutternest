@@ -1094,4 +1094,4 @@ export function buildEngineForModule(pieces, moduleId, options = {}) {
   return router(modulePieces, meta);
 }
 
-export { inferRole, getModuleDimensions, FamilyRouters, calculateShelfPositions };
+export { inferRole, getPieceDims, getModuleDimensions, detectFamily, FamilyRouters, calculateShelfPositions };
