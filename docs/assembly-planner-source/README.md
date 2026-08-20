@@ -16,6 +16,10 @@ Este directorio contiene la documentación técnica detallada de los archivos qu
 | [utils.md](./utils.md) | Utilidades compartidas. |
 | [instructions.md](./instructions.md) | Generador de instrucciones de texto por paso. |
 | [hardware.md](./hardware.md) | Cálculo de herrajes/insumos. |
+| [isometricRenderer.md](./isometricRenderer.md) | Motor SVG isométrico 3D. |
+| [isometricView.md](./isometricView.md) | Vista Isométrica con controles. |
+| [csvView.md](./csvView.md) | Vista CSV / editor de piezas. |
+| [Guia_Vista_Isometrica.md](../Guia_Vista_Isometrica_Assembly_Planner.md) | Guía completa de la vista isométrica. |
 | [ejemplos/](./ejemplos/) | CSVs de ejemplo (universal, básico, escritorio, mueble TV, etc.). |
 
 ## Flujo resumido
