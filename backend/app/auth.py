@@ -47,7 +47,8 @@ def register_user(
         email=email,
         password_hash=hash_password(password),
         totp_secret_encrypted=encrypt_totp_secret(totp_secret),
-        role="admin" if is_first_user else "user",
+        role="admin" if is_first_user else "principal",
+        is_active=False,
     )
     db.add(user)
     db.commit()
@@ -66,7 +67,7 @@ def register_user(
 
 
 def login_step1(db: Session, username: str, password: str) -> str:
-    user = db.query(User).filter(User.username == username, User.is_active == True).first()
+    user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -109,6 +110,9 @@ def verify_login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Codigo TOTP o backup invalido",
             )
+
+    user.is_active = True
+    db.add(user)
 
     access_token, access_jti, access_exp = create_access_token(user.id, mode="principal")
 
@@ -221,32 +225,52 @@ def logout(db: Session, refresh_token: str) -> None:
         db.commit()
 
 
-def generate_guest_pin(db: Session, user_id: str) -> Tuple[str, datetime]:
-    pin = f"{secrets.randbelow(10000):04d}"
+def generate_guest_pin(
+    db: Session,
+    user_id: str,
+    project_id: Optional[str] = None,
+) -> Tuple[str, datetime, Optional[str]]:
+    if project_id:
+        from app.models import Project
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project or project.owner_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes permiso para compartir este proyecto",
+            )
+
+    pin = f"{secrets.randbelow(1_000_000):06d}"
     now = datetime.utcnow()
     expires_at = now + timedelta(minutes=5)
     guest = GuestSession(
-        pin=pin,
+        pin_hash=hash_password(pin),
+        project_id=project_id,
         created_by=user_id,
         expires_at=expires_at,
     )
     db.add(guest)
     db.commit()
-    return pin, expires_at
+    db.refresh(guest)
+    return pin, expires_at, project_id
 
 
 def login_guest(db: Session, pin: str) -> Tuple[GuestSession, str]:
     now = datetime.utcnow()
-    guest = (
+    candidates = (
         db.query(GuestSession)
         .filter(
-            GuestSession.pin == pin,
             GuestSession.used_at.is_(None),
             GuestSession.revoked_at.is_(None),
             GuestSession.expires_at > now,
         )
-        .first()
+        .all()
     )
+    guest = None
+    for candidate in candidates:
+        if verify_password(pin, candidate.pin_hash):
+            guest = candidate
+            break
     if not guest:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

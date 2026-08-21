@@ -11,7 +11,7 @@ def _piece(
     color: str = "#3B82F6",
     espesor: float = 18.0,
     cantos: str = "",
-    rotar: bool = True,
+    rotate: bool = True,
 ) -> Dict[str, Any]:
     return {
         "id": pid,
@@ -22,7 +22,7 @@ def _piece(
         "color": color,
         "espesor": espesor,
         "cantos": cantos,
-        "rotar": rotar,
+        "rotate": rotate,
     }
 
 
@@ -40,7 +40,7 @@ def generate_estanteria(
     for i in range(n_estantes):
         pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho, profundidad, 1, "#96CEB4", 18, "T,B,L,R", True))
     # Fondo
-    pieces.append(_piece("fondo", "Fondo", ancho - 2, alto - 2, 1, "#DDA0DD", 3, "", False))
+    pieces.append(_piece("fondo", "Fondo", ancho - 20, alto - 20, 1, "#DDA0DD", 3, "", False))
     return pieces
 
 
@@ -50,10 +50,10 @@ def generate_closet(ancho: float, alto: float, profundidad: float, n_estantes: i
     pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#8E44AD", 18, "T,B,R", False))
     pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#3498DB", 18, "T,B,L,R", True))
     pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#3498DB", 18, "T,B,L,R", True))
-    pieces.append(_piece("puerta-izq", "Puerta Izquierda", ancho / 2 - 0.2, alto - 2, 1, "#F1C40F", 18, "T,B,L,R", True))
-    pieces.append(_piece("puerta-der", "Puerta Derecha", ancho / 2 - 0.2, alto - 2, 1, "#F1C40F", 18, "T,B,L,R", True))
+    pieces.append(_piece("puerta-izq", "Puerta Izquierda", ancho / 2 - 2, alto - 20, 1, "#F1C40F", 18, "T,B,L,R", True))
+    pieces.append(_piece("puerta-der", "Puerta Derecha", ancho / 2 - 2, alto - 20, 1, "#F1C40F", 18, "T,B,L,R", True))
     for i in range(n_estantes):
-        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho - 1, profundidad - 1, 1, "#2ECC71", 18, "T,B,L,R", True))
+        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho - 10, profundidad - 10, 1, "#2ECC71", 18, "T,B,L,R", True))
     return pieces
 
 
@@ -61,7 +61,7 @@ def generate_mesa(ancho: float, alto: float, profundidad: float) -> List[Dict[st
     pieces = []
     pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#E67E22", 18, "T,B,L,R", True))
     for i in range(4):
-        pieces.append(_piece(f"pata-{i+1}", f"Pata {i+1}", 7, alto - 3, 1, "#95A5A6", 18, "T,B,L,R", True))
+        pieces.append(_piece(f"pata-{i+1}", f"Pata {i+1}", 70, alto - 30, 1, "#95A5A6", 18, "T,B,L,R", True))
     return pieces
 
 
@@ -72,7 +72,7 @@ def generate_cajonera(ancho: float, alto: float, profundidad: float, n_cajones: 
     pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#1ABC9C", 18, "T,B,L,R", True))
     pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#1ABC9C", 18, "T,B,L,R", True))
     for i in range(n_cajones):
-        pieces.append(_piece(f"frente-{i+1}", f"Frente Cajon {i+1}", ancho - 2, alto / n_cajones - 2, 1, "#E74C3C", 18, "T,B,L,R", True))
+        pieces.append(_piece(f"frente-{i+1}", f"Frente Cajon {i+1}", ancho - 20, alto / n_cajones - 20, 1, "#E74C3C", 18, "T,B,L,R", True))
     return pieces
 
 
@@ -93,9 +93,9 @@ TEMPLATES = {
         "nombre": "Estanteria Modular",
         "descripcion": "Estanteria vertical con estantes ajustables.",
         "parametros": {
-            "ancho": {"min": 60, "max": 240, "default": 120, "step": 1},
-            "alto": {"min": 100, "max": 240, "default": 180, "step": 1},
-            "profundidad": {"min": 20, "max": 80, "default": 50, "step": 1},
+            "ancho": {"min": 600, "max": 2400, "default": 1200, "step": 1},
+            "alto": {"min": 1000, "max": 2400, "default": 1800, "step": 1},
+            "profundidad": {"min": 200, "max": 800, "default": 500, "step": 1},
             "n_estantes": {"min": 1, "max": 8, "default": 4, "step": 1},
         },
         "generate": generate_estanteria,
@@ -105,9 +105,9 @@ TEMPLATES = {
         "nombre": "Closet Basico",
         "descripcion": "Closet con puertas y estantes.",
         "parametros": {
-            "ancho": {"min": 100, "max": 240, "default": 120, "step": 1},
-            "alto": {"min": 180, "max": 240, "default": 200, "step": 1},
-            "profundidad": {"min": 40, "max": 80, "default": 60, "step": 1},
+            "ancho": {"min": 1000, "max": 2400, "default": 1200, "step": 1},
+            "alto": {"min": 1800, "max": 2400, "default": 2000, "step": 1},
+            "profundidad": {"min": 400, "max": 800, "default": 600, "step": 1},
             "n_estantes": {"min": 1, "max": 6, "default": 3, "step": 1},
         },
         "generate": generate_closet,
@@ -117,9 +117,9 @@ TEMPLATES = {
         "nombre": "Mesa",
         "descripcion": "Mesa con tapa y 4 patas.",
         "parametros": {
-            "ancho": {"min": 60, "max": 200, "default": 120, "step": 1},
-            "alto": {"min": 60, "max": 110, "default": 75, "step": 1},
-            "profundidad": {"min": 60, "max": 100, "default": 80, "step": 1},
+            "ancho": {"min": 600, "max": 2000, "default": 1200, "step": 1},
+            "alto": {"min": 600, "max": 1100, "default": 750, "step": 1},
+            "profundidad": {"min": 600, "max": 1000, "default": 800, "step": 1},
         },
         "generate": generate_mesa,
     },
@@ -128,9 +128,9 @@ TEMPLATES = {
         "nombre": "Cajonera",
         "descripcion": "Cajonera con varios cajones.",
         "parametros": {
-            "ancho": {"min": 40, "max": 120, "default": 80, "step": 1},
-            "alto": {"min": 60, "max": 160, "default": 100, "step": 1},
-            "profundidad": {"min": 40, "max": 80, "default": 50, "step": 1},
+            "ancho": {"min": 400, "max": 1200, "default": 800, "step": 1},
+            "alto": {"min": 600, "max": 1600, "default": 1000, "step": 1},
+            "profundidad": {"min": 400, "max": 800, "default": 500, "step": 1},
             "n_cajones": {"min": 1, "max": 6, "default": 3, "step": 1},
         },
         "generate": generate_cajonera,
@@ -140,9 +140,9 @@ TEMPLATES = {
         "nombre": "Mueble para TV",
         "descripcion": "Mueble bajo con estantes.",
         "parametros": {
-            "ancho": {"min": 80, "max": 240, "default": 160, "step": 1},
-            "alto": {"min": 40, "max": 100, "default": 60, "step": 1},
-            "profundidad": {"min": 30, "max": 80, "default": 50, "step": 1},
+            "ancho": {"min": 800, "max": 2400, "default": 1600, "step": 1},
+            "alto": {"min": 400, "max": 1000, "default": 600, "step": 1},
+            "profundidad": {"min": 300, "max": 800, "default": 500, "step": 1},
             "n_estantes": {"min": 1, "max": 4, "default": 2, "step": 1},
         },
         "generate": generate_mueble_tv,

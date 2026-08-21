@@ -101,6 +101,25 @@ def get_current_user_or_guest(
     return user
 
 
+def require_project_access(db: Session, project_id: str, user: PrincipalOrGuest) -> Project:
+    """Permite acceso a propietarios y a invitados vinculados al proyecto."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proyecto no encontrado")
+
+    if isinstance(user, User):
+        if project.owner_id != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para acceder a este proyecto")
+        return project
+
+    if isinstance(user, GuestSession):
+        if user.project_id != project_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para acceder a este proyecto")
+        return project
+
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para acceder a este proyecto")
+
+
 def require_project_owner(db: Session, project_id: str, user: User) -> Project:
     """Verifica que el usuario principal sea propietario del proyecto."""
     project = db.query(Project).filter(Project.id == project_id).first()

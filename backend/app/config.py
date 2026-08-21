@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     jwt_access_expire_minutes: int = 15
     jwt_refresh_expire_days: int = 7
     guest_session_hours: int = 4
-    offcut_threshold_cm: float = 30.0
+    offcut_threshold_mm: float = 300.0
     kerf_mm: float = 3.0
-    margen_mm: float = 2.0
+    margen_mm: float = 5.0
 
     @property
     def cors_origins_list(self) -> List[str]:

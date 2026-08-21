@@ -26,7 +26,7 @@ def generate_uuid() -> str:
 
 class UserRole(str, enum.Enum):
     admin = "admin"
-    user = "user"
+    principal = "principal"
 
 
 class User(Base):
@@ -37,7 +37,7 @@ class User(Base):
     email = Column(String(255), nullable=False)
     password_hash = Column(String(255), nullable=False)
     totp_secret_encrypted = Column(Text, nullable=False)
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.user)
+    role = Column(Enum(UserRole), nullable=False, default=UserRole.principal)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
@@ -78,7 +78,8 @@ class GuestSession(Base):
     __tablename__ = "guest_sessions"
 
     id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
-    pin = Column(String(4), nullable=False, index=True)
+    pin_hash = Column(String(255), nullable=False, index=True)
+    project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     created_by = Column(VARCHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     used_at = Column(DateTime, nullable=True)
@@ -86,6 +87,7 @@ class GuestSession(Base):
     revoked_at = Column(DateTime, nullable=True)
 
     created_by_user = relationship("User", back_populates="guest_pins")
+    project = relationship("Project")
 
 
 class Project(Base):
@@ -94,12 +96,13 @@ class Project(Base):
     id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    status = Column(String(32), nullable=False, default="active", server_default="active")
     owner_id = Column(VARCHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    board_width_cm = Column(Float, nullable=False, default=244.0)
-    board_height_cm = Column(Float, nullable=False, default=122.0)
+    board_width_mm = Column(Float, nullable=False, default=2440.0)
+    board_height_mm = Column(Float, nullable=False, default=1220.0)
     board_thickness_mm = Column(Float, nullable=False, default=18.0)
     kerf_mm = Column(Float, nullable=False, default=3.0)
-    margin_mm = Column(Float, nullable=False, default=2.0)
+    margin_mm = Column(Float, nullable=False, default=5.0)
     material_type = Column(String(64), nullable=True, default="MDF")
     use_offcuts = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -118,8 +121,8 @@ class Piece(Base):
     project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     external_id = Column(String(64), nullable=False)
     name = Column(String(128), nullable=False)
-    width_cm = Column(Float, nullable=False)
-    height_cm = Column(Float, nullable=False)
+    width_mm = Column(Float, nullable=False)
+    height_mm = Column(Float, nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
     rotate = Column(Boolean, nullable=False, default=True)
     color = Column(String(7), nullable=False, default="#3B82F6")
@@ -135,8 +138,8 @@ class Layout(Base):
     id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
     project_id = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     board_index = Column(Integer, nullable=False)
-    board_width_cm = Column(Float, nullable=False)
-    board_height_cm = Column(Float, nullable=False)
+    board_width_mm = Column(Float, nullable=False)
+    board_height_mm = Column(Float, nullable=False)
     utilization = Column(Float, nullable=False)
     svg_path = Column(String(512), nullable=True)
     png_path = Column(String(512), nullable=True)
@@ -158,8 +161,8 @@ class Inventory(Base):
     id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
     tipo = Column(String(64), nullable=False)
     espesor_mm = Column(Float, nullable=False)
-    ancho_cm = Column(Float, nullable=False)
-    alto_cm = Column(Float, nullable=False)
+    ancho_mm = Column(Float, nullable=False)
+    alto_mm = Column(Float, nullable=False)
     cantidad = Column(Integer, nullable=False, default=1)
     estado = Column(Enum(InventoryState), nullable=False, default=InventoryState.nuevo)
     proyecto_origen = Column(VARCHAR(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
@@ -168,6 +171,19 @@ class Inventory(Base):
     consumed_at = Column(DateTime, nullable=True)
 
     project = relationship("Project")
+
+
+class InventoryMovement(Base):
+    __tablename__ = "inventory_movements"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    inventory_id = Column(VARCHAR(36), ForeignKey("inventory.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo = Column(String(16), nullable=False)
+    cantidad = Column(Integer, nullable=False)
+    motivo = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    inventory = relationship("Inventory")
 
 
 class Quote(Base):

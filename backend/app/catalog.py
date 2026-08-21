@@ -1,103 +1,104 @@
 """Catálogo de materiales, formatos, espesores y colores basado en la guía ecuatoriana.
 
 Fuente: docs/GUIA-MELAMINICOS-ECUADOR.md
+
+El catálogo se carga desde backend/app/config/catalog.json en tiempo de importación.
+Los precios pueden sobrescribirse mediante la variable de entorno CATALOG_PRICES_JSON.
 """
 
+import json
+import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-#: Formatos estándar de placa en Ecuador (cm).
-BOARD_FORMATS: List[Dict[str, Any]] = [
-    {"name": "Estándar Ecuador 183×244", "width_cm": 183.0, "height_cm": 244.0, "country": "Ecuador"},
-    {"name": "Extendido Provemadera 185×275", "width_cm": 185.0, "height_cm": 275.0, "country": "Ecuador"},
-    {"name": "Madecentro Artiko 215×244", "width_cm": 215.0, "height_cm": 244.0, "country": "Ecuador"},
-    {"name": "Moldyport SuperPan 285×210", "width_cm": 285.0, "height_cm": 210.0, "country": "Ecuador"},
-    {"name": "Moldyport SuperPan 366×210", "width_cm": 366.0, "height_cm": 210.0, "country": "Ecuador"},
-    {"name": "Europeo 244×122", "width_cm": 244.0, "height_cm": 122.0, "country": "Europa/Importado"},
-]
 
-#: Materiales con espesores disponibles y precios aproximados por m² (USD).
-# Precios referenciales para proyectos en Ecuador, 2026.
-MATERIALS: Dict[str, Dict[str, Any]] = {
-    "MDF Crudo": {
-        "description": "MDF sin recubrir. Ideal para ebanistería, molduras o acabados personalizados.",
-        "thicknesses": {
-            3: {"price_per_m2": 5.37},
-            6: {"price_per_m2": 7.50},
-            9: {"price_per_m2": 8.40},
-            12: {"price_per_m2": 10.00},
-            15: {"price_per_m2": 12.00},
-            18: {"price_per_m2": 14.36},
-            25: {"price_per_m2": 18.50},
-            31: {"price_per_m2": 22.00},
-            37: {"price_per_m2": 26.00},
-        },
-    },
-    "MDF Melamina": {
-        "description": "MDF recubierto con melamina decorativa. Listo para usar, alta variedad de colores.",
-        "thicknesses": {
-            6: {"price_per_m2": 6.50},
-            9: {"price_per_m2": 8.50},
-            12: {"price_per_m2": 10.50},
-            15: {"price_per_m2": 12.50},
-            18: {"price_per_m2": 14.50},
-            22: {"price_per_m2": 17.00},
-            25: {"price_per_m2": 19.50},
-            30: {"price_per_m2": 24.00},
-        },
-    },
-    "Aglomerado / SuperPan": {
-        "description": "Partículas de madera prensadas con recubrimiento melamínico. Opción económica.",
-        "thicknesses": {
-            3: {"price_per_m2": 6.50},
-            10: {"price_per_m2": 9.00},
-            16: {"price_per_m2": 13.50},
-            18: {"price_per_m2": 15.00},
-            22: {"price_per_m2": 17.50},
-            25: {"price_per_m2": 20.50},
-            30: {"price_per_m2": 24.50},
-        },
-    },
-}
+_CATALOG_PATH = Path(__file__).parent / "config" / "catalog.json"
+_HARDWARE_TEMPLATES_PATH = Path(__file__).parent / "config" / "hardware_templates.json"
 
-#: Catálogo de colores de melamina disponibles en Ecuador.
-COLORS: List[Dict[str, str]] = [
-    # Sólidos
-    {"name": "Blanco", "hex": "#FFFFFF"},
-    {"name": "Negro", "hex": "#000000"},
-    {"name": "Gris", "hex": "#808080"},
-    {"name": "Cenizo", "hex": "#9E9E9E"},
-    {"name": "Chocolate", "hex": "#5D4037"},
-    {"name": "Cacao", "hex": "#6D4C41"},
-    {"name": "Miel", "hex": "#D4A017"},
-    {"name": "Brandy", "hex": "#8B4513"},
-    {"name": "Pistacho", "hex": "#93C572"},
-    {"name": "Rojo", "hex": "#C62828"},
-    {"name": "Azul", "hex": "#1565C0"},
-    {"name": "Verde", "hex": "#2E7D32"},
-    {"name": "Amarillo", "hex": "#F9A825"},
-    # Texturas madera
-    {"name": "Nogal", "hex": "#5D4037"},
-    {"name": "Roble", "hex": "#8B6F47"},
-    {"name": "Roble Americano", "hex": "#A67B5B"},
-    {"name": "Cedro", "hex": "#A0522D"},
-    {"name": "Caoba", "hex": "#4E342E"},
-    {"name": "Wengué", "hex": "#3E2723"},
-    {"name": "Zebrano", "hex": "#5D4037"},
-    {"name": "Haya", "hex": "#D7CCC8"},
-    {"name": "Pino", "hex": "#E6C88A"},
-    {"name": "Olmo", "hex": "#8D6E63"},
-    # Especiales / premium
-    {"name": "Mármol Carrara", "hex": "#F5F5F5"},
-    {"name": "Mármol Negro", "hex": "#1A1A1A"},
-    {"name": "Cemento", "hex": "#9E9E9E"},
-    {"name": "Lino Textil", "hex": "#D7CCC8"},
-    {"name": "Piedra", "hex": "#757575"},
-    {"name": "Cuero", "hex": "#5D4037"},
-    {"name": "Metálico", "hex": "#B0BEC5"},
-    {"name": "High Gloss", "hex": "#E0E0E0"},
-    {"name": "Soft Touch", "hex": "#EFEBE9"},
-    {"name": "Antihuella", "hex": "#424242"},
-]
+
+def _load_json(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _normalize_materials(data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Convierte las claves de espesor a enteros y asegura la estructura esperada."""
+    materials: Dict[str, Dict[str, Any]] = {}
+    for name, entry in data.items():
+        thicknesses: Dict[int, Dict[str, Any]] = {}
+        for tk, tv in entry.get("thicknesses", {}).items():
+            thicknesses[int(tk)] = tv
+        materials[name] = {
+            "description": entry.get("description", ""),
+            "thicknesses": thicknesses,
+        }
+    return materials
+
+
+def _apply_price_overrides(materials: Dict[str, Dict[str, Any]]) -> None:
+    """Aplica sobrescrituras de precios desde CATALOG_PRICES_JSON."""
+    override_json = os.environ.get("CATALOG_PRICES_JSON")
+    if not override_json:
+        return
+    try:
+        overrides = json.loads(override_json)
+    except json.JSONDecodeError:
+        return
+
+    if not isinstance(overrides, dict):
+        return
+
+    for material_name, thickness_data in overrides.items():
+        if material_name not in materials:
+            continue
+        if not isinstance(thickness_data, dict):
+            continue
+        for tk, price_info in thickness_data.items():
+            try:
+                thickness_key = int(tk)
+            except (ValueError, TypeError):
+                continue
+            if thickness_key not in materials[material_name]["thicknesses"]:
+                continue
+            if isinstance(price_info, (int, float)):
+                materials[material_name]["thicknesses"][thickness_key]["price_per_m2"] = float(price_info)
+            elif isinstance(price_info, dict):
+                current = materials[material_name]["thicknesses"][thickness_key]
+                current.update(price_info)
+
+
+BOARD_FORMATS: List[Dict[str, Any]] = []
+MATERIALS: Dict[str, Dict[str, Any]] = {}
+COLORS: List[Dict[str, str]] = []
+
+
+def _normalize_board_formats(formats: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Asegura que los formatos expongan width_mm/height_mm, con fallback a *_cm."""
+    normalized: List[Dict[str, Any]] = []
+    for f in formats:
+        entry = dict(f)
+        if "width_mm" not in entry and "width_cm" in entry:
+            entry["width_mm"] = float(entry["width_cm"]) * 10.0
+        if "height_mm" not in entry and "height_cm" in entry:
+            entry["height_mm"] = float(entry["height_cm"]) * 10.0
+        normalized.append(entry)
+    return normalized
+
+
+def reload_catalog() -> None:
+    """Recarga el catálogo desde disco y variables de entorno en runtime."""
+    global BOARD_FORMATS, MATERIALS, COLORS
+    data = _load_json(_CATALOG_PATH)
+    BOARD_FORMATS = _normalize_board_formats(data.get("board_formats", []))
+    MATERIALS = _normalize_materials(data.get("materials", {}))
+    COLORS = data.get("colors", [])
+    _apply_price_overrides(MATERIALS)
+
+
+# Carga inicial en importación.
+reload_catalog()
 
 
 def list_board_formats(country: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -150,3 +151,8 @@ def get_catalog() -> Dict[str, Any]:
         "materials": list_materials(),
         "colors": COLORS,
     }
+
+
+def list_hardware_templates() -> List[Dict[str, Any]]:
+    data = _load_json(_HARDWARE_TEMPLATES_PATH)
+    return data.get("templates", [])

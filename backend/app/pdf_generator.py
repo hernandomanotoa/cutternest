@@ -83,8 +83,8 @@ def generate_cutlist_pdf(project_name: str, boards: List[Dict[str, Any]], export
 
     cut_number = 1
     for board in boards:
-        story.append(Paragraph(f"Tablero {board['board_index'] + 1} - {board['ancho']:.1f}x{board['alto']:.1f} cm", styles["Heading3"]))
-        data = [["N", "Dimension (cm)", "Pieza", "Angulo"]]
+        story.append(Paragraph(f"Tablero {board['board_index'] + 1} - {board['ancho']:.1f}x{board['alto']:.1f} mm", styles["Heading3"]))
+        data = [["N", "Dimension (mm)", "Pieza", "Angulo"]]
         for p in board["placements"]:
             dimension = f"{p['w']:.1f} x {p['h']:.1f}"
             angle = "90" if p.get("rotado") else "0"
@@ -133,6 +133,71 @@ def generate_labels_pdf(project_name: str, boards: List[Dict[str, Any]], exports
             table.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.5, colors.grey)]))
             story.append(table)
             story.append(Spacer(1, 2 * mm))
+
+    doc.build(story)
+    return _web_path(path)
+
+
+def _assembly_pdf_path(exports_dir: str, project_id: str) -> str:
+    return os.path.join(exports_dir, f"manual_ensamblaje_{project_id}.pdf")
+
+
+def generate_assembly_manual(
+    project_name: str,
+    steps: List[Dict[str, Any]],
+    pieces: List[Dict[str, Any]],
+    exports_dir: str,
+    project_id: str = "",
+) -> str:
+    path = _assembly_pdf_path(exports_dir, project_id or project_name)
+    doc = SimpleDocTemplate(path, pagesize=A4, rightMargin=20 * mm, leftMargin=20 * mm, topMargin=20 * mm, bottomMargin=20 * mm)
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(Paragraph(f"<b>Manual de ensamblaje - {project_name}</b>", styles["Title"]))
+    story.append(Paragraph(f"Fecha: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    story.append(Spacer(1, 10 * mm))
+
+    # Lista de piezas
+    if pieces:
+        story.append(Paragraph("<b>Lista de piezas</b>", styles["Heading3"]))
+        piece_data = [["Codigo", "Nombre", "Dimensiones (mm)"]]
+        for p in pieces:
+            dims = f"{p.get('width_mm', 0):.1f} x {p.get('height_mm', 0):.1f}"
+            piece_data.append([p.get("external_id", ""), p.get("name", ""), dims])
+        piece_table = Table(piece_data, colWidths=[40 * mm, 80 * mm, 50 * mm])
+        piece_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        story.append(piece_table)
+        story.append(Spacer(1, 10 * mm))
+
+    # Pasos
+    story.append(Paragraph("<b>Pasos de ensamblaje</b>", styles["Heading3"]))
+    for step in steps:
+        story.append(Paragraph(f"<b>Paso {step.get('numero', step.get('step_number', ''))}: {step.get('titulo', step.get('title', ''))}</b>", styles["Heading4"]))
+        story.append(Paragraph(f"{step.get('descripcion', step.get('description', ''))}", styles["Normal"]))
+
+        piezas = step.get("piezas", step.get("piece_codes", []))
+        if piezas:
+            story.append(Paragraph(f"Piezas: {', '.join(str(p) for p in piezas)}", styles["Normal"]))
+
+        conectores = step.get("conectores", [])
+        if conectores:
+            connector_types = {c.get("tipo", c.get("connector_type", "conector")) for c in conectores}
+            story.append(Paragraph(f"Conectores: {', '.join(sorted(connector_types))}", styles["Normal"]))
+
+        herramientas = step.get("herramientas", step.get("tool_ids", []))
+        if herramientas:
+            story.append(Paragraph(f"Herramientas: {', '.join(str(h) for h in herramientas)}", styles["Normal"]))
+
+        tiempo = step.get("tiempo_estimado_min")
+        if tiempo:
+            story.append(Paragraph(f"Tiempo estimado: {tiempo} min", styles["Normal"]))
+
+        story.append(Spacer(1, 5 * mm))
 
     doc.build(story)
     return _web_path(path)

@@ -15,7 +15,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=10)
 
 
 class UserRead(UserBase):
@@ -33,8 +33,8 @@ class RegisterResponse(BaseModel):
 
 
 class LoginStep1Request(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=255)
 
 
 class LoginStep1Response(BaseModel):
@@ -43,20 +43,21 @@ class LoginStep1Response(BaseModel):
 
 class VerifyRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=8)
-    temp_token: Optional[str] = None
+    temp_token: Optional[str] = Field(None, max_length=512)
 
 
 class GuestPinRequest(BaseModel):
-    pass
+    project_id: Optional[str] = Field(None, max_length=36)
 
 
 class GuestPinResponse(BaseModel):
     pin: str
     expires_at: datetime
+    project_id: Optional[str] = None
 
 
 class GuestLoginRequest(BaseModel):
-    pin: str = Field(..., min_length=4, max_length=4)
+    pin: str = Field(..., min_length=6, max_length=6)
 
 
 class RefreshRequest(BaseModel):
@@ -65,35 +66,35 @@ class RefreshRequest(BaseModel):
 
 # Optimizador
 class BoardInput(BaseModel):
-    ancho: float = Field(..., gt=0)
-    alto: float = Field(..., gt=0)
-    espesor: float = Field(..., gt=0)
+    ancho: float = Field(2440.0, gt=0)
+    alto: float = Field(1220.0, gt=0)
+    espesor: float = Field(18.0, gt=0)
     kerf_mm: float = Field(3.0, ge=0)
-    margen_mm: float = Field(2.0, ge=0)
+    margen_mm: float = Field(5.0, ge=0)
 
 
 class PieceInput(BaseModel):
-    id: str
-    nombre: str
+    id: str = Field(..., max_length=64)
+    nombre: str = Field(..., max_length=128)
     ancho: float = Field(..., gt=0)
     alto: float = Field(..., gt=0)
     cantidad: int = Field(1, ge=1)
-    rotar: bool = True
-    color: str = "#3B82F6"
-    espesor: float = 18.0
-    cantos: Optional[str] = ""
-    modulo: Optional[str] = None
+    rotate: bool = True
+    color: str = Field("#3B82F6", max_length=7)
+    espesor: float = Field(18.0, gt=0)
+    cantos: Optional[str] = Field("", max_length=16)
+    modulo: Optional[str] = Field(None, max_length=16)
 
 
 class OptimizeRequest(BaseModel):
     tablero: BoardInput
-    piezas: List[PieceInput]
-    usar_sobrantes: bool = False
-    material_type: Optional[str] = None
+    piezas: List[PieceInput] = Field(..., max_length=5000)
+    use_offcuts: bool = False
+    material_type: Optional[str] = Field(None, max_length=64)
 
 
 class PiecesUpdateRequest(BaseModel):
-    piezas: List[PieceInput]
+    piezas: List[PieceInput] = Field(..., max_length=5000)
 
 
 class PlacementRead(BaseModel):
@@ -127,8 +128,8 @@ class OptimizeResponse(BaseModel):
 class InventoryCreate(BaseModel):
     tipo: str
     espesor_mm: float
-    ancho_cm: float
-    alto_cm: float
+    ancho_mm: float
+    alto_mm: float
     cantidad: int = 1
 
 
@@ -137,8 +138,8 @@ class InventoryRead(BaseModel):
     id: str
     tipo: str
     espesor_mm: float
-    ancho_cm: float
-    alto_cm: float
+    ancho_mm: float
+    alto_mm: float
     cantidad: int
     estado: str
     area_m2: float
@@ -149,16 +150,32 @@ class InventoryConsume(BaseModel):
     cantidad: int = 1
 
 
+class InventoryRestock(BaseModel):
+    cantidad: int = Field(..., gt=0)
+    motivo: Optional[str] = Field(None, max_length=500)
+
+
+class InventoryMovementRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    inventory_id: str
+    tipo: str
+    cantidad: int
+    motivo: Optional[str]
+    created_at: datetime
+
+
 # Proyectos
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    board_width_cm: Optional[float] = None
-    board_height_cm: Optional[float] = None
+    description: Optional[str] = Field(None, max_length=1000)
+    status: Optional[str] = Field("active", max_length=32)
+    board_width_mm: Optional[float] = None
+    board_height_mm: Optional[float] = None
     board_thickness_mm: Optional[float] = None
     kerf_mm: Optional[float] = None
     margin_mm: Optional[float] = None
-    material_type: Optional[str] = None
+    material_type: Optional[str] = Field(None, max_length=64)
     use_offcuts: Optional[bool] = None
 
 
@@ -199,6 +216,12 @@ class HardwareItem(BaseModel):
     item: str
     cantidad: float
     precio_unit: float
+
+
+class HardwareTemplate(BaseModel):
+    item: str
+    precio_unit: float
+    categoria: str
 
 
 class QuoteRequest(BaseModel):
@@ -259,6 +282,7 @@ class AssemblyPiece3D(BaseModel):
     alto: float
     profundidad: float
     color: str
+    modulo: Optional[str] = None
     posicion: Point3D
     rotacion: Rotation3D
 
@@ -365,6 +389,22 @@ class AssemblyResponse(BaseModel):
     connectors: List[AssemblyConnector]
     steps: List[AssemblyStep]
     state: Optional[AssemblyState] = None
+    dependencies: List[List[str]] = []
+    levels: List[List[str]] = []
+
+
+class AssemblyPlanRequest(BaseModel):
+    dependencies: List[List[str]]
+    save: bool = True
+
+
+class AssemblyPlanResponse(BaseModel):
+    dependencies: List[List[str]]
+    levels: List[List[str]]
+    min_steps: int
+    steps: List[AssemblyStep]
+    cycle: Optional[List[str]] = None
+
 
 class EfficiencyReport(BaseModel):
     project_id: str

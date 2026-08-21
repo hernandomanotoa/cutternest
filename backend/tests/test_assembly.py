@@ -1,4 +1,4 @@
-from app.assembly import AssemblyEngine, build_assembly_steps
+from app.assembly import AssemblyEngine, _detect_cycle, build_assembly_steps
 from app.models import Piece, Project
 from app.schemas import AssemblyPiece, AssemblyProgressUpdate, Point3D, Rotation3D, Transform3D
 
@@ -11,8 +11,8 @@ client = TestClient(app)
 def _piece(
     external_id: str,
     name: str,
-    width_cm: float,
-    height_cm: float,
+    width_mm: float,
+    height_mm: float,
     thickness_mm: float = 18.0,
     color: str = "#3B82F6",
     edge_banding: str = "",
@@ -20,8 +20,8 @@ def _piece(
     p = Piece(
         external_id=external_id,
         name=name,
-        width_cm=width_cm,
-        height_cm=height_cm,
+        width_mm=width_mm,
+        height_mm=height_mm,
         thickness_mm=thickness_mm,
         color=color,
         edge_banding=edge_banding,
@@ -38,13 +38,13 @@ def _project() -> Project:
 
 def _estanteria_pieces():
     return [
-        _piece("base", "Base", 120.0, 60.0, edge_banding="T,B,L,R"),
-        _piece("tapa", "Tapa", 120.0, 60.0, edge_banding="T,B,L,R"),
-        _piece("lateral-izq", "Lateral Izq", 50.0, 180.0, edge_banding="T,B,L"),
-        _piece("lateral-der", "Lateral Der", 50.0, 180.0, edge_banding="T,B,R"),
-        _piece("estante-1", "Estante 1", 100.0, 30.0),
-        _piece("estante-2", "Estante 2", 100.0, 30.0),
-        _piece("fondo", "Fondo", 60.0, 180.0, thickness_mm=3.0, color="#DDA0DD"),
+        _piece("base", "Base", 1200.0, 600.0, edge_banding="T,B,L,R"),
+        _piece("tapa", "Tapa", 1200.0, 600.0, edge_banding="T,B,L,R"),
+        _piece("lateral-izq", "Lateral Izq", 500.0, 1800.0, edge_banding="T,B,L"),
+        _piece("lateral-der", "Lateral Der", 500.0, 1800.0, edge_banding="T,B,R"),
+        _piece("estante-1", "Estante 1", 1000.0, 300.0),
+        _piece("estante-2", "Estante 2", 1000.0, 300.0),
+        _piece("fondo", "Fondo", 600.0, 1800.0, thickness_mm=3.0, color="#DDA0DD"),
     ]
 
 
@@ -91,7 +91,7 @@ def test_assembly_empty():
 
 
 def test_assembly_no_recognized_structure():
-    pieces = [_piece("panel-a", "Panel A", 80.0, 80.0)]
+    pieces = [_piece("panel-a", "Panel A", 800.0, 800.0)]
     result = build_assembly_steps(_project(), pieces)
     assert len(result["pasos"]) == 1
     assert result["pasos"][0]["titulo"] == "Colocar piezas restantes"
@@ -99,12 +99,12 @@ def test_assembly_no_recognized_structure():
 
 def test_assembly_generates_modules_and_codes():
     pieces = [
-        _piece("M01-base", "Base M01", 120.0, 60.0),
-        _piece("M01-lateral-izq", "Lateral Izq M01", 50.0, 180.0),
-        _piece("M01-lateral-der", "Lateral Der M01", 50.0, 180.0),
-        _piece("M02-base", "Base M02", 120.0, 60.0),
-        _piece("M02-lateral-izq", "Lateral Izq M02", 50.0, 180.0),
-        _piece("M02-lateral-der", "Lateral Der M02", 50.0, 180.0),
+        _piece("M01-base", "Base M01", 1200.0, 600.0),
+        _piece("M01-lateral-izq", "Lateral Izq M01", 500.0, 1800.0),
+        _piece("M01-lateral-der", "Lateral Der M01", 500.0, 1800.0),
+        _piece("M02-base", "Base M02", 1200.0, 600.0),
+        _piece("M02-lateral-izq", "Lateral Izq M02", 500.0, 1800.0),
+        _piece("M02-lateral-der", "Lateral Der M02", 500.0, 1800.0),
     ]
     result = AssemblyEngine.build_assembly("proj", pieces)
     codes = [p["code"] for p in result["pieces"]]
@@ -120,8 +120,8 @@ def test_assembly_generates_modules_and_codes():
 
 def test_assembly_expected_position():
     pieces = [
-        _piece("base", "Base", 120.0, 60.0),
-        _piece("lateral-izq", "Lateral Izq", 50.0, 180.0),
+        _piece("base", "Base", 1200.0, 600.0),
+        _piece("lateral-izq", "Lateral Izq", 500.0, 1800.0),
     ]
     result = AssemblyEngine.build_assembly("proj", pieces)
     base = next(p for p in result["pieces"] if p["piece_type"] == "base")
@@ -136,10 +136,10 @@ def test_assembly_expected_position():
 
 def test_assembly_connectors():
     pieces = [
-        _piece("base", "Base", 120.0, 60.0),
-        _piece("lateral-izq", "Lateral Izq", 50.0, 180.0),
-        _piece("lateral-der", "Lateral Der", 50.0, 180.0),
-        _piece("tapa", "Tapa", 120.0, 60.0),
+        _piece("base", "Base", 1200.0, 600.0),
+        _piece("lateral-izq", "Lateral Izq", 500.0, 1800.0),
+        _piece("lateral-der", "Lateral Der", 500.0, 1800.0),
+        _piece("tapa", "Tapa", 1200.0, 600.0),
     ]
     result = AssemblyEngine.build_assembly("proj", pieces)
     tipos = {c["connector_type"] for c in result["connectors"]}
@@ -149,9 +149,9 @@ def test_assembly_connectors():
 
 def test_assembly_step_dependencies():
     pieces = [
-        _piece("base", "Base", 120.0, 60.0),
-        _piece("lateral-izq", "Lateral Izq", 50.0, 180.0),
-        _piece("tapa", "Tapa", 120.0, 60.0),
+        _piece("base", "Base", 1200.0, 600.0),
+        _piece("lateral-izq", "Lateral Izq", 500.0, 1800.0),
+        _piece("tapa", "Tapa", 1200.0, 600.0),
     ]
     result = AssemblyEngine.build_assembly("proj", pieces)
     steps = result["steps"]
@@ -206,16 +206,16 @@ def test_assembly_progress_endpoint_updates_state():
     project_id = response.json()["id"]
 
     pieces_payload = [
-        {"id": "base", "nombre": "Base", "ancho": 120.0, "alto": 60.0, "cantidad": 1, "rotar": True, "color": "#3B82F6", "espesor": 18.0},
-        {"id": "lateral-izq", "nombre": "Lateral Izq", "ancho": 50.0, "alto": 180.0, "cantidad": 1, "rotar": True, "color": "#3B82F6", "espesor": 18.0},
-        {"id": "lateral-der", "nombre": "Lateral Der", "ancho": 50.0, "alto": 180.0, "cantidad": 1, "rotar": True, "color": "#3B82F6", "espesor": 18.0},
+        {"id": "base", "nombre": "Base", "ancho": 1200.0, "alto": 600.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
+        {"id": "lateral-izq", "nombre": "Lateral Izq", "ancho": 500.0, "alto": 1800.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
+        {"id": "lateral-der", "nombre": "Lateral Der", "ancho": 500.0, "alto": 1800.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
     ]
     response = client.post(
         f"/api/v1/projects/{project_id}/optimize",
         json={
-            "tablero": {"ancho": 244, "alto": 122, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
+            "tablero": {"ancho": 2440, "alto": 1220, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
             "piezas": pieces_payload,
-            "usar_sobrantes": False,
+            "use_offcuts": False,
         },
     )
     assert response.status_code == 200
@@ -263,12 +263,12 @@ def test_save_pieces_endpoint_generates_generic_assembly():
     project_id = response.json()["id"]
 
     pieces_payload = [
-        {"id": "b1", "nombre": "Base", "ancho": 90.0, "alto": 60.0, "cantidad": 1, "rotar": True, "color": "#ffffff", "espesor": 18.0},
-        {"id": "l1", "nombre": "Lateral", "ancho": 60.0, "alto": 210.0, "cantidad": 2, "rotar": True, "color": "#ffffff", "espesor": 18.0},
-        {"id": "e1", "nombre": "Estante", "ancho": 84.0, "alto": 40.0, "cantidad": 3, "rotar": True, "color": "#ffffff", "espesor": 18.0},
-        {"id": "t1", "nombre": "Tapa", "ancho": 90.0, "alto": 60.0, "cantidad": 1, "rotar": True, "color": "#ffffff", "espesor": 18.0},
-        {"id": "f1", "nombre": "Fondo", "ancho": 90.0, "alto": 210.0, "cantidad": 1, "rotar": True, "color": "#eeeeee", "espesor": 4.0},
-        {"id": "s1", "nombre": "Soporte extra", "ancho": 20.0, "alto": 20.0, "cantidad": 1, "rotar": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "b1", "nombre": "Base", "ancho": 900.0, "alto": 600.0, "cantidad": 1, "rotate": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "l1", "nombre": "Lateral", "ancho": 600.0, "alto": 2100.0, "cantidad": 2, "rotate": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "e1", "nombre": "Estante", "ancho": 840.0, "alto": 400.0, "cantidad": 3, "rotate": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "t1", "nombre": "Tapa", "ancho": 900.0, "alto": 600.0, "cantidad": 1, "rotate": True, "color": "#ffffff", "espesor": 18.0},
+        {"id": "f1", "nombre": "Fondo", "ancho": 900.0, "alto": 2100.0, "cantidad": 1, "rotate": True, "color": "#eeeeee", "espesor": 4.0},
+        {"id": "s1", "nombre": "Soporte extra", "ancho": 200.0, "alto": 200.0, "cantidad": 1, "rotate": True, "color": "#ffffff", "espesor": 18.0},
     ]
 
     response = client.post(f"/api/v1/projects/{project_id}/pieces", json={"piezas": pieces_payload})
@@ -294,3 +294,57 @@ def test_save_pieces_endpoint_generates_generic_assembly():
     assert "Colocar tapa" in titles
     assert "Fijar fondo" in titles
     assert "Colocar piezas restantes" in titles
+
+
+
+def test_assembly_plan_topological_levels():
+    pieces = _estanteria_pieces()
+    result = AssemblyEngine.build_assembly("proj", pieces)
+    deps = result["dependencies"]
+    assert len(deps) >= 4
+    levels = result["levels"]
+    assert len(levels) >= 3
+    # Verificar que cada nivel contiene piezas y que no se repiten
+    all_codes = [code for level in levels for code in level]
+    assert len(all_codes) == len(set(all_codes))
+
+
+def test_assembly_plan_cycle_detection():
+    nodes = ["A", "B", "C"]
+    edges = [("A", "B"), ("B", "C"), ("C", "A")]
+    cycle = _detect_cycle(nodes, edges)
+    assert cycle is not None
+    assert set(cycle) == {"A", "B", "C"}
+
+
+def test_assembly_plan_endpoint():
+    _register_and_login("assembly_plan_user")
+
+    response = client.post("/api/v1/projects", json={"name": "Plan Test"})
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+
+    pieces_payload = [
+        {"id": "base", "nombre": "Base", "ancho": 1200.0, "alto": 600.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
+        {"id": "lateral-izq", "nombre": "Lateral Izq", "ancho": 500.0, "alto": 1800.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
+        {"id": "lateral-der", "nombre": "Lateral Der", "ancho": 500.0, "alto": 1800.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
+        {"id": "estante-1", "nombre": "Estante 1", "ancho": 1000.0, "alto": 300.0, "cantidad": 1, "rotate": True, "color": "#3B82F6", "espesor": 18.0},
+    ]
+    response = client.post(f"/api/v1/projects/{project_id}/pieces", json={"piezas": pieces_payload})
+    assert response.status_code == 200
+
+    # Obtener dependencias por defecto del ensamblaje existente
+    response = client.get(f"/api/v1/projects/{project_id}/assembly")
+    assert response.status_code == 200
+    assembly = response.json()
+    deps = assembly["dependencies"]
+
+    response = client.post(
+        f"/api/v1/projects/{project_id}/assembly/plan",
+        json={"dependencies": deps, "save": True},
+    )
+    assert response.status_code == 200
+    plan = response.json()
+    assert len(plan["levels"]) >= 1
+    assert len(plan["steps"]) >= 1
+    assert plan["cycle"] is None or plan["cycle"] == []

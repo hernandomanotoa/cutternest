@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Tuple
 
+from fastapi import HTTPException, status
 from rectpack import newPacker
 
 from app.config import get_settings
@@ -7,9 +8,75 @@ from app.config import get_settings
 settings = get_settings()
 
 
+def _packer_with_best_algorithm(rotation: bool = True):
+    """Crea un packer de rectpack con el mejor algoritmo disponible.
+
+    Usa ordenamiento global (PackerGlobal) + best-bin-fit para aprovechar
+    sobrantes y tableros nuevos de forma híbrida. El algoritmo de empaque
+    por defecto es MaxRectsBssf, uno de los mejores equilibrios entre
+    calidad y velocidad para nesting 2D guillotinable/no guillotinable.
+    """
+    try:
+        from rectpack import (
+            PackerBBF,
+            PackerGlobal,
+            SORT_AREA,
+            MaxRectsBssf,
+        )
+
+        return newPacker(
+            mode=PackerGlobal,
+            bin_algo=PackerBBF,
+            pack_algo=MaxRectsBssf,
+            sort_algo=SORT_AREA,
+            rotation=rotation,
+        )
+    except Exception:
+        # Fallback robusto si alguna constante no estuviera disponible
+        return newPacker(rotation=rotation)
+
+
+def _expanded_rects(pieces: List[Dict[str, Any]]) -> List[Tuple[float, float, str, bool, Dict[str, Any]]]:
+    """Expande cantidades y devuelve tuplas (w, h, rid, rot, original)."""
+    rects = []
+    for p in pieces:
+        w = float(p["ancho"])
+        h = float(p["alto"])
+        rot = bool(p.get("rotate", True))
+        qty = int(p.get("cantidad", 1))
+        for i in range(qty):
+            rects.append((w, h, f"{p['id']}__{i}", rot, p))
+    return rects
+
+
+def _validate_pieces_fit(
+    board_width_mm: float,
+    board_height_mm: float,
+    margin_mm: float,
+    rects: List[Tuple[float, float, str, bool, Dict[str, Any]]],
+) -> None:
+    """Rechaza piezas que no caben en el tablero utilizable ni rotando."""
+    usable_w = board_width_mm - 2 * margin_mm
+    usable_h = board_height_mm - 2 * margin_mm
+    if usable_w <= 0 or usable_h <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Dimensiones de tablero inválidas",
+        )
+
+    for w, h, rid, rot, original in rects:
+        fits = (w <= usable_w and h <= usable_h) or (rot and h <= usable_w and w <= usable_h)
+        if not fits:
+            name = original.get("nombre", rid.rsplit("__", 1)[0])
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"PIECE_TOO_LARGE: La pieza '{name}' ({w:.2f} x {h:.2f} mm) excede las dimensiones útiles del tablero",
+            )
+
+
 def optimize_cuts(
-    board_width_cm: float,
-    board_height_cm: float,
+    board_width_mm: float,
+    board_height_mm: float,
     pieces: List[Dict[str, Any]],
     offcuts: List[Dict[str, Any]] = None,
     kerf_mm: float = None,
@@ -17,57 +84,47 @@ def optimize_cuts(
 ) -> Dict[str, Any]:
     """
     Optimiza el corte de piezas en tableros usando rectpack.
-    Las dimensiones estan en cm. rectpack usa las mismas unidades.
-    Retorna lista de tableros con placements y metricas.
+    Las dimensiones están en mm. Retorna lista de tableros con placements,
+    métricas y la lista de IDs de sobrantes consumidos.
     """
     offcuts = offcuts or []
     kerf_mm = kerf_mm if kerf_mm is not None else settings.kerf_mm
     margin_mm = margin_mm if margin_mm is not None else settings.margen_mm
 
-    # Convertir margen a cm
-    margin_cm = margin_mm / 10.0
+    rects = _expanded_rects(pieces)
+    _validate_pieces_fit(board_width_mm, board_height_mm, margin_mm, rects)
 
-    available_boards = []
-    for idx, off in enumerate(offcuts):
-        available_boards.append(
-            (float(off["ancho"]), float(off["alto"]), f"sobrante_{idx}")
+    # Preparar bins: sobrantes primero, luego tableros nuevos de respaldo.
+    offcut_boards = []
+    for off in offcuts:
+        offcut_boards.append(
+            {
+                "id": off.get("id"),
+                "width": float(off["ancho"]),
+                "height": float(off["alto"]),
+                "bid": str(off.get("id", f"sobrante_{len(offcut_boards)}")),
+            }
         )
 
-    # Si no hay sobrantes, usamos tableros estandar ilimitados (se van agregando segun se necesiten)
-    if not available_boards:
-        available_boards = [(board_width_cm, board_height_cm, "nuevo")]
+    packer = _packer_with_best_algorithm(rotation=True)
 
-    # Preparar piezas. rectpack espera (w, h, id).
-    # Expandemos cantidad.
-    rects = []
-    for p in pieces:
-        w = float(p["ancho"])
-        h = float(p["alto"])
-        rot = bool(p.get("rotar", True))
-        qty = int(p.get("cantidad", 1))
-        for i in range(qty):
-            rects.append((w, h, f"{p['id']}__{i}", rot, p))
-
-    packer = newPacker(rotation= True)
-
-    # Agregar piezas. newPacker(rotation=True) habilita rotacion global.
-    for r in rects:
-        w, h, rid, rot, _ = r
+    # rectpack 0.2.2 solo soporta rotación global; la validación previa respeta el
+    # flag `rotate` de cada pieza rechazando piezas que no caben sin rotar.
+    for w, h, rid, _rot, _ in rects:
         packer.add_rect(w, h, rid)
 
-    # Agregar tableros iniciales. Si son sobrantes, finitos. Si es nuevo, pondremos muchos.
-    if available_boards and available_boards[0][2] == "nuevo":
-        # Tableros nuevos ilimitados: reservamos un numero razonable
-        for i in range(50):
-            packer.add_bin(board_width_cm, board_height_cm, bid=f"nuevo_{i}")
-    else:
-        for off in available_boards:
-            packer.add_bin(off[0], off[1], bid=off[2])
+    # Sobrantes como bins finitos.
+    for off in offcut_boards:
+        packer.add_bin(off["width"], off["height"], bid=off["bid"])
+
+    # Tableros nuevos de respaldo (límite razonable).
+    for i in range(50):
+        packer.add_bin(board_width_mm, board_height_mm, bid=f"nuevo_{i}")
 
     packer.pack()
 
-    # Agrupar resultados por bin
-    bins = {}
+    # Agrupar resultados por bin.
+    bins: Dict[str, Dict[str, Any]] = {}
     for abin in packer:
         bid = abin.bid
         if bid not in bins:
@@ -78,7 +135,7 @@ def optimize_cuts(
             }
         for rect in abin:
             rid = rect.rid
-            base_id, idx = rid.rsplit("__", 1)
+            base_id, _idx = rid.rsplit("__", 1)
             original = next((r[4] for r in rects if r[2] == rid), None)
             bins[bid]["placements"].append({
                 "id": base_id,
@@ -92,10 +149,11 @@ def optimize_cuts(
                 "rotado": rect.width != float(original["ancho"]) if original else False,
             })
 
-    # Filtrar bins vacios y reindexar
+    # Filtrar bins vacíos, reindexar y calcular métricas.
     used_boards = []
     total_area = 0.0
     used_area = 0.0
+    offcut_ids_used: List[str] = []
     for idx, (bid, data) in enumerate(bins.items()):
         if not data["placements"]:
             continue
@@ -111,14 +169,17 @@ def optimize_cuts(
         })
         total_area += board_area
         used_area += used
+        if not bid.startswith("nuevo_"):
+            offcut_ids_used.append(bid)
 
-    # Calcular area de todas las piezas para comparar
+    # Calcular área de todas las piezas para comparar.
     pieces_area = sum(float(p["ancho"]) * float(p["alto"]) * int(p.get("cantidad", 1)) for p in pieces)
 
     return {
         "tableros": used_boards,
         "total_tableros": len(used_boards),
-        "area_total_m2": round(total_area / 10000, 4),
-        "area_usada_m2": round(used_area / 10000, 4),
-        "area_piezas_m2": round(pieces_area / 10000, 4),
+        "area_total_m2": round(total_area / 1_000_000, 4),
+        "area_usada_m2": round(used_area / 1_000_000, 4),
+        "area_piezas_m2": round(pieces_area / 1_000_000, 4),
+        "offcut_ids_used": offcut_ids_used,
     }

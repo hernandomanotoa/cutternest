@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import catalog as catalog_service
@@ -31,11 +32,11 @@ def calculate_quote(
     # Area total de tableros usados
     layouts = db.query(Layout).filter(Layout.project_id == project.id).all()
     if layouts:
-        area_total_m2 = sum((l.board_width_cm * l.board_height_cm) / 10000.0 for l in layouts)
+        area_total_m2 = sum((l.board_width_mm * l.board_height_mm) / 1_000_000.0 for l in layouts)
     else:
         # Fallback: area de piezas + 15% desperdicio
         pieces = db.query(Piece).filter(Piece.project_id == project.id).all()
-        area_piezas = sum((p.width_cm * p.height_cm * p.quantity) / 10000.0 for p in pieces)
+        area_piezas = sum((p.width_mm * p.height_mm * p.quantity) / 1_000_000.0 for p in pieces)
         area_total_m2 = area_piezas * 1.15
 
     material_cost = area_total_m2 * costo_m2_mdf * 1.15
@@ -73,8 +74,15 @@ def calculate_quote(
 
     return {
         "quote_id": quote.id,
-        "project_id": project.id,
+        "project_id": quote.project_id,
         "breakdown": breakdown,
         "hardware": hardware,
         "created_at": quote.created_at,
     }
+
+
+def list_quotes(db: Session, project_id: str) -> List[Quote]:
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proyecto no encontrado")
+    return db.query(Quote).filter(Quote.project_id == project_id).order_by(Quote.created_at.desc()).all()

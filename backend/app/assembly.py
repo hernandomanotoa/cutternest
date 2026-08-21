@@ -1,5 +1,6 @@
 import math
 import re
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import SimpleNamespace
@@ -95,14 +96,142 @@ _STEP_TOOLS = {
     "general": ["taladro", "escuadra"],
 }
 
+_PIECE_RANK = {
+    "lateral": 0,
+    "lateral_izq": 0,
+    "lateral_der": 0,
+    "pata": 0,
+    "base": 1,
+    "tapa": 1,
+    "division": 2,
+    "estante": 2,
+    "repisa": 2,
+    "fondo": 3,
+    "puerta": 4,
+    "cajon": 4,
+    "zapatero": 4,
+    "zocalo": 4,
+    "other": 5,
+}
+
+
+def _build_default_dependencies(placed: List[Any]) -> List[Tuple[str, str]]:
+    """Devuelve aristas sugeridas (from -> to) para el ensamblaje.
+
+    Cada pieza depende de las piezas de igual o menor rango en el mismo módulo,
+    y los módulos posteriores dependen de las piezas base/laterales de los
+    módulos anteriores.
+    """
+    by_module: Dict[str, List[_PlacedPiece]] = {}
+    for p in placed:
+        by_module.setdefault(p.module_code, []).append(p)
+
+    def _module_order(code: str) -> int:
+        if code == "GLB":
+            return 0
+        match = re.match(r"M(\d+)", code)
+        return int(match.group(1)) if match else 999
+
+    module_codes = sorted(by_module.keys(), key=_module_order)
+    edges: List[Tuple[str, str]] = []
+
+    # Dentro del módulo: ordenar por rango y código; cada pieza depende de las
+    # piezas de menor rango (q va antes que p).
+    for code in module_codes:
+        mod_pieces = sorted(
+            by_module[code],
+            key=lambda p: (_PIECE_RANK.get(p.kind, 5), p.code),
+        )
+        for i, p in enumerate(mod_pieces):
+            for q in mod_pieces[:i]:
+                edges.append((q.code, p.code))
+
+    # Entre módulos: piezas base/laterales de módulos posteriores dependen de
+    # todas las piezas de módulos anteriores.
+    for i in range(len(module_codes) - 1):
+        lower_code = module_codes[i]
+        higher_code = module_codes[i + 1]
+        lower_pieces = by_module[lower_code]
+        higher_pieces = [
+            p for p in by_module[higher_code]
+            if p.kind in ("base", "lateral", "lateral_izq", "lateral_der", "division")
+        ]
+        for hp in higher_pieces:
+            for lp in lower_pieces:
+                edges.append((lp.code, hp.code))
+
+    # Eliminar duplicados y auto-bucles
+    seen: set = set()
+    result: List[Tuple[str, str]] = []
+    for f, t in edges:
+        key = (f, t)
+        if f != t and key not in seen:
+            seen.add(key)
+            result.append(key)
+    return result
+
+
+def _detect_cycle(nodes: List[str], edges: List[Tuple[str, str]]) -> Optional[List[str]]:
+    """Detecta ciclos mediante eliminación de nodos sin dependencias (Kahn).
+    Devuelve los nodos que forman parte de algún ciclo, o None si no hay ciclo."""
+    adj: Dict[str, List[str]] = {n: [] for n in nodes}
+    indeg: Dict[str, int] = {n: 0 for n in nodes}
+    for f, t in edges:
+        if f in adj and t in adj:
+            adj[f].append(t)
+            indeg[t] += 1
+
+    q = deque([n for n in nodes if indeg[n] == 0])
+    removed: set = set()
+    while q:
+        u = q.popleft()
+        removed.add(u)
+        for v in adj[u]:
+            indeg[v] -= 1
+            if indeg[v] == 0:
+                q.append(v)
+
+    cycle_nodes = [n for n in nodes if n not in removed]
+    return cycle_nodes if cycle_nodes else None
+
+
+def _topological_levels(
+    nodes: List[str], edges: List[Tuple[str, str]]
+) -> Tuple[List[List[str]], Optional[List[str]]]:
+    """Agrupa nodos por niveles topológicos usando el algoritmo de Kahn.
+
+    Si existe un ciclo, devuelve ([], nodos_del_ciclo).
+    """
+    adj: Dict[str, List[str]] = {n: [] for n in nodes}
+    indeg: Dict[str, int] = {n: 0 for n in nodes}
+    for f, t in edges:
+        if f in adj and t in adj:
+            adj[f].append(t)
+            indeg[t] += 1
+
+    q = deque([n for n in nodes if indeg[n] == 0])
+    levels: List[List[str]] = []
+    remaining: set = set(nodes)
+
+    while q:
+        level = list(q)
+        levels.append(level)
+        q = deque()
+        for u in level:
+            remaining.discard(u)
+            for v in adj[u]:
+                indeg[v] -= 1
+                if indeg[v] == 0:
+                    q.append(v)
+
+    if remaining:
+        return [], list(remaining)
+    return levels, None
+
 
 # -----------------------------------------------------------------------------
 # Utilidades geométricas y de clasificación
 # -----------------------------------------------------------------------------
-def _to_mm(cm: float) -> float:
-    return float(cm) * 10.0
-
-
 def _piece_type(piece: Piece) -> str:
     text = f"{piece.external_id.lower()} {piece.name.lower()}"
     for keyword, kind in _PIECE_KINDS:
@@ -111,11 +240,11 @@ def _piece_type(piece: Piece) -> str:
     return "other"
 
 
-def _type_by_dimensions(width_cm: float, height_cm: float, thickness_mm: float) -> str:
+def _type_by_dimensions(width_mm: float, height_mm: float, thickness_mm: float) -> str:
     """Clasificación genérica por proporciones cuando no hay keyword."""
-    w = width_cm
-    h = height_cm
-    t = thickness_mm / 10.0  # cm
+    w = width_mm
+    h = height_mm
+    t = thickness_mm
     if w > 0 and h > 0:
         ratio = max(w, h) / min(w, h)
         thin = min(w, h) <= t * 2.5
@@ -136,7 +265,7 @@ def _piece_type_with_fallback(piece: Piece) -> str:
     kind = _piece_type(piece)
     if kind != "other":
         return kind
-    return _type_by_dimensions(piece.width_cm, piece.height_cm, piece.thickness_mm)
+    return _type_by_dimensions(piece.width_mm, piece.height_mm, piece.thickness_mm)
 
 
 def _infer_module(piece: Piece) -> str:
@@ -195,8 +324,8 @@ def assign_piece_codes(pieces: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         dummy = SimpleNamespace(
             external_id=str(p.get("id", "")),
             name=str(p.get("nombre", "")),
-            width_cm=float(p.get("ancho", 0) or 0),
-            height_cm=float(p.get("alto", 0) or 0),
+            width_mm=float(p.get("ancho", 0) or 0),
+            height_mm=float(p.get("alto", 0) or 0),
             thickness_mm=float(p.get("espesor", 18) or 18),
         )
         kind = _piece_type_with_fallback(dummy)
@@ -246,8 +375,8 @@ def _step_code(cat: str, module_code: str, seq: int) -> str:
 
 def _box_dimensions(piece: Piece, kind: str) -> Tuple[float, float, float]:
     """Devuelve (ancho, alto, profundidad) en mm según el tipo de pieza."""
-    w = _to_mm(piece.width_cm)
-    h = _to_mm(piece.height_cm)
+    w = piece.width_mm
+    h = piece.height_mm
     t = float(piece.thickness_mm)
     if kind in ("base", "tapa", "estante", "repisa", "zocalo", "cajon"):
         return (w, t, h)
@@ -362,7 +491,11 @@ class _Step:
 # -----------------------------------------------------------------------------
 class AssemblyEngine:
     @staticmethod
-    def build_assembly(project_id: str, pieces: List[Piece]) -> Dict[str, Any]:
+    def build_assembly(
+        project_id: str,
+        pieces: List[Piece],
+        dependencies: Optional[List[Tuple[str, str]]] = None,
+    ) -> Dict[str, Any]:
         """Genera la estructura completa de ensamblaje a partir de las piezas."""
         if not pieces:
             return {
@@ -374,6 +507,9 @@ class AssemblyEngine:
                 "pasos": [],
                 "vista_completa": [],
                 "conectores_completos": [],
+                "dependencies": [],
+                "levels": [],
+                "cycle": None,
             }
 
         # 1. Agrupar en módulos
@@ -502,8 +638,22 @@ class AssemblyEngine:
         # 5. Generar conectores
         connectors = _generate_connectors(placed, modules, divisions)
 
-        # 6. Generar pasos y asignar conectores a pasos
-        steps = _generate_steps(placed, connectors, modules, divisions, pieces)
+        # 6. Generar pasos y dependencias
+        if dependencies is None:
+            dependency_edges = _build_default_dependencies(placed)
+            levels, cycle = _topological_levels([p.code for p in placed], dependency_edges)
+            steps = _generate_steps(placed, connectors, modules, divisions, pieces)
+        else:
+            dependency_edges = dependencies
+            levels, cycle = _topological_levels([p.code for p in placed], dependency_edges)
+            steps = [] if cycle else _generate_steps_from_levels(levels, placed, connectors, modules, divisions, pieces)
+
+        # Propagar prerequisitos a cada pieza para respuestas y persistencia
+        incoming: Dict[str, List[str]] = {p.code: [] for p in placed}
+        for f, t in dependency_edges:
+            incoming.setdefault(t, []).append(f)
+        for p in placed:
+            p.dependencies = incoming.get(p.code, [])
 
         # 7. Construir respuestas compatibles
         pasos = [_step_to_dict(s) for s in steps]
@@ -532,13 +682,28 @@ class AssemblyEngine:
             "pasos": pasos,
             "vista_completa": vista_completa,
             "conectores_completos": conectores_completos,
+            "dependencies": [{"from": f, "to": t} for f, t in dependency_edges],
+            "levels": levels,
+            "cycle": cycle,
         }
 
     @staticmethod
-    def persist_assembly(db: Session, project_id: str, pieces: List[Piece]) -> Dict[str, Any]:
+    def persist_assembly(
+        db: Session,
+        project_id: str,
+        pieces: List[Piece],
+        dependencies: Optional[List[Tuple[str, str]]] = None,
+    ) -> Dict[str, Any]:
         """Borra ensamblajes anteriores y persiste el nuevo."""
         AssemblyEngine._clear_project_assembly(db, project_id)
-        data = AssemblyEngine.build_assembly(project_id, pieces)
+        data = AssemblyEngine.build_assembly(project_id, pieces, dependencies=dependencies)
+
+        # Propagar dependencias calculadas a cada pieza (prerequisitos = incoming edges)
+        deps_by_piece: Dict[str, List[str]] = {p["code"]: [] for p in data["pieces"]}
+        for edge in data["dependencies"]:
+            deps_by_piece.setdefault(edge["to"], []).append(edge["from"])
+        for p in data["pieces"]:
+            p["dependencies"] = deps_by_piece.get(p["code"], [])
 
         # Guardar módulos
         module_id_by_code: Dict[str, str] = {}
@@ -776,6 +941,20 @@ class AssemblyEngine:
                 "updated_at": state_db.updated_at,
             }).model_dump()
 
+        # Calcular dependencias y niveles topológicos a partir de las piezas persistidas
+        module_id_to_code = {m["id"]: m["code"] for m in modules_data}
+        placed_like = [
+            SimpleNamespace(
+                code=p["codigo"],
+                module_code=module_id_to_code.get(p.get("module_id"), "GLB"),
+                kind=p["tipo_pieza"],
+                module_category=p.get("categoria", "GLB"),
+            )
+            for p in pieces_data
+        ]
+        dependency_edges = _build_default_dependencies(placed_like)
+        levels, _ = _topological_levels([pl.code for pl in placed_like], dependency_edges)
+
         return {
             "modules": modules_data,
             "pieces": pieces_data,
@@ -785,6 +964,8 @@ class AssemblyEngine:
             "pasos": pasos,
             "vista_completa": vista_completa,
             "conectores_completos": conectores_completos,
+            "dependencies": [[f, t] for f, t in dependency_edges],
+            "levels": levels,
         }
 
     @staticmethod
@@ -810,6 +991,22 @@ class AssemblyEngine:
         if not pieces:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El proyecto no tiene piezas")
         return AssemblyEngine.persist_assembly(db, project_id, pieces)
+
+    @staticmethod
+    def save_plan(
+        db: Session,
+        project_id: str,
+        dependencies: List[Tuple[str, str]],
+    ) -> Dict[str, Any]:
+        """Genera y persiste un plan de ensamblaje con dependencias dadas."""
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proyecto no encontrado")
+        pieces = db.query(Piece).filter(Piece.project_id == project_id).all()
+        if not pieces:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El proyecto no tiene piezas")
+        AssemblyEngine._clear_project_assembly(db, project_id)
+        return AssemblyEngine.persist_assembly(db, project_id, pieces, dependencies=dependencies)
 
     @staticmethod
     def validate_piece(piece: AssemblyPiece, current: Transform3D) -> Dict[str, Any]:
@@ -987,17 +1184,17 @@ def _thickness_of_kind(pieces: List[Piece], kind: str) -> Optional[float]:
 
 def _module_width(pieces: List[Piece]) -> float:
     horizontals = {"base", "tapa", "estante", "repisa", "puerta", "zapatero", "zocalo", "cajon"}
-    vals = [_to_mm(p.width_cm) for p in pieces if _piece_type_with_fallback(p) in horizontals]
+    vals = [p.width_mm for p in pieces if _piece_type_with_fallback(p) in horizontals]
     if not vals:
-        vals = [_to_mm(p.width_cm) for p in pieces]
+        vals = [p.width_mm for p in pieces]
     return max(vals, default=0.0)
 
 
 def _module_height(pieces: List[Piece]) -> float:
     verticals = {"lateral", "lateral_izq", "lateral_der", "fondo", "puerta"}
-    vals = [_to_mm(p.height_cm) for p in pieces if _piece_type_with_fallback(p) in verticals]
+    vals = [p.height_mm for p in pieces if _piece_type_with_fallback(p) in verticals]
     if not vals:
-        vals = [_to_mm(p.height_cm) for p in pieces]
+        vals = [p.height_mm for p in pieces]
     return max(vals, default=0.0)
 
 
@@ -1007,13 +1204,13 @@ def _module_depth(pieces: List[Piece]) -> float:
     for p in pieces:
         kind = _piece_type_with_fallback(p)
         if kind.startswith("lateral"):
-            vals.append(_to_mm(p.width_cm))
+            vals.append(p.width_mm)
         elif kind in ("base", "tapa", "estante", "repisa", "zapatero", "zocalo", "cajon"):
-            vals.append(_to_mm(p.height_cm))
+            vals.append(p.height_mm)
         elif kind in ("fondo", "puerta"):
             vals.append(float(p.thickness_mm))
     if not vals:
-        vals = [_to_mm(p.height_cm) for p in pieces] + [_to_mm(p.width_cm) for p in pieces]
+        vals = [p.height_mm for p in pieces] + [p.width_mm for p in pieces]
     return max(vals, default=0.0)
 
 
@@ -1159,10 +1356,11 @@ def _placed_to_3d(p: _PlacedPiece) -> Dict[str, Any]:
     return {
         "id": p.code,
         "nombre": p.name,
-        "ancho": p.width_mm / 10.0,
-        "alto": p.height_mm / 10.0,
-        "profundidad": p.depth_mm / 10.0,
+        "ancho": p.width_mm,
+        "alto": p.height_mm,
+        "profundidad": p.depth_mm,
         "color": p.color,
+        "modulo": p.module_code,
         "posicion": p.position,
         "rotacion": p.rotation,
     }
@@ -1173,10 +1371,11 @@ def _db_piece_to_3d(p: AssemblyPieceModel) -> Dict[str, Any]:
     return {
         "id": p.code,
         "nombre": p.piece.name if p.piece else p.code,
-        "ancho": dims[0] / 10.0,
-        "alto": dims[1] / 10.0,
-        "profundidad": dims[2] / 10.0,
+        "ancho": dims[0],
+        "alto": dims[1],
+        "profundidad": dims[2],
         "color": p.piece.color if p.piece else "#3B82F6",
+        "modulo": p.module.code if p.module else None,
         "posicion": p.expected_position,
         "rotacion": p.expected_rotation,
     }
@@ -1551,6 +1750,120 @@ def _create_step(
         connectors=connectors,
         tiempo_estimado_min=tiempo,
     )
+
+
+def _level_title_description(kinds: set) -> Tuple[str, str]:
+    labels: List[str] = []
+    descriptions: List[str] = []
+    if any(k in kinds for k in ("lateral", "lateral_izq", "lateral_der", "division")):
+        labels.append("laterales")
+        descriptions.append("Atornillar laterales y divisiones")
+    if any(k in kinds for k in ("base", "tapa", "pata")):
+        labels.append("base y tapa")
+        descriptions.append("Colocar base, tapa y patas")
+    if any(k in kinds for k in ("estante", "repisa")):
+        labels.append("estantes")
+        descriptions.append("Insertar estantes y repisas")
+    if "fondo" in kinds:
+        labels.append("fondo")
+        descriptions.append("Fijar el fondo")
+    if any(k in kinds for k in ("puerta", "cajon", "zapatero", "zocalo")):
+        labels.append("puertas y acabados")
+        descriptions.append("Instalar puertas, cajones, zapateros y acabados")
+    if not labels:
+        return "Colocar piezas", "Fijar las piezas indicadas según el plano."
+    title = "Colocar " + " y ".join(labels)
+    description = ". ".join(descriptions) + "."
+    return title, description
+
+
+def _generate_steps_from_levels(
+    levels: List[List[str]],
+    placed: List[_PlacedPiece],
+    connectors: List[_Connector],
+    modules: List[_Module],
+    divisions: List[_Division],
+    original_pieces: List[Piece],
+) -> List[_Step]:
+    """Genera un paso por nivel topológico."""
+    if not levels:
+        return []
+
+    placed_by_code = {p.code: p for p in placed}
+
+    # Asignar cada conector al primer nivel donde todas sus piezas ya estén colocadas
+    connector_level: Dict[int, List[_Connector]] = {i: [] for i in range(len(levels))}
+    placed_so_far: set = set()
+    assigned: set = set()
+    for level_idx, level in enumerate(levels):
+        placed_so_far.update(level)
+        for c in connectors:
+            if c.code in assigned:
+                continue
+            if all(pc in placed_so_far for pc in c.piece_codes):
+                connector_level[level_idx].append(c)
+                assigned.add(c.code)
+
+    steps: List[_Step] = []
+    prev_code: Optional[str] = None
+    for i, level in enumerate(levels):
+        level_pieces = [placed_by_code[code] for code in level if code in placed_by_code]
+        if not level_pieces:
+            continue
+
+        kinds = {p.kind for p in level_pieces}
+        title, description = _level_title_description(kinds)
+
+        tools: set = set()
+        for k in kinds:
+            if k in ("lateral", "lateral_izq", "lateral_der"):
+                tools.update(_STEP_TOOLS["laterales"])
+            elif k in ("base", "pata"):
+                tools.update(_STEP_TOOLS["base_patas"])
+            elif k in ("estante", "repisa"):
+                tools.update(_STEP_TOOLS["estantes"])
+            elif k == "tapa":
+                tools.update(_STEP_TOOLS["tapa"])
+            elif k == "fondo":
+                tools.update(_STEP_TOOLS["fondo"])
+            elif k in ("puerta", "cajon", "zapatero", "zocalo"):
+                tools.update(_STEP_TOOLS["acabados"])
+            else:
+                tools.update(_STEP_TOOLS["general"])
+
+        n = len(level_pieces)
+        centroid = _point3d(
+            sum(p.position["x"] for p in level_pieces) / n,
+            sum(p.position["y"] for p in level_pieces) / n,
+            sum(p.position["z"] for p in level_pieces) / n,
+        )
+        camera = {"target": centroid, "distance": 500}
+
+        mod_code = level_pieces[0].module_code
+        if any(p.module_code != mod_code for p in level_pieces):
+            mod_code = "GLB"
+        cat = level_pieces[0].module_category if all(
+            p.module_category == level_pieces[0].module_category for p in level_pieces
+        ) else "GLB"
+
+        step = _create_step(
+            step_number=i + 1,
+            title=title,
+            description=description,
+            module_code=mod_code if mod_code != "GLB" else None,
+            pieces=level_pieces,
+            connectors=connector_level[i],
+            tools=list(tools),
+            tiempo=10 + 5 * len(level_pieces),
+            dependencies=[prev_code] if prev_code else [],
+            modules=modules,
+            divisions=divisions,
+        )
+        step.camera = camera
+        steps.append(step)
+        prev_code = step.code
+
+    return steps
 
 
 def _step_to_dict(s: _Step) -> Dict[str, Any]:

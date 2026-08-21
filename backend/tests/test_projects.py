@@ -55,9 +55,9 @@ def test_project_ownership():
     response = client.post(
         f"/api/v1/projects/{project_id}/optimize",
         json={
-            "tablero": {"ancho": 244, "alto": 122, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
+            "tablero": {"ancho": 2440, "alto": 1220, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
             "piezas": [],
-            "usar_sobrantes": False,
+            "use_offcuts": False,
         },
     )
     assert response.status_code == 403
@@ -110,8 +110,8 @@ def test_quote_uses_catalog_price_when_costo_not_provided():
         "/api/v1/projects",
         json={
             "name": "Cotización con catálogo",
-            "board_width_cm": 183,
-            "board_height_cm": 244,
+            "board_width_mm": 1830,
+            "board_height_mm": 2440,
             "board_thickness_mm": 18,
             "material_type": "MDF Melamina",
         },
@@ -122,11 +122,11 @@ def test_quote_uses_catalog_price_when_costo_not_provided():
     response = client.post(
         f"/api/v1/projects/{project_id}/optimize",
         json={
-            "tablero": {"ancho": 183, "alto": 244, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
+            "tablero": {"ancho": 1830, "alto": 2440, "espesor": 18, "kerf_mm": 3, "margin_mm": 2},
             "piezas": [
-                {"id": "base", "nombre": "Base", "ancho": 90, "alto": 60, "cantidad": 1, "rotar": True, "color": "#FFFFFF", "espesor": 18},
+                {"id": "base", "nombre": "Base", "ancho": 900, "alto": 600, "cantidad": 1, "rotate": True, "color": "#FFFFFF", "espesor": 18},
             ],
-            "usar_sobrantes": False,
+            "use_offcuts": False,
         },
     )
     assert response.status_code == 200

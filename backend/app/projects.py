@@ -10,7 +10,7 @@ from app import pdf_generator
 from app import quotes as quotes_service
 from app import svg_generator
 from app.config import get_settings
-from app.models import Inventory, InventoryState, Layout, Piece, Project, User
+from app.models import AssemblyState, AssemblyStep, Inventory, InventoryState, Layout, Piece, Project, Quote, User
 from app.schemas import OptimizeRequest, ProjectCreate, QuoteRequest
 
 settings = get_settings()
@@ -21,8 +21,8 @@ def create_project(db: Session, payload: ProjectCreate, owner: Optional[User] = 
         name=payload.name,
         description=payload.description,
         owner_id=owner.id if owner else None,
-        board_width_cm=payload.board_width_cm or 244.0,
-        board_height_cm=payload.board_height_cm or 122.0,
+        board_width_mm=payload.board_width_mm or 2440.0,
+        board_height_mm=payload.board_height_mm or 1220.0,
         board_thickness_mm=payload.board_thickness_mm or 18.0,
         kerf_mm=payload.kerf_mm or settings.kerf_mm,
         margin_mm=payload.margin_mm or settings.margen_mm,
@@ -42,10 +42,23 @@ def get_project(db: Session, project_id: str) -> Project:
     return project
 
 
-def list_projects(db: Session, owner: Optional[User] = None) -> List[Project]:
+def list_projects(
+    db: Session,
+    owner: Optional[User] = None,
+    query: Optional[str] = None,
+    status: Optional[str] = None,
+    material_type: Optional[str] = None,
+) -> List[Project]:
     q = db.query(Project)
     if owner:
         q = q.filter(Project.owner_id == owner.id)
+    if status:
+        q = q.filter(Project.status == status)
+    if material_type:
+        q = q.filter(Project.material_type.ilike(material_type))
+    if query:
+        like = f"%{query}%"
+        q = q.filter((Project.name.ilike(like)) | (Project.description.ilike(like)))
     return q.order_by(Project.created_at.desc()).all()
 
 
@@ -57,10 +70,10 @@ def add_pieces_to_project(db: Session, project: Project, pieces: List[Dict[str, 
                 project_id=project.id,
                 external_id=p["id"],
                 name=p["nombre"],
-                width_cm=float(p["ancho"]),
-                height_cm=float(p["alto"]),
+                width_mm=float(p["ancho"]),
+                height_mm=float(p["alto"]),
                 quantity=int(p.get("cantidad", 1)),
-                rotate=bool(p.get("rotar", True)),
+                rotate=bool(p.get("rotate", True)),
                 color=p.get("color", "#3B82F6"),
                 thickness_mm=float(p.get("espesor", project.board_thickness_mm)),
                 edge_banding=p.get("cantos", ""),
@@ -86,14 +99,14 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
 
     # Actualizar configuracion si viene en payload
     if payload.tablero:
-        project.board_width_cm = payload.tablero.ancho
-        project.board_height_cm = payload.tablero.alto
+        project.board_width_mm = payload.tablero.ancho
+        project.board_height_mm = payload.tablero.alto
         project.board_thickness_mm = payload.tablero.espesor
         project.kerf_mm = payload.tablero.kerf_mm
         project.margin_mm = payload.tablero.margen_mm
     if payload.material_type:
         project.material_type = payload.material_type
-    project.use_offcuts = payload.usar_sobrantes
+    project.use_offcuts = payload.use_offcuts
     db.commit()
 
     # Borrar piezas anteriores y layouts anteriores
@@ -105,16 +118,20 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
 
     offcuts = []
     if project.use_offcuts:
-        offcuts_db = inventory_service.list_offcuts(db)
-        offcuts = [
-            {"id": o.id, "ancho": o.ancho_cm, "alto": o.alto_cm, "espesor": o.espesor_mm}
-            for o in offcuts_db
-        ]
+        offcuts_db = inventory_service.list_matching_offcuts(
+            db,
+            material_type=project.material_type or "MDF",
+            thickness_mm=project.board_thickness_mm,
+        )
+        # Respetar cantidad: duplicar entradas por cada unidad disponible.
+        for o in offcuts_db:
+            for _ in range(o.cantidad):
+                offcuts.append({"id": o.id, "ancho": o.ancho_mm, "alto": o.alto_mm, "espesor": o.espesor_mm})
 
     pieces = [p.model_dump() for p in payload.piezas]
     result = optimizer_service.optimize_cuts(
-        board_width_cm=project.board_width_cm,
-        board_height_cm=project.board_height_cm,
+        board_width_mm=project.board_width_mm,
+        board_height_mm=project.board_height_mm,
         pieces=pieces,
         offcuts=offcuts,
         kerf_mm=project.kerf_mm,
@@ -132,8 +149,8 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
             Layout(
                 project_id=project.id,
                 board_index=idx,
-                board_width_cm=board["ancho"],
-                board_height_cm=board["alto"],
+                board_width_mm=board["ancho"],
+                board_height_mm=board["alto"],
                 utilization=board["utilizacion"],
                 svg_path=paths["svg_path"],
                 png_path=paths["png_path"],
@@ -142,8 +159,33 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
         )
     db.commit()
 
-    # Registrar sobrantes si hay areas grandes (placeholder simplificado)
-    # No se implementa automatico en MVP para evitar complejidad excesiva.
+    # Consumir sobrantes utilizados y registrar sobrantes grandes aproximados.
+    threshold = settings.offcut_threshold_mm
+    used_offcut_ids = set(result.get("offcut_ids_used", []))
+    for offcut_id in used_offcut_ids:
+        inventory_service.consume_inventory(db, offcut_id, cantidad=1)
+
+    for board in result["tableros"]:
+        board_area = board["ancho"] * board["alto"]
+        used_area = sum(p["w"] * p["h"] for p in board["placements"])
+        leftover_area = board_area - used_area
+        if leftover_area <= 0:
+            continue
+        # Aproximar sobrante como rectángulo del ancho del tablero x alto = area/ancho.
+        offcut_w = board["ancho"]
+        offcut_h = leftover_area / offcut_w
+        # Normalizar a dimensiones razonables (alto <= alto del tablero).
+        if offcut_h > board["alto"]:
+            offcut_h = board["alto"]
+            offcut_w = leftover_area / offcut_h
+        if offcut_w >= threshold and offcut_h >= threshold:
+            inventory_service.add_offcut_from_project(
+                db,
+                project,
+                ancho_mm=round(offcut_w, 2),
+                alto_mm=round(offcut_h, 2),
+                cantidad=1,
+            )
 
     return result
 
@@ -179,8 +221,8 @@ def generate_cutlist(db: Session, project_id: str) -> str:
     boards = [
         {
             "board_index": l.board_index,
-            "ancho": l.board_width_cm,
-            "alto": l.board_height_cm,
+            "ancho": l.board_width_mm,
+            "alto": l.board_height_mm,
             "placements": l.placements,
         }
         for l in layouts
@@ -194,8 +236,8 @@ def generate_labels(db: Session, project_id: str, label_size: str = "50x30") -> 
     boards = [
         {
             "board_index": l.board_index,
-            "ancho": l.board_width_cm,
-            "alto": l.board_height_cm,
+            "ancho": l.board_width_mm,
+            "alto": l.board_height_mm,
             "placements": l.placements,
         }
         for l in layouts
@@ -215,3 +257,47 @@ def get_assembly(db: Session, project_id: str) -> Dict[str, Any]:
 
 def generate_assembly(db: Session, project_id: str) -> Dict[str, Any]:
     return assembly_service.generate_for_project(db, project_id)
+
+
+def project_progress(db: Session, project_id: str) -> Dict[str, Any]:
+    project = get_project(db, project_id)
+    state = db.query(AssemblyState).filter(AssemblyState.project_id == project_id).first()
+    if state and state.completed_step_ids:
+        steps = db.query(AssemblyStep).filter(AssemblyStep.project_id == project_id).count()
+        completed = len(state.completed_step_ids)
+        percentage = round((completed / max(steps, 1)) * 100, 2)
+        return {"project_id": project_id, "percentage": percentage, "completed_steps": completed, "total_steps": steps}
+
+    layouts = get_layouts(db, project_id)
+    if layouts:
+        avg_utilization = sum(l.utilization for l in layouts) / len(layouts)
+        return {
+            "project_id": project_id,
+            "percentage": round(min(avg_utilization, 100.0), 2),
+            "completed_steps": 0,
+            "total_steps": 0,
+        }
+
+    return {"project_id": project_id, "percentage": 0.0, "completed_steps": 0, "total_steps": 0}
+
+
+def generate_assembly_pdf(db: Session, project_id: str) -> str:
+    project = get_project(db, project_id)
+    assembly = assembly_service.get_assembly(db, project_id)
+    pieces = db.query(Piece).filter(Piece.project_id == project_id).all()
+    pieces_data = [
+        {
+            "external_id": p.external_id,
+            "name": p.name,
+            "width_mm": p.width_mm,
+            "height_mm": p.height_mm,
+        }
+        for p in pieces
+    ]
+    return pdf_generator.generate_assembly_manual(
+        project_name=project.name,
+        steps=assembly.get("pasos", []),
+        pieces=pieces_data,
+        exports_dir="/app/data/exports",
+        project_id=project.id,
+    )
