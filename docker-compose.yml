@@ -23,7 +23,7 @@ services:
       - GUEST_SESSION_HOURS=4
       - OFFCUT_THRESHOLD_CM=30
       - KERF_MM=3
-      - MARGEN_MM=2
+      - MARGEN_MM=5
     networks:
       - cutternest-network
     healthcheck:

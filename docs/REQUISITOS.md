@@ -125,15 +125,15 @@ frontend/src/
 
 | Entidad | Campos clave |
 |---------|--------------|
-| `Project` | id, name, description, owner_id, board_width_cm, board_height_cm, board_thickness_mm, kerf_mm, margin_mm, material_type, use_offcuts |
-| `Piece` | id, project_id, external_id, name, width_cm, height_cm, quantity, rotate, color, thickness_mm, edge_banding |
-| `Layout` | id, project_id, board_index, board_width_cm, board_height_cm, utilization, svg_path, png_path, placements (JSON) |
+| `Project` | id, name, description, owner_id, board_width_mm, board_height_mm, board_thickness_mm, kerf_mm, margin_mm, material_type, use_offcuts |
+| `Piece` | id, project_id, external_id, name, width_mm, height_mm, quantity, rotate, color, thickness_mm, edge_banding |
+| `Layout` | id, project_id, board_index, board_width_mm, board_height_mm, utilization, svg_path, png_path, placements (JSON) |
 
 ### 4.3 Inventario y cotización
 
 | Entidad | Campos clave |
 |---------|--------------|
-| `Inventory` | id, tipo, espesor_mm, ancho_cm, alto_cm, cantidad, estado, proyecto_origen, area_m2, consumed_at |
+| `Inventory` | id, tipo, espesor_mm, ancho_mm, alto_mm, cantidad, estado, proyecto_origen, area_m2, consumed_at |
 | `Quote` | id, project_id, hardware (JSON), material_cost, hardware_cost, labor_cost, total, margin, pdf_path |
 
 ### 4.4 Ensamblaje

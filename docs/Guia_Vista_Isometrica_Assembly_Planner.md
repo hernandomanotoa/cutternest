@@ -4,6 +4,8 @@
 > **Tecnología:** SVG puro (sin Three.js, sin Canvas, sin librerías externas)
 > **Módulos ES6:** vanilla JavaScript
 
+> **Nota importante (2026-08-21):** La proyección isométrica fue corregida. Ahora `Y+` (frente del mueble) se proyecta hacia **abajo-derecha**, `Z+` hacia **arriba** y `X+` hacia la **derecha**. El painter's algorithm usa el centroide de cada pieza completa en lugar del centro de cara.
+
 ## 1. Resumen
 
 La vista isométrica transforma las piezas de un mueble definidas en CSV en una representación 3D usando únicamente SVG. Cada pieza se modela como un cuboide en un espacio 3D local `(x, y, z)`, se proyecta a 2D mediante proyección isométrica y se ordena con el *painter's algorithm* para pintar primero las piezas que están atrás/abajo.
@@ -32,7 +34,7 @@ Cuboides 3D con (x, y, z, w, d, h, color, role)
     ↓
 sortByDepth()  →  painter's algorithm
     ↓
-_isoProject()  →  sx = ox + (x − 0.5·y)·scale, sy = oy − (z + 0.5·y)·scale
+_isoProject()  →  sx = ox + (x + 0.5·y)·scale,  sy = oy − (z − 0.5·y)·scale
     ↓
 _buildSVG()  →  3 caras visibles por cuboide (frontal, superior, lateral derecha)
     ↓

@@ -59,13 +59,13 @@ CREATE TABLE IF NOT EXISTS inventory (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo VARCHAR(50) NOT NULL,
     espesor_mm INTEGER NOT NULL,
-    ancho_cm DECIMAL(10,2) NOT NULL,
-    alto_cm DECIMAL(10,2) NOT NULL,
+    ancho_mm DECIMAL(10,2) NOT NULL,
+    alto_mm DECIMAL(10,2) NOT NULL,
     cantidad INTEGER DEFAULT 1,
     ubicacion VARCHAR(100),
     estado VARCHAR(20) DEFAULT 'nuevo',
     proyecto_origen UUID,
-    area_m2 DECIMAL(10,4) GENERATED ALWAYS AS ((ancho_cm * alto_cm) / 10000) STORED,
+    area_m2 DECIMAL(10,6) GENERATED ALWAYS AS ((ancho_mm * alto_mm) / 1000000) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

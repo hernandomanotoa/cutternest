@@ -7,20 +7,22 @@ Guía orientativa para agentes que trabajan en `/workspace/cutternest-kit`. Ante
 ### Backend
 
 - **Framework**: Python 3.11 + FastAPI + Uvicorn + TypeScript-style Pydantic models.
-- **Base de datos**: SQLite para MVP (archivo local en `./data/cutternest.db`). PostgreSQL en Fase 2.
+- **Base de datos**: SQLite para MVP (archivo local en `./data/cutternest.db`, mapeado a `/app/data/cutternest.db` en el contenedor). PostgreSQL en Fase 2. El backend aplica migraciones automáticas al inicio para añadir columnas/tablas faltantes y normalizar valores obsoletos de enums.
 - **Caché/sesiones**: sin cache externo en MVP; SQLite maneja sesiones y blacklist simples. Redis opcional en Fase 2 para rate limiting y token blacklist.
-- **Optimizador**: `rectpack` (GuillotineBssfSas/MaxRects) para nesting de piezas sobre tableros.
+- **Optimizador**: `rectpack` (MaxRectsBssf / PackerGlobal + PackerBBF) para nesting de piezas sobre tableros; validación `PIECE_TOO_LARGE`, kerf/margen configurables y soporte de sobrantes.
 - **Directorios clave**:
   - `backend/app/main.py`: punto de entrada FastAPI.
   - `backend/app/models.py`: modelos Pydantic + SQLAlchemy.
   - `backend/app/database.py`: conexión SQLite con SQLAlchemy (async `aiosqlite` o sync según decisión).
   - `backend/app/optimizer.py`: lógica de optimización de cortes.
-  - `backend/app/svg_generator.py`: generación de layouts SVG/PNG.
-  - `backend/app/pdf_generator.py`: cotizaciones, cut lists, etiquetas con ReportLab.
+  - `backend/app/svg_generator.py`: generación de layouts SVG y PNG con Pillow (sin `cairosvg`).
+  - `backend/app/assembly.py`: lógica de ensamblaje, heurísticas de dependencias, niveles topológicos (Kahn) y generación de pasos.
+  - `backend/app/routers/projects.py`: routers de proyectos, incluyendo endpoints de ensamblaje (`/assembly`, `/assembly/generate`, `/assembly/plan`).
+  - `backend/app/pdf_generator.py`: cotizaciones, cut lists, etiquetas y manuales de ensamblaje con ReportLab.
   - `backend/app/auth.py`: autenticación local TOTP + Guest PIN.
   - `backend/app/inventory.py`, `quotes.py`, `assembly.py`, `templates.py`: servicios de negocio.
 - **Autenticación**: local TOTP (pyotp + qrcode) + Guest PIN; sin LDAP, SMTP, SMS, WhatsApp ni OAuth en MVP.
-- **Endpoints**: prefijo `/api/v1/` (`/api/v1/optimize`, `/api/v1/projects`, `/api/v1/inventory`, `/api/v1/auth/*`, etc.).
+- **Endpoints**: prefijo `/api/v1/` (`/api/v1/optimize`, `/api/v1/projects`, `/api/v1/projects/{id}/assembly/plan`, `/api/v1/inventory`, `/api/v1/auth/*`, etc.).
 - **Exportaciones**: SVG, PNG, PDF y CSV se generan en `/app/data/exports/` y se sirven como estáticos.
 
 ### Frontend
@@ -30,7 +32,12 @@ Guía orientativa para agentes que trabajan en `/workspace/cutternest-kit`. Ante
 - **Rutas y estado**: React Router DOM; hook `useAuth` para contexto de sesión.
 - **API**: cliente HTTP centralizado con fetch/axios, cookies/httpOnly según decisión de Fase.
 - **Directorios clave**:
-  - `frontend/src/components/`: componentes agrupados por dominio (`auth/`, `optimizer/`, `mueble/`, `taller/`, `cotizacion/`, `templates/`).
+  - `frontend/src/components/mueble/AssemblyPage.tsx`: página de ensamblaje con modos Asistente, Planificador y Vista previa.
+  - `frontend/src/components/mueble/Assembly3DV2.tsx`: escena 3D de piezas y conectores.
+  - `frontend/src/components/mueble/AssemblyPlanner.tsx`: editor visual de dependencias (grafo SVG).
+  - `frontend/src/components/mueble/LevelTimeline.tsx`: timeline de niveles topológicos.
+  - `frontend/src/components/mueble/AssemblyManual.tsx`: descarga de manual HTML y PDF.
+  - `frontend/src/utils/topologicalSort.ts`: utilidad Kahn propia para niveles y detección de ciclos.
   - `frontend/src/hooks/`: `useAuth`, `useOptimizer`, `useThreeScene`.
   - `frontend/src/types/`: tipos TypeScript compartidos.
   - `frontend/src/utils/`: helpers de Three.js, SVG y validación.
@@ -115,7 +122,10 @@ docker compose -f docker-compose.yml -f docker-compose.fase2.yml -f docker-compo
 - **No deshabilites validaciones** de rate limiting, autenticación o Guest PIN en producción. Cualquier bypass de desarrollo solo debe estar activo en entorno local.
 - **Revisa `.gitignore`** antes de añadir archivos que puedan contener datos persistentes (`data/`, `backups/`, `*.db`) o claves.
 - **JWT**: `JWT_SECRET_KEY` solo en `.env` (mínimo 32 caracteres). Access token 15 minutos, refresh token 7 días. En Fase 2 agregar blacklist en Redis.
-- **Guest PIN**: 4 dígitos generados con `secrets.randbelow(10000)`, expiran en 5 minutos si no se usan, sesión de 4 horas. No enviar por ningún canal externo; mostrar solo en pantalla del usuario principal.
+- **Guest PIN**: 6 dígitos generados con `secrets.randbelow(1_000_000)`, almacenado hasheado (`pin_hash`), expira en 5 minutos si no se usa, sesión de 4 horas. No enviar por ningún canal externo; mostrar solo en pantalla del usuario principal. Opcionalmente se vincula a un `project_id` para acceso de solo lectura.
+- **Contraseñas**: mínimo 10 caracteres; hasheadas con bcrypt (coste ≥ 12).
+- **Activación de cuenta**: el registro crea usuarios `is_active=False`; la cuenta se activa tras la primera verificación TOTP/código de respaldo exitosa.
+- **Roles**: `admin` (primer usuario) y `principal` (usuarios subsecuentes).
 - **TOTP**: usar `pyotp` + `qrcode` (PNG base64). No almacenar el secreto TOTP en texto plano; cifrar o hashear según Fase 2.
 - **Variables de configuración sensible** (JWT, DB, WhatsApp) solo en `.env` o en variables de entorno de Docker; nunca en archivos fuente ni en imágenes Docker.
 
@@ -126,7 +136,7 @@ docker compose -f docker-compose.yml -f docker-compose.fase2.yml -f docker-compo
 - Base de datos MVP: SQLite `./data/cutternest.db` (dentro del contenedor `/app/data/cutternest.db`).
 - Usuario administrador: se crea en el primer registro si no existe otro, o vía variable `ADMIN_USERNAME` en `.env` (default `admin`).
 - Idioma: Español. Todos los labels, mensajes de error y PDFs en español.
-- Ejemplo pre-cargado: botón "Cargar ejemplo: Estantería Modular" con 11 piezas en tablero 244×122 cm.
+- Ejemplo pre-cargado: botón "Cargar ejemplo: Estantería Modular" con 11 piezas en tablero 2440×1220 mm.
 
 ## 7. Modos de trabajo, subagentes y ahorro de tokens
 

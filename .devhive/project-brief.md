@@ -12,7 +12,10 @@ Sistema web autocontenido para optimizar cortes de tableros (MDF, madera, melami
 - **Cache**: ninguno en MVP; Redis 7 opcional en Fase 2 para rate limiting y blacklist de tokens.
 - **Auth**: JWT (access/refresh) + TOTP local (`pyotp` + `qrcode`) + Guest PIN de 4 dígitos. Sin LDAP, SMS, email, WhatsApp ni OAuth en MVP.
 - **Optimización**: `rectpack` (Guillotine/MaxRects) para nesting de piezas.
-- **Exportación**: SVG, PNG, PDF (ReportLab) y CSV generados localmente en `/app/data/exports/`.
+- **Exportación**: SVG, PNG, PDF (ReportLab, jsPDF + html2canvas en frontend) y CSV generados localmente en `/app/data/exports/`.
+- **Assembly Planner**: aplicación vanilla ES6 autocontenida en `frontend/public/assembly-planner/` para uso offline del operario de taller.
+- **Estado global frontend**: Zustand (`frontend/src/stores/`).
+- **Gráficos UI**: Recharts para dashboards y reportes.
 - **Infra**: Docker Compose separado en MVP (`docker-compose.yml`), Fase 2 (`docker-compose.fase2.yml`) y Fase 4 (`docker-compose.fase4.yml`). Nginx sirve el frontend y proxy al backend.
 - **Tests**: pytest (backend), Vitest + React Testing Library (frontend).
 - **Gestor paquetes**: `pip` (backend), `pnpm` (frontend y whatsapp-gateway).
@@ -47,11 +50,14 @@ WhatsApp Baileys + SMS gateway  [Fase 4]
 ## Estado actual
 
 - ✅ Esqueleto de Docker Compose para MVP, Fase 2 y Fase 4.
-- ✅ Esqueleto de backend FastAPI (`backend/app/main.py`).
-- ✅ Esqueleto de frontend React (`frontend/src/App.tsx`, `main.tsx`).
-- ✅ README.md con instrucciones de inicio rápido.
-- ❌ Código funcional de optimización, auth, inventario, cotización, 3D, plantillas y exportaciones (pendiente de implementación en este sprint).
-- ❌ Tests unitarios y E2E (pendientes).
+- ✅ Backend FastAPI funcional: auth, optimizador, inventario, cotización, ensamblaje, SVG/PDF.
+- ✅ Frontend React funcional: login, dashboard, optimizador, inventario, proyectos, ensamblaje 3D.
+- ✅ Assembly Planner vanilla offline en `frontend/public/assembly-planner/`.
+- ✅ Refactor UI/UX en progreso: componentes base, Zustand stores, command palette.
+- ✅ Tests backend pytest (21 passed).
+- 🔄 Tests frontend Vitist y build Docker pendientes por falta de `pnpm-lock.yaml`/`node_modules`.
+- ❌ Tests unitarios y E2E del Assembly Planner vanilla pendientes.
+- ❌ PostgreSQL/Redis/WhatsApp/SMS en fases posteriores.
 
 ## Equipo de agentes
 

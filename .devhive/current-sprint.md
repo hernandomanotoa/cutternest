@@ -1,39 +1,31 @@
-# Sprint actual: CutterNest — MVP completado y optimización DevHive
+# Sprint actual: CutterNest — Assembly Planner offline + refactor UI/UX
 
 ## Objetivo
 
-Consolidar el MVP funcional y seguro de CutterNest, alinear el equipo de agentes DevHive con el stack real del proyecto, y eliminar memorias/artefactos obsoletos del proyecto anterior.
+Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assembly-planner/` capaz de operar offline, importar CSV de piezas, generar dependencias con heurísticas, calcular análisis estructural, mostrar grafo interactivo, secuencia de ensamblaje y manual auto-generado. A su vez, consolidar el **refactor UI/UX del frontend React** con componentes base reutilizables, stores con Zustand y mejoras en las páginas principales.
 
 ## Tareas asignadas
 
 | # | Tarea | Agente | Estado | Notas |
 |---|---|---|---|---|
-| M1 | Configurar backend FastAPI + SQLAlchemy SQLite | backend | ✅ Completado | `backend/app/main.py`, `database.py`, `models.py`, `config.py`, `schemas.py`. |
-| M2 | Implementar auth TOTP + Guest PIN + cookies httpOnly | auth + backend | ✅ Completado | `auth.py`, `security.py`, `dependencies.py`, routers `/auth/*`. |
-| M3 | Implementar optimizador rectpack | backend + optimizer | ✅ Completado | `optimizer.py`, endpoint `POST /api/v1/optimize`. |
-| M4 | Generar SVG/PNG de layouts | backend | ✅ Completado | `svg_generator.py`. |
-| M5 | Generar PDFs (cotización, cut list, etiquetas) | backend | ✅ Completado | `pdf_generator.py`. |
-| M6 | Inventario de tableros y sobrantes | backend | ✅ Completado | `inventory.py`, endpoints `/inventory`, `/inventory/offcuts`. |
-| M7 | Plantillas de muebles predefinidas | backend | ✅ Completado | `templates.py`, endpoints `/templates`. |
-| M8 | Planos de ensamblaje JSON | backend | ✅ Completado | `assembly.py`, endpoint `/projects/{id}/assembly`. |
-| M9 | Frontend React + Vite + Tailwind base | frontend | ✅ Completado | `main.tsx`, `App.tsx`, `index.css`, routing, `api/client.ts`, `hooks/useAuth.ts`, `types`. |
-| M10 | Pantallas de auth (login, registro, TOTP, PIN) | frontend | ✅ Completado | `components/auth/`. |
-| M11 | Optimizador UI (formulario, resultados, SVG) | frontend | ✅ Completado | `components/optimizer/OptimizerPage.tsx`, `Layout2D.tsx`. |
-| M12 | Visualización 3D tablero y mueble | frontend | ✅ Completado | `components/optimizer/Tablero3D.tsx`; ensamblaje en `components/mueble/AssemblyPage.tsx`. |
-| M13 | Inventario, cotización y reportes UI | frontend | ✅ Completado | `components/taller/InventoryPage.tsx`, `components/cotizacion/QuotePage.tsx`. |
-| M14 | Tests backend pytest | test | ✅ Completado | `backend/tests/test_auth.py`, `test_optimizer.py`, `test_projects.py`, `conftest.py`. |
-| M15 | Tests frontend Vitest | test | ✅ Completado | `frontend/src/types/index.test.ts`; `vitest` en `package.json`. |
-| M16 | Validación Docker Compose MVP | deploy | ✅ Completado | `docker compose up -d --build` levanta backend y frontend healthy. |
-| M17 | Carga/descarga de piezas via CSV con hash de formato | frontend + Guardian | ✅ Completado | `frontend/src/utils/piecesCsv.ts`, botones en `OptimizerPage.tsx`, tests Vitest. |
-| M18 | Paginación y pestaña de conteo por dimensiones | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceCounter.ts`, `PieceCountTab.tsx`, paginación 10 piezas/página en `OptimizerPage.tsx`. |
-| M19 | Plantilla personalizada persistente en localStorage | frontend + Guardian | ✅ Completado | `frontend/src/utils/pieceTemplate.ts`, botones Guardar/Cargar/Restaurar en `OptimizerPage.tsx`, guardado automático al cargar CSV. |
-| M20 | Ensamblaje 3D coherente paso a paso | backend + frontend + Guardian | ✅ Completado | `backend/app/assembly.py`, `Assembly3D.tsx`, `AssemblyPage.tsx`, tests `test_assembly.py`. |
-| M21 | Planificador visual de ensamblaje y manuales HTML/PDF | backend + frontend + Guardian | ✅ Completado | Kahn en `assembly.py` y `topologicalSort.ts`, `AssemblyPlanner.tsx`, `LevelTimeline.tsx`, `AssemblyManual.tsx`, `generateAssemblyHtml.ts`, endpoints `/assembly/plan` y `/assembly/generate`. |
-| D1 | Actualizar `profile.yaml` y DevHive al stack CutterNest | Guardian | ✅ Completado | Perfil ahora refleja Python/FastAPI, React/Vite, SQLite, Docker Compose por fases. |
-| D2 | Actualizar `architecture.md`, `domain-rules.md`, `security-policy.md`, `guardian/SKILL.md` | Guardian | ✅ Completado | Documentos adaptados al MVP. |
-| D3 | Limpiar stubs y memorias obsoletas | Guardian | ✅ Completado | Stubs, audit logs y agentes/plugins no usados (LDAP, tunnel, frontend-template) archivados en `.agents/memory/archive/`. |
-| D4 | Crear ADRs para decisiones críticas recientes | Guardian | ✅ Completado | 5 ADRs en `.devhive/decisions/`: PyJWT, cookies httpOnly, TOTP cifrado, rate limiting, DevHive DCOP. |
-| D5 | Reindexar MCP y versionar cambios | Guardian | ✅ Completado | MCP reindexado (1282 nodos, 2897 aristas); commit `ef50d07`. Validación full pasa. |
+| A1 | Crear esqueleto HTML/CSS/app.js del Assembly Planner | frontend | ✅ Completado | `frontend/public/assembly-planner/index.html`, `styles/theme.css`, `js/app.js`. |
+| A2 | Implementar csvParser, heurísticas y topologicalSort | frontend | ✅ Completado | `csvParser.js`, `heuristics.js`, `topologicalSort.js`. |
+| A3 | Implementar Vista CSV editable | frontend | ✅ Completado | `views/csvView.js`. |
+| A4 | Implementar Vista Grafo interactivo | frontend | ✅ Completado | `views/graphView.js`. |
+| A5 | Implementar Vista Estructural | frontend | ✅ Completado | `views/structuralView.js`, `js/structural.js`. |
+| A6 | Implementar Vista Ensamblaje + Simulador | frontend | ✅ Completado | `views/assemblyView.js`, `js/instructions.js`. |
+| A7 | Implementar Vista Manual con diagramas SVG | frontend | ✅ Completado | `views/manualView.js`. |
+| A8 | Implementar Vista Isométrica SVG | frontend | ✅ Completado | `js/isometricRenderer.js`, `js/svgEngine.js`, `views/isometricView.js`. |
+| A9 | Calcular lista de herrajes/insumos | frontend | ✅ Completado | `js/hardware.js`. |
+| A10 | Backend: endpoint para guardar ejemplos CSV | backend | ✅ Completado | `backend/app/routers/assembly_planner.py`. |
+| A11 | Backend: catálogo de materiales y herrajes | backend | ✅ Completado | `backend/app/config/catalog.json`, `hardware_templates.json`. |
+| A12 | Backend: router de cotizaciones y mejoras en servicios | backend | ✅ Completado | `backend/app/routers/quotes.py`, `quotes.py`, `catalog.py`. |
+| U1 | Refactor UI: componentes base reutilizables | frontend | ✅ Completado | `frontend/src/components/ui/*`. |
+| U2 | Refactor UI: layouts, providers, command palette | frontend | ✅ Completado | `frontend/src/components/layout/`, `providers/`, `command-palette/`. |
+| U3 | Refactor UI: stores Zustand | frontend | ✅ Completado | `frontend/src/stores/`. |
+| U4 | Refactor UI: mejoras en AssemblyPage y páginas principales | frontend | 🔄 En progreso | Cambios masivos en `AssemblyPage.tsx`, `Dashboard.tsx`, `QuotePage.tsx`, `InventoryPage.tsx`, `ProjectsPage.tsx`, `OptimizerPage.tsx`. Build bloqueado por falta de `node_modules`/lockfile. |
+| D1 | Actualizar memorias DevHive y .kimi-memory.md | Guardian | 🔄 En progreso | Memorias locales + archivos versionados en `.devhive/`. |
+| D2 | Versionar cambios en git por bloques | Guardian | ⏳ Pendiente | Commits agrupados por funcionalidad. |
 
 ## Leyenda estados
 
@@ -45,68 +37,49 @@ Consolidar el MVP funcional y seguro de CutterNest, alinear el equipo de agentes
 
 ## Bloqueadores activos
 
-Ninguno.
+1. **Build frontend offline**: `frontend/package.json` incluye `zustand`, `recharts`, `jspdf`, `html2canvas`. No existe `pnpm-lock.yaml` ni `node_modules`. Hasta que se instalen dependencias, el build React no es reproducible offline.
 
 ## Decisiones recientes del sprint
 
-- **ADR-001-2026-08-12**: Stack MVP aprobado: Python 3.11 + FastAPI + SQLite + React 18 + Vite + Three.js + Tailwind. Sin dependencias externas en MVP.
-- **ADR-002-2026-08-12**: Autenticación local TOTP + Guest PIN; sin LDAP, SMTP, SMS, WhatsApp ni OAuth en MVP.
-- **ADR-003-2026-08-12**: Docker Compose por fases: MVP (`docker-compose.yml`), Fase 2 (`docker-compose.fase2.yml`), Fase 4 (`docker-compose.fase4.yml`).
-- **ADR-004-2026-08-13**: Migración de `python-jose` a `PyJWT` por mantenimiento y seguridad.
-- **ADR-005-2026-08-13**: TOTP cifrado con `TOTP_ENCRYPTION_KEY` separada de `JWT_SECRET_KEY`.
-- **ADR-006-2026-08-13**: Códigos de backup invalidados tras uso mediante tabla `BackupCode` con `used_at`.
-- **ADR-007-2026-08-13**: Tokens de autenticación entregados como cookies `httpOnly`, incluyendo `temp_token` de verificación TOTP; eliminado todo uso de `localStorage`/`sessionStorage` para tokens.
-- **ADR-008-2026-08-13**: Rate limiting con `slowapi` en endpoints auth, optimize, refresh y guest PIN.
-- **ADR-010-2026-08-13**: Unificación de todas las medidas a milímetros (mm) en modelos, schemas, frontend, PDFs, SVG, CSV y migración automática de columnas antiguas en cm.
+- **ADR-0011-2026-08-19**: Assembly Planner vanilla ES6 en `frontend/public/assembly-planner/` como complemento offline al ensamblaje React. Sin dependencias de framework.
+- **ADR-0012-2026-08-19**: Refactor UI/UX progresivo con componentes base en `frontend/src/components/ui/`, Zustand para estado global y Tailwind exclusivo.
+- **ADR-0013-2026-08-19**: Catálogo de materiales y herrajes en JSON estático bajo `backend/app/config/`, consumido por backend y frontend.
 
 ## Métricas actuales
 
 - Tests backend: 21 passed.
-- Tests frontend: 71 passed.
-- Docker Compose MVP: healthy.
-- Bugs críticos abiertos: 0.
+- Tests frontend: por validar (bloqueado por dependencias).
+- Docker Compose MVP: no validado en esta iteración.
+- Bugs críticos abiertos: 0 (bloqueador de build no es bug funcional).
 - Agentes DevHive activos: 9 + 4 plugins.
 
 ## Hotfixes recientes (Assembly Planner)
 
 - **Manual de ensamblaje**: repisas inferiores con `cantidad > 1` se apilan hacia arriba dentro del interior del mueble, evitando que se dibujen debajo de la base (`manualView.js`).
-- **Grafo**: el layout estructural ahora se recalcula y centra automáticamente al cambiar de pestaña o redimensionar el contenedor, usando `ResizeObserver` y reintentos por `requestAnimationFrame` (`graphView.js`).
+- **Grafo**: el layout estructural se recalcula y centra automáticamente al cambiar de pestaña o redimensionar el contenedor, usando `ResizeObserver` y reintentos por `requestAnimationFrame` (`graphView.js`).
+- **Render isométrico**: perspectiva configurable con viewBox dinámico para evitar que piezas se salgan del SVG (`isometricRenderer.js`).
 
 ## Ejemplos CSV consolidados
 
 Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
 
-- **Conservados en `docs/`**:
-  - `Ejemplo_CSV_Basico.csv` — estantería simple de 1 módulo.
-  - `Ejemplo_CSV_Con_Global_y_Submodulo.csv` — estructura global + estantes + cajón en submódulo.
-  - `Ejemplo_CSV_Cajoneras_4_Modulos.csv` — clóset completo con 4 módulos y submódulos padre-hijo.
-  - `Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv` — cajones apilados + repisas superior/inferior con cantidades > 1.
-- **Cargables desde la UI** en `frontend/public/assembly-planner/data/`:
-  - `ejemplo-basico.csv`, `ejemplo-global.csv`, `ejemplo-cajonera.csv`.
-- **Eliminados por obsoletos/redundantes**:
-  - `Ejemplo_CSV_Estanteria_Modulos.csv`, `Ejemplo_CSV_Modulos_Independientes.csv`, `Ejemplo_CSV_Sin_Global.csv`, `Ejemplo_CSV_Minimo_Paso_a_Paso.csv`, `Ejemplo_CSV_Manual_Completo.csv`, `Ejemplo_CSV_Modulos_PadreHijo.csv`, `Ejemplo_CSV_Completo_Cajones_Verticales.csv`.
-  - `frontend/public/assembly-planner/data/ejemplo-estanteria.csv` y `ejemplo-closet.csv`.
-- **Documentación actualizada**: `docs/Guia_Ensamblaje.md`, `docs/Flujo_CSV_Ensamblaje.md`, `docs/Formato_CSV_Piezas.md`.
-- **UI actualizada**: `index.html` y `app.js` ahora tienen 3 botones de ejemplo: básico, con global y clóset/cajonera.
+- **Conservados en `frontend/public/assembly-planner/data/`**: básico, global, cajonera, closet, cocina, comoda, escritorio, librero-alto, mueble-tv, vanitory, armario, y ejemplos universales (cajonera, librero, mesa, ropero, silla, zapatero).
+- **Eliminados por obsoletos/redundantes**: renders SVG de `test/renders/` y directorio `docs/temp-svg/`.
 
 ## Next actions
 
-1. Continuar iteraciones de funcionalidad sobre el MVP (optimizador 3D, mejoras UI, reportes).
-2. Mantener ADRs actualizados ante nuevas decisiones arquitectónicas.
-3. Ejecutar `#optimize` periódicamente según DCOP.
+1. Instalar dependencias frontend (`pnpm install`) para generar `pnpm-lock.yaml` y validar build.
+2. Validar Assembly Planner en navegador con ejemplos CSV.
+3. Hacer commits agrupados por bloque funcional.
+4. Coordinar re-indexación MCP tras cerrar el swarm.
 
-## Criterios de éxito del MVP
+## Criterios de éxito del MVP actualizado
 
-- [x] `docker compose up --build` levanta backend + frontend sin errores.
-- [x] Registro de usuario con username/password + TOTP (QR visible en pantalla).
-- [x] Login con TOTP (6 dígitos) o backup code devuelve cookies httpOnly.
-- [x] Guest login con PIN de 4 dígitos generado por usuario principal.
-- [x] Backend optimiza con rectpack el ejemplo de estantería.
-- [x] Frontend muestra SVG del layout con piezas coloreadas, nombres y medidas.
-- [x] Vista 3D del tablero con piezas posicionadas.
-- [x] Inventario funcional: agregar tableros, ver sobrantes, consumir en proyecto.
-- [x] Plantillas de muebles predefinidas generan piezas automáticamente.
-- [x] No hay secretos hardcodeados ni defaults inseguros en el código versionado.
+- [ ] `docker compose up --build` levanta backend + frontend sin errores.
+- [ ] Assembly Planner carga CSV, genera dependencias y manual SVG.
+- [ ] Frontend React refactorizado compila (`pnpm build`).
+- [ ] Tests backend pasan (`pytest -q`).
+- [ ] No hay secretos hardcodeados ni defaults inseguros en el diff.
 
 ## Histórico
 

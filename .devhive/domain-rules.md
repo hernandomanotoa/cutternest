@@ -59,7 +59,7 @@ Changes to roles or RBAC require Guardian and `@auth-agent` approval.
 
 ## 8. Inventory and Offcuts
 
-- Inventory tracks boards (`tipo`, `espesor_mm`, `ancho_cm`, `alto_cm`, `cantidad`, `estado`).
+- Inventory tracks boards (`tipo`, `espesor_mm`, `ancho_mm`, `alto_mm`, `cantidad`, `estado`).
 - States: `nuevo`, `usado`, `sobrante`.
 - When optimization uses `use_offcuts=true`, the optimizer attempts to place small pieces on `sobrante` boards first before consuming new boards.
 - Offcuts can be added to inventory from optimization results.

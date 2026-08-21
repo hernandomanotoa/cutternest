@@ -19,7 +19,7 @@ Stack: SQLite para MVP; PostgreSQL 15 + Redis 7 en Fase 2.
 - `sessions` — refresh tokens con expiración y revocación.
 - `guest_sessions` — PIN de 4 dígitos, `created_by`, `expires_at`, `used_at`, `revoked_at`.
 - `projects` — proyectos de optimización, JSON de piezas/tablas, resultados, cotización.
-- `inventory` — tableros y sobrantes (`tipo`, `espesor_mm`, `ancho_cm`, `alto_cm`, `cantidad`, `estado`, `proyecto_origen`, `area_m2`).
+- `inventory` — tableros y sobrantes (`tipo`, `espesor_mm`, `ancho_mm`, `alto_mm`, `cantidad`, `estado`, `proyecto_origen`, `area_m2`).
 - `audit_logs` — acciones relevantes (opcional en MVP, requerido en Fase 2).
 
 ## Esquema de permisos / RBAC

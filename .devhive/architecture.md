@@ -126,8 +126,8 @@ projects
 ├── owner_id (FK → users)
 ├── name
 ├── description
-├── board_width_cm
-├── board_height_cm
+├── board_width_mm
+├── board_height_mm
 ├── board_thickness_mm
 ├── kerf_mm
 ├── margin_mm
@@ -142,8 +142,8 @@ inventory
 ├── id (PK)
 ├── tipo
 ├── espesor_mm
-├── ancho_cm
-├── alto_cm
+├── ancho_mm
+├── alto_mm
 ├── cantidad
 ├── estado
 ├── area_m2

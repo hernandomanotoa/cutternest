@@ -1,44 +1,56 @@
 # CutterNest Piezas v1
 # Ejemplo: librero alto con soportes verticales e intermedios.
 # - Estructura global: zocalo corrido, tapa corrida, panel posterior, patas y tirantes a pared.
-# - Modulo 1: librero izquierdo de 2200 mm de alto con estantes, montantes centrales/divisores y travesano trasero.
-# - Modulo 2: librero derecho de 2200 mm de alto con estantes, montantes centrales/divisores y travesano trasero.
+# - Modulo 1: librero izquierdo de 2230 mm de alto con 3 estantes, montante central,
+#   4 divisores verticales por lado (inferior, medio inferior, medio superior, superior)
+#   para reforzar cada hueco entre estantes/base/tapa, y travesano trasero.
+# - Modulo 2: librero derecho de 2230 mm de alto con la misma configuracion.
 # Las dimensiones base/tapa difieren ligeramente para evitar agrupacion automatica.
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 
 # --- Estructura global ---
 glb-zocalo,Zocalo corrido librero,1880,100,1,si,#C19A6B,15,"T,B,L,R",estructura
 glb-tapa,Tapa corrida librero,1880,40,1,si,#D9C2A3,30,"T,B,L,R",estructura
-glb-panel-posterior,Panel posterior librero,1880,2200,1,no,#F2F2F2,15,,estructura
+glb-panel-posterior,Panel posterior librero,1880,2230,1,no,#F2F2F2,15,,estructura
 glb-pata,Pata regulable,80,120,4,no,#A0A0A0,15,,estructura
 glb-tirante-pared,Tirante anclaje pared,80,80,2,no,#A0A0A0,15,,estructura
 
 # --- Modulo 1: librero izquierdo alto ---
 m1-base,Base modulo M1,900,350,1,si,#C19A6B,15,"T,B,L,R",1
 m1-tapa,Tapa modulo M1,900,350,1,si,#C19A6B,15,"T,B,L,R",1
-m1-lateral-izq,Lateral izquierdo M1,350,2200,1,no,#C19A6B,15,"T,B,L",1
-m1-lateral-der,Lateral derecho M1,350,2200,1,no,#C19A6B,15,"T,B,R",1
-m1-fondo,Fondo modulo M1,900,2200,1,no,#F2F2F2,15,,1
-m1-montante-central,Montante central M1,350,2200,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-izq,Montante divisor izquierdo M1,30,2200,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-der,Montante divisor derecho M1,30,2200,1,no,#C19A6B,15,"T,B,L,R",1
+m1-lateral-izq,Lateral izquierdo M1,350,2230,1,no,#C19A6B,15,"T,B,L",1
+m1-lateral-der,Lateral derecho M1,350,2230,1,no,#C19A6B,15,"T,B,R",1
+m1-fondo,Fondo modulo M1,900,2230,1,no,#F2F2F2,15,,1
+m1-montante-central,Montante central M1,350,2230,1,no,#D9C2A3,15,"T,B,L,R",1
 m1-travesano,Travesano trasero M1,820,60,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-estante-1,Estante superior M1,820,350,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-estante-2,Estante alto M1,820,350,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-estante-3,Estante medio M1,820,350,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-estante-4,Estante bajo M1,820,350,1,si,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-inf-izq,Divisor inferior izquierdo M1,30,400,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-inf-der,Divisor inferior derecho M1,30,400,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-med-inf-izq,Divisor medio inferior izquierdo M1,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-med-inf-der,Divisor medio inferior derecho M1,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-med-sup-izq,Divisor medio superior izquierdo M1,30,400,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-med-sup-der,Divisor medio superior derecho M1,30,400,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-sup-izq,Divisor superior izquierdo M1,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-sup-der,Divisor superior derecho M1,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
+m1-estante-inf,Estante inferior M1,820,200,1,si,#D9C2A3,15,"T,B,L,R",1
+m1-estante-med,Estante medio M1,820,200,1,si,#D9C2A3,15,"T,B,L,R",1
+m1-estante-sup,Estante superior M1,820,200,1,si,#D9C2A3,15,"T,B,L,R",1
 
 # --- Modulo 2: librero derecho alto ---
 m2-base,Base modulo M2,910,350,1,si,#8B5A2B,15,"T,B,L,R",2
 m2-tapa,Tapa modulo M2,910,350,1,si,#8B5A2B,15,"T,B,L,R",2
-m2-lateral-izq,Lateral izquierdo M2,350,2200,1,no,#8B5A2B,15,"T,B,L",2
-m2-lateral-der,Lateral derecho M2,350,2200,1,no,#8B5A2B,15,"T,B,R",2
-m2-fondo,Fondo modulo M2,910,2200,1,no,#F2F2F2,15,,2
-m2-montante-central,Montante central M2,350,2200,1,no,#D9C2A3,15,"T,B,L,R",2
-m2-divisor-izq,Montante divisor izquierdo M2,30,2200,1,no,#8B5A2B,15,"T,B,L,R",2
-m2-divisor-der,Montante divisor derecho M2,30,2200,1,no,#8B5A2B,15,"T,B,L,R",2
+m2-lateral-izq,Lateral izquierdo M2,350,2230,1,no,#8B5A2B,15,"T,B,L",2
+m2-lateral-der,Lateral derecho M2,350,2230,1,no,#8B5A2B,15,"T,B,R",2
+m2-fondo,Fondo modulo M2,910,2230,1,no,#F2F2F2,15,,2
+m2-montante-central,Montante central M2,350,2230,1,no,#D9C2A3,15,"T,B,L,R",2
 m2-travesano,Travesano trasero M2,830,60,1,si,#D9C2A3,15,"T,B,L,R",2
-m2-estante-1,Estante superior M2,830,350,1,si,#D9C2A3,15,"T,B,L,R",2
-m2-estante-2,Estante alto M2,830,350,1,si,#D9C2A3,15,"T,B,L,R",2
-m2-estante-3,Estante medio M2,830,350,1,si,#D9C2A3,15,"T,B,L,R",2
-m2-estante-4,Estante bajo M2,830,350,1,si,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-inf-izq,Divisor inferior izquierdo M2,30,400,1,no,#8B5A2B,15,"T,B,L,R",2
+m2-divisor-inf-der,Divisor inferior derecho M2,30,400,1,no,#8B5A2B,15,"T,B,L,R",2
+m2-divisor-med-inf-izq,Divisor medio inferior izquierdo M2,30,400,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-med-inf-der,Divisor medio inferior derecho M2,30,400,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-med-sup-izq,Divisor medio superior izquierdo M2,30,400,1,no,#8B5A2B,15,"T,B,L,R",2
+m2-divisor-med-sup-der,Divisor medio superior derecho M2,30,400,1,no,#8B5A2B,15,"T,B,L,R",2
+m2-divisor-sup-izq,Divisor superior izquierdo M2,30,400,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-divisor-sup-der,Divisor superior derecho M2,30,400,1,no,#D9C2A3,15,"T,B,L,R",2
+m2-estante-inf,Estante inferior M2,830,200,1,si,#D9C2A3,15,"T,B,L,R",2
+m2-estante-med,Estante medio M2,830,200,1,si,#D9C2A3,15,"T,B,L,R",2
+m2-estante-sup,Estante superior M2,830,200,1,si,#D9C2A3,15,"T,B,L,R",2
