@@ -3,7 +3,7 @@ import { loadTemplate, saveTemplate, clearTemplate, hasTemplate } from './pieceT
 import type { PieceInput } from '../types'
 
 const sample: PieceInput[] = [
-  { id: 'a', nombre: 'Base', ancho: 120, alto: 60, cantidad: 1, rotar: true, color: '#FF6B6B', espesor: 18, cantos: '' },
+  { id: 'a', nombre: 'Base', ancho: 120, alto: 60, cantidad: 1, rotate: true, color: '#FF6B6B', espesor: 18, cantos: '' },
 ]
 
 describe('pieceTemplate localStorage', () => {

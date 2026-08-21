@@ -1,4 +1,6 @@
-import { vi } from 'vitest'
+import '@testing-library/jest-dom/vitest'
+import { vi, afterEach } from 'vitest'
+import { cleanup } from '@testing-library/react'
 
 class ResizeObserverMock {
   observe = vi.fn()
@@ -7,3 +9,7 @@ class ResizeObserverMock {
 }
 
 (globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserverMock }).ResizeObserver = ResizeObserverMock
+
+afterEach(() => {
+  cleanup()
+})

@@ -11,6 +11,7 @@ export interface AuthState {
   user: User | null;
   mode: 'principal' | 'guest' | null;
   expiresAt: number | null;
+  guestProjectId?: string | null;
 }
 
 export interface BoardInput {
@@ -27,7 +28,7 @@ export interface PieceInput {
   ancho: number;
   alto: number;
   cantidad: number;
-  rotar: boolean;
+  rotate: boolean;
   color: string;
   espesor: number;
   cantos?: string;
@@ -66,8 +67,8 @@ export interface Project {
   name: string;
   description?: string;
   owner_id?: string;
-  board_width_cm?: number;
-  board_height_cm?: number;
+  board_width_mm?: number;
+  board_height_mm?: number;
   board_thickness_mm?: number;
   kerf_mm?: number;
   margin_mm?: number;
@@ -81,11 +82,20 @@ export interface InventoryItem {
   id: string;
   tipo: string;
   espesor_mm: number;
-  ancho_cm: number;
-  alto_cm: number;
+  ancho_mm: number;
+  alto_mm: number;
   cantidad: number;
   estado: string;
   area_m2: number;
+  created_at: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  inventory_id: string;
+  tipo: 'entrada' | 'salida';
+  cantidad: number;
+  motivo: string | null;
   created_at: string;
 }
 
@@ -102,6 +112,12 @@ export interface HardwareItem {
   precio_unit: number;
 }
 
+export interface HardwareTemplate {
+  item: string;
+  precio_unit: number;
+  categoria: string;
+}
+
 export interface QuoteBreakdown {
   material: number;
   hardware: number;
@@ -115,6 +131,18 @@ export interface Quote {
   project_id: string;
   breakdown: QuoteBreakdown;
   hardware: HardwareItem[];
+  pdf_path?: string;
+  created_at: string;
+}
+
+export interface ProjectQuote {
+  id: string;
+  project_id: string;
+  material_cost: number;
+  hardware_cost: number;
+  labor_cost: number;
+  total: number;
+  margin: number;
   pdf_path?: string;
   created_at: string;
 }
@@ -137,6 +165,7 @@ export interface AssemblyPiece3D {
   alto: number;
   profundidad: number;
   color: string;
+  modulo?: string;
   posicion: Point3D;
   rotacion: Point3D;
 }
@@ -184,6 +213,7 @@ export interface AssemblyPieceState {
   codigo: string;
   categoria: string;
   tipo_pieza: string;
+  module_id?: string;
   posicion_esperada: Point3D;
   rotacion_esperada: Point3D;
   posicion_actual?: Point3D | null;
@@ -211,6 +241,36 @@ export interface AssemblyResponse {
   connectors: AssemblyConnector[];
   steps: AssemblyStep[];
   state?: AssemblyState;
+  dependencies?: string[][];
+  levels?: string[][];
+  pdf_path?: string;
+}
+
+export interface AssemblyPlanRequest {
+  dependencies: string[][];
+  save: boolean;
+}
+
+export interface AssemblyPlanResponse {
+  dependencies: string[][];
+  levels: string[][];
+  min_steps: number;
+  steps: AssemblyStep[];
+  cycle?: string[] | null;
+}
+
+export interface AssemblyGraphNode {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  level: number;
+  color: string;
+}
+
+export interface AssemblyGraphEdge {
+  from: string;
+  to: string;
 }
 
 export interface AssemblyValidationResult {
@@ -228,8 +288,8 @@ export interface AssemblyProgressUpdate {
 
 export interface BoardFormat {
   name: string;
-  width_cm: number;
-  height_cm: number;
+  width_mm: number;
+  height_mm: number;
   country: string;
 }
 

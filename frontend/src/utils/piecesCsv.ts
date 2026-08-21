@@ -1,11 +1,11 @@
 import type { PieceInput } from '../types'
 
 const VERSION = 'CutterNest Piezas v1'
-const BASE_COLUMNS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotar', 'color', 'espesor', 'cantos']
+const BASE_COLUMNS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos']
 const OPTIONAL_COLUMNS = ['modulo']
 const COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS]
-// Hash refleja el formato con modulo como columna opcional
-const TEMPLATE_HASH = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2'
+// Hash refleja el formato con rotate y modulo como columna opcional
+const TEMPLATE_HASH = 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3'
 const BOM = '\uFEFF'
 
 export { VERSION, BASE_COLUMNS, OPTIONAL_COLUMNS, COLUMNS, TEMPLATE_HASH }
@@ -64,7 +64,7 @@ export function generateCsv(pieces: PieceInput[]): string {
         String(p.ancho),
         String(p.alto),
         String(p.cantidad),
-        p.rotar ? 'si' : 'no',
+        p.rotate ? 'si' : 'no',
         p.color,
         String(p.espesor),
         escapeCsv(p.cantos || ''),
@@ -127,7 +127,7 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
       anchoStr,
       altoStr,
       cantidadStr,
-      rotarStr,
+      rotateStr,
       color,
       espesorStr,
       cantos,
@@ -155,8 +155,8 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
     if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
       return { valid: false, error: `Fila ${rowIndex}: color debe ser hex de 6 digitos (ej. #FF6B6B)` }
     }
-    if (rotarStr !== 'si' && rotarStr !== 'no') {
-      return { valid: false, error: `Fila ${rowIndex}: rotar debe ser 'si' o 'no'` }
+    if (rotateStr !== 'si' && rotateStr !== 'no') {
+      return { valid: false, error: `Fila ${rowIndex}: rotate debe ser 'si' o 'no'` }
     }
     pieces.push({
       id: id || nombre.toLowerCase().replace(/\s+/g, '-'),
@@ -164,7 +164,7 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
       ancho,
       alto,
       cantidad,
-      rotar: rotarStr === 'si',
+      rotate: rotateStr === 'si',
       color,
       espesor,
       cantos: cantos || '',

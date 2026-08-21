@@ -1,4 +1,8 @@
 import type { PieceGroup } from '../../utils/pieceCounter'
+import {
+  Card,
+  CardContent,
+} from '../ui/Card'
 
 interface PieceCountTabProps {
   groups: PieceGroup[]
@@ -9,46 +13,59 @@ interface PieceCountTabProps {
 export function PieceCountTab({ groups, totalPieces, totalGroups }: PieceCountTabProps) {
   return (
     <div className='space-y-4'>
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
-        <div className='bg-slate-50 p-3 rounded border border-slate-200'>
-          <p className='text-xs text-slate-500 uppercase'>Piezas totales</p>
-          <p className='text-xl font-semibold text-slate-800'>{totalPieces}</p>
-        </div>
-        <div className='bg-slate-50 p-3 rounded border border-slate-200'>
-          <p className='text-xs text-slate-500 uppercase'>Grupos distintos</p>
-          <p className='text-xl font-semibold text-slate-800'>{totalGroups}</p>
-        </div>
-        <div className='bg-slate-50 p-3 rounded border border-slate-200'>
-          <p className='text-xs text-slate-500 uppercase'>Diferentes piezas</p>
-          <p className='text-xl font-semibold text-slate-800'>{groups.length}</p>
-        </div>
+      <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
+        <Card>
+          <CardContent className='pt-6'>
+            <p className='text-xs font-medium uppercase text-muted-foreground'>Piezas totales</p>
+            <p className='text-2xl font-semibold text-foreground'>{totalPieces}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className='pt-6'>
+            <p className='text-xs font-medium uppercase text-muted-foreground'>Grupos distintos</p>
+            <p className='text-2xl font-semibold text-foreground'>{totalGroups}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className='pt-6'>
+            <p className='text-xs font-medium uppercase text-muted-foreground'>Diferentes piezas</p>
+            <p className='text-2xl font-semibold text-foreground'>{groups.length}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {groups.length === 0 ? (
-        <p className='text-sm text-slate-500'>No hay piezas para agrupar.</p>
+        <p className='text-sm text-muted-foreground'>No hay piezas para agrupar.</p>
       ) : (
-        <div className='overflow-x-auto'>
+        <div className='overflow-x-auto rounded-md border'>
           <table className='w-full text-sm'>
-            <thead className='bg-slate-100 text-slate-700'>
+            <thead className='bg-muted/50 text-muted-foreground'>
               <tr>
-                <th className='p-2 text-left'>Dimensiones</th>
-                <th className='p-2 text-left'>Espesor</th>
-                <th className='p-2 text-left'>Cantidad total</th>
-                <th className='p-2 text-left'>Nombres</th>
-                <th className='p-2 text-left'>Colores</th>
+                <th className='p-3 text-left font-medium'>Dimensiones</th>
+                <th className='p-3 text-left font-medium'>Espesor</th>
+                <th className='p-3 text-left font-medium'>Cantidad total</th>
+                <th className='p-3 text-left font-medium'>Nombres</th>
+                <th className='p-3 text-left font-medium'>Colores</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className='divide-y divide-border'>
               {groups.map((g) => (
-                <tr key={g.key} className='border-b border-gray-100'>
-                  <td className='p-2'>{g.ancho.toFixed(1)} x {g.alto.toFixed(1)} cm</td>
-                  <td className='p-2'>{g.espesor} mm</td>
-                  <td className='p-2 font-medium'>{g.cantidad}</td>
-                  <td className='p-2'>{g.nombres.join(', ')}</td>
-                  <td className='p-2'>
+                <tr key={g.key} className='hover:bg-muted/30'>
+                  <td className='p-3 text-foreground'>
+                    {g.ancho.toFixed(1)} × {g.alto.toFixed(1)} mm
+                  </td>
+                  <td className='p-3 text-foreground'>{g.espesor} mm</td>
+                  <td className='p-3 font-medium text-foreground'>{g.cantidad}</td>
+                  <td className='p-3 text-foreground'>{g.nombres.join(', ')}</td>
+                  <td className='p-3'>
                     <div className='flex gap-1'>
                       {g.colores.map((c, i) => (
-                        <div key={i} className='w-4 h-4 rounded border' style={{ backgroundColor: c }} title={c} />
+                        <div
+                          key={i}
+                          className='h-4 w-4 rounded border border-border'
+                          style={{ backgroundColor: c }}
+                          title={c}
+                        />
                       ))}
                     </div>
                   </td>

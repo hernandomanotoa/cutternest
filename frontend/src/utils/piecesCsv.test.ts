@@ -7,10 +7,10 @@ describe('piecesCsv', () => {
     {
       id: 'base',
       nombre: 'Base',
-      ancho: 120,
-      alto: 60,
+      ancho: 1200,
+      alto: 600,
       cantidad: 1,
-      rotar: true,
+      rotate: true,
       color: '#FF6B6B',
       espesor: 18,
       cantos: 'T,B,L,R',
@@ -19,10 +19,10 @@ describe('piecesCsv', () => {
     {
       id: 'lateral-izq',
       nombre: 'Lateral Izq',
-      ancho: 50,
-      alto: 180,
+      ancho: 500,
+      alto: 1800,
       cantidad: 2,
-      rotar: false,
+      rotate: false,
       color: '#45B7D1',
       espesor: 18,
       cantos: 'T,B,L',
@@ -34,9 +34,9 @@ describe('piecesCsv', () => {
     const csv = generateCsv(sample)
     expect(csv).toContain('CutterNest Piezas v1')
     expect(csv).toContain(`hash: ${TEMPLATE_HASH}`)
-    expect(csv).toContain('id,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos,modulo')
-    expect(csv).toContain('Base,120,60,1,si,#FF6B6B,18,"T,B,L,R",')
-    expect(csv).toContain('Lateral Izq,50,180,2,no,#45B7D1,18,"T,B,L",')
+    expect(csv).toContain('id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo')
+    expect(csv).toContain('Base,1200,600,1,si,#FF6B6B,18,"T,B,L,R",')
+    expect(csv).toContain('Lateral Izq,500,1800,2,no,#45B7D1,18,"T,B,L",')
   })
 
   it('parses a generated CSV and returns pieces', () => {
@@ -50,7 +50,7 @@ describe('piecesCsv', () => {
   })
 
   it('accepts CSV with missing or unknown hash', () => {
-    const csv = '# CutterNest Piezas v1\n# hash: 0000000000000000000000000000000000000000000000000000000000000000\nid,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\n'
+    const csv = '# CutterNest Piezas v1\n# hash: 0000000000000000000000000000000000000000000000000000000000000000\nid,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos\n'
     const result = parseCsv(csv)
     expect(result.valid).toBe(true)
     if (!result.valid) return
@@ -58,7 +58,7 @@ describe('piecesCsv', () => {
   })
 
   it('parses CSV with optional modulo column', () => {
-    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos,modulo\nbase,Base,120,60,1,si,#FF6B6B,18,,SUP-M01`
+    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo\nbase,Base,1200,600,1,si,#FF6B6B,18,,SUP-M01`
     const result = parseCsv(csv)
     expect(result.valid).toBe(true)
     if (!result.valid) return
@@ -74,14 +74,14 @@ describe('piecesCsv', () => {
   })
 
   it('rejects CSV with missing version header', () => {
-    const result = parseCsv('id,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\n')
+    const result = parseCsv('id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos\n')
     expect(result.valid).toBe(false)
     if (result.valid) return
     expect(result.error).toContain('cabecera')
   })
 
   it('rejects row with invalid dimensions', () => {
-    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\nbase,Base,-10,60,1,si,#FF6B6B,18,\n`
+    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos\nbase,Base,-10,60,1,si,#FF6B6B,18,\n`
     const result = parseCsv(csv)
     expect(result.valid).toBe(false)
     if (result.valid) return
@@ -89,7 +89,7 @@ describe('piecesCsv', () => {
   })
 
   it('rejects row with invalid color', () => {
-    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotar,color,espesor,cantos\nbase,Base,120,60,1,si,red,18,\n`
+    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos\nbase,Base,120,60,1,si,red,18,\n`
     const result = parseCsv(csv)
     expect(result.valid).toBe(false)
     if (result.valid) return

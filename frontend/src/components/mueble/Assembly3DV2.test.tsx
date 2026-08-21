@@ -7,9 +7,9 @@ const samplePieces: AssemblyPiece3D[] = [
   {
     id: 'base',
     nombre: 'Base',
-    ancho: 120,
-    alto: 1.8,
-    profundidad: 60,
+    ancho: 1200,
+    alto: 18,
+    profundidad: 600,
     color: '#FF6B6B',
     posicion: { x: 0, y: 0, z: 0 },
     rotacion: { x: 0, y: 0, z: 0 },
@@ -17,11 +17,11 @@ const samplePieces: AssemblyPiece3D[] = [
   {
     id: 'lateral-izq',
     nombre: 'Lateral Izq',
-    ancho: 1.8,
-    alto: 180,
-    profundidad: 60,
+    ancho: 18,
+    alto: 1800,
+    profundidad: 600,
     color: '#45B7D1',
-    posicion: { x: 0, y: 1.8, z: 0 },
+    posicion: { x: 0, y: 18, z: 0 },
     rotacion: { x: 0, y: 0, z: 0 },
   },
 ]
@@ -29,7 +29,7 @@ const samplePieces: AssemblyPiece3D[] = [
 const sampleConnectors: AssemblyConnector[] = [
   {
     tipo: 'confirmat',
-    posicion: { x: 0.9, y: 5, z: 5 },
+    posicion: { x: 9, y: 50, z: 50 },
     direccion: { x: 1, y: 0, z: 0 },
     piezas: ['lateral-izq', 'base'],
   },
@@ -43,9 +43,16 @@ describe('Assembly3DV2', () => {
     expect(container.querySelector('canvas')).toBeTruthy()
   })
 
-  it('renders with exploded view', () => {
+  it('renders with explode factor', () => {
     const { container } = render(
-      <Assembly3DV2 pieces={samplePieces} connectors={sampleConnectors} exploded />
+      <Assembly3DV2 pieces={samplePieces} connectors={sampleConnectors} explodeFactor={0.5} />
+    )
+    expect(container.querySelector('canvas')).toBeTruthy()
+  })
+
+  it('renders with selected piece code', () => {
+    const { container } = render(
+      <Assembly3DV2 pieces={samplePieces} connectors={sampleConnectors} selectedCode='base' />
     )
     expect(container.querySelector('canvas')).toBeTruthy()
   })
