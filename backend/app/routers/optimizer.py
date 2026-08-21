@@ -16,18 +16,20 @@ router = APIRouter()
 def optimize(request: Request, payload: OptimizeRequest, db: Session = Depends(get_db)):
     """Optimizacion rapida sin guardar proyecto."""
     offcuts = []
-    if payload.usar_sobrantes:
+    if payload.use_offcuts:
         from app import inventory as inventory_service
         offcuts_db = inventory_service.list_offcuts(db)
-        offcuts = [
-            {"id": o.id, "ancho": o.ancho_cm, "alto": o.alto_cm, "espesor": o.espesor_mm}
-            for o in offcuts_db
-        ]
+        offcuts = []
+        for o in offcuts_db:
+            for _ in range(o.cantidad):
+                offcuts.append(
+                    {"id": o.id, "ancho": o.ancho_mm, "alto": o.alto_mm, "espesor": o.espesor_mm}
+                )
 
     pieces = [p.model_dump() for p in payload.piezas]
     result = optimizer_service.optimize_cuts(
-        board_width_cm=payload.tablero.ancho,
-        board_height_cm=payload.tablero.alto,
+        board_width_mm=payload.tablero.ancho,
+        board_height_mm=payload.tablero.alto,
         pieces=pieces,
         offcuts=offcuts,
         kerf_mm=payload.tablero.kerf_mm,

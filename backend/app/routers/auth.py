@@ -58,13 +58,14 @@ def _set_temp_token_cookie(response: Response, temp_token: str) -> None:
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh")
-    response.delete_cookie("temp_token", path="/api/v1/auth")
+    response.delete_cookie("access_token", path="/", secure=settings.cookie_secure, samesite=settings.cookie_samesite)
+    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh", secure=settings.cookie_secure, samesite=settings.cookie_samesite)
+    response.delete_cookie("temp_token", path="/api/v1/auth", secure=settings.cookie_secure, samesite=settings.cookie_samesite)
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, payload: UserCreate, db: Session = Depends(get_db)):
     return auth_service.register_user(db, payload.username, payload.email, payload.password)
 
 
@@ -121,12 +122,12 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @limiter.limit("3/minute")
 def guest_pin(
     request: Request,
-    _: GuestPinRequest,
+    payload: GuestPinRequest,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    pin, expires_at = auth_service.generate_guest_pin(db, current_user.id)
-    return GuestPinResponse(pin=pin, expires_at=expires_at)
+    pin, expires_at, project_id = auth_service.generate_guest_pin(db, current_user.id, payload.project_id)
+    return GuestPinResponse(pin=pin, expires_at=expires_at, project_id=project_id)
 
 
 @router.get("/users/me", response_model=UserRead)
@@ -137,10 +138,10 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.get("/session")
 def get_session(current_user: PrincipalOrGuest | None = Depends(get_current_user_or_guest_optional)):
     if current_user is None:
-        return {"mode": None, "user": None}
+        return {"mode": None, "user": None, "project_id": None}
     if isinstance(current_user, User):
-        return {"mode": "principal", "user": UserRead.model_validate(current_user)}
-    return {"mode": "guest", "user": None}
+        return {"mode": "principal", "user": UserRead.model_validate(current_user), "project_id": None}
+    return {"mode": "guest", "user": None, "project_id": current_user.project_id}
 
 
 @router.post("/guest/login", response_model=TokenResponse)
