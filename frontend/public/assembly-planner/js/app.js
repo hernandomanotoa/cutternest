@@ -259,6 +259,35 @@ function init() {
     downloadText('cutternest-piezas.csv', piecesToCSV(state.pieces), 'text/csv');
   });
 
+  // Guardar como ejemplo
+  $('#btn-save-example')?.addEventListener('click', async () => {
+    if (!state.pieces.length) {
+      setStatus('No hay piezas para guardar como ejemplo.', 'alert--warning');
+      return;
+    }
+    const name = prompt('Nombre del nuevo ejemplo:');
+    if (!name || !name.trim()) return;
+    const csv = piecesToCSV(state.pieces);
+    try {
+      const res = await fetch('/api/v1/assembly-planner/examples', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), csv }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Error del servidor');
+      const select = $('#example-selector');
+      const option = document.createElement('option');
+      option.value = data.path;
+      option.textContent = data.name;
+      select.appendChild(option);
+      select.value = option.value;
+      setStatus(`Ejemplo guardado: ${data.path}`, 'alert--success');
+    } catch (err) {
+      setStatus(`No se pudo guardar: ${err.message}`, 'alert--danger');
+    }
+  });
+
   // Render inicial
   switchTab('csv');
   setStatus('Listo. Carga un CSV o usa los ejemplos para comenzar.');

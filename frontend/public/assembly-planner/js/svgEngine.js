@@ -39,7 +39,7 @@ function inferRole(piece) {
 
   if (n.includes('puerta') || id.includes('puerta')) return 'door';
   if (n.includes('tirador') || id.includes('tirador')) return 'handle';
-  if (n.includes('riel') || id.includes('riel')) return 'hanger_rail';
+  if (n.includes('riel') || n.includes('barra') || id.includes('riel') || id.includes('barra')) return 'hanger_rail';
   if (n.includes('pata') || n.includes('pie') || id.includes('pata')) return 'leg';
   if (n.includes('tirante') || n.includes('travesano') || n.includes('refuerzo') || n.includes('cantonera')) return 'brace';
 
@@ -88,8 +88,14 @@ function getPieceDims(piece, role, thickness = 15, family = 'cabinet') {
   if (rotate) [w, h] = [h, w];
 
   // Paneles horizontales delgados
-  if (role === 'top_panel' || role === 'bottom_panel' || role === 'seat_panel' || role === 'hanger_rail') {
+  if (role === 'top_panel' || role === 'bottom_panel' || role === 'hanger_rail') {
     return { w: ancho, h: useVisualThickness(alto, espesor) };
+  }
+
+  // Asiento: si está rotado, su altura visual es el espesor (apoyado sobre patas).
+  if (role === 'seat_panel') {
+    if (rotate) [w, h] = [h, w];
+    return { w, h: espesor };
   }
 
   if (role === 'shelf') {
@@ -894,11 +900,14 @@ function calculateShelfPositions(moduleH, shelves, thickness, family) {
   const usableH = moduleH - 2 * thickness;
   const gap = (usableH - totalShelfH) / (order.length + 1);
 
-  let y = thickness + gap;
+  // Distribuir repisas desde arriba hacia abajo, sin importar si son numéricas o descriptivas.
+  // Esto mantiene coherencia: "superior" / "1" queda arriba, "inferior" / última queda abajo.
+  let y = moduleH - thickness - gap;
   return order.map((p) => {
     const dim = getPieceDims(p, 'shelf', thickness, family);
+    y -= dim.h;
     const pos = { piece: p, y, h: dim.h };
-    y += dim.h + gap;
+    y -= gap;
     return pos;
   });
 }

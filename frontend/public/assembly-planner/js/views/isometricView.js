@@ -53,7 +53,7 @@ export function renderIsometricView(container, viewState) {
   let explodeFactor = 0;
   let drawerGap = 15;
   let doorAngle = 0;
-  let isoFlip = false;
+  let isoFlip = true;
 
   function render() {
     const renderer = new IsometricRenderer(canvas, {

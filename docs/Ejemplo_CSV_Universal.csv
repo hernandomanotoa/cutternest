@@ -10,12 +10,6 @@ m1-lateral-der,Lateral derecho,2300,550,1,no,#C19A6B,15,"T,B,R",1
 m1-fondo,Fondo cajonera,450,2300,1,no,#F2F2F2,15,,1
 m1-repisa-superior,Repisa superior,390,380,1,si,#D9C2A3,15,"T,B,L,R",1
 m1-repisa-inferior,Repisa inferior,390,380,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-sup-izq,Divisor superior izq,30,400,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-sup-der,Divisor superior der,30,400,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-med-izq,Divisor medio izq,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-med-der,Divisor medio der,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-inf-izq,Divisor inferior izq,30,400,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-inf-der,Divisor inferior der,30,400,1,no,#C19A6B,15,"T,B,L,R",1
 m11-cajon-frente,Frente cajon superior,400,180,1,si,#8B5A2B,15,"T,B,L,R",11
 m11-cajon-lateral-izq,Lateral cajon sup,180,450,1,no,#D9C2A3,15,"T,B,L",11
 m11-cajon-lateral-der,Lateral cajon sup der,180,450,1,no,#D9C2A3,15,"T,B,R",11
@@ -74,7 +68,6 @@ m5-fondo,Fondo ropero,1200,2200,1,no,#F2F2F2,15,,5
 m5-puerta-izq,Puerta izquierda,590,2180,1,no,#D9C2A3,15,"T,B,L,R",5
 m5-puerta-der,Puerta derecha,590,2180,1,no,#D9C2A3,15,"T,B,L,R",5
 m5-riel-colgador,Riel colgador,1100,30,1,si,#A0A0A0,5,,5
-m5-soporte-intermedio-central,Soporte intermedio central,20,30,1,no,#D9C2A3,15,"T,B,L,R",5
 m5-estante,Estante ropero,1100,20,1,si,#D9C2A3,15,"T,B,L,R",5
 
 # --- M6: Zapatero (cabinet) ---

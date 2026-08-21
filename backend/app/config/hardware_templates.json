@@ -1,0 +1,34 @@
+{
+  "templates": [
+    {
+      "item": "Bisagra cazoleta 35mm",
+      "precio_unit": 1.2,
+      "categoria": "bisagras"
+    },
+    {
+      "item": "Tornillo confirmat 6.4x50",
+      "precio_unit": 0.15,
+      "categoria": "tornillos"
+    },
+    {
+      "item": "Pata ajustable H150",
+      "precio_unit": 2.5,
+      "categoria": "patas"
+    },
+    {
+      "item": "Corredera telescopica 450mm",
+      "precio_unit": 8.0,
+      "categoria": "correderas"
+    },
+    {
+      "item": "Tirador aluminio 128mm",
+      "precio_unit": 3.75,
+      "categoria": "tiradores"
+    },
+    {
+      "item": "Escuadra metalica 20x20",
+      "precio_unit": 0.45,
+      "categoria": "escuadras"
+    }
+  ]
+}

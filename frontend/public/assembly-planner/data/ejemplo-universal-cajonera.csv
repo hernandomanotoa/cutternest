@@ -1,26 +1,27 @@
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 m1-base,Base cajonera,450,520,1,si,#C19A6B,15,"T,B,L,R",1
-m1-tapa,Tapa cajonera,450,550,1,si,#C19A6B,15,"T,B,L,R",1
-m1-lateral-izq,Lateral izquierdo,2300,550,1,no,#C19A6B,15,"T,B,L",1
-m1-lateral-der,Lateral derecho,2300,550,1,no,#C19A6B,15,"T,B,R",1
+m1-tapa,Tapa cajonera,450,520,1,si,#C19A6B,15,"T,B,L,R",1
+m1-lateral-izq,Lateral izquierdo,15,2300,1,no,#C19A6B,15,"T,B,L",1
+m1-lateral-der,Lateral derecho,15,2300,1,no,#C19A6B,15,"T,B,R",1
 m1-fondo,Fondo cajonera,450,2300,1,no,#F2F2F2,15,,1
-m1-repisa-superior,Repisa superior,390,380,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-repisa-inferior,Repisa inferior,390,380,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-sup-izq,Divisor superior izq,30,400,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-sup-der,Divisor superior der,30,400,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-med-izq,Divisor medio izq,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-med-der,Divisor medio der,30,400,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-inf-izq,Divisor inferior izq,30,400,1,no,#C19A6B,15,"T,B,L,R",1
-m1-divisor-inf-der,Divisor inferior der,30,400,1,no,#C19A6B,15,"T,B,L,R",1
+m1-travesano,Travesano trasero,370,40,1,no,#4ECDC4,15,"T,B,L,R",1
+m1-repisa-1,Repisa superior,390,520,1,si,#D9C2A3,15,"T,B,L,R",1
+m1-repisa-2,Repisa inferior,390,520,1,si,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-sup-izq,Divisor superior izq,30,285,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-sup-der,Divisor superior der,30,285,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-med-izq,Divisor medio izq,30,1670,1,no,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-med-der,Divisor medio der,30,1670,1,no,#D9C2A3,15,"T,B,L,R",1
+m1-divisor-inf-izq,Divisor inferior izq,30,300,1,no,#C19A6B,15,"T,B,L,R",1
+m1-divisor-inf-der,Divisor inferior der,30,300,1,no,#C19A6B,15,"T,B,L,R",1
 m11-cajon-frente,Frente cajon superior,400,180,1,si,#8B5A2B,15,"T,B,L,R",11
-m11-cajon-lateral-izq,Lateral cajon sup,180,450,1,no,#D9C2A3,15,"T,B,L",11
-m11-cajon-lateral-der,Lateral cajon sup der,180,450,1,no,#D9C2A3,15,"T,B,R",11
-m11-cajon-fondo,Fondo cajon sup,360,450,1,no,#F2F2F2,15,,11
-m11-cajon-base,Base cajon sup,360,450,1,si,#D9C2A3,15,"T,B,L,R",11
+m11-cajon-lateral-izq,Lateral cajon sup,450,180,1,no,#D9C2A3,15,"T,B,L",11
+m11-cajon-lateral-der,Lateral cajon sup der,450,180,1,no,#D9C2A3,15,"T,B,R",11
+m11-cajon-fondo,Fondo cajon sup,360,180,1,no,#F2F2F2,15,,11
+m11-cajon-base,Base cajon sup,360,180,1,si,#D9C2A3,15,"T,B,L,R",11
 m11-cajon-tirador,Tirador cajon sup,2,20,1,no,#A0A0A0,5,,11
 m12-cajon-frente,Frente cajon inferior,400,180,1,si,#8B5A2B,15,"T,B,L,R",12
-m12-cajon-lateral-izq,Lateral cajon inf,180,450,1,no,#D9C2A3,15,"T,B,L",12
-m12-cajon-lateral-der,Lateral cajon inf der,180,450,1,no,#D9C2A3,15,"T,B,R",12
-m12-cajon-fondo,Fondo cajon inf,360,450,1,no,#F2F2F2,15,,12
-m12-cajon-base,Base cajon inf,360,450,1,si,#D9C2A3,15,"T,B,L,R",12
+m12-cajon-lateral-izq,Lateral cajon inf,450,180,1,no,#D9C2A3,15,"T,B,L",12
+m12-cajon-lateral-der,Lateral cajon inf der,450,180,1,no,#D9C2A3,15,"T,B,R",12
+m12-cajon-fondo,Fondo cajon inf,360,180,1,no,#F2F2F2,15,,12
+m12-cajon-base,Base cajon inf,360,180,1,si,#D9C2A3,15,"T,B,L,R",12
 m12-cajon-tirador,Tirador cajon inf,2,20,1,no,#A0A0A0,5,,12
