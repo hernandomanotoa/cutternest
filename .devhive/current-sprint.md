@@ -29,6 +29,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A16 | Campo `pos_z` + offsets configurables | assembly-planner-agent | ✅ Completado | ADR-0016. 101 tests frontend OK. |
 | A17 | Panel de configuración de offsets verticales | assembly-planner-agent | ✅ Completado | ADR-0016 A16.7. 101 tests frontend OK. |
 | A18 | Panel inline de offsets en vista isométrica | assembly-planner-agent | ✅ Completado | ADR-0016 A18. 103 tests frontend OK. |
+| A19 | Catálogo de ejemplos CSV por espacio | Guardian | ✅ Completado | 14 muebles nuevos, selector por espacio, generador `scripts/generar-ejemplos-catalogo.py`. 103 tests frontend OK. |
 
 ## Leyenda estados
 
@@ -66,7 +67,8 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
 
-- **Conservados en `frontend/public/assembly-planner/data/`**: básico, global, cajonera, closet, cocina, comoda, escritorio, librero-alto, mueble-tv, vanitory, armario, y ejemplos universales (cajonera, librero, mesa, ropero, silla, zapatero).
+- **Conservados en `frontend/public/assembly-planner/data/`**: básico, global, cajonera, closet, cocina, comoda, escritorio, librero-alto, mueble-tv, vanitory, armario, aparador, estantería, vitrina, mesa-extensible, cabecero, recibidor-lineal, consola, separador-ambientes, botellero, isla-cocina, columna-cocina, columna-auxiliar-bano, espejo-modulo, archivador, y ejemplos universales (cajonera, librero, ropero, zapatero).
+- **Eliminados por no ajustarse al catálogo de muebles fabricables**: banco, mesa de centro, universal mesa y universal silla.
 - **Eliminados por obsoletos/redundantes**: renders SVG de `test/renders/` y directorio `docs/temp-svg/`.
 
 ## Next actions
