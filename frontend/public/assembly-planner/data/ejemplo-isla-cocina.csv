@@ -1,0 +1,23 @@
+# CutterNest Piezas v1
+# Isla central de cocina con cajones y panel lateral.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+glb-zocalo,Zocalo isla,1200,100,1,si,#C19A6B,15,"T,B,L,R",estructura
+glb-tapa,Tapa isla,1200,40,1,si,#C19A6B,30,"T,B,L,R",estructura
+m1-base,Base isla,1200,900,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-tapa,Tapa isla,1200,900,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-lateral-izq,Lateral izquierdo isla,900,900,1,no,#C19A6B,15,"T,B,L",m1
+m1-lateral-der,Lateral derecho isla,900,900,1,no,#C19A6B,15,"T,B,R",m1
+m1-fondo,Fondo isla,1200,900,1,no,#F2F2F2,15,,m1
+m11-frente,Frente cajon 1,460,180,1,si,#8B5A2B,15,"T,B,L,R",m11
+m11-lateral-izq,Lateral cajon 1,150,870,1,no,#D9C2A3,15,"T,B,L",m11
+m11-lateral-der,Lateral cajon 1,150,870,1,no,#D9C2A3,15,"T,B,R",m11
+m11-fondo,Fondo cajon 1,420,870,1,no,#F2F2F2,15,,m11
+m11-base,Base cajon 1,420,870,1,si,#D9C2A3,15,"T,B,L,R",m11
+m11-tirador,Tirador cajon 1,2,20,1,no,#A0A0A0,5,,m11
+m12-frente,Frente cajon 2,460,180,1,si,#8B5A2B,15,"T,B,L,R",m12
+m12-lateral-izq,Lateral cajon 2,150,870,1,no,#D9C2A3,15,"T,B,L",m12
+m12-lateral-der,Lateral cajon 2,150,870,1,no,#D9C2A3,15,"T,B,R",m12
+m12-fondo,Fondo cajon 2,420,870,1,no,#F2F2F2,15,,m12
+m12-base,Base cajon 2,420,870,1,si,#D9C2A3,15,"T,B,L,R",m12
+m12-tirador,Tirador cajon 2,2,20,1,no,#A0A0A0,5,,m12
+m1-panel,Panel lateral isla,900,860,1,no,#FFFFFF,18,"T,B,L,R",m1

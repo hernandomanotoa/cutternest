@@ -1,0 +1,13 @@
+# CutterNest Piezas v1
+# Módulo de baño con puerta y espejo.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+glb-zocalo,Zocalo modulo baño,800,100,1,si,#C19A6B,15,"T,B,L,R",estructura
+glb-tapa,Tapa modulo baño,800,40,1,si,#C19A6B,30,"T,B,L,R",estructura
+glb-trasera,Panel posterior modulo baño,800,700,1,no,#F2F2F2,15,,estructura
+m1-base,Base espejo modulo,800,150,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-tapa,Tapa espejo modulo,800,150,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-lateral-izq,Lateral izquierdo espejo modulo,150,700,1,no,#C19A6B,15,"T,B,L",m1
+m1-lateral-der,Lateral derecho espejo modulo,150,700,1,no,#C19A6B,15,"T,B,R",m1
+m1-fondo,Fondo espejo modulo,800,700,1,no,#F2F2F2,15,,m1
+m1-puerta,Puerta modulo baño,360,660,1,no,#FFFFFF,18,"T,B,L,R",m1
+m1-espejo,Espejo modulo baño,700,500,1,no,#E8F4F8,4,,m1
