@@ -3,9 +3,9 @@
 This guide is project-agnostic and can be reused in any DevHive-enabled repository. It explains how to ask the agent swarm for a new development task so that the request is understood, routed, and executed efficiently.
 
 > **Project-specific practical guide (Spanish / Kimi Code):** `docs/AGENT-WORKFLOW.md`  
-> **Current project**: `Flujo de Autentificación - Wiki DITIC`  
+> **Current project**: `CutterNest`  
 > **DevHive version**: `2.2.0`  
-> **MCP project name**: `workspace-flujo-autentificacion`
+> **MCP project name**: `cutternest-kit`
 
 ---
 

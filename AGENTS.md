@@ -59,7 +59,21 @@ Guía orientativa para agentes que trabajan en `/workspace/cutternest-kit`. Ante
 - **Histórico de sprints**: `.devhive/sprints/archive/` es cold; no se carga por defecto.
 - **Skills y memoria por agente**: `.agents/` contiene subdirectorios por rol (`backend-agent`, `frontend-agent`, `db-agent`, `test-agent`, etc.), cada uno con `SKILL.md` y carpeta `memory/`.
 - **Auditoría de tokens**: usa `scripts/audit-context-tokens.mjs` si existe para verificar presupuestos; en CutterNest el script puede no existir aún en MVP.
+- **Reindexar MCP**: si un agente toca archivos fuente en un componente, el Guardian debe coordinar la re-indexación del proyecto en `codebase-memory-mcp` antes de cerrar el swarm.
 - Antes de realizar cambios amplios, consulta estos archivos para entender decisiones previas y contexto activo.
+
+### Componentes del Assembly Planner (`frontend/public/assembly-planner/`)
+
+El Assembly Planner se organiza por capas con responsabilidades definidas. Cuando un agente trabaje en él, debe atacar solo la capa correspondiente y no mezclar lógica de presentación con geometría pura ni con servicios de negocio:
+
+- **`js/core/`**: infraestructura transversal (`store.js`, `config.js`). Cambios de estado global, colores, Z-index y thresholds van aquí.
+- **`js/utils/`**: utilidades puras sin DOM (`normalize.js`). No deben importar nada de `views/`, `services/` ni `components/`.
+- **`js/services/`**: lógica de negocio pura y testeable (`classifierService.js`, `moduleService.js`, `geometryService.js`, `isoGeometryService.js`). No deben tocar DOM ni SVG.
+- **`js/components/`**: mini-componentes sin estado propio, reutilizables por las vistas (`graph/graphLayout.js`, `manual/manualExporter.js`, `manual/manualSupportWarnings.js`). Pueden usar DOM si es necesario, pero no deben depender del store.
+- **`js/views/`**: vistas con ciclo de vida `{ mount, destroy }` y suscripción al store (`graphView.js`, `manualView.js`, etc.). Aquí vive la UI y el pegamento con `app.js`.
+- **`js/app.js`**: orquestador global. Expone acciones al store y coordina el renderizado de vistas.
+
+**Regla de oro**: si una función no necesita DOM, no debe vivir en una vista; si una función no necesita SVG, no debe vivir en un renderizador; si una función no necesita conocer el estado global, no debe vivir en `app.js`.
 
 ## 3. Convenciones de código
 
@@ -199,6 +213,43 @@ Esto reduce re-exploración, tokens de contexto y ciclos de corrección sin camb
 - Actualiza esta guía (`AGENTS.md`) si introduces cambios que afecten la arquitectura, convenciones, comandos o reglas de seguridad.
 - Si se toca código fuente, asegúrate de que el Guardian coordine la re-indexación MCP al cerrar el swarm.
 
+## 9. Asignación de actividades por componente (Guardian)
+
+Al planificar tareas futuras, el Guardian debe asignar agentes según el componente afectado y evitar que un mismo agente toque capas que no le corresponden:
+
+| Agente / rol | Scope principal | Ejemplos de tareas |
+|---|---|---|
+| **backend-agent** | `backend/app/` | Nuevos endpoints, modelos, lógica de optimización, PDFs del backend, autenticación. |
+| **frontend-agent** | `frontend/src/` | Componentes React, hooks, tipos, utilidades TypeScript, estilos Tailwind. |
+| **assembly-planner-agent** | `frontend/public/assembly-planner/` | Refactor de vistas, nuevos servicios de geometría/clasificación, tests Node, aplicación de `config.js`. |
+| **db-agent** | `backend/app/database.py`, `init.sql`, migraciones | Esquema SQLite/PostgreSQL, migraciones, índices. |
+| **test-agent** | `backend/tests/`, `frontend/src/**/*.test.ts`, `frontend/public/assembly-planner/**/*.test.js` | Tests unitarios, integración, cobertura. |
+| **deploy-agent** | `docker-compose*.yml`, `Dockerfile`, `scripts/`, `nginx.conf` | Builds, contenedores, certificados, despliegue. |
+
+### Reglas de asignación
+
+1. **Una tarea = una capa**: si el cambio afecta solo al Assembly Planner, no se le pide al frontend-agent que toque `frontend/src/`. Si el cambio afecta React, no se mezcla con lógica del Assembly Planner vanilla.
+2. **No cruzar runners de tests**: los tests del Assembly Planner usan `node --test`; los del frontend React usan Vitest. Un test-agent debe saber cuál runner aplica según la ruta.
+3. **Componentes vs. vistas**: si una tarea dice "refactorizar vista", el agente puede crear archivos en `js/components/` pero no debe dejar lógica de negocio allí. Si dice "nuevo cálculo geométrico", va en `js/services/`, no en `js/components/` ni `js/views/`.
+4. **Re-indexación MCP obligatoria**: tras cualquier swarm que toque arquitectura o exporte nuevos módulos, el Guardian debe re-indexar el proyecto en `codebase-memory-mcp` para que las búsquedas futuras reflejen la nueva estructura.
+
+### Handoff entre agentes
+
+Cuando un agente termine su componente, debe entregar un **🎫 HANDOFF TICKET** con:
+
+- Archivos modificados/creados.
+- Tests ejecutados y resultado.
+- Deuda técnica o próximos pasos.
+- Referencias MCP relevantes (funciones, servicios, vistas).
+
+
+- Verifica que el backend arranca (`uvicorn app.main:app` o `docker compose up --build`).
+- Ejecuta los tests relevantes (`pytest` y/o `pnpm test`) y asegúrate de que pasen.
+- No ejecutes tests E2E a menos que la pila Docker esté levantada.
+- Revisa que no hayas dejado credenciales, URLs internas ni claves en el diff.
+- Actualiza esta guía (`AGENTS.md`) si introduces cambios que afecten la arquitectura, convenciones, comandos o reglas de seguridad.
+- Si se toca código fuente, asegúrate de que el Guardian coordine la re-indexación MCP al cerrar el swarm.
+
 ## 9. Flujo de agentes DevHive
 
 Este proyecto usa el sistema DevHive en `.agents/`. Reglas globales aprobadas para todos los agentes:
@@ -209,3 +260,5 @@ Este proyecto usa el sistema DevHive en `.agents/`. Reglas globales aprobadas pa
 4. **Audit.log**: se respalda con timestamp antes de cada modificación y nunca se sobrescribe con `Write`.
 5. **Validación final**: el plugin `integration-validator` (`.agents/plugins/integration-validator/`) corre tests y verifica entregables tras cada swarm.
 6. **Entregable**: usar la plantilla estándar con `PRE-CONDITIONS MET` definida en `.agents/guardian/templates/deliverable-template.md`.
+
+> **Guía de uso para humanos:** si buscas instrucciones orientativas sobre cuándo y cómo usar cada agente, comandos DCOP, validaciones y ejemplos de prompts, consulta `docs/GUIA_EQUIPO_AGENTES.md`.

@@ -55,7 +55,7 @@ Este documento agrupa las convenciones transversales del proyecto. Para detalles
 
 Para evitar errores operacionales recurrentes, validar lo siguiente **antes** de escribir o modificar archivos:
 
-1. **Working directory correcto.** Confirmar que los paths absolutos apuntan a `/workspace/flujo-autentificacion` (o el root del proyecto en el host del usuario). No asumir que el CWD del agente coincide con el repo del proyecto.
+1. **Working directory correcto.** Confirmar que los paths absolutos apuntan a `/workspace/cutternest-kit` (o el root del proyecto en el host del usuario). No asumir que el CWD del agente coincide con el repo del proyecto.
 2. **Entorno de paquetes disponible.** Si se va a modificar `package.json`/`pnpm-lock.yaml`, verificar que `pnpm` funciona en el host. Si el host tiene problemas con pnpm (timeouts, corepack, firma), usar el contenedor `frontend` o `auth` **solo si** monta el código fuente como bind mount. De lo contrario, editar archivos en el host y reconstruir la imagen después.
 3. **Bind mounts de Docker.** Antes de ejecutar `pnpm add`, `npm install` o cualquier operación de escritura dentro de un contenedor, verificar que el contenedor monta el proyecto:
    ```bash
@@ -66,9 +66,9 @@ Para evitar errores operacionales recurrentes, validar lo siguiente **antes** de
 5. **Type-check inmediato.** Después de cada cambio significativo en TypeScript, ejecutar el type-check del paquete correspondiente **antes** de correr tests:
    ```bash
    # frontend
-   docker exec flujo-autentificacion-frontend pnpm --filter flujo-autentificacion-frontend typecheck
+   docker exec cutternest-frontend pnpm typecheck
    # backend
-   docker exec flujo-autentificacion-auth pnpm --filter @flujo/backend typecheck
+   docker exec cutternest-backend pytest -q
    ```
    No introducir variables no utilizadas ni dejar funciones sin importar sus dependencias.
 6. **Herramientas Docker disponibles.** Antes de recomendar comandos de `docker compose`, verificar que el plugin está instalado en el entorno donde se ejecutarán. En este entorno de agente puede no estarlo; el usuario debe ejecutarlos en su WSL/host.
