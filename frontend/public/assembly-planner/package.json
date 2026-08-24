@@ -1,0 +1,9 @@
+{
+  "name": "assembly-planner-vanilla",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"js/**/*.test.js\""
+  }
+}
