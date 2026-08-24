@@ -1,0 +1,15 @@
+# CutterNest Piezas v1
+# Vitrina alta para salón o comedor con puerta de cristal.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+glb-zocalo,Zocalo vitrina,800,100,1,si,#C19A6B,15,"T,B,L,R",estructura
+glb-tapa,Tapa vitrina,800,40,1,si,#C19A6B,30,"T,B,L,R",estructura
+glb-trasera,Panel posterior vitrina,800,2000,1,no,#F2F2F2,15,,estructura
+m1-base,Base vitrina,800,400,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-tapa,Tapa vitrina,800,400,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-lateral-izq,Lateral izquierdo vitrina,400,2000,1,no,#C19A6B,15,"T,B,L",m1
+m1-lateral-der,Lateral derecho vitrina,400,2000,1,no,#C19A6B,15,"T,B,R",m1
+m1-fondo,Fondo vitrina,800,2000,1,no,#F2F2F2,15,,m1
+m1-puerta,Puerta superior vitrina,360,900,1,no,#FFFFFF,18,"T,B,L,R",m1
+m1-vidrio,Cristal puerta vitrina,300,700,1,no,#E8F4F8,4,,m1
+m1-repisa-superior,Repisa superior vitrina,740,250,1,si,#D9C2A3,15,"T,B,L,R",m1
+m1-repisa-inferior,Repisa inferior vitrina,740,250,1,si,#D9C2A3,15,"T,B,L,R",m1

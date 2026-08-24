@@ -205,34 +205,6 @@ const examples = [];
   examples.push({ name: 'Ejemplo_CSV_Armario_Puertas_Corredizas.csv', dataName: 'ejemplo-armario.csv', lines });
 }
 
-// 11. Mesa de centro
-{
-  const lines = [];
-  lines.push(header('Ejemplo de mesa de centro', 'Tablero rectangular con 4 patas y travesaños de refuerzo.'));
-  lines.push(line('m1-tablero', 'Tablero mesa centro', 800, 600, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-frontal-izq', 'Pata frontal izquierda', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-frontal-der', 'Pata frontal derecha', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-trasera-izq', 'Pata trasera izquierda', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-trasera-der', 'Pata trasera derecha', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-travesano-frontal', 'Travesano frontal', 680, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-travesano-trasero', 'Travesano trasero', 680, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
-  examples.push({ name: 'Ejemplo_CSV_Mesa_Centro.csv', dataName: 'ejemplo-mesa-centro.csv', lines });
-}
-
-// 12. Banco / banqueta
-{
-  const lines = [];
-  lines.push(header('Ejemplo de banco / banqueta', 'Asiento con 4 patas y travesaños de refuerzo.'));
-  lines.push(line('m1-asiento', 'Asiento banco', 900, 350, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-frontal-izq', 'Pata frontal izquierda', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-frontal-der', 'Pata frontal derecha', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-trasera-izq', 'Pata trasera izquierda', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-pata-trasera-der', 'Pata trasera derecha', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-travesano-frontal', 'Travesano frontal', 780, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-travesano-trasero', 'Travesano trasero', 780, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
-  examples.push({ name: 'Ejemplo_CSV_Banco.csv', dataName: 'ejemplo-banco.csv', lines });
-}
-
 // 13. Mesa de noche / velador
 {
   const lines = [];

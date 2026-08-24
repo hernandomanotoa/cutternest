@@ -1,0 +1,15 @@
+# CutterNest Piezas v1
+# Separador de ambientes tipo estantería abierta.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+glb-zocalo,Zocalo separador,1200,80,1,si,#C19A6B,15,"T,B,L,R",estructura
+glb-tapa,Tapa separador,1200,40,1,si,#C19A6B,30,"T,B,L,R",estructura
+glb-trasera,Panel posterior separador,1200,1600,1,no,#F2F2F2,15,,estructura
+m1-base,Base separador,1200,200,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-tapa,Tapa separador,1200,200,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-lateral-izq,Lateral izquierdo separador,200,1600,1,no,#C19A6B,15,"T,B,L",m1
+m1-lateral-der,Lateral derecho separador,200,1600,1,no,#C19A6B,15,"T,B,R",m1
+m1-fondo,Fondo separador,1200,1600,1,no,#F2F2F2,15,,m1
+m1-repisa-1,Repisa 1 separador,1140,250,1,si,#D9C2A3,15,"T,B,L,R",m1
+m1-repisa-2,Repisa 2 separador,1140,250,1,si,#D9C2A3,15,"T,B,L,R",m1
+m1-repisa-3,Repisa 3 separador,1140,250,1,si,#D9C2A3,15,"T,B,L,R",m1
+m1-repisa-4,Repisa 4 separador,1140,250,1,si,#D9C2A3,15,"T,B,L,R",m1

@@ -1,0 +1,13 @@
+# CutterNest Piezas v1
+# Columna alta de cocina para horno/microondas con repisas.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+glb-zocalo,Zocalo columna,600,100,1,si,#C19A6B,15,"T,B,L,R",estructura
+glb-tapa,Tapa columna,600,40,1,si,#C19A6B,30,"T,B,L,R",estructura
+glb-trasera,Panel posterior columna,600,2100,1,no,#F2F2F2,15,,estructura
+m1-base,Base columna,600,600,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-tapa,Tapa columna,600,600,1,si,#C19A6B,30,"T,B,L,R",m1
+m1-lateral-izq,Lateral izquierdo columna,600,2100,1,no,#C19A6B,15,"T,B,L",m1
+m1-lateral-der,Lateral derecho columna,600,2100,1,no,#C19A6B,15,"T,B,R",m1
+m1-fondo,Fondo columna,600,2100,1,no,#F2F2F2,15,,m1
+m1-repisa-superior,Repisa superior columna,540,250,1,si,#D9C2A3,15,"T,B,L,R",m1
+m1-repisa-inferior,Repisa inferior columna,540,250,1,si,#D9C2A3,15,"T,B,L,R",m1
