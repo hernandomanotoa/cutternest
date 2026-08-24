@@ -4,7 +4,8 @@ m6-tapa,Tapa zapatero,800,300,1,si,#8B5A2B,15,"T,B,L,R",6
 m6-lateral-izq,Lateral zapatero izq,15,1200,1,no,#8B5A2B,15,"T,B,L",6
 m6-lateral-der,Lateral zapatero der,15,1200,1,no,#8B5A2B,15,"T,B,R",6
 m6-fondo,Fondo zapatero,800,1200,1,no,#F2F2F2,15,,6
-m6-repisa-1,Repisa zapatero 1,740,20,1,si,#D9C2A3,15,"T,B,L,R",6
-m6-repisa-2,Repisa zapatero 2,740,20,1,si,#D9C2A3,15,"T,B,L,R",6
-m6-repisa-3,Repisa zapatero 3,740,20,1,si,#D9C2A3,15,"T,B,L,R",6
-m6-repisa-4,Repisa zapatero 4,740,20,1,si,#D9C2A3,15,"T,B,L,R",6
+m6-bandeja-1,Bandeja zapatero 1,740,15,1,si,#D9C2A3,15,"T,B,L,R",6
+m6-bandeja-2,Bandeja zapatero 2,740,15,1,si,#D9C2A3,15,"T,B,L,R",6
+m6-bandeja-3,Bandeja zapatero 3,740,15,1,si,#D9C2A3,15,"T,B,L,R",6
+m6-bandeja-4,Bandeja zapatero 4,740,15,1,si,#D9C2A3,15,"T,B,L,R",6
+m6-bandeja-5,Bandeja zapatero 5,740,15,1,si,#D9C2A3,15,"T,B,L,R",6

@@ -1,10 +1,33 @@
 // csvView.js — Vista de importación y edición de CSV
 
 import { $, $$, escapeHtml, isGlobalPiece, getModuleLabel } from '../utils.js';
-import { state, recalculateAll, loadCSV, addEmptyPiece, setStatus } from '../app.js';
+import { getModuleDimensions } from '../services/geometryService.js';
+import { getDefaultVerticalPosition } from '../services/verticalPositionService.js';
+import { recalculateAll, loadCSV, addEmptyPiece, setStatus, updatePiece, removePiece } from '../app.js';
 import { piecesToCSV } from '../csvParser.js';
 
-export function renderCSVView(container) {
+export function createCSVView(store) {
+  let unsubscribe = null;
+  let container = null;
+
+  function mount(parent) {
+    container = parent;
+    unsubscribe = store.subscribe('state:changed', () => render(container, store.get()));
+    render(container, store.get());
+  }
+
+  function destroy() {
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+    container = null;
+  }
+
+  return { mount, destroy };
+}
+
+function render(container, state) {
   const pieces = state.pieces;
   const warnings = state.warnings || [];
 
@@ -39,11 +62,12 @@ export function renderCSVView(container) {
                 <th>Esp.</th>
                 <th>Cantos</th>
                 <th>Mód.</th>
+                <th>Pos. Z (mm)</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="csv-table-body">
-              ${pieces.length ? pieces.map((p, i) => renderPieceRow(p, i)).join('') : '<tr><td colspan="10" class="empty-state">No hay piezas. Carga un ejemplo o importa un CSV.</td></tr>'}
+              ${pieces.length ? pieces.map((p, i) => renderPieceRow(p, i, state)).join('') : '<tr><td colspan="11" class="empty-state">No hay piezas. Carga un ejemplo o importa un CSV.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -51,7 +75,7 @@ export function renderCSVView(container) {
     </div>
   `;
 
-  bindEvents(container);
+  bindEvents(container, state);
 }
 
 function renderWarnings(warnings) {
@@ -67,12 +91,21 @@ function renderWarnings(warnings) {
   `;
 }
 
-function renderPieceRow(piece, index) {
+function defaultPlaceholder(piece, state) {
+  const modulePieces = state.pieces.filter((p) => p.modulo === piece.modulo);
+  const meta = getModuleDimensions(modulePieces, Number(piece.espesor) || 18);
+  const defaultPosZ = getDefaultVerticalPosition(piece, meta.height, meta.thickness);
+  return Number.isFinite(defaultPosZ) ? `${Math.round(defaultPosZ)}` : 'auto';
+}
+
+function renderPieceRow(piece, index, state) {
   const cantosValue = piece.cantos ? piece.cantos.replace(/"/g, '') : '';
   const global = isGlobalPiece(piece);
   const activeModule = state.currentModule === 'global' || piece.modulo === state.currentModule || global;
   const rowClass = activeModule ? 'csv-row-active' : 'csv-row-inactive';
   const badge = global ? '<span class="badge badge--info">Global</span>' : `<span class="badge badge--secondary">${escapeHtml(piece.modulo || '1')}</span>`;
+  const posZValue = Number.isFinite(piece.pos_z) ? piece.pos_z : '';
+  const placeholder = defaultPlaceholder(piece, state);
   return `
     <tr data-index="${index}" class="${rowClass}">
       <td><input type="text" data-field="id" value="${escapeHtml(piece.id)}" /></td>
@@ -84,12 +117,13 @@ function renderPieceRow(piece, index) {
       <td><input type="number" data-field="espesor" value="${piece.espesor}" min="1" /></td>
       <td><input type="text" data-field="cantos" value="${escapeHtml(cantosValue)}" placeholder="T,B,L,R" /></td>
       <td><input type="text" data-field="modulo" value="${escapeHtml(piece.modulo)}" /> ${badge}</td>
+      <td><input type="number" data-field="pos_z" value="${posZValue}" placeholder="${escapeHtml(placeholder)}" step="any" min="0" /></td>
       <td><button class="btn btn--danger btn--sm" data-delete="${index}">×</button></td>
     </tr>
   `;
 }
 
-function bindEvents(container) {
+function bindEvents(container, state) {
   const rawArea = $('#csv-raw', container);
   if (rawArea && state.pieces.length) {
     rawArea.value = piecesToCSV(state.pieces);
@@ -152,10 +186,13 @@ function bindEvents(container) {
     if (!Number.isFinite(idx) || !state.pieces[idx]) return;
 
     const field = input.dataset.field;
-    const piece = state.pieces[idx];
     let value = input.value;
 
-    if (['ancho', 'alto', 'espesor'].includes(field)) {
+    if (field === 'pos_z') {
+      const trimmed = value.trim();
+      value = trimmed === '' ? null : parseFloat(trimmed);
+      if (value !== null && !Number.isFinite(value)) return;
+    } else if (['ancho', 'alto', 'espesor'].includes(field)) {
       value = parseFloat(value);
       if (!Number.isFinite(value) || value <= 0) return;
     } else if (field === 'cantidad') {
@@ -165,8 +202,7 @@ function bindEvents(container) {
       value = input.checked;
     }
 
-    piece[field] = value;
-    recalculateAll();
+    updatePiece(idx, field, value);
   });
 
   container.addEventListener('click', (e) => {
@@ -174,8 +210,7 @@ function bindEvents(container) {
     if (!btn) return;
     const idx = Number(btn.dataset.delete);
     if (Number.isFinite(idx) && state.pieces[idx]) {
-      state.pieces.splice(idx, 1);
-      recalculateAll();
+      removePiece(idx);
     }
   });
 }

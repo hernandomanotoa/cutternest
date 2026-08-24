@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    exclude: ['public/assembly-planner/**', 'node_modules', 'dist', '.idea', '.git'],
   },
   server: {
     port: 3000,

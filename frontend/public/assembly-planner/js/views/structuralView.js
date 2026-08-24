@@ -1,10 +1,31 @@
 // structuralView.js — Vista de análisis estructural
 
 import { $, isGlobalPiece, getModuleLabel } from '../utils.js';
-import { state } from '../app.js';
+import { COLORS } from '../core/config.js';
 import { calcularCargaRepisa, clasificarRiesgo, calcularVuelco, estimatePieceWeight, getProfundidadMueble } from '../structural.js';
 
-export function renderStructuralView(container) {
+export function createStructuralView(store) {
+  let unsubscribe = null;
+  let container = null;
+
+  function mount(parent) {
+    container = parent;
+    unsubscribe = store.subscribe('state:changed', () => render(container, store.get()));
+    render(container, store.get());
+  }
+
+  function destroy() {
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+    container = null;
+  }
+
+  return { mount, destroy };
+}
+
+function render(container, state) {
   const pieces = state.pieces.filter((p) => {
     if (state.currentModule === 'global') return isGlobalPiece(p);
     return p.modulo === state.currentModule || isGlobalPiece(p);
@@ -70,7 +91,7 @@ function renderRepisaChart(p) {
   const prof = Math.min(p.ancho, p.alto);
   const carga = calcularCargaRepisa(luz, prof, p.espesor);
   const pct = Math.min((carga.cargaTotalKg / 25) * 100, 100);
-  const color = carga.cargaTotalKg >= 25 ? '#10b981' : carga.cargaTotalKg >= 15 ? '#fbbf24' : '#ef4444';
+  const color = carga.cargaTotalKg >= 25 ? COLORS.strokeSuccess : carga.cargaTotalKg >= 15 ? COLORS.strokeWarning : COLORS.strokeDanger;
   return `
     <div class="chart-bar">
       <span class="chart-label">${p.nombre}</span>
@@ -79,7 +100,7 @@ function renderRepisaChart(p) {
       </div>
       <span style="width: 90px; font-size: 0.8rem; font-weight: 700; color: ${color};">${carga.cargaTotalKg} kg</span>
     </div>
-    <div style="font-size: 0.75rem; color: #94a3b8; margin-left: 128px; margin-bottom: 0.75rem;">
+    <div style="font-size: 0.75rem; color: ${COLORS.textSecondary}; margin-left: 128px; margin-bottom: 0.75rem;">
       Limitante: ${carga.limitante} · Deflexión: ${carga.deflexionMm.toFixed(2)} mm · Referencia práctica: 25 kg
     </div>
   `;
@@ -100,7 +121,7 @@ function renderRiesgoRow(p) {
 }
 
 function renderVuelcoRow(e) {
-  const color = e.fs >= 1.5 ? '#10b981' : e.fs >= 1.0 ? '#fbbf24' : '#ef4444';
+  const color = e.fs >= 1.5 ? COLORS.strokeSuccess : e.fs >= 1.0 ? COLORS.strokeWarning : COLORS.strokeDanger;
   const width = Math.min(e.fs / 2.5 * 100, 100);
   return `
     <div class="chart-bar">

@@ -4,23 +4,41 @@
  */
 
 import {
-  inferRole,
   getPieceDims,
   getModuleDimensions,
-  detectFamily,
-  calculateShelfPositions,
-} from './svgEngine.js';
+} from './services/geometryService.js';
+import { calculateVerticalPositions } from './services/verticalPositionService.js';
+import {
+  applyDoorRotation,
+  applyExplode,
+  calculateVerticalZones,
+  distributeHorizontally,
+  drawerRank,
+  getModuleDepth,
+  groupDividersIntoZones,
+  inferBraceX,
+  inferBraceZ,
+  inferDividerX,
+  inferDoorX,
+  inferDoorZ,
+  inferLegX,
+  inferLegY,
+  inferRailZ,
+  inferThickness,
+  shouldShowLabel,
+} from './services/isoGeometryService.js';
+import { inferRole, detectFamily } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
+import { normalizeName as _normalizeName } from './utils/normalize.js';
+import { isGlobalPiece, getModuleLabel } from './services/moduleService.js';
+import { Z_INDEX as Z_INDEX_CONFIG, ROLE_COLORS, AXES_COLORS, COLORS } from './core/config.js';
 
-function normalizeName(s) {
-  return String(s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+function normalizeNameLocal(s) {
+  return _normalizeName(s);
 }
 
 function adjustColor(hex, percent) {
-  const clean = String(hex || '#C19A6B').replace('#', '');
+  const clean = String(hex || ROLE_COLORS.wood).replace('#', '');
   const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
   const num = parseInt(full, 16);
   const r = Math.min(255, Math.max(0, (num >> 16) + Math.round(percent * 2.55)));
@@ -37,30 +55,8 @@ function getFaceColors(baseColor) {
   };
 }
 
-const Z_INDEX = {
-  back_panel: 1,
-  side_panel_rear: 2,     // lateral que queda al fondo en la perspectiva actual
-  divider: 4,             // divisores verticales antes que tapa/base para que estas tapen sus uniones
-  bottom_panel: 5,
-  top_panel: 5,
-  panel: 5,
-  hanger_rail: 6,
-  shelf: 6,
-  brace: 7,
-  drawer_back: 8,
-  drawer_bottom: 9,
-  drawer_side: 10,
-  seat_panel: 11,
-  leg: 13,
-  side_panel_front: 20,   // lateral que queda al frente
-  front_panel: 25,        // paneles de frente
-  drawer_face: 25,        // frentes de cajón al frente del marco
-  door: 25,               // puertas al frente del marco
-  handle: 26,             // tiradores encima de todo
-};
-
 function getZIndex(role) {
-  return Z_INDEX[role] ?? 10;
+  return Z_INDEX_CONFIG[role] ?? 10;
 }
 
 function getDepthKey(geo) {
@@ -103,33 +99,39 @@ export class IsometricRenderer {
     this.explodeFactor = options.explodeFactor || 0;
     this.labelMode = options.labelMode || 'auto';
     this.isoFlip = options.isoFlip || false;
+    this.verticalPositionOverrides = options.verticalPositionOverrides || null;
   }
 
   render(moduleId, pieces, _dependencies) {
     const family = detectFamily(pieces, moduleId);
-    const globalPieces = pieces.filter((p) => this._isGlobalPiece(p));
+    const globalPieces = pieces.filter((p) => isGlobalPiece(p));
     const isGlobalModule = String(moduleId).toLowerCase() === 'estructura' || String(moduleId).toLowerCase() === 'global';
     const target = String(moduleId).trim();
 
     const exactPieces = isGlobalModule
       ? []
       : pieces.filter(
-          (p) => !this._isGlobalPiece(p) && String(p.modulo || '').trim() === target
+          (p) => !isGlobalPiece(p) && String(p.modulo || '').trim() === target
         );
 
     // Submódulos "insertos" (cajones, puertas interiores) que no tienen carcasa propia:
-    // se renderizan junto al módulo padre. Los submódulos con carcasa propia se ignoran
-    // aquí para evitar solapamientos espurios.
+    // se renderizan junto al módulo padre. Los submódulos de cajón SIEMPRE se
+    // renderizan como insertos, aunque tengan base/laterales/fondo propios.
     const hasCarcass = (pts) =>
       pts.some((p) => ['bottom_panel', 'top_panel', 'side_panel', 'back_panel'].includes(inferRole(p)));
+    const isDrawerSubModule = (pts) =>
+      pts.some((p) => {
+        const r = inferRole(p);
+        return r.startsWith('drawer_') || r === 'handle';
+      });
     const allModuleIds = new Set(
-      pieces.filter((p) => !this._isGlobalPiece(p)).map((p) => String(p.modulo || '').trim())
+      pieces.filter((p) => !isGlobalPiece(p)).map((p) => String(p.modulo || '').trim())
     );
     const subInsertPieces = [];
     for (const m of allModuleIds) {
       if (m === target || !m.startsWith(target)) continue;
-      const sub = pieces.filter((p) => !this._isGlobalPiece(p) && String(p.modulo || '').trim() === m);
-      if (sub.length && !hasCarcass(sub)) {
+      const sub = pieces.filter((p) => !isGlobalPiece(p) && String(p.modulo || '').trim() === m);
+      if (sub.length && (!hasCarcass(sub) || isDrawerSubModule(sub))) {
         subInsertPieces.push(...sub);
       }
     }
@@ -142,27 +144,31 @@ export class IsometricRenderer {
       return;
     }
 
-    const dims = getModuleDimensions(allPieces, this._inferThickness(allPieces), family);
+    const dims = getModuleDimensions(allPieces, inferThickness(allPieces), family);
     const moduleW = dims.width;
     const moduleH = dims.height;
-    const moduleD = this._getModuleDepth(allPieces);
+    const moduleD = getModuleDepth(allPieces);
     const thickness = dims.thickness;
 
-    const moduleLabel = this._getModuleLabel(moduleId, pieces);
+    const moduleLabel = getModuleLabel(moduleId, pieces);
 
-    const geometries = [];
+    let geometries = [];
 
-    // Piezas del módulo principal
-    geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family));
-
-    // Piezas de estructura global (zócalo, tapa corrida, panel trasero) solo si no es el propio módulo global
-    if (!isGlobalModule && globalPieces.length) {
+    if (isGlobalModule) {
+      // Vista global: renderizar todas las piezas globales con su geometría propia
+      // (zócalo, tapa corrida, panel trasero, espejo, etc.)
       geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness));
+    } else {
+      // Piezas del módulo principal + submódulos insertos
+      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family));
+      // Superponer piezas de estructura global (zócalo, tapa corrida, espejo...)
+      if (globalPieces.length) {
+        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness));
+      }
     }
 
-    // Aplicar vista explodida
     if (this.explodeFactor > 0) {
-      this._applyExplode(geometries, moduleW, moduleD, moduleH);
+      geometries = applyExplode(geometries, moduleW, moduleD, moduleH, this.explodeFactor);
     }
 
     const sorted = sortByDepth(geometries);
@@ -207,7 +213,7 @@ export class IsometricRenderer {
     }
 
     sides.forEach((side) => {
-      const isLeft = normalizeName(side.nombre).includes('izquierdo') || normalizeName(side.id).includes('izq');
+      const isLeft = normalizeNameLocal(side.nombre).includes('izquierdo') || normalizeNameLocal(side.id).includes('izq');
       const x = isLeft ? 0 : moduleW - thickness;
       // En perspectiva normal (isoFlip=false) el lateral derecho queda al fondo
       // y el izquierdo al frente. Con isoFlip=true es al revés.
@@ -230,25 +236,25 @@ export class IsometricRenderer {
       const dims = getPieceDims(leg, 'leg', thickness, family);
       const w = dims.w;
       const h = dims.h;
-      const x = this._inferLegX(leg, moduleW, w);
-      const y = this._inferLegY(leg, moduleD, w);
+      const x = inferLegX(leg, moduleW, w);
+      const y = inferLegY(leg, moduleD, w);
       geometries.push({
         x, y, z: -h, w, d: w, h,
-        color: leg.color || '#1e293b', role: 'leg', name: leg.nombre, id: leg.id,
+        color: leg.color || ROLE_COLORS.leg, role: 'leg', name: leg.nombre, id: leg.id,
       });
     });
 
     // Estantes / repisas
     const shelves = roles.filter((p) => p.role === 'shelf');
     const shelfPositions = shelves.length
-      ? calculateShelfPositions(moduleH, shelves, thickness, family)
+      ? calculateVerticalPositions(moduleH, thickness, shelves, { overrides: this.verticalPositionOverrides })
       : [];
     shelfPositions.forEach((sp) => {
       const dims = getPieceDims(sp.piece, 'shelf', thickness, family);
       const w = dims.w || Math.max(0, moduleW - 2 * thickness);
       const x = Math.max(thickness, (moduleW - w) / 2);
       geometries.push({
-        x, y: 0, z: sp.y, w, d: moduleD, h: sp.h,
+        x, y: 0, z: sp.y, w, d: moduleD, h: dims.h,
         color: sp.piece.color, role: 'shelf', name: sp.piece.nombre, id: sp.piece.id,
       });
     });
@@ -265,13 +271,13 @@ export class IsometricRenderer {
     const doors = roles.filter((p) => p.role === 'door');
     doors.forEach((door) => {
       const dims = getPieceDims(door, 'door', thickness, family);
-      const x = this._inferDoorX(door, moduleW, dims.w, thickness);
-      const z = this._inferDoorZ(door, moduleH, dims.h, thickness);
+      const x = inferDoorX(door, moduleW, dims.w, thickness);
+      const z = inferDoorZ(door, moduleH, dims.h, thickness);
       const baseGeo = {
-        x, y: moduleD - thickness, z, w: dims.w, d: thickness, h: dims.h,
+        x, y: moduleD, z, w: dims.w, d: thickness, h: dims.h,
         color: door.color, role: 'door', name: door.nombre, id: door.id,
       };
-      geometries.push(this._applyDoorRotation(baseGeo));
+      geometries.push(applyDoorRotation(baseGeo, this.doorAngle));
     });
 
     // Cajones
@@ -284,10 +290,10 @@ export class IsometricRenderer {
     const rails = roles.filter((p) => p.role === 'hanger_rail');
     rails.forEach((rail) => {
       const dims = getPieceDims(rail, 'hanger_rail', thickness, family);
-      const z = this._inferRailZ(rail, moduleH, dims.h, thickness);
+      const z = inferRailZ(rail, moduleH, dims.h, thickness);
       geometries.push({
         x: thickness, y: moduleD / 2 - 12.5, z, w: moduleW - 2 * thickness, d: 25, h: dims.h,
-        color: rail.color || '#A0A0A0', role: 'hanger_rail', name: rail.nombre, id: rail.id,
+        color: rail.color || ROLE_COLORS.hanger_rail, role: 'hanger_rail', name: rail.nombre, id: rail.id,
       });
     });
 
@@ -295,8 +301,8 @@ export class IsometricRenderer {
     const braces = roles.filter((p) => p.role === 'brace');
     braces.forEach((brace) => {
       const dims = getPieceDims(brace, 'brace', thickness, family);
-      const x = this._inferBraceX(brace, moduleW, dims.w, thickness);
-      const z = this._inferBraceZ(brace, moduleH, dims.h, thickness);
+      const x = inferBraceX(brace, moduleW, dims.w, thickness);
+      const z = inferBraceZ(brace, moduleH, dims.h, thickness);
       geometries.push({
         x, y: moduleD - thickness, z, w: dims.w, d: thickness, h: dims.h,
         color: brace.color, role: 'brace', name: brace.nombre, id: brace.id, opacity: 0.7,
@@ -317,17 +323,17 @@ export class IsometricRenderer {
     const hasBottom = roles.some((p) => inferRole(p) === 'bottom_panel');
     const hasTop = roles.some((p) => inferRole(p) === 'top_panel');
     const shelfPositions = shelves.length
-      ? calculateShelfPositions(moduleH, shelves, thickness, family)
+      ? calculateVerticalPositions(moduleH, thickness, shelves, { overrides: this.verticalPositionOverrides })
       : [];
-    const zones = this._calculateVerticalZones(moduleH, thickness, shelfPositions, hasBottom, hasTop);
+    const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, hasBottom, hasTop);
 
     const dims = faces.map((f) => ({ face: f, ...getPieceDims(f, 'drawer_face', thickness, family) }));
     // Ordenar: superior → medio → inferior
-    dims.sort((a, b) => this._drawerRank(a.face) - this._drawerRank(b.face));
+    dims.sort((a, b) => drawerRank(a.face) - drawerRank(b.face));
 
     const zoneGroups = zones.map(() => []);
     dims.forEach((d) => {
-      const rank = this._drawerRank(d.face);
+      const rank = drawerRank(d.face);
       let idx;
       if (rank <= 10) idx = zones.length - 1;          // superior → última zona (más alta)
       else if (rank >= 90) idx = 0;                      // inferior → primera zona (más baja)
@@ -387,14 +393,14 @@ export class IsometricRenderer {
         const faceIdPrefix = d.face.id.split('-').slice(0, -1).join('-');
         const handle = roles.find((p) =>
           inferRole(p) === 'handle' &&
-          (p.id.startsWith(faceIdPrefix) || normalizeName(p.nombre).includes(normalizeName(d.face.nombre)))
+          (p.id.startsWith(faceIdPrefix) || normalizeNameLocal(p.nombre).includes(normalizeNameLocal(d.face.nombre)))
         );
         if (handle) {
           const hx = x + w / 2 - 15;
           const hz = currentZ + h / 2 - 10;
           geometries.push({
             x: hx, y: moduleD + this.drawerGap, z: hz, w: 30, d: 10, h: 20,
-            color: handle.color || '#A0A0A0', role: 'handle', name: handle.nombre, id: handle.id,
+            color: handle.color || ROLE_COLORS.handle, role: 'handle', name: handle.nombre, id: handle.id,
           });
         }
 
@@ -410,11 +416,11 @@ export class IsometricRenderer {
     if (!dividers.length) return geometries;
 
     const zones = this._calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top);
-    const groups = this._groupDividersIntoZones(dividers, zones);
+    const groups = groupDividersIntoZones(dividers, zones);
 
     groups.forEach(({ dividers: group, zone }) => {
       const zoneHeight = Math.max(0, zone.yEnd - zone.yStart);
-      const positions = this._distributeHorizontally(group.length, moduleW, thickness);
+      const positions = distributeHorizontally(group.length, moduleW, thickness);
       group.forEach((div, i) => {
         const dims = getPieceDims(div, 'divider', thickness, 'cabinet');
         const divW = dims.w || thickness;
@@ -477,14 +483,14 @@ export class IsometricRenderer {
       const pos = legPositions[i] || legPositions[0];
       geometries.push({
         x: pos.x, y: pos.y, z: 0, w: legW, d: legW, h: legH,
-        color: leg.color || '#1e293b', role: 'leg', name: leg.nombre, id: leg.id,
+        color: leg.color || ROLE_COLORS.leg, role: 'leg', name: leg.nombre, id: leg.id,
       });
     });
 
     // Travesaños de refuerzo entre patas
     braces.forEach((brace) => {
       const dims = getPieceDims(brace, 'brace', thickness, 'seating');
-      const isFront = normalizeName(brace.nombre).includes('front');
+      const isFront = normalizeNameLocal(brace.nombre).includes('front');
       const y = isFront ? moduleD - thickness : 0;
       geometries.push({
         x: seatX + inset, y, z: legH / 2, w: seatW - 2 * inset, d: thickness, h: dims.h,
@@ -514,7 +520,7 @@ export class IsometricRenderer {
     const unassigned = [];
 
     dividers.forEach((div) => {
-      const text = `${normalizeName(div.nombre)} ${normalizeName(div.id)}`;
+      const text = `${normalizeNameLocal(div.nombre)} ${normalizeNameLocal(div.id)}`;
       let idx = -1;
       // zones[0] es el hueco inferior (base -> primera repisa),
       // zones[zones.length - 1] es el hueco superior (última repisa -> tapa).
@@ -557,8 +563,8 @@ export class IsometricRenderer {
     const geometries = [];
     globalPieces.forEach((p) => {
       const role = inferRole(p);
-      const n = normalizeName(p.nombre);
-      const color = p.color || '#C19A6B';
+      const n = normalizeNameLocal(p.nombre);
+      const color = p.color || ROLE_COLORS.wood;
 
       if (role === 'bottom_panel' || n.includes('zocalo')) {
         const w = Number(p.ancho) || moduleW;
@@ -580,6 +586,18 @@ export class IsometricRenderer {
         geometries.push({
           x: 0, y: -thickness, z: 0, w, d: thickness, h,
           color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
+        });
+      } else if (role === 'mirror') {
+        // Espejo montado en la pared trasera, centrado en X y a altura de ojos.
+        const w = Number(p.ancho) || moduleW;
+        const h = Number(p.alto) || 600;
+        const zPos = Math.max(thickness, (moduleH - h) / 2);
+        geometries.push({
+          x: Math.max(0, (moduleW - w) / 2),
+          y: -thickness,
+          z: zPos,
+          w, d: thickness, h,
+          color, role: 'mirror', name: p.nombre, id: p.id, opacity: 0.9,
         });
       } else {
         // Pieza global genérica: caja según ancho/alto/espesor
@@ -629,12 +647,12 @@ export class IsometricRenderer {
       // Insertar ejes justo después de las piezas de fondo (back_panel y lateral trasero),
       // para que queden sobre la estructura base pero debajo de repisas y frentes.
       if (!axesInserted && this.showAxes && getZIndex(geo.role) > 2) {
-        polygons.push(this._drawAxes(ox, oy, moduleW, moduleD, moduleH));
+        polygons.push(this._drawAxes(vbW, vbH));
         axesInserted = true;
       }
 
       const { projected, faces } = this._projectCuboid(geo, ox, oy);
-      const colors = getFaceColors(geo.color || '#C19A6B');
+      const colors = getFaceColors(geo.color || ROLE_COLORS.wood);
       const stroke = this._getStroke(geo.role);
       const opacity = geo.opacity ?? 1;
 
@@ -649,27 +667,27 @@ export class IsometricRenderer {
       if (this.labelMode !== 'none') {
         const label = this._makeLabel(geo);
         const frontPts = faces.find((f) => f.name === 'front')?.indices.map((i) => projected[i]);
-        if (label && frontPts && this._shouldShowLabel(geo, frontPts)) {
+        if (label && frontPts && shouldShowLabel(geo, frontPts)) {
           const cx = frontPts.reduce((s, p) => s + p.x, 0) / frontPts.length;
           const cy = frontPts.reduce((s, p) => s + p.y, 0) / frontPts.length;
           labels.push(
-            `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#0f172a" font-size="9" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">${escapeHtml(label)}</text>`
+            `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="${COLORS.textDark}" font-size="9" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">${escapeHtml(label)}</text>`
           );
         }
       }
     });
 
     if (this.showAxes && !axesInserted) {
-      polygons.push(this._drawAxes(ox, oy, moduleW, moduleD, moduleH));
+      polygons.push(this._drawAxes(vbW, vbH));
     }
 
     let extra = '';
     if (this.showDimensions) extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
 
     return `
-<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista isométrica${title}" style="background:#0f172a;width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
-  <text x="${vbW / 2}" y="28" text-anchor="middle" fill="#f1f5f9" font-size="16" font-weight="700">VISTA ISOMÉTRICA${title}</text>
-  <text x="${vbW / 2}" y="50" text-anchor="middle" fill="#94a3b8" font-size="11">${dimsText}</text>
+<svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista isométrica${title}" style="background:${COLORS.background};width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
+  <text x="${vbW / 2}" y="28" text-anchor="middle" fill="${COLORS.textPrimary}" font-size="16" font-weight="700">VISTA ISOMÉTRICA${title}</text>
+  <text x="${vbW / 2}" y="50" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="11">${dimsText}</text>
   <g transform="translate(0,0)">
     ${polygons.join('\n    ')}
     ${labels.join('\n    ')}
@@ -718,25 +736,26 @@ export class IsometricRenderer {
 
   _getStroke(role) {
     const strokes = {
-      back_panel: { color: '#1e293b', width: 1 },
-      side_panel: { color: '#334155', width: 1.5 },
-      side_panel_rear: { color: '#334155', width: 1.5 },
-      side_panel_front: { color: '#334155', width: 1.5 },
-      bottom_panel: { color: '#334155', width: 1.5 },
-      top_panel: { color: '#334155', width: 1.5 },
-      shelf: { color: '#475569', width: 1 },
-      divider: { color: '#475569', width: 1 },
-      drawer_face: { color: '#fbbf24', width: 2 },
-      drawer_side: { color: '#64748b', width: 1 },
-      drawer_bottom: { color: '#64748b', width: 1 },
-      drawer_back: { color: '#64748b', width: 1 },
-      door: { color: '#3b82f6', width: 2 },
-      handle: { color: '#e2e8f0', width: 1 },
-      leg: { color: '#1e293b', width: 2 },
-      brace: { color: '#94a3b8', width: 1 },
-      hanger_rail: { color: '#A0A0A0', width: 2 },
+      back_panel: { color: ROLE_COLORS.back_panel, width: 1 },
+      side_panel: { color: ROLE_COLORS.side_panel, width: 1.5 },
+      side_panel_rear: { color: ROLE_COLORS.side_panel, width: 1.5 },
+      side_panel_front: { color: ROLE_COLORS.side_panel, width: 1.5 },
+      bottom_panel: { color: ROLE_COLORS.bottom_panel, width: 1.5 },
+      top_panel: { color: ROLE_COLORS.top_panel, width: 1.5 },
+      shelf: { color: ROLE_COLORS.shelf, width: 1 },
+      divider: { color: ROLE_COLORS.divider, width: 1 },
+      drawer_face: { color: ROLE_COLORS.drawer_face, width: 2 },
+      drawer_side: { color: ROLE_COLORS.drawer_side, width: 1 },
+      drawer_bottom: { color: ROLE_COLORS.drawer_bottom, width: 1 },
+      drawer_back: { color: ROLE_COLORS.drawer_back, width: 1 },
+      door: { color: ROLE_COLORS.door, width: 2 },
+      mirror: { color: ROLE_COLORS.mirror, width: 1 },
+      handle: { color: ROLE_COLORS.handle, width: 1 },
+      leg: { color: ROLE_COLORS.leg, width: 2 },
+      brace: { color: ROLE_COLORS.brace, width: 1 },
+      hanger_rail: { color: ROLE_COLORS.hanger_rail, width: 2 },
     };
-    return strokes[role] || { color: '#475569', width: 1 };
+    return strokes[role] || { color: ROLE_COLORS.default, width: 1 };
   }
 
   _calculateViewport(geometries) {
@@ -781,195 +800,37 @@ export class IsometricRenderer {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // UTILIDADES DE INFERENCIA
-  // ═══════════════════════════════════════════════════════════
-
-  _getModuleDepth(pieces) {
-    let d = 0;
-    pieces.forEach((p) => {
-      const role = inferRole(p);
-      if (['bottom_panel', 'top_panel', 'seat_panel', 'hanger_rail', 'shelf'].includes(role)) {
-        d = Math.max(d, Number(p.alto) || 0);
-      }
-      if (role === 'side_panel') {
-        d = Math.max(d, Math.min(Number(p.ancho) || 0, Number(p.alto) || 0));
-      }
-    });
-    return d || 400;
-  }
-
-  _inferThickness(pieces) {
-    const first = pieces.find((p) => Number(p.espesor) > 0);
-    return first ? Number(first.espesor) : 15;
-  }
-
-  _isGlobalPiece(p) {
-    const modulo = String(p.modulo || '').trim().toLowerCase();
-    if (modulo === 'estructura' || modulo === 'global') return true;
-    if (String(p.id).toLowerCase().startsWith('glb-')) return true;
-    return false;
-  }
-
-  _getModuleLabel(moduleId, pieces) {
-    if (moduleId === 'global') return 'Estructura global';
-    return `Módulo ${moduleId}`;
-  }
-
-  _drawerRank(piece) {
-    const n = normalizeName(piece.nombre);
-    const id = normalizeName(piece.id);
-    if (n.includes('superior') || n.includes('sup') || id.includes('sup')) return 0;
-    if (n.includes('medio')) return 50;
-    if (n.includes('inferior') || n.includes('inf') || id.includes('inf')) return 100;
-    return 50;
-  }
-
-  _applyDoorRotation(geo) {
-    if (!this.doorAngle) return geo;
-    const angle = (this.doorAngle * Math.PI) / 180;
-    // Rotar alrededor del borde izquierdo (eje Y en x = geo.x)
-    // Los vértices frontales cambian x y z según ángulo
-    // Simulamos moviendo el cuboide: x se desplaza, d aumenta proyectado
-    const offset = Math.sin(angle) * geo.h;
-    const newDepth = Math.cos(angle) * geo.d + Math.abs(offset);
-    return {
-      ...geo,
-      x: geo.x - offset * 0.5,
-      y: geo.y + offset,
-      d: newDepth,
-    };
-  }
-
-  _applyExplode(geometries, moduleW, moduleD, moduleH) {
-    const cx = moduleW / 2;
-    const cy = moduleD / 2;
-    const cz = moduleH / 2;
-    geometries.forEach((geo) => {
-      const dx = (geo.x + geo.w / 2 - cx) * this.explodeFactor;
-      const dy = (geo.y + geo.d / 2 - cy) * this.explodeFactor;
-      const dz = (geo.z + geo.h / 2 - cz) * this.explodeFactor;
-      geo.x += dx;
-      geo.y += dy;
-      geo.z += dz;
-    });
-  }
-
   _makeLabel(geo) {
     if (geo.role === 'handle') return '';
     const words = String(geo.name || '').split(/\s+/).slice(0, 2);
-    if (geo.role === 'side_panel') return normalizeName(geo.name).includes('izquierdo') ? 'Lat.Izq' : 'Lat.Der';
+    if (geo.role === 'side_panel') return normalizeNameLocal(geo.name).includes('izquierdo') ? 'Lat.Izq' : 'Lat.Der';
     if (geo.role === 'drawer_face') return 'Cajón';
     if (geo.role === 'shelf') return 'Repisa';
     if (geo.role === 'door') return 'Puerta';
     return words.join(' ');
   }
 
-  _shouldShowLabel(geo, pts) {
-    // Área proyectada aproximada
-    let area = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const j = (i + 1) % pts.length;
-      area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-    }
-    area = Math.abs(area) / 2;
-    const minArea = geo.role === 'drawer_face' || geo.role === 'door' ? 1500 : 2500;
-    return area > minArea;
-  }
-
-  _inferDividerX(div, moduleW, thickness) {
-    const n = normalizeName(div.nombre);
-    const id = normalizeName(div.id);
-    // Si hay número, distribuir proporcionalmente
-    const m = (id.match(/(\d+)/) || n.match(/(\d+)/) || [null, 1])[1];
-    const idx = parseInt(m, 10);
-    if (n.includes('central') || n.includes('centro')) return (moduleW - thickness) / 2;
-    return (moduleW * idx) / 10;
-  }
-
-  _inferDoorX(door, moduleW, doorW, thickness) {
-    const n = normalizeName(door.nombre);
-    if (n.includes('izquierda') || n.includes('izq')) return thickness;
-    if (n.includes('derecha') || n.includes('der')) return moduleW - doorW - thickness;
-    return (moduleW - doorW) / 2;
-  }
-
-  _inferDoorZ(door, moduleH, doorH, thickness) {
-    const n = normalizeName(door.nombre);
-    if (n.includes('superior') || n.includes('sup')) return moduleH - doorH - thickness;
-    if (n.includes('inferior') || n.includes('inf')) return thickness;
-    return (moduleH - doorH) / 2;
-  }
-
-  _inferRailZ(rail, moduleH, railH, thickness) {
-    const n = normalizeName(rail.nombre);
-    const m = n.match(/(\d+)/);
-    if (m) {
-      const idx = parseInt(m[1], 10);
-      return thickness + (idx * (moduleH - 2 * thickness)) / 4;
-    }
-    return moduleH / 2;
-  }
-
-  _inferBraceX(brace, moduleW, braceW, thickness) {
-    const n = normalizeName(brace.nombre);
-    if (n.includes('trasero') || n.includes('atras')) return thickness;
-    if (n.includes('frontal') || n.includes('frente')) return moduleW - braceW - thickness;
-    return (moduleW - braceW) / 2;
-  }
-
-  _inferBraceZ(brace, moduleH, braceH, thickness) {
-    const n = normalizeName(brace.nombre);
-    if (n.includes('superior') || n.includes('sup')) return moduleH - thickness - braceH;
-    if (n.includes('inferior') || n.includes('inf')) return thickness;
-    return (moduleH - braceH) / 2;
-  }
-
-  _inferLegX(leg, moduleW, legW) {
-    const n = normalizeName(leg.nombre);
-    const id = normalizeName(leg.id);
-    const hasFront = n.includes('front') || n.includes('delanter') || id.includes('front');
-    const hasBack = n.includes('back') || n.includes('tras') || n.includes('posterior') || id.includes('back');
-    const hasLeft = n.includes('izquierdo') || n.includes('izq') || id.includes('izq');
-    const hasRight = n.includes('derecho') || n.includes('der') || id.includes('der');
-
-    if (hasLeft) return 20;
-    if (hasRight) return moduleW - legW - 20;
-    if (hasFront || hasBack) return moduleW / 2 - legW / 2;
-    return moduleW / 2 - legW / 2;
-  }
-
-  _inferLegY(leg, moduleD, legW) {
-    const n = normalizeName(leg.nombre);
-    const id = normalizeName(leg.id);
-    const hasFront = n.includes('front') || n.includes('delanter') || id.includes('front');
-    const hasBack = n.includes('back') || n.includes('tras') || n.includes('posterior') || id.includes('back');
-
-    if (hasBack) return 20;
-    if (hasFront) return moduleD - legW - 20;
-    return moduleD - legW - 20;
-  }
-
   // ═══════════════════════════════════════════════════════════
   // EJES Y DIMENSIONES
   // ═══════════════════════════════════════════════════════════
 
-  _drawAxes(ox, oy, moduleW, moduleD, moduleH) {
-    // Dibujar ejes desde el origen (0,0,0).
-    // X -> derecha, Y+ (frente) -> abajo-derecha, Z -> arriba.
-    const origin = this._isoProject(0, 0, 0, ox, oy);
-    const xTip = this._isoProject(moduleW * 0.25, 0, 0, ox, oy);
-    const yTip = this._isoProject(0, moduleD * 0.25, 0, ox, oy);
-    const zTip = this._isoProject(0, 0, moduleH * 0.25, ox, oy);
+  _drawAxes(viewW, viewH) {
+    // Leyenda de ejes en esquina inferior izquierda del SVG, fuera del dibujo del módulo.
+    const ox = this.padding + 16;
+    const oy = viewH - this.padding - 16;
+    const len = 28;
+    const xTip = { x: ox + len, y: oy };
+    const yTip = { x: ox + len * 0.5, y: oy + len * 0.5 };
+    const zTip = { x: ox, y: oy - len };
 
     return `
     <g opacity="0.9">
-      <line x1="${origin.x}" y1="${origin.y}" x2="${xTip.x}" y2="${xTip.y}" stroke="#ef4444" stroke-width="2" />
-      <text x="${xTip.x}" y="${xTip.y}" fill="#ef4444" font-size="11" font-weight="bold" text-anchor="start">X (ancho)</text>
-      <line x1="${origin.x}" y1="${origin.y}" x2="${yTip.x}" y2="${yTip.y}" stroke="#22c55e" stroke-width="2" />
-      <text x="${yTip.x}" y="${yTip.y}" fill="#22c55e" font-size="11" font-weight="bold" text-anchor="start">Y (prof.)</text>
-      <line x1="${origin.x}" y1="${origin.y}" x2="${zTip.x}" y2="${zTip.y}" stroke="#3b82f6" stroke-width="2" />
-      <text x="${zTip.x}" y="${zTip.y}" fill="#3b82f6" font-size="11" font-weight="bold" text-anchor="start">Z (alto)</text>
+      <line x1="${ox}" y1="${oy}" x2="${xTip.x}" y2="${xTip.y}" stroke="${AXES_COLORS.x}" stroke-width="2" />
+      <text x="${xTip.x + 5}" y="${xTip.y + 4}" fill="${AXES_COLORS.x}" font-size="11" font-weight="bold" text-anchor="start">X (ancho)</text>
+      <line x1="${ox}" y1="${oy}" x2="${yTip.x}" y2="${yTip.y}" stroke="${AXES_COLORS.y}" stroke-width="2" />
+      <text x="${yTip.x + 5}" y="${yTip.y + 4}" fill="${AXES_COLORS.y}" font-size="11" font-weight="bold" text-anchor="start">Y (prof.)</text>
+      <line x1="${ox}" y1="${oy}" x2="${zTip.x}" y2="${zTip.y}" stroke="${AXES_COLORS.z}" stroke-width="2" />
+      <text x="${zTip.x}" y="${zTip.y - 5}" fill="${AXES_COLORS.z}" font-size="11" font-weight="bold" text-anchor="middle">Z (alto)</text>
     </g>`;
   }
 
@@ -977,6 +838,6 @@ export class IsometricRenderer {
     // Dimensiones en esquina superior derecha (proyección corregida).
     const tx = ox + (moduleW + moduleD * this.isoDepth) * this.scale + 10;
     const ty = oy - moduleH * this.scale - 10;
-    return `<text x="${tx}" y="${ty}" fill="#94a3b8" font-size="10" font-family="monospace">W=${moduleW} D=${moduleD} H=${moduleH}</text>`;
+    return `<text x="${tx}" y="${ty}" fill="${COLORS.textSecondary}" font-size="10" font-family="monospace">W=${moduleW} D=${moduleD} H=${moduleH}</text>`;
   }
 }

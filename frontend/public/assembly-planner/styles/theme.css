@@ -604,3 +604,58 @@ tr.csv-row-inactive td {
     font-size: 0.8rem;
   }
 }
+
+/* Inline vertical config panel inside isometric view */
+.iso-config-host {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+}
+
+.iso-config-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 220px;
+  max-height: calc(100vh - 12rem);
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.iso-config-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.iso-config-panel__body {
+  padding: 0.75rem;
+}
+
+.iso-config-panel .form-group {
+  margin-bottom: 0.5rem;
+}
+
+.iso-config-panel .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.iso-config-panel label {
+  font-size: 0.7rem;
+}
+
+.iso-config-panel input[type="number"] {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}

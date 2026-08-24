@@ -19,13 +19,37 @@
         <div class="form-group m-0" style="min-width: 260px;">
           <select id="example-selector" class="w-full">
             <option value="" disabled selected>Seleccionar mueble...</option>
-            <option value="./data/ejemplo-universal-cajonera.csv">🆕 Cajonera</option>
-            <option value="./data/ejemplo-universal-librero.csv">🆕 Librero</option>
-            <option value="./data/ejemplo-universal-mesa.csv">🆕 Mesa</option>
-            <option value="./data/ejemplo-universal-silla.csv">🆕 Silla</option>
-            <option value="./data/ejemplo-universal-ropero.csv">🆕 Ropero</option>
-            <option value="./data/ejemplo-universal-zapatero.csv">🆕 Zapatero</option>
-            <option value="./data/ejemplo-closet-modular-abierto.csv">🚪 Clóset modular abierto</option>
+            <optgroup label="Ejemplos universales">
+              <option value="./data/ejemplo-universal-cajonera.csv">🆕 Cajonera</option>
+              <option value="./data/ejemplo-universal-librero.csv">🆕 Librero</option>
+              <option value="./data/ejemplo-universal-mesa.csv">🆕 Mesa</option>
+              <option value="./data/ejemplo-universal-silla.csv">🆕 Silla</option>
+              <option value="./data/ejemplo-universal-ropero.csv">🆕 Ropero</option>
+              <option value="./data/ejemplo-universal-zapatero.csv">🆕 Zapatero</option>
+            </optgroup>
+            <optgroup label="Módulos completos">
+              <option value="./data/ejemplo-cocina.csv">🍳 Cocina modular</option>
+              <option value="./data/ejemplo-vanitory.csv">🚿 Vanitory</option>
+              <option value="./data/ejemplo-comoda.csv">👕 Cómoda / chifonier</option>
+              <option value="./data/ejemplo-mueble-tv.csv">📺 Mueble de TV</option>
+              <option value="./data/ejemplo-escritorio.csv">🖥️ Escritorio</option>
+              <option value="./data/ejemplo-armario.csv">🚪 Armario puertas corredizas</option>
+              <option value="./data/ejemplo-closet.csv">🧥 Clóset</option>
+              <option value="./data/ejemplo-closet-modular-abierto.csv">🚪 Clóset modular abierto</option>
+              <option value="./data/ejemplo-librero-alto.csv">📚 Librero alto</option>
+              <option value="./data/ejemplo-cajonera.csv">🗄️ Cajonera</option>
+            </optgroup>
+            <optgroup label="Nuevos ejemplos">
+              <option value="./data/ejemplo-mesa-centro.csv">☕ Mesa de centro</option>
+              <option value="./data/ejemplo-banco.csv">🪑 Banco / banqueta</option>
+              <option value="./data/ejemplo-mesa-noche.csv">🌙 Mesa de noche</option>
+              <option value="./data/ejemplo-bufetero.csv">🍷 Bufetero / aparador</option>
+              <option value="./data/ejemplo-zapatero-compartimentos.csv">👟 Zapatero con compartimentos</option>
+            </optgroup>
+            <optgroup label="Básicos">
+              <option value="./data/ejemplo-basico.csv">📄 Básico</option>
+              <option value="./data/ejemplo-global.csv">🌍 Global</option>
+            </optgroup>
           </select>
         </div>
         <button id="btn-load-example" class="btn btn--secondary">Cargar</button>
@@ -43,6 +67,7 @@
       <button class="tab" data-view="ensamblaje" role="tab">Ensamblaje</button>
       <button class="tab" data-view="manual" role="tab">Manual</button>
       <button class="tab" data-view="isometric" role="tab">🧊 Isométrica</button>
+      <button class="tab" data-view="settings" role="tab">⚙ Config</button>
     </nav>
 
     <main class="main-layout">

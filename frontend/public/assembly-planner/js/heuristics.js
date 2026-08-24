@@ -1,6 +1,7 @@
 // heuristics.js — reglas de sugerencia de dependencias de ensamblaje
 
 import { isGlobalPiece } from './utils.js';
+import { normalizeName } from './utils/normalize.js';
 
 export const DEPENDENCY_TYPES = {
   estructural: { label: 'Estructural', color: '#4ECDC4', width: 2, dash: 'none' },
@@ -13,10 +14,7 @@ export const DEPENDENCY_TYPES = {
 };
 
 function normalize(s) {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  return normalizeName(s);
 }
 
 function sameModule(a, b) {
@@ -77,9 +75,11 @@ export function sugerirDependencias(piezas) {
       [...bases, ...tapas].filter((p) => sameModule(p, div)).forEach((p) => add(p.id, div.id, 'interior'));
     });
 
-  // Paso 4: Fondos dependen de estructura cerrada (base + tapa + laterales + divisores)
+  // Paso 4: Fondos dependen de estructura cerrada (base + laterales + divisores).
+  // No incluimos tapa para evitar ciclos con piezas globales y porque el fondo
+  // se instala antes de colocar la tapa.
   fondos.forEach((fondo) => {
-    [...bases, ...tapas, ...laterales, ...interiores.filter((i) => normalize(i.nombre).includes('divisor') || normalize(i.nombre).includes('division'))]
+    [...bases, ...laterales, ...interiores.filter((i) => normalize(i.nombre).includes('divisor') || normalize(i.nombre).includes('division'))]
       .filter((p) => sameModule(p, fondo))
       .forEach((p) => add(p.id, fondo.id, 'fondo'));
   });
@@ -172,6 +172,17 @@ export function sugerirDependencias(piezas) {
     if (!padreMod) return;
     const ancla = anclasPadre.find((p) => String(p.modulo).trim() === padreMod);
     if (ancla) add(ancla.id, hijo.id, 'estructural', `Requiere estructura del módulo ${padreMod}`);
+  });
+
+  // Paso 13: Las piezas globales (tapa corrida, tablero, corona, espejo, etc.)
+  // deben ensamblarse al final, despues de que todos los modulos numericos
+  // (estructura + interiores + accesorios) esten armados. Esto evita que la
+  // tapa aparezca en el primer paso del manual/grafo por estar aislada por
+  // sameModule de las piezas de modulo.
+  const globales = piezas.filter((p) => isGlobalPiece(p));
+  const nonGlobalPieces = piezas.filter((p) => !isGlobalPiece(p));
+  globales.forEach((g) => {
+    nonGlobalPieces.forEach((p) => add(p.id, g.id, 'acabado'));
   });
 
   return deps;

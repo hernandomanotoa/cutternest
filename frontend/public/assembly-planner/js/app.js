@@ -1,43 +1,57 @@
 // app.js — punto de entrada y orquestador del Assembly Planner
+// Usa js/core/store.js como única fuente de verdad del estado.
 
-import { $, $$, readFileAsText, downloadText, getModules, getModulePieces, getModuleDependencies, getModuleLabel, getModuleGroup, isGlobalPiece } from './utils.js';
+import {
+  $,
+  $$,
+  readFileAsText,
+  downloadText,
+  getModules,
+  getModulePieces,
+  getModuleDependencies,
+  getModuleLabel,
+  getModuleGroup,
+  isGlobalPiece,
+} from './utils.js';
 import { parseCSV, piecesToCSV, createEmptyPiece } from './csvParser.js';
 import { sugerirDependencias } from './heuristics.js';
 import { topologicalLevels, buildSteps } from './topologicalSort.js';
-import { renderCSVView } from './views/csvView.js';
-import { renderGraphView } from './views/graphView.js';
-import { renderStructuralView } from './views/structuralView.js';
-import { renderAssemblyView } from './views/assemblyView.js';
-import { renderManualView } from './views/manualView.js';
-import { renderIsometricView } from './views/isometricView.js';
+import { createCSVView } from './views/csvView.js';
+import { createGraphView } from './views/graphView.js';
+import { createStructuralView } from './views/structuralView.js';
+import { createAssemblyView } from './views/assemblyView.js';
+import { createManualView } from './views/manualView.js';
+import { createIsometricView } from './views/isometricView.js';
+import { createSettingsView } from './views/settingsView.js';
 import { calculateHardware } from './hardware.js';
-
-export const state = {
-  pieces: [],
-  dependencies: [],
-  modules: [],
-  currentModule: 'global',
-  levels: [],
-  sorted: [],
-  cycle: null,
-  steps: [],
-  alerts: [],
-  hardware: [],
-  currentStep: 0,
-  simulationMode: 'paused',
-  currentView: 'csv',
-};
+import { getStore, setStore, createStore } from './core/store.js';
+import { VERTICAL_POSITIONS } from './core/config.js';
+import {
+  saveUserConfig,
+  resetUserConfig as resetUserConfigService,
+} from './services/userConfigService.js';
 
 export const GLOBAL_MODULE_ID = 'global';
 
-const viewRenderers = {
-  csv: renderCSVView,
-  estructural: renderStructuralView,
-  grafo: renderGraphView,
-  ensamblaje: renderAssemblyView,
-  manual: renderManualView,
-  isometric: renderIsometricView,
+const viewFactories = {
+  csv: createCSVView,
+  estructural: createStructuralView,
+  grafo: createGraphView,
+  ensamblaje: createAssemblyView,
+  manual: createManualView,
+  isometric: createIsometricView,
+  settings: createSettingsView,
 };
+
+let currentViewInstance = null;
+
+export function getAppStore() {
+  return getStore();
+}
+
+export function setAppStore(store) {
+  setStore(store);
+}
 
 export function setStatus(message, type = '') {
   const el = $('#status-message');
@@ -46,40 +60,42 @@ export function setStatus(message, type = '') {
   el.className = type;
 }
 
-export function getActivePieces() {
+export function getActivePieces(state) {
   return getModulePieces(state.pieces, state.currentModule);
 }
 
-export function getActiveDependencies() {
-  const pieces = getActivePieces();
+export function getActiveDependencies(state) {
+  const pieces = getActivePieces(state);
   return getModuleDependencies(state.dependencies, pieces);
 }
 
 export function recalculateAll() {
-  const ids = state.pieces.map((p) => p.id);
-  state.dependencies = state.dependencies.filter(
+  const store = getStore();
+  const prev = store.get();
+  const ids = prev.pieces.map((p) => p.id);
+  const dependencies = prev.dependencies.filter(
     (d) => ids.includes(d.from) && ids.includes(d.to)
   );
 
-  // Detectar módulos
-  state.modules = getModules(state.pieces);
-  if (!state.modules.includes(state.currentModule)) {
-    state.currentModule = state.modules[0] || GLOBAL_MODULE_ID;
-  }
+  const modules = getModules(prev.pieces);
+  const currentModule = modules.includes(prev.currentModule)
+    ? prev.currentModule
+    : modules[0] || GLOBAL_MODULE_ID;
 
-  // Calcular con subconjunto activo
-  const activePieces = getActivePieces();
+  const activePieces = getModulePieces(prev.pieces, currentModule);
   const activeIds = activePieces.map((p) => p.id);
-  const activeDependencies = getModuleDependencies(state.dependencies, activePieces);
+  const activeDependencies = getModuleDependencies(dependencies, activePieces);
+  const piecesById = Object.fromEntries(prev.pieces.map((p) => [p.id, p]));
 
-  const piecesById = Object.fromEntries(state.pieces.map((p) => [p.id, p]));
+  let steps = [];
+  let levels = [];
+  let sorted = [];
+  let cycle = null;
 
-  // Si el modulo actual es un grupo, calcular pasos por sub-modulo y concatenar
-  const group = getModuleGroup(state.pieces, state.currentModule);
+  const group = getModuleGroup(prev.pieces, currentModule);
   if (group && group.modules.length > 1) {
     let stepOffset = 0;
     const allSteps = [];
-    // Paso inicial: piezas globales (estructura de union) ensambladas una sola vez
     const globalPieces = activePieces.filter((p) => isGlobalPiece(p));
     if (globalPieces.length > 0) {
       allSteps.push({
@@ -90,50 +106,67 @@ export function recalculateAll() {
       });
     }
     group.modules.forEach((mod) => {
-      const modPieces = getModulePieces(state.pieces, mod).filter((p) => !isGlobalPiece(p));
+      const modPieces = getModulePieces(prev.pieces, mod).filter((p) => !isGlobalPiece(p));
       const modIds = modPieces.map((p) => p.id);
-      const modDeps = getModuleDependencies(state.dependencies, modPieces);
+      const modDeps = getModuleDependencies(dependencies, modPieces);
       const modResult = buildSteps(modIds, modDeps, piecesById);
       if (modResult.ok) {
         modResult.steps.forEach((s) => {
-          allSteps.push({
-            ...s,
-            paso: stepOffset + s.paso,
-          });
+          allSteps.push({ ...s, paso: stepOffset + s.paso });
         });
         stepOffset += modResult.steps.length;
       }
     });
-    state.steps = allSteps;
-    state.levels = allSteps.map((s) => s.piezas);
-    state.sorted = allSteps.flatMap((s) => s.piezas.map((id) => ({ id, level: s.paso })));
-    state.cycle = null;
+    steps = allSteps;
+    levels = allSteps.map((s) => s.piezas);
+    sorted = allSteps.flatMap((s) => s.piezas.map((id) => ({ id, level: s.paso })));
+    cycle = null;
   } else {
     const topo = topologicalLevels(activeIds, activeDependencies);
-    state.levels = topo.levels;
-    state.sorted = topo.sorted;
-    state.cycle = topo.cycle;
-    state.steps = buildSteps(activeIds, activeDependencies, piecesById).steps || [];
+    levels = topo.levels;
+    sorted = topo.sorted;
+    cycle = topo.cycle;
+    steps = buildSteps(activeIds, activeDependencies, piecesById).steps || [];
   }
 
-  state.alerts = [];
+  const alerts = [];
   activePieces.forEach((p) => {
-    if (p.riesgo === 'critico') state.alerts.push({ level: 'danger', piece: p, text: `Crítico: ${p.nombre} requiere soporte/divisor.` });
-    if (p.riesgo === 'alto') state.alerts.push({ level: 'warning', piece: p, text: `Alto: ${p.nombre} recomienda soporte intermedio.` });
-    if (p.tipo === 'fondo_decorativo') state.alerts.push({ level: 'info', piece: p, text: `${p.nombre} es fondo decorativo (${p.espesor} mm).` });
+    if (p.riesgo === 'critico') {
+      alerts.push({ level: 'danger', piece: p, text: `Crítico: ${p.nombre} requiere soporte/divisor.` });
+    }
+    if (p.riesgo === 'alto') {
+      alerts.push({ level: 'warning', piece: p, text: `Alto: ${p.nombre} recomienda soporte intermedio.` });
+    }
+    if (p.tipo === 'fondo_decorativo') {
+      alerts.push({ level: 'info', piece: p, text: `${p.nombre} es fondo decorativo (${p.espesor} mm).` });
+    }
   });
-  if (state.cycle) {
-    state.alerts.push({ level: 'danger', text: `Ciclo detectado: ${state.cycle.join(' → ')}` });
+  if (cycle) {
+    alerts.push({ level: 'danger', text: `Ciclo detectado: ${cycle.join(' → ')}` });
   }
 
-  state.hardware = calculateHardware(state.pieces, state.dependencies);
+  const hardware = calculateHardware(prev.pieces, dependencies);
+
+  store.set({
+    dependencies,
+    modules,
+    currentModule,
+    levels,
+    sorted,
+    cycle,
+    steps,
+    alerts,
+    hardware,
+  });
+
   updateModuleSelector();
   updateSummary();
   renderCurrentView();
 }
 
 export function updateSummary() {
-  const activePieces = getActivePieces();
+  const state = getStore().get();
+  const activePieces = getActivePieces(state);
   $('#summary-module').textContent = getModuleLabel(state.currentModule, state.pieces);
   $('#summary-pieces').textContent = activePieces.length;
   $('#summary-steps').textContent = state.steps.length;
@@ -163,24 +196,37 @@ export function updateSummary() {
 }
 
 export function updateModuleSelector() {
+  const state = getStore().get();
   const select = $('#module-selector');
   if (!select) return;
   const current = state.currentModule;
-  select.innerHTML = state.modules.map((m) => {
-    const label = getModuleLabel(m, state.pieces);
-    return `<option value="${m}" ${m === current ? 'selected' : ''}>${label}</option>`;
-  }).join('');
+  select.innerHTML = state.modules
+    .map((m) => {
+      const label = getModuleLabel(m, state.pieces);
+      return `<option value="${m}" ${m === current ? 'selected' : ''}>${label}</option>`;
+    })
+    .join('');
 }
 
 export function renderCurrentView() {
+  const store = getStore();
+  const state = store.get();
   const container = $('#view-container');
+  if (!container) return;
+
+  if (currentViewInstance && typeof currentViewInstance.destroy === 'function') {
+    currentViewInstance.destroy();
+  }
   container.innerHTML = '';
-  const render = viewRenderers[state.currentView] || viewRenderers.csv;
-  render(container, state);
+
+  const factory = viewFactories[state.currentView] || viewFactories.csv;
+  currentViewInstance = factory(store);
+  currentViewInstance.mount(container);
 }
 
 export function switchTab(view) {
-  state.currentView = view;
+  const store = getStore();
+  store.set({ currentView: view });
   $$('.tab').forEach((tab) => {
     const active = tab.dataset.view === view;
     tab.classList.toggle('tab--active', active);
@@ -202,43 +248,106 @@ export function loadCSV(text) {
     setStatus(`Errores: ${result.errors.slice(0, 3).join('; ')}`, 'alert--danger');
     return;
   }
-  state.pieces = result.pieces;
-  state.dependencies = sugerirDependencias(state.pieces);
-  state.warnings = result.warnings;
+  getStore().set({
+    pieces: result.pieces,
+    dependencies: sugerirDependencias(result.pieces),
+    warnings: result.warnings,
+    currentStep: 0,
+  });
   recalculateAll();
-  setStatus(`CSV cargado: ${state.pieces.length} piezas, ${state.dependencies.length} dependencias.`, 'alert--success');
+  setStatus(`CSV cargado: ${result.pieces.length} piezas, ${getStore().get().dependencies.length} dependencias.`, 'alert--success');
 }
 
 export function addEmptyPiece() {
+  const store = getStore();
+  const state = store.get();
   const count = state.pieces.filter((p) => p.id.startsWith('pieza-')).length + 1;
-  state.pieces.push(createEmptyPiece(count + state.pieces.length));
+  store.set({ pieces: [...state.pieces, createEmptyPiece(count + state.pieces.length)] });
   recalculateAll();
 }
 
+export function addDependency(from, to, type = 'estructural') {
+  const store = getStore();
+  const state = store.get();
+  store.set({ dependencies: [...state.dependencies, { from, to, type }] });
+  recalculateAll();
+}
+
+export function removeDependency(from, to) {
+  const store = getStore();
+  const state = store.get();
+  const dependencies = state.dependencies.filter((d) => !(d.from === from && d.to === to));
+  store.set({ dependencies });
+  recalculateAll();
+}
+
+export function resetDependencies() {
+  const store = getStore();
+  const state = store.get();
+  store.set({ dependencies: sugerirDependencias(state.pieces) });
+  recalculateAll();
+}
+
+export function clearDependencies() {
+  getStore().set({ dependencies: [] });
+  recalculateAll();
+}
+
+export function updatePiece(index, field, value) {
+  const store = getStore();
+  const state = store.get();
+  if (!state.pieces[index]) return;
+  const pieces = state.pieces.map((p, i) => (i === index ? { ...p, [field]: value } : p));
+  store.set({ pieces });
+  recalculateAll();
+}
+
+export function removePiece(index) {
+  const store = getStore();
+  const state = store.get();
+  const pieces = state.pieces.filter((_, i) => i !== index);
+  store.set({ pieces });
+  recalculateAll();
+}
+
+export function updateUserConfig(key, value) {
+  const store = getStore();
+  const state = store.get();
+  const next = { ...state.userConfig, [key]: Number(value) };
+  store.set({ userConfig: next });
+  saveUserConfig(next);
+}
+
+export function resetUserConfig() {
+  const store = getStore();
+  store.set({ userConfig: { ...VERTICAL_POSITIONS } });
+  resetUserConfigService();
+}
+
 function init() {
-  // Tabs
+  if (!getStore()) {
+    setStore(createStore());
+  }
+
   $$('.tab').forEach((tab) => {
     tab.addEventListener('click', () => switchTab(tab.dataset.view));
   });
 
-  // Selector de módulo
   $('#module-selector')?.addEventListener('change', (e) => {
-    state.currentModule = e.target.value;
+    getStore().set({ currentModule: e.target.value });
     recalculateAll();
   });
 
-  // Boton de ejemplo desde select
   $('#btn-load-example')?.addEventListener('click', () => {
     const select = $('#example-selector');
     const path = select?.value;
     if (!path) {
-      showStatus('Selecciona un mueble primero', 'warning');
+      setStatus('Selecciona un mueble primero', 'warning');
       return;
     }
     loadExample(path);
   });
 
-  // Importar CSV
   $('#file-input')?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -250,8 +359,8 @@ function init() {
     }
   });
 
-  // Exportar CSV
   $('#btn-export-csv')?.addEventListener('click', () => {
+    const state = getStore().get();
     if (!state.pieces.length) {
       setStatus('No hay piezas para exportar.', 'alert--warning');
       return;
@@ -259,8 +368,8 @@ function init() {
     downloadText('cutternest-piezas.csv', piecesToCSV(state.pieces), 'text/csv');
   });
 
-  // Guardar como ejemplo
   $('#btn-save-example')?.addEventListener('click', async () => {
+    const state = getStore().get();
     if (!state.pieces.length) {
       setStatus('No hay piezas para guardar como ejemplo.', 'alert--warning');
       return;
@@ -288,7 +397,6 @@ function init() {
     }
   });
 
-  // Render inicial
   switchTab('csv');
   setStatus('Listo. Carga un CSV o usa los ejemplos para comenzar.');
 }

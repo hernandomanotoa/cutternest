@@ -17,181 +17,25 @@
 // UTILIDADES
 // ═══════════════════════════════════════════════════════════
 
+import { normalizeName } from './utils/normalize.js';
+import { inferRole, detectFamily } from './services/classifierService.js';
+import {
+  getPieceDims,
+  getModuleDimensions,
+  calculateShelfPositions,
+} from './services/geometryService.js';
+import { COLORS, ROLE_COLORS, DIMENSION_COLORS } from './core/config.js';
+
 function normalize(s) {
-  return String(s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  return normalizeName(s);
 }
 
-function inferRole(piece) {
-  const n = normalize(piece.nombre);
-  const id = normalize(piece.id);
-
-  if ((n.includes('cajon') || id.includes('cajon')) && !n.includes('cajonera')) {
-    if (n.includes('frente') || id.includes('frente')) return 'drawer_face';
-    if (n.includes('lateral') || id.includes('lateral')) return 'drawer_side';
-    if (n.includes('base') || id.includes('base')) return 'drawer_bottom';
-    if (n.includes('fondo') || id.includes('fondo')) return 'drawer_back';
-    if (n.includes('tirador') || id.includes('tirador')) return 'handle';
-    return 'drawer_part';
-  }
-
-  if (n.includes('puerta') || id.includes('puerta')) return 'door';
-  if (n.includes('tirador') || id.includes('tirador')) return 'handle';
-  if (n.includes('riel') || n.includes('barra') || id.includes('riel') || id.includes('barra')) return 'hanger_rail';
-  if (n.includes('pata') || n.includes('pie') || id.includes('pata')) return 'leg';
-  if (n.includes('tirante') || n.includes('travesano') || n.includes('refuerzo') || n.includes('cantonera')) return 'brace';
-
-  if (n.includes('zocalo')) return 'bottom_panel';
-
-  if (n.includes('estante') || n.includes('repisa')) return 'shelf';
-  if (n.includes('divisor') || n.includes('division')) return 'divider';
-
-  if (n.includes('base')) return 'bottom_panel';
-  if (n.includes('tapa') || n.includes('techo') || n.includes('tapa de trabajo')) return 'top_panel';
-  if (n.includes('fondo') || n.includes('posterior') || n.includes('trasera')) return 'back_panel';
-  if (n.includes('frente')) return 'front_panel';
-
-  if (n.includes('lateral') || n.includes('costado') || n.includes('montante')) return 'side_panel';
-  if (n.includes('montante') || n.includes('poste')) return 'side_panel';
-
-  if (n.includes('tablero') || n.includes('superficie')) return 'top_panel';
-  if (n.includes('respald') || n.includes('respaldo')) return 'back_panel';
-  if (n.includes('asiento') || n.includes('banco')) return 'seat_panel';
-
-  const w = Number(piece.ancho) || 0;
-  const h = Number(piece.alto) || 0;
-  if (w > h * 3) return 'shelf';
-  if (h > w * 3) return 'side_panel';
-
-  return 'panel';
-}
 
 /**
  * Devuelve las dimensiones VISUALES de una pieza según su rol.
  * El campo `rotate` indica orientación en el plano de corte, no siempre
  * en la vista frontal. Se interpreta sólo donde tenga sentido visual.
  */
-function useVisualThickness(alto, espesor) {
-  return alto <= espesor * 1.5 ? alto : espesor;
-}
-
-function getPieceDims(piece, role, thickness = 15, family = 'cabinet') {
-  const ancho = Number(piece.ancho) || 0;
-  const alto = Number(piece.alto) || 0;
-  const espesor = Number(piece.espesor) || thickness || 15;
-  const rotate = String(piece.rotate).toLowerCase() === 'si';
-
-  let w = ancho;
-  let h = alto;
-  if (rotate) [w, h] = [h, w];
-
-  // Paneles horizontales delgados
-  if (role === 'top_panel' || role === 'bottom_panel' || role === 'hanger_rail') {
-    return { w: ancho, h: useVisualThickness(alto, espesor) };
-  }
-
-  // Asiento: si está rotado, su altura visual es el espesor (apoyado sobre patas).
-  if (role === 'seat_panel') {
-    if (rotate) [w, h] = [h, w];
-    return { w, h: espesor };
-  }
-
-  if (role === 'shelf') {
-    if (family === 'shelving') return { w: ancho, h: alto };
-    return { w: ancho, h: useVisualThickness(alto, espesor) };
-  }
-
-  if (role === 'brace') {
-    return { w: ancho, h: useVisualThickness(alto, espesor) };
-  }
-
-  // Paneles laterales / montantes: vistos de canto
-  if (role === 'side_panel') {
-    return { w: espesor, h: Math.max(w, h) };
-  }
-
-  // Divisores anti-pandeo: tira vertical
-  if (role === 'divider') {
-    return { w: ancho, h: Math.max(w, h) };
-  }
-
-  // Fondo
-  if (role === 'back_panel') {
-    return { w, h };
-  }
-
-  // Puertas y frentes de cajón
-  if (role === 'door' || role === 'drawer_face') {
-    return { w: ancho, h: alto };
-  }
-
-  // Partes internas de cajón
-  if (role === 'drawer_bottom' || role === 'drawer_side' || role === 'drawer_back') {
-    return { w, h };
-  }
-
-  // Patas
-  if (role === 'leg') {
-    return { w: Math.min(w, h), h: Math.max(w, h) };
-  }
-
-  // Tiradores
-  return { w: ancho, h: alto };
-}
-
-function getModuleDimensions(pieces, thickness = 15, family = null) {
-  const detectedFamily = family || detectFamily(pieces);
-  const roles = pieces.map((p) => ({ ...p, role: inferRole(p) }));
-  const dims = new Map(
-    roles.map((p) => [p.id, getPieceDims(p, p.role, thickness, detectedFamily)])
-  );
-
-  const inferredThickness =
-    roles.length && Number(roles[0].espesor) ? Number(roles[0].espesor) : thickness;
-
-  // Carcasas cerradas: el fondo define el módulo completo
-  if (family === 'cabinet' || family === 'shelving' || family === 'wardrobe') {
-    const back = roles.find((p) => p.role === 'back_panel');
-    if (back) {
-      const { w, h } = dims.get(back.id);
-      return { width: w, height: h, thickness: inferredThickness };
-    }
-  }
-
-  const tops = roles.filter((p) => p.role === 'top_panel').map((p) => dims.get(p.id));
-  const bottoms = roles.filter((p) => p.role === 'bottom_panel').map((p) => dims.get(p.id));
-  const sides = roles.filter((p) => p.role === 'side_panel').map((p) => dims.get(p.id));
-  const legs = roles.filter((p) => p.role === 'leg').map((p) => dims.get(p.id));
-  const seats = roles.filter((p) => p.role === 'seat_panel').map((p) => dims.get(p.id));
-  const backs = roles.filter((p) => p.role === 'back_panel').map((p) => dims.get(p.id));
-
-  const candidatesW = [...tops, ...bottoms, ...seats, ...backs].map((d) => d.w);
-  const moduleW = candidatesW.length ? Math.max(...candidatesW) : 900;
-
-  let moduleH;
-  if (legs.length) {
-    const legH = Math.max(...legs.map((d) => d.h));
-    const topH = tops.length ? Math.max(...tops.map((d) => d.h)) : 0;
-    const seatH = seats.length ? Math.max(...seats.map((d) => d.h)) : 0;
-    const backH = backs.length ? Math.max(...backs.map((d) => d.h)) : 0;
-
-    if (seats.length && backH) {
-      // Asiento: respaldo + asiento + patas
-      moduleH = backH + seatH + legH;
-    } else {
-      // Mesa: pata + tablero
-      moduleH = legH + topH;
-    }
-  } else {
-    const sideH = sides.length ? Math.max(...sides.map((d) => d.h)) : 0;
-    moduleH = sideH || 2300;
-  }
-
-  return { width: moduleW, height: moduleH, thickness: inferredThickness };
-}
-
 // ═══════════════════════════════════════════════════════════
 // CLASE PRINCIPAL
 // ═══════════════════════════════════════════════════════════
@@ -209,7 +53,7 @@ export class CutterNestSvgEngine {
       w: Number(w) || 0,
       h: Number(h) || 0,
       type: type || 'panel',
-      color: color || '#94a3b8',
+      color: color || ROLE_COLORS.default,
       parent,
       constraints: { ...constraints },
       overlapAllowed: !!overlapAllowed,
@@ -337,12 +181,12 @@ export class CutterNestSvgEngine {
     const vbW = w + padding;
     const vbH = h + padding;
 
-    let svg = `<svg viewBox="0 0 ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" style="background:#0f172a;width:100%;height:auto;display:block;">
+    let svg = `<svg viewBox="0 0 ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" style="background:${COLORS.background};width:100%;height:auto;display:block;">
 `;
 
     svg += `  <defs>
 `;
-    svg += `    <marker id="cn-dim-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f59e0b"/></marker>
+    svg += `    <marker id="cn-dim-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${DIMENSION_COLORS.arrow}"/></marker>
 `;
     svg += `  </defs>
 `;
@@ -353,7 +197,7 @@ export class CutterNestSvgEngine {
       for (const p of pieces) {
         const isActive = activeIds.has(p.id);
         const isDone = completedIds.has(p.id) || isActive;
-        const stroke = isActive ? '#4ECDC4' : '#1e293b';
+        const stroke = isActive ? COLORS.strokeActive : ROLE_COLORS.back_panel;
         const opacity = isDone ? 1 : 0.25;
         const d = `M${p.x},${p.y}h${p.w}v${p.h}h-${p.w}Z`;
         svg += `    <path d="${d}" data-id="${p.id}" data-type="${p.type}" stroke="${stroke}" stroke-width="2" opacity="${opacity}"/>
@@ -361,7 +205,7 @@ export class CutterNestSvgEngine {
 
         if (p.w > 80 && p.h > 40) {
           const label = this._shortLabel(p.id);
-          svg += `    <text x="${p.x + p.w / 2}" y="${p.y + p.h / 2 + 4}" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">${label}</text>
+          svg += `    <text x="${p.x + p.w / 2}" y="${p.y + p.h / 2 + 4}" text-anchor="middle" fill="${COLORS.textDark}" font-size="10" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">${label}</text>
 `;
         }
       }
@@ -370,13 +214,13 @@ export class CutterNestSvgEngine {
     }
 
     if (showDimensions) {
-      svg += `  <line x1="0" y1="${h + 20}" x2="${w}" y2="${h + 20}" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
+      svg += `  <line x1="0" y1="${h + 20}" x2="${w}" y2="${h + 20}" stroke="${DIMENSION_COLORS.arrow}" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
 `;
-      svg += `  <text x="${w / 2}" y="${h + 42}" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="700" font-family="system-ui,sans-serif">${w} mm</text>
+      svg += `  <text x="${w / 2}" y="${h + 42}" text-anchor="middle" fill="${DIMENSION_COLORS.text}" font-size="13" font-weight="700" font-family="system-ui,sans-serif">${w} mm</text>
 `;
-      svg += `  <line x1="${w + 20}" y1="0" x2="${w + 20}" y2="${h}" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
+      svg += `  <line x1="${w + 20}" y1="0" x2="${w + 20}" y2="${h}" stroke="${DIMENSION_COLORS.arrow}" stroke-width="1.5" marker-end="url(#cn-dim-arrow)" marker-start="url(#cn-dim-arrow)"/>
 `;
-      svg += `  <text x="${w + 42}" y="${h / 2}" text-anchor="start" fill="#f59e0b" font-size="13" font-weight="700" font-family="system-ui,sans-serif" writing-mode="tb">${h} mm</text>
+      svg += `  <text x="${w + 42}" y="${h / 2}" text-anchor="start" fill="${DIMENSION_COLORS.text}" font-size="13" font-weight="700" font-family="system-ui,sans-serif" writing-mode="tb">${h} mm</text>
 `;
     }
 
@@ -808,7 +652,7 @@ const FamilyRouters = {
         w: handleW,
         h: handleH,
         type: 'handle',
-        color: '#A0A0A0',
+        color: ROLE_COLORS.handle,
         parent: 'modulo',
         constraints: { marginX: hx, offsetY: thickness + actualH / 2 },
         overlapAllowed: true,
@@ -877,39 +721,6 @@ function addCarcass(engine, roles, meta, family = 'cabinet') {
       constraints: { marginX: isDer ? width - dim.w : 0, offsetY: thickness },
     });
   }
-}
-
-function shelfRank(name) {
-  const n = normalize(name);
-  if (n.includes('superior') || n.includes('sup')) return 0;
-  if (n.includes('medio')) return 1;
-  if (n.includes('inferior') || n.includes('inf')) return 2;
-  const m = n.match(/(\d+)/);
-  if (m) return 100 + parseInt(m[1], 10);
-  return 50;
-}
-
-function calculateShelfPositions(moduleH, shelves, thickness, family) {
-  if (!shelves.length) return [];
-
-  const order = [...shelves].sort((a, b) => shelfRank(a.nombre) - shelfRank(b.nombre));
-  const totalShelfH = order.reduce(
-    (sum, p) => sum + getPieceDims(p, 'shelf', thickness, family).h,
-    0
-  );
-  const usableH = moduleH - 2 * thickness;
-  const gap = (usableH - totalShelfH) / (order.length + 1);
-
-  // Distribuir repisas desde arriba hacia abajo, sin importar si son numéricas o descriptivas.
-  // Esto mantiene coherencia: "superior" / "1" queda arriba, "inferior" / última queda abajo.
-  let y = moduleH - thickness - gap;
-  return order.map((p) => {
-    const dim = getPieceDims(p, 'shelf', thickness, family);
-    y -= dim.h;
-    const pos = { piece: p, y, h: dim.h };
-    y -= gap;
-    return pos;
-  });
 }
 
 function groupByHueco(drawers, moduleH, thickness, shelfPositions = [], family = 'cabinet') {
@@ -1037,7 +848,7 @@ function fillGapsWithDividers(engine, roles, meta, shelfPositions, drawerGroups,
         w: defaultW,
         h: gap.h,
         type: 'divider',
-        color: '#C19A6B',
+        color: ROLE_COLORS.wood,
         parent: 'modulo',
         constraints: { marginX: thickness + inset, offsetY: gap.y },
       });
@@ -1045,7 +856,7 @@ function fillGapsWithDividers(engine, roles, meta, shelfPositions, drawerGroups,
         w: defaultW,
         h: gap.h,
         type: 'divider',
-        color: '#C19A6B',
+        color: ROLE_COLORS.wood,
         parent: 'modulo',
         constraints: { marginX: width - thickness - defaultW - inset, offsetY: gap.y },
       });
@@ -1053,35 +864,6 @@ function fillGapsWithDividers(engine, roles, meta, shelfPositions, drawerGroups,
   }
 }
 
-function detectFamily(pieces, moduleId = null) {
-  let list = pieces;
-  if (moduleId !== null) {
-    const modId = String(moduleId).trim();
-    list = pieces.filter((p) => {
-      const mod = String(p.modulo || '').trim();
-      return mod === modId || mod.startsWith(modId);
-    });
-  }
-
-  const roles = list.map((p) => inferRole(p));
-
-  if (roles.some((r) => r === 'leg')) {
-    if (roles.some((r) => r === 'seat_panel' || r === 'back_panel')) return 'seating';
-    return 'table';
-  }
-  if (roles.some((r) => r === 'door')) return 'wardrobe';
-  if (roles.some((r) => r.startsWith('drawer'))) return 'cabinet';
-
-  const shelfCount = roles.filter((r) => r === 'shelf').length;
-  const hasMontante = list.some((p) => {
-    const n = normalize(p.nombre);
-    return n.includes('montante') && n.includes('central');
-  });
-  const hasDividers = roles.filter((r) => r === 'divider').length >= 2;
-  if (shelfCount >= 3 && (hasMontante || hasDividers)) return 'shelving';
-
-  return 'cabinet';
-}
 
 // ═══════════════════════════════════════════════════════════
 // API PÚBLICA
@@ -1103,4 +885,10 @@ export function buildEngineForModule(pieces, moduleId, options = {}) {
   return router(modulePieces, meta);
 }
 
-export { inferRole, getPieceDims, getModuleDimensions, detectFamily, FamilyRouters, calculateShelfPositions };
+export { inferRole, detectFamily } from './services/classifierService.js';
+export {
+  getPieceDims,
+  getModuleDimensions,
+  calculateShelfPositions,
+} from './services/geometryService.js';
+export { FamilyRouters };

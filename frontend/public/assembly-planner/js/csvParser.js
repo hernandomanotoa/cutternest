@@ -1,8 +1,9 @@
 // csvParser.js — parseo, validación y exportación de CSV
 
 import { isHexColor, normalizeColor } from './utils.js';
+import { normalizeName, nameIncludes } from './utils/normalize.js';
 
-export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo'];
+export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
 export function parseCSV(text) {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -11,12 +12,21 @@ export function parseCSV(text) {
     return { ok: false, error: 'El CSV debe tener al menos una línea de cabecera y una de datos.' };
   }
 
-  const headers = splitCSVLine(nonEmpty[0]);
+  let headers = splitCSVLine(nonEmpty[0]);
+  let isLegacyHeader = false;
   if (!headers.every((h, i) => EXPECTED_HEADERS[i] === h)) {
-    return {
-      ok: false,
-      error: `Cabecera inválida. Esperado: ${EXPECTED_HEADERS.join(',')}. Recibido: ${headers.join(',')}.`,
-    };
+    if (
+      headers.length === EXPECTED_HEADERS.length - 1 &&
+      headers.every((h, i) => EXPECTED_HEADERS[i] === h)
+    ) {
+      isLegacyHeader = true;
+      headers = [...EXPECTED_HEADERS];
+    } else {
+      return {
+        ok: false,
+        error: `Cabecera inválida. Esperado: ${EXPECTED_HEADERS.join(',')}. Recibido: ${headers.join(',')}.`,
+      };
+    }
   }
 
   const pieces = [];
@@ -25,8 +35,11 @@ export function parseCSV(text) {
   const seenIds = new Set();
 
   for (let i = 1; i < nonEmpty.length; i++) {
-    const row = splitCSVLine(nonEmpty[i]);
+    let row = splitCSVLine(nonEmpty[i]);
     if (row.length === 1 && row[0] === '') continue;
+    if (isLegacyHeader && row.length === EXPECTED_HEADERS.length - 1) {
+      row = [...row, ''];
+    }
     if (row.length !== headers.length) {
       errors.push(`Fila ${i + 1}: número de columnas incorrecto (${row.length} vs ${headers.length}).`);
       continue;
@@ -55,21 +68,12 @@ export function parseCSV(text) {
   };
 }
 
-function normalizeName(s) {
-  return String(s || '').toLowerCase().trim();
-}
-
-function nameMatches(piece, keywords) {
-  const n = normalizeName(piece.nombre);
-  return keywords.some((k) => n.includes(k));
-}
-
 function findPieces(pieces, keywords) {
-  return pieces.filter((p) => nameMatches(p, keywords));
+  return pieces.filter((p) => nameIncludes(p.nombre, keywords));
 }
 
 function findPiece(pieces, keywords) {
-  return pieces.find((p) => nameMatches(p, keywords));
+  return pieces.find((p) => nameIncludes(p.nombre, keywords));
 }
 
 function groupByModule(pieces) {
@@ -214,6 +218,12 @@ function splitCSVLine(line) {
   return result;
 }
 
+function parsePosZ(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function validatePiece(raw, line, seenIds, errors, warnings) {
   const base = {
     id: raw.id,
@@ -226,6 +236,7 @@ function validatePiece(raw, line, seenIds, errors, warnings) {
     espesor: parseFloat(raw.espesor),
     cantos: raw.cantos || '',
     modulo: raw.modulo || '1',
+    pos_z: parsePosZ(raw.pos_z),
   };
 
   if (!base.id) errors.push(`Fila ${line}: id vacío.`);
@@ -321,7 +332,8 @@ export function piecesToCSV(pieces) {
   });
   const rows = Object.values(groups).map((p) => {
     const cantos = p.cantos ? `"${p.cantos}"` : '';
-    return `${p.id},${p.nombre},${p.ancho},${p.alto},${p.cantidad},${p.rotate ? 'si' : 'no'},${p.color},${p.espesor},${cantos},${p.modulo}`;
+    const posZ = Number.isFinite(p.pos_z) ? p.pos_z : '';
+    return `${p.id},${p.nombre},${p.ancho},${p.alto},${p.cantidad},${p.rotate ? 'si' : 'no'},${p.color},${p.espesor},${cantos},${p.modulo},${posZ}`;
   });
   return [header, ...rows].join('\n');
 }
@@ -338,5 +350,6 @@ export function createEmptyPiece(index = 1) {
     espesor: 18,
     cantos: 'T,B,L,R',
     modulo: '1',
+    pos_z: null,
   };
 }
