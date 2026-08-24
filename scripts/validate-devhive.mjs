@@ -282,6 +282,10 @@ function main() {
   });
 
   for (const skillPath of renderedSkillFiles) {
+    if (skillPath.endsWith('deliverable-template.md')) {
+      // Deliverable template keeps intentional {{...}} placeholders for manual completion.
+      continue;
+    }
     const content = readFileSync(skillPath, 'utf8');
     checkUnresolvedPlaceholders(skillPath, content);
   }

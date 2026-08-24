@@ -21,6 +21,10 @@ import {
   readFileSafe,
   estimateContextUsage,
 } from './lib/dcop-utils.mjs';
+import { getLogger } from './lib/logger.mjs';
+import { recordMetric } from './lib/metrics.mjs';
+
+const logger = getLogger('resume');
 
 const profile = readProfile();
 const agents = getAgents(profile);
@@ -29,7 +33,7 @@ const sessionPath = join(MEMORY_DIR, 'session-state.md');
 const sessionText = readFileSafe(sessionPath);
 
 if (!sessionText) {
-  console.log('[RESUME] No session-state.md found. Run `node scripts/optimize.mjs` or `#checkpoint` first.');
+  logger.error('no session-state.md found');
   process.exit(1);
 }
 
@@ -64,16 +68,28 @@ const missing = l0l3.filter(p => !existsSync(join(ROOT, p)));
 const nextMatch = sessionText.match(/## Next Step\n\n([^\n]+)/);
 const nextStep = nextMatch ? nextMatch[1].trim() : 'Continue from session-state.md';
 
+logger.info('resuming session', { sessionId, contextUsage, errors, modified, untracked, openTokens });
+recordMetric('resume', 'session_resumed', { sessionId, errors, modified, untracked, openTokens });
+
+// eslint-disable-next-line no-console
 console.log(`[RESUME] Sesión restaurada desde ${sessionId}.`);
+// eslint-disable-next-line no-console
 console.log(`[RESUME] Contexto actual: ${contextUsage}.`);
+// eslint-disable-next-line no-console
 console.log(`[RESUME] P0 activo: ${errors} errores, ${modified} archivos modificados, ${openTokens} tokens abiertos.`);
 if (untracked) {
+  // eslint-disable-next-line no-console
   console.log(`[RESUME] Archivos untracked: ${untracked}.`);
 }
 if (missing.length) {
+  logger.warn('missing L0-L3 files', { missing });
+  // eslint-disable-next-line no-console
   console.log(`[RESUME] ⚠️ L0-L3 faltantes: ${missing.join(', ')}`);
 } else {
+  // eslint-disable-next-line no-console
   console.log('[RESUME] L0-L3 cargados correctamente.');
 }
+// eslint-disable-next-line no-console
 console.log(`[RESUME] Próximo paso: ${nextStep}`);
+// eslint-disable-next-line no-console
 console.log('[RESUME] Esperando confirmación del usuario para continuar.');

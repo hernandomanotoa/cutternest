@@ -241,14 +241,14 @@ export function compressToStub(sourcePath, destPath, title) {
   const content = readFileSafe(sourcePath) || '';
   // Extract bullet points and first sentence of each section.
   const lines = content.split(/\r?\n/).filter(l => l.trim());
-  const bullets = lines.filter(l => /^[-*]\s/.test(l.trim())).slice(0, 5);
+  const bullets = lines.filter(l => /^[-*]\s/.test(l.trim())).slice(0, 3);
   const firstSection = lines.find(l => /^#{1,2}\s/.test(l)) || title;
-  const summary = firstSection.replace(/^#+\s*/, '').slice(0, 80);
+  const summary = firstSection.replace(/^#+\s*/, '').slice(0, 60);
   const stubLines = [
     `# ${title}`,
     '',
     summary,
-    ...(bullets.length ? ['', ...bullets.map(b => `→ ${b.replace(/^[-*]\s*/, '').slice(0, 60)}`)] : []),
+    ...(bullets.length ? ['', ...bullets.map(b => `→ ${b.replace(/^[-*]\s*/, '').slice(0, 40)}`)] : []),
     '',
     `→ ${sourcePath}`,
   ];

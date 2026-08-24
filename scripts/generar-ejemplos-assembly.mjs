@@ -1,5 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { getLogger } from './lib/logger.mjs';
+import { recordMetric } from './lib/metrics.mjs';
+
+const logger = getLogger('generar-ejemplos-assembly');
 
 const DOCS_DIR = '/workspace/cutternest-kit/docs';
 const DATA_DIR = '/workspace/cutternest-kit/frontend/public/assembly-planner/data';
@@ -201,9 +205,75 @@ const examples = [];
   examples.push({ name: 'Ejemplo_CSV_Armario_Puertas_Corredizas.csv', dataName: 'ejemplo-armario.csv', lines });
 }
 
+// 11. Mesa de centro
+{
+  const lines = [];
+  lines.push(header('Ejemplo de mesa de centro', 'Tablero rectangular con 4 patas y travesaños de refuerzo.'));
+  lines.push(line('m1-tablero', 'Tablero mesa centro', 800, 600, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-frontal-izq', 'Pata frontal izquierda', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-frontal-der', 'Pata frontal derecha', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-izq', 'Pata trasera izquierda', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-der', 'Pata trasera derecha', 60, 400, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-frontal', 'Travesano frontal', 680, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-trasero', 'Travesano trasero', 680, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  examples.push({ name: 'Ejemplo_CSV_Mesa_Centro.csv', dataName: 'ejemplo-mesa-centro.csv', lines });
+}
+
+// 12. Banco / banqueta
+{
+  const lines = [];
+  lines.push(header('Ejemplo de banco / banqueta', 'Asiento con 4 patas y travesaños de refuerzo.'));
+  lines.push(line('m1-asiento', 'Asiento banco', 900, 350, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-frontal-izq', 'Pata frontal izquierda', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-frontal-der', 'Pata frontal derecha', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-izq', 'Pata trasera izquierda', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-der', 'Pata trasera derecha', 60, 450, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-frontal', 'Travesano frontal', 780, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-trasero', 'Travesano trasero', 780, 60, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  examples.push({ name: 'Ejemplo_CSV_Banco.csv', dataName: 'ejemplo-banco.csv', lines });
+}
+
+// 13. Mesa de noche / velador
+{
+  const lines = [];
+  lines.push(header('Ejemplo de mesa de noche / velador', 'Módulo con 1 cajón, base, tapa, laterales y fondo.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 500, 500, 400, '#C19A6B'));
+  lines.push(...cajon('1', '1', 1, '#8B5A2B', '#D9C2A3', ''));
+  examples.push({ name: 'Ejemplo_CSV_Mesa_Noche.csv', dataName: 'ejemplo-mesa-noche.csv', lines });
+}
+
+// 14. Bufetero / aparador
+{
+  const lines = [];
+  lines.push(header('Ejemplo de bufetero / aparador', 'Módulo bajo y ancho con 2 puertas y 1 repisa interna.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 1600, 900, 500, '#C19A6B'));
+  lines.push(line('m1-repisa', 'Repisa interna', 1540, 480, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-puerta-izq', 'Puerta izquierda', 765, 830, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-puerta-der', 'Puerta derecha', 765, 830, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 1));
+  lines.push(tirador('m1-tirador-izq', 'Tirador puerta izq', '#A0A0A0', 1));
+  lines.push(tirador('m1-tirador-der', 'Tirador puerta der', '#A0A0A0', 1));
+  examples.push({ name: 'Ejemplo_CSV_Bufetero.csv', dataName: 'ejemplo-bufetero.csv', lines });
+}
+
+// 15. Zapatero con compartimentos
+{
+  const lines = [];
+  lines.push(header('Ejemplo de zapatero con compartimentos', '2 divisores verticales crean 3 compartimentos con 3 niveles.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 900, 1200, 350, '#8B5A2B'));
+  lines.push(line('m1-divisor-izq', 'Divisor zapatero izq', 15, 1170, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-divisor-der', 'Divisor zapatero der', 15, 1170, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-bandeja-superior', 'Bandeja zapatero superior', 870, 15, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-bandeja-media', 'Bandeja zapatero media', 870, 15, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-bandeja-inferior', 'Bandeja zapatero inferior', 870, 15, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  examples.push({ name: 'Ejemplo_CSV_Zapatero_Compartimentos.csv', dataName: 'ejemplo-zapatero-compartimentos.csv', lines });
+}
+
 for (const ex of examples) {
   const content = ex.lines.join('\n') + '\n';
   fs.writeFileSync(path.join(DOCS_DIR, ex.name), content, 'utf8');
   fs.writeFileSync(path.join(DATA_DIR, ex.dataName), content, 'utf8');
+  logger.info('example generated', { csv: ex.name, data: ex.dataName, pieces: ex.lines.length });
+  // eslint-disable-next-line no-console
   console.log('Generado:', ex.name, '->', ex.dataName);
 }
+recordMetric('generar-ejemplos-assembly', 'examples_generated', { count: examples.length });

@@ -35,6 +35,8 @@ import {
   isSkillFile,
   readFileSafe,
 } from './lib/dcop-utils.mjs';
+import { checkBudget } from './token-budget.mjs';
+import { recordMetric } from './lib/metrics.mjs';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -42,6 +44,28 @@ const dryRun = args.includes('--dry-run');
 
 const profile = readProfile();
 const agents = getAgents(profile);
+
+const COOLDOWN_FILE = join(MEMORY_DIR, '.optimize-last-run');
+const COOLDOWN_MINUTES = 5;
+
+function lastRunMinutesAgo() {
+  if (!existsSync(COOLDOWN_FILE)) return Infinity;
+  const last = parseInt(readFileSync(COOLDOWN_FILE, 'utf8').trim(), 10);
+  if (Number.isNaN(last)) return Infinity;
+  return (Date.now() - last) / (60 * 1000);
+}
+
+function touchCooldown() {
+  ensureDir(MEMORY_DIR);
+  writeFileSync(COOLDOWN_FILE, String(Date.now()), 'utf8');
+}
+
+const minutesSinceLastRun = lastRunMinutesAgo();
+if (!force && minutesSinceLastRun < COOLDOWN_MINUTES) {
+  console.log(`[GUARDIAN] Cooldown activo: última ejecución hace ${Math.round(minutesSinceLastRun)} minutos. Espera ${COOLDOWN_MINUTES} minutos o usa --force.`);
+  process.exit(0);
+}
+
 const context = estimateContextUsage(profile);
 
 if (!force && context.percentage < 70) {
@@ -93,10 +117,20 @@ const hotFiles = [];
 const stubDir = join(MEMORY_DIR, 'stubs');
 ensureDir(stubDir);
 
+function isActiveBlocker(path) {
+  const text = readFileSafe(path) || '';
+  // Consider active if it contains explicit blocker/error markers or actionable items.
+  return /\[BLOCKER\]|\[ACTIVE_ERROR\]|\[CRITICAL\]|\[REGRESSION\]|- \[ \] /i.test(text);
+}
+
 // P1: mark hot files
 for (const p of allAgentMemoryFiles) {
-  if (/active-tasks|queue|blockers/.test(basename(p))) {
+  const name = basename(p);
+  if (name === 'active-tasks.md' || name === 'queue.md') {
     hotFiles.push({ path: relativeRoot(p), layer: 'L4 / agent memory', priority: 'P1', reason: 'Active task state' });
+    conserved++;
+  } else if (name === 'blockers.md' && isActiveBlocker(p)) {
+    hotFiles.push({ path: relativeRoot(p), layer: 'L4 / agent memory', priority: 'P1', reason: 'Active blockers' });
     conserved++;
   }
 }
@@ -211,6 +245,7 @@ if (!dryRun) {
     tokensFreed,
     next: 'review-optimization-report',
   });
+  touchCooldown();
 }
 
 const output = formatConsoleOutput({
@@ -223,9 +258,27 @@ const output = formatConsoleOutput({
 
 console.log(output);
 
+// Report token budget for the Guardian/DCOP run itself
+const budgetResult = checkBudget({ agent: 'Guardian', task: 'DCOP optimization', type: 'simple' });
+console.log(`\n[token-budget] DCOP load: ${budgetResult.tokens.toLocaleString()} tokens / ${budgetResult.budget.toLocaleString()} budget (${budgetResult.ratio}%)`);
+if (budgetResult.overBudget) {
+  console.log('[token-budget] ⚠️ Guardian memory load exceeds simple-task budget. Consider compressing L3 policies.');
+}
+
 if (dryRun) {
   console.log('\n[DRY-RUN] No files were modified.');
 }
+
+recordMetric('optimize', 'optimization_run', {
+  trigger: force ? 'forced' : 'threshold',
+  contextPercentage: context.percentage,
+  conserved,
+  compressed,
+  eliminated,
+  archived,
+  tokensFreed,
+  dryRun,
+});
 
 function relativeRoot(p) {
   return p.replace(ROOT + '/', '').replace(/\\/g, '/');

@@ -22,6 +22,10 @@ import {
   writeSessionState,
   todayDir,
 } from './lib/dcop-utils.mjs';
+import { getLogger } from './lib/logger.mjs';
+import { recordMetric } from './lib/metrics.mjs';
+
+const logger = getLogger('checkpoint');
 
 const label = process.argv[2] || 'manual';
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -88,7 +92,14 @@ const updatedSession = sessionText.replace(
 );
 writeFileSync(sessionPath, updatedSession, 'utf8');
 
+const checkpointRel = checkpointDir.replace(ROOT + '/', '').replace(/\\/g, '/');
+logger.info('checkpoint created', { label, checkpointDir: checkpointRel, filesCopied: copied.length });
+recordMetric('checkpoint', 'checkpoint_created', { label, filesCopied: copied.length });
+// eslint-disable-next-line no-console
 console.log(`[CHECKPOINT] Estado guardado en .agents/memory/session-state.md.`);
-console.log(`[CHECKPOINT] Checkpoint archivado: ${checkpointDir.replace(ROOT + '/', '').replace(/\\/g, '/')}/`);
+// eslint-disable-next-line no-console
+console.log(`[CHECKPOINT] Checkpoint archivado: ${checkpointRel}/`);
+// eslint-disable-next-line no-console
 console.log(`[CHECKPOINT] Archivos copiados: ${copied.length}`);
+// eslint-disable-next-line no-console
 console.log(`[CHECKPOINT] Próximo paso seguro: ${nextStep}`);

@@ -18,6 +18,8 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { getLogger } from './lib/logger.mjs';
+import { recordMetric } from './lib/metrics.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,6 +34,8 @@ const DCOP_SCRIPTS = [
   'scripts/resume.mjs',
   'scripts/lib/dcop-utils.mjs',
 ];
+
+const logger = getLogger('validate-devhive-full');
 
 const CANONICAL_MEMORY_FILES = new Set([
   'active-tasks.md',
@@ -60,16 +64,16 @@ let warnings = 0;
 
 function fail(message) {
   errors++;
-  console.error(`[validate-full] ERROR: ${message}`);
+  logger.error(message, { tag: 'validate-full' });
 }
 
 function warn(message) {
   warnings++;
-  console.warn(`[validate-full] WARNING: ${message}`);
+  logger.warn(message, { tag: 'validate-full' });
 }
 
 function ok(message) {
-  console.log(`[validate-full] OK: ${message}`);
+  logger.info(message, { tag: 'validate-full' });
 }
 
 function isPlainObject(value) {
@@ -310,8 +314,14 @@ function main() {
   validateAdrs(profile);
 
   if (errors === 0 && warnings === 0) {
+    logger.info('Full DevHive validation passed', { errors, warnings });
+    recordMetric('validate-devhive-full', 'validation_passed', { errors, warnings });
+    // eslint-disable-next-line no-console
     console.log('\n[validate-full] Full DevHive validation passed.');
   } else {
+    logger.error('Full DevHive validation failed', { errors, warnings });
+    recordMetric('validate-devhive-full', 'validation_failed', { errors, warnings });
+    // eslint-disable-next-line no-console
     console.log(`\n[validate-full] Full DevHive validation failed with ${errors} error(s) and ${warnings} warning(s).`);
     process.exit(1);
   }
