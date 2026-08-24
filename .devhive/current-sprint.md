@@ -26,6 +26,9 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | U4 | Refactor UI: mejoras en AssemblyPage y páginas principales | frontend | 🔄 En progreso | Cambios masivos en `AssemblyPage.tsx`, `Dashboard.tsx`, `QuotePage.tsx`, `InventoryPage.tsx`, `ProjectsPage.tsx`, `OptimizerPage.tsx`. Build bloqueado por falta de `node_modules`/lockfile. |
 | D1 | Actualizar memorias DevHive y .kimi-memory.md | Guardian | 🔄 En progreso | Memorias locales + archivos versionados en `.devhive/`. |
 | D2 | Versionar cambios en git por bloques | Guardian | ⏳ Pendiente | Commits agrupados por funcionalidad. |
+| A16 | Campo `pos_z` + offsets configurables | assembly-planner-agent | ✅ Completado | ADR-0016. 101 tests frontend OK. |
+| A17 | Panel de configuración de offsets verticales | assembly-planner-agent | ✅ Completado | ADR-0016 A16.7. 101 tests frontend OK. |
+| A18 | Panel inline de offsets en vista isométrica | assembly-planner-agent | ✅ Completado | ADR-0016 A18. 103 tests frontend OK. |
 
 ## Leyenda estados
 
