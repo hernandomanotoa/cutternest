@@ -1,0 +1,42 @@
+# Runtime configuration for DevHive / CutterNest agentic scripts.
+# Centralizes limits, retries, timeouts and circuit-breaker policies.
+# This file is read by scripts/lib/loop-controller.mjs and related helpers.
+
+runtime:
+  max_iterations: 15
+  max_tool_calls: 50
+  max_execution_time_seconds: 120
+  default_timeout_seconds: 30
+
+retry:
+  max_retries: 3
+  backoff_strategy: exponential
+  base_delay_ms: 500
+  max_delay_ms: 8000
+  retryable_errors:
+    - ECONNRESET
+    - ETIMEDOUT
+    - EAI_AGAIN
+    - NETWORK_ERROR
+    - MCP_UNAVAILABLE
+
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout_seconds: 60
+  half_open_max_calls: 1
+
+stall_detection:
+  max_steps_default: 15
+  max_handoffs_per_task: 5
+  repetition_threshold: 2
+  inactivity_timeout_minutes: 10
+
+# Per-script overrides are allowed; keys match basename without extension.
+script_overrides:
+  optimize:
+    max_iterations: 3
+    max_execution_time_seconds: 60
+  checkpoint:
+    max_execution_time_seconds: 30
+  resume:
+    max_execution_time_seconds: 30

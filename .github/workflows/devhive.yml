@@ -1,0 +1,56 @@
+name: DevHive Infrastructure
+
+on:
+  push:
+    paths:
+      - '.agents/**'
+      - '.devhive/**'
+      - 'scripts/**'
+      - '.artifacts/**'
+  pull_request:
+    paths:
+      - '.agents/**'
+      - '.devhive/**'
+      - 'scripts/**'
+      - '.artifacts/**'
+
+jobs:
+  validate-devhive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate DevHive structure
+        run: node scripts/validate-devhive.mjs
+
+  audit-stubs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audit knowledge graph stubs
+        run: node scripts/audit-stub-tokens.mjs
+
+  guardrails-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run guardian guardrails dry-run
+        run: node .agents/guardian/scripts/guardrails-dry-run.mjs
+
+  dcop-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run DCOP script tests
+        run: node scripts/run-tests.mjs
