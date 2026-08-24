@@ -348,3 +348,34 @@ def test_assembly_plan_endpoint():
     assert len(plan["levels"]) >= 1
     assert len(plan["steps"]) >= 1
     assert plan["cycle"] is None or plan["cycle"] == []
+
+
+def test_position_repisa_superior_inferior():
+    pieces = [
+        _piece("base", "Base", 1200.0, 600.0),
+        _piece("lateral-izq", "Lateral Izq", 500.0, 1800.0),
+        _piece("lateral-der", "Lateral Der", 500.0, 1800.0),
+        _piece("repisa-sup", "Repisa superior", 1000.0, 300.0),
+        _piece("repisa-inf", "Repisa inferior", 1000.0, 300.0),
+    ]
+    result = AssemblyEngine.build_assembly("proj", pieces)
+    by_name = {p["nombre"]: p for p in result["vista_completa"] if "REP" in p["id"]}
+    assert "Repisa superior" in by_name
+    assert "Repisa inferior" in by_name
+    superior = by_name["Repisa superior"]
+    inferior = by_name["Repisa inferior"]
+    assert superior["posicion"]["y"] > inferior["posicion"]["y"]
+
+
+def test_position_zapatero_inferior():
+    pieces = [
+        _piece("base", "Base", 1200.0, 600.0),
+        _piece("lateral-izq", "Lateral Izq", 500.0, 1800.0),
+        _piece("lateral-der", "Lateral Der", 500.0, 1800.0),
+        _piece("zapatero", "Zapatero", 1000.0, 300.0),
+    ]
+    result = AssemblyEngine.build_assembly("proj", pieces)
+    zapatero = next(p for p in result["pieces"] if p["piece_type"] == "zapatero")
+    base_thickness = 18.0
+    # La posicion fija inferior del zapatero esta justo encima de la base
+    assert zapatero["expected_position"]["y"] == base_thickness + 20.0

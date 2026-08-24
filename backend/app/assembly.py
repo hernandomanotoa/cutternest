@@ -608,7 +608,8 @@ class AssemblyEngine:
                 placed.append(_build_placed_piece(p, mod, "pata", seq_by_module_type[mod.code]))
             # Estantes / repisas
             for p in estantes:
-                placed.append(_build_placed_piece(p, mod, "estante", seq_by_module_type[mod.code]))
+                piece_kind = _piece_type_with_fallback(p)
+                placed.append(_build_placed_piece(p, mod, piece_kind, seq_by_module_type[mod.code]))
             # Zapateros
             for p in zapateros:
                 placed.append(_build_placed_piece(p, mod, "zapatero", seq_by_module_type[mod.code]))
@@ -1334,13 +1335,46 @@ def _position_for_kind(kind: str, mod: _Module, dims: Tuple[float, float, float]
             y = mod.base_thickness_mm + step * (index + 1)
         return _point3d(mod.x_mm + mod.lateral_thickness_mm, y - h / 2, 0.0)
     if kind == "repisa":
-        return _point3d(mod.x_mm + mod.lateral_thickness_mm, mod.base_thickness_mm + mod.height_mm / 2, 0.0)
+        thickness = h
+        offset_superior = 18.0
+        offset_inferior = 18.0
+        zone = _vertical_zone_from_name(piece.name, default="middle")
+        if zone == "top":
+            y = mod.base_thickness_mm + mod.height_mm - thickness - offset_superior
+        elif zone == "bottom":
+            y = mod.base_thickness_mm + offset_inferior
+        elif zone == "zapatero":
+            y = mod.base_thickness_mm + 20.0
+        else:
+            usable = mod.height_mm
+            n = max(count, 1)
+            if count == 1:
+                y = mod.base_thickness_mm + usable / 2
+            else:
+                step = usable / (n + 1)
+                y = mod.base_thickness_mm + step * (index + 1)
+        return _point3d(mod.x_mm + mod.lateral_thickness_mm, y, 0.0)
     if kind == "puerta":
         door_width = mod.width_mm / max(count, 1)
         x = mod.x_mm + index * door_width
         return _point3d(x, mod.base_thickness_mm, mod.depth_mm - h)
     if kind == "zapatero":
-        return _point3d(mod.x_mm + mod.lateral_thickness_mm, mod.base_thickness_mm + mod.height_mm / 2, 0.0)
+        thickness = h
+        offset_superior = 18.0
+        zone = _vertical_zone_from_name(piece.name, default="bottom")
+        if zone == "top":
+            y = mod.base_thickness_mm + mod.height_mm - thickness - offset_superior
+        elif zone == "bottom" or zone == "zapatero":
+            y = mod.base_thickness_mm + 20.0
+        elif zone == "middle":
+            usable = mod.height_mm
+            n = max(count, 1)
+            if count == 1:
+                y = mod.base_thickness_mm + usable / 2
+            else:
+                step = usable / (n + 1)
+                y = mod.base_thickness_mm + step * (index + 1)
+        return _point3d(mod.x_mm + mod.lateral_thickness_mm, y, 0.0)
     if kind == "zocalo":
         return _point3d(mod.x_mm + mod.lateral_thickness_mm, 0.0, 0.0)
     if kind == "cajon":
@@ -1350,6 +1384,20 @@ def _position_for_kind(kind: str, mod: _Module, dims: Tuple[float, float, float]
 
 def _rotation_for_kind(kind: str) -> Dict[str, float]:
     return _rotation3d()
+
+
+def _vertical_zone_from_name(name: str, default: str) -> str:
+    """Devuelve la zona vertical inferida desde el nombre de una pieza."""
+    text = (name or "").lower()
+    if "zapatero" in text:
+        return "zapatero"
+    if any(k in text for k in ("superior", "sup", "alto", "top")):
+        return "top"
+    if any(k in text for k in ("inferior", "inf", "bajo", "bottom")):
+        return "bottom"
+    if any(k in text for k in ("medio", "central", "centro")):
+        return "middle"
+    return default
 
 
 def _placed_to_3d(p: _PlacedPiece) -> Dict[str, Any]:
