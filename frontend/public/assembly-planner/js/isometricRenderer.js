@@ -7,7 +7,7 @@ import {
   getPieceDims,
   getModuleDimensions,
 } from './services/geometryService.js';
-import { calculateVerticalPositions } from './services/verticalPositionService.js';
+import { calculateVerticalPositions, getDefaultVerticalPosition } from './services/verticalPositionService.js';
 import {
   applyDoorRotation,
   applyExplode,
@@ -294,9 +294,16 @@ export class IsometricRenderer {
     const rails = roles.filter((p) => p.role === 'hanger_rail');
     rails.forEach((rail) => {
       const dims = getPieceDims(rail, 'hanger_rail', thickness, family);
-      const z = inferRailZ(rail, moduleH, dims.h, thickness);
+      const z = Number.isFinite(rail.pos_z)
+        ? Number(rail.pos_z)
+        : getDefaultVerticalPosition(rail, moduleH, thickness, this.verticalPositionOverrides);
       geometries.push({
-        x: thickness, y: moduleD / 2 - 12.5, z, w: moduleW - 2 * thickness, d: 25, h: dims.h,
+        x: thickness,
+        y: moduleD / 2 - 12.5,
+        z,
+        w: moduleW - 2 * thickness,
+        d: 25,
+        h: dims.h,
         color: rail.color || ROLE_COLORS.hanger_rail, role: 'hanger_rail', name: rail.nombre, id: rail.id,
       });
     });
