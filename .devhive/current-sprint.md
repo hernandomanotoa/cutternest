@@ -36,6 +36,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A23 | Riel colgador respeta altura configurada y pos_z | Guardian | ✅ Completado | `isometricRenderer.js` usa `getDefaultVerticalPosition`; test de integración; 114 tests OK. |
 | A24 | Render de puertas globales (divididas o completas) | Guardian | ✅ Completado | Solo en `estructura`/`all`; reparten ancho del mueble; 117 tests OK. |
 | A25 | Profundidad real en vista global/estructura | Guardian | ✅ Completado | `moduleD` usa todas las piezas; evita achatamiento por zócalo/corona. 117 tests OK. |
+| A26 | Clasificar zapateros como estantes | Guardian | ✅ Completado | `classifierService.js` detecta 'zapatero' como `shelf`; 118 tests OK. |
 
 ## Leyenda estados
 
