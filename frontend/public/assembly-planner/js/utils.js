@@ -82,6 +82,8 @@ export function readFileAsText(file) {
 
 export { normalizeName } from './utils/normalize.js';
 export {
+  ALL_MODULE_ID,
+  ALL_MODULE_LABEL,
   GLOBAL_MODULE_ID,
   GLOBAL_MODULE_LABEL,
   isGlobalPiece,

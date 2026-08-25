@@ -1,6 +1,6 @@
 // assemblyView.js — Vista de ensamblaje, timeline y simulador
 
-import { $, $$, isGlobalPiece, getModuleLabel } from '../utils.js';
+import { $, $$, getModulePieces, getModuleLabel } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { recalculateAll, setStatus } from '../app.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
@@ -29,10 +29,7 @@ export function createAssemblyView(store) {
   }
 
   function render(container, state) {
-    const activePieces = state.pieces.filter((p) => {
-      if (state.currentModule === 'global') return isGlobalPiece(p);
-      return p.modulo === state.currentModule || isGlobalPiece(p);
-    });
+    const activePieces = getModulePieces(state.pieces, state.currentModule);
     const moduleLabel = getModuleLabel(state.currentModule, state.pieces);
     const hasGlobalContext = state.currentModule !== 'global' && activePieces.some((p) => isGlobalPiece(p));
     const globalPieces = hasGlobalContext ? activePieces.filter((p) => isGlobalPiece(p)) : [];

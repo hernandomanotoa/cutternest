@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ALL_MODULE_ID,
+  ALL_MODULE_LABEL,
   GLOBAL_MODULE_ID,
   GLOBAL_MODULE_LABEL,
   isGlobalPiece,
@@ -42,14 +44,19 @@ describe('getModuleGroups', () => {
 });
 
 describe('getModules', () => {
-  it('prepends global module when global pieces exist', () => {
+  it('prepends global module and appends all view when global pieces exist', () => {
     const pieces = [piece('G', 'estructura'), piece('A', '1'), piece('B', '2')];
-    assert.deepEqual(getModules(pieces), [GLOBAL_MODULE_ID, '1', '2']);
+    assert.deepEqual(getModules(pieces), [GLOBAL_MODULE_ID, '1', '2', ALL_MODULE_ID]);
   });
 
-  it('returns only module ids when no globals', () => {
+  it('appends all view when multiple modules exist and no globals', () => {
     const pieces = [piece('A', '2'), piece('B', '1')];
-    assert.deepEqual(getModules(pieces), ['1', '2']);
+    assert.deepEqual(getModules(pieces), ['1', '2', ALL_MODULE_ID]);
+  });
+
+  it('does not append all view with a single module', () => {
+    const pieces = [piece('A', '1')];
+    assert.deepEqual(getModules(pieces), ['1']);
   });
 });
 
@@ -58,6 +65,14 @@ describe('getModuleGroup', () => {
     const group = getModuleGroup([], GLOBAL_MODULE_ID);
     assert.equal(group.id, GLOBAL_MODULE_ID);
     assert.equal(group.label, GLOBAL_MODULE_LABEL);
+  });
+
+  it('returns all group with every root module', () => {
+    const pieces = [piece('A', '1'), piece('B', '1.1'), piece('C', '2')];
+    const group = getModuleGroup(pieces, ALL_MODULE_ID);
+    assert.equal(group.id, ALL_MODULE_ID);
+    assert.equal(group.label, ALL_MODULE_LABEL);
+    assert.deepEqual(group.modules, ['1', '2']);
   });
 
   it('returns descendants for a target module id', () => {
@@ -85,6 +100,12 @@ describe('getModulePieces', () => {
     const ids = getModulePieces(pieces, '1').map((p) => p.id).sort();
     assert.deepEqual(ids, ['A', 'B', 'G']);
   });
+
+  it('returns every piece for all view', () => {
+    const pieces = [piece('G', 'estructura'), piece('A', '1'), piece('C', '2')];
+    const ids = getModulePieces(pieces, ALL_MODULE_ID).map((p) => p.id).sort();
+    assert.deepEqual(ids, ['A', 'C', 'G']);
+  });
 });
 
 describe('getModuleDependencies', () => {
@@ -101,6 +122,10 @@ describe('getModuleDependencies', () => {
 describe('getModuleLabel', () => {
   it('returns global label for global module', () => {
     assert.equal(getModuleLabel(GLOBAL_MODULE_ID), GLOBAL_MODULE_LABEL);
+  });
+
+  it('returns all label for all module', () => {
+    assert.equal(getModuleLabel(ALL_MODULE_ID), ALL_MODULE_LABEL);
   });
 
   it('returns module label from group', () => {

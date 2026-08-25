@@ -3,6 +3,8 @@
 
 import { normalizeName } from '../utils/normalize.js';
 
+export const ALL_MODULE_ID = 'all';
+export const ALL_MODULE_LABEL = 'Vista completa';
 export const GLOBAL_MODULE_ID = 'global';
 export const GLOBAL_MODULE_LABEL = 'Global / Estructura';
 
@@ -43,12 +45,21 @@ export function getModules(pieces) {
   const hasGlobal = pieces.some((p) => isGlobalPiece(p));
   const groups = getModuleGroups(pieces);
   const ids = groups.map((g) => g.id);
-  return hasGlobal ? [GLOBAL_MODULE_ID, ...ids] : ids;
+  const result = hasGlobal ? [GLOBAL_MODULE_ID, ...ids] : ids;
+  if (pieces.length > 0 && result.length > 1) {
+    result.push(ALL_MODULE_ID);
+  }
+  return result;
 }
 
 export function getModuleGroup(pieces, groupId) {
   if (groupId === GLOBAL_MODULE_ID) {
     return { id: GLOBAL_MODULE_ID, label: GLOBAL_MODULE_LABEL, modules: [] };
+  }
+
+  if (groupId === ALL_MODULE_ID) {
+    const roots = getModuleGroups(pieces).map((g) => g.id);
+    return { id: ALL_MODULE_ID, label: ALL_MODULE_LABEL, modules: roots };
   }
 
   const allModules = new Set();
@@ -81,6 +92,9 @@ export function getModuleGroup(pieces, groupId) {
 }
 
 export function getModulePieces(pieces, moduleId) {
+  if (moduleId === ALL_MODULE_ID) {
+    return pieces;
+  }
   if (moduleId === GLOBAL_MODULE_ID) {
     return pieces.filter((p) => isGlobalPiece(p));
   }
@@ -99,6 +113,7 @@ export function getModuleDependencies(dependencies, pieces) {
 
 export function getModuleLabel(moduleId, pieces = []) {
   if (moduleId === GLOBAL_MODULE_ID) return GLOBAL_MODULE_LABEL;
+  if (moduleId === ALL_MODULE_ID) return ALL_MODULE_LABEL;
   const group = getModuleGroup(pieces, moduleId);
   return group.label;
 }

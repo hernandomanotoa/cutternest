@@ -1,6 +1,6 @@
 // structuralView.js — Vista de análisis estructural
 
-import { $, isGlobalPiece, getModuleLabel } from '../utils.js';
+import { $, getModulePieces, getModuleLabel } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { calcularCargaRepisa, clasificarRiesgo, calcularVuelco, estimatePieceWeight, getProfundidadMueble } from '../structural.js';
 
@@ -26,10 +26,7 @@ export function createStructuralView(store) {
 }
 
 function render(container, state) {
-  const pieces = state.pieces.filter((p) => {
-    if (state.currentModule === 'global') return isGlobalPiece(p);
-    return p.modulo === state.currentModule || isGlobalPiece(p);
-  });
+  const pieces = getModulePieces(state.pieces, state.currentModule);
   const moduleLabel = getModuleLabel(state.currentModule, state.pieces);
 
   if (!pieces.length) {

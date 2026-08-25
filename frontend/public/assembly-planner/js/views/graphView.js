@@ -1,6 +1,6 @@
 // graphView.js — Vista del grafo de dependencias interactivo
 
-import { $, $$, throttle, clamp, isGlobalPiece, getModuleLabel } from '../utils.js';
+import { $, $$, throttle, clamp, getModulePieces, getModuleLabel } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { setStatus, addDependency, removeDependency, resetDependencies, clearDependencies } from '../app.js';
 import { DEPENDENCY_TYPES } from '../heuristics.js';
@@ -55,10 +55,7 @@ export function createGraphView(store) {
     const state = store.get();
 
     // Filtrar piezas y dependencias según el módulo activo
-    const pieces = state.pieces.filter((p) => {
-      if (state.currentModule === 'global') return isGlobalPiece(p);
-      return p.modulo === state.currentModule || isGlobalPiece(p);
-    });
+    const pieces = getModulePieces(state.pieces, state.currentModule);
     const visibleIds = new Set(pieces.map((p) => p.id));
     const dependencies = state.dependencies.filter((d) => visibleIds.has(d.from) && visibleIds.has(d.to));
 
