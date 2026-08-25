@@ -595,6 +595,7 @@ export class IsometricRenderer {
 
   _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness) {
     const geometries = [];
+    const globalDoors = [];
     globalPieces.forEach((p) => {
       const role = inferRole(p);
       const n = normalizeNameLocal(p.nombre);
@@ -633,6 +634,10 @@ export class IsometricRenderer {
           w, d: thickness, h,
           color, role: 'mirror', name: p.nombre, id: p.id, opacity: 0.9,
         });
+      } else if (role === 'door') {
+        // Puertas globales (corredizas/frontales del mueble completo).
+        // Se acumulan todas las puertas globales para repartir el ancho.
+        globalDoors.push(p);
       } else {
         // Pieza global genérica: caja según ancho/alto/espesor
         const w = Number(p.ancho) || moduleW;
@@ -644,6 +649,35 @@ export class IsometricRenderer {
         });
       }
     });
+
+    // Puertas globales: reparten el ancho total del módulo/mueble.
+    // Si hay izquierda + derecha, cada una ocupa la mitad; si es una sola, todo.
+    const doorCount = globalDoors.length;
+    if (doorCount) {
+      const doorW = doorCount >= 2 ? moduleW / doorCount : moduleW;
+      globalDoors.forEach((door, idx) => {
+        const dn = normalizeNameLocal(door.nombre);
+        const did = normalizeNameLocal(door.id);
+        const isLeft = dn.includes('izquierdo') || dn.includes('izq') || did.includes('izquierdo') || did.includes('izq');
+        const isRight = dn.includes('derecho') || dn.includes('der') || did.includes('derecho') || did.includes('der');
+        let x = 0;
+        if (doorCount >= 2) {
+          if (isLeft) x = 0;
+          else if (isRight) x = moduleW - doorW;
+          else x = idx * doorW;
+        }
+        const h = Number(door.alto) || moduleH - 2 * thickness;
+        const z = Number.isFinite(door.pos_z)
+          ? Number(door.pos_z)
+          : Math.max(thickness, moduleH - h - thickness);
+        const baseGeo = {
+          x, y: moduleD, z, w: doorW, d: thickness, h,
+          color: door.color || ROLE_COLORS.door, role: 'door', name: door.nombre, id: door.id,
+        };
+        geometries.push(applyDoorRotation(baseGeo, this.doorAngle));
+      });
+    }
+
     return geometries;
   }
 
