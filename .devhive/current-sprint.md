@@ -23,9 +23,10 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | U1 | Refactor UI: componentes base reutilizables | frontend | ✅ Completado | `frontend/src/components/ui/*`. |
 | U2 | Refactor UI: layouts, providers, command palette | frontend | ✅ Completado | `frontend/src/components/layout/`, `providers/`, `command-palette/`. |
 | U3 | Refactor UI: stores Zustand | frontend | ✅ Completado | `frontend/src/stores/`. |
-| U4 | Refactor UI: mejoras en AssemblyPage y páginas principales | frontend | 🔄 En progreso | Cambios masivos en `AssemblyPage.tsx`, `Dashboard.tsx`, `QuotePage.tsx`, `InventoryPage.tsx`, `ProjectsPage.tsx`, `OptimizerPage.tsx`. Build bloqueado por falta de `node_modules`/lockfile. |
-| D1 | Actualizar memorias DevHive y .kimi-memory.md | Guardian | 🔄 En progreso | Memorias locales + archivos versionados en `.devhive/`. |
-| D2 | Versionar cambios en git por bloques | Guardian | ⏳ Pendiente | Commits agrupados por funcionalidad. |
+| U4 | Refactor UI: mejoras en AssemblyPage y páginas principales | frontend | ✅ Completado | Build validado en Docker. `pnpm-lock.yaml` pendiente de generar en host. |
+| D1 | Actualizar memorias DevHive y .kimi-memory.md | Guardian | ✅ Completado | Memorias locales + archivos versionados en `.devhive/`. |
+| D2 | Versionar cambios en git por bloques | Guardian | ✅ Completado | Commits agrupados por funcionalidad. |
+| A20 | Mejorar mensaje de ciclo con acciones directas | Guardian | ✅ Completado | Botones Ir al Grafo / Restablecer dependencias en manual y ensamblaje. 103 tests OK. |
 | A16 | Campo `pos_z` + offsets configurables | assembly-planner-agent | ✅ Completado | ADR-0016. 101 tests frontend OK. |
 | A17 | Panel de configuración de offsets verticales | assembly-planner-agent | ✅ Completado | ADR-0016 A16.7. 101 tests frontend OK. |
 | A18 | Panel inline de offsets en vista isométrica | assembly-planner-agent | ✅ Completado | ADR-0016 A18. 103 tests frontend OK. |
@@ -41,7 +42,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Bloqueadores activos
 
-1. **Build frontend offline**: `frontend/package.json` incluye `zustand`, `recharts`, `jspdf`, `html2canvas`. No existe `pnpm-lock.yaml` ni `node_modules`. Hasta que se instalen dependencias, el build React no es reproducible offline.
+1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Para reproducibilidad offline hay que generarlo en host con `pnpm install`.
 
 ## Decisiones recientes del sprint
 
@@ -51,10 +52,11 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Métricas actuales
 
-- Tests backend: 21 passed.
-- Tests frontend: por validar (bloqueado por dependencias).
-- Docker Compose MVP: no validado en esta iteración.
-- Bugs críticos abiertos: 0 (bloqueador de build no es bug funcional).
+- Tests backend: 23 passed.
+- Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
+- Tests Assembly Planner: 103 passed.
+- Docker Compose MVP: frontend y backend validados por separado.
+- Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
 
 ## Hotfixes recientes (Assembly Planner)
