@@ -151,7 +151,9 @@ export class IsometricRenderer {
     const dims = getModuleDimensions(allPieces, inferThickness(allPieces), family);
     const moduleW = dims.width;
     const moduleH = dims.height;
-    const moduleD = getModuleDepth(allPieces);
+    // La profundidad debe reflejar la del mueble completo, no solo la pieza global
+    // (por ejemplo un zócalo/corona de 100 mm no debe achatar la vista global).
+    const moduleD = getModuleDepth(pieces);
     const thickness = dims.thickness;
 
     const moduleLabel = getModuleLabel(moduleId, pieces);
