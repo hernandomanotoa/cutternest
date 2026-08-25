@@ -52,7 +52,7 @@ describe('determineVerticalZone', () => {
 
 describe('getDefaultVerticalPosition', () => {
   it('places zapatero just above the base', () => {
-    assert.equal(getDefaultVerticalPosition(piece('Zapatero'), MODULE_H, THICKNESS), VERTICAL_POSITIONS.fixedBottomMargin);
+    assert.equal(getDefaultVerticalPosition(piece('Zapatero'), MODULE_H, THICKNESS), VERTICAL_POSITIONS.shoeRackBottomOffset);
   });
 
   it('places seat panels at standard seat height', () => {
@@ -150,6 +150,26 @@ describe('calculateVerticalPositions', () => {
     const positions = calculateVerticalPositions(600, 18, shelves);
     const override = positions.find((p) => p.piece.nombre === 'Repisa B');
     assert.equal(override.y, 250);
+  });
+
+  it('stacks multiple shoe racks with shoeRackGap', () => {
+    const racks = [
+      piece('Zapatero 1', { alto: 150 }),
+      piece('Zapatero 2', { alto: 150 }),
+    ];
+    const positions = calculateVerticalPositions(600, 18, racks);
+    const gap = positions[1].y - (positions[0].y + positions[0].h);
+    assert.equal(gap, VERTICAL_POSITIONS.shoeRackGap);
+  });
+
+  it('uses shelfMiddleGap for middle shelves', () => {
+    const shelves = [
+      piece('Repisa 1'),
+      piece('Repisa 2'),
+    ];
+    const positions = calculateVerticalPositions(600, 18, shelves, { overrides: { shelfMiddleGap: 100 } });
+    const gap = positions[0].y - (positions[1].y + positions[1].h);
+    assert.equal(gap, 100);
   });
 
   it('returns empty array when no pieces', () => {

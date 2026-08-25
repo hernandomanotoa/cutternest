@@ -71,8 +71,8 @@ export function getDefaultVerticalPosition(piece, moduleH, thickness, overrides 
 
   const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
 
-  // Zapatero: justo encima del zócalo (mantiene el offset fijo de 20 mm).
-  if (text.includes('zapatero')) return v('fixedBottomMargin');
+  // Zapatero: justo encima del zócalo.
+  if (text.includes('zapatero')) return v('shoeRackBottomOffset');
 
   if (role === 'bottom_panel') return 0.0;
   if (role === 'top_panel') return moduleH - t;
@@ -132,6 +132,10 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
     options.fixedBottomMargin ??
     overrides.fixedBottomMargin ??
     VERTICAL_POSITIONS.fixedBottomMargin;
+  const shoeRackBottomOffset =
+    overrides.shoeRackBottomOffset ?? VERTICAL_POSITIONS.shoeRackBottomOffset;
+  const shoeRackGap = overrides.shoeRackGap ?? VERTICAL_POSITIONS.shoeRackGap;
+  const shelfMiddleGap = overrides.shelfMiddleGap ?? VERTICAL_POSITIONS.shelfMiddleGap;
 
   const items = pieces.map((piece) => {
     const zone = determineVerticalZone(piece);
@@ -164,8 +168,8 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       currentTop = item.y - gap;
     });
 
-  // Piezas 'fixed-bottom' (zapatero): a 20 mm de la base por defecto.
-  let currentFixed = fixedBottomMargin;
+  // Piezas 'fixed-bottom' (zapatero): offset y gap propios.
+  let currentFixed = shoeRackBottomOffset;
   fixedItems
     .slice()
     .sort((a, b) => a.y - b.y)
@@ -173,7 +177,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.max(item.y, currentFixed);
       }
-      currentFixed = item.y + item.h + gap;
+      currentFixed = item.y + item.h + shoeRackGap;
     });
 
   // Piezas 'bottom': cerca de la base; si hay zapatero, se apilan encima de él.
@@ -203,11 +207,12 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   const middleGap = distributeItems.length
     ? (available - totalMiddleH) / (distributeItems.length + 1)
     : 0;
+  const effectiveMiddleGap = shelfMiddleGap && !options.gap ? shelfMiddleGap : middleGap;
 
-  let currentMiddle = middleTopEnd - middleGap;
+  let currentMiddle = middleTopEnd - effectiveMiddleGap;
   distributeItems.forEach((item) => {
     item.y = currentMiddle - item.h;
-    currentMiddle -= item.h + middleGap;
+    currentMiddle -= item.h + effectiveMiddleGap;
   });
 
   return items;

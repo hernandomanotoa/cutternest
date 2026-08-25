@@ -9,6 +9,9 @@ const CONFIG_FIELDS = [
   { key: 'fixedBottomMargin', label: 'Margen inferior fijo (mm)' },
   { key: 'shelfTopOffset', label: 'Offset repisa superior (mm)' },
   { key: 'shelfBottomOffset', label: 'Offset repisa inferior (mm)' },
+  { key: 'shelfMiddleGap', label: 'Gap estantes regulables (mm)' },
+  { key: 'shoeRackBottomOffset', label: 'Altura base zapateros (mm)' },
+  { key: 'shoeRackGap', label: 'Gap entre zapateros (mm)' },
   { key: 'seatHeight', label: 'Altura del asiento (mm)' },
   { key: 'hangerRailHeight', label: 'Altura riel colgador (mm)' },
 ];

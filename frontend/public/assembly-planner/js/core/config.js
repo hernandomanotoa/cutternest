@@ -136,4 +136,8 @@ export const VERTICAL_POSITIONS = {
   shelfBottomOffset: 80,
   seatHeight: 450,
   hangerRailHeight: 1700,
+  // Offsets por tipo de pieza (Opción A)
+  shoeRackBottomOffset: 20,
+  shoeRackGap: 20,
+  shelfMiddleGap: 20,
 };
