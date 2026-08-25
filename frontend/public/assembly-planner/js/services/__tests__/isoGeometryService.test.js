@@ -7,6 +7,7 @@ import {
   distributeHorizontally,
   drawerRank,
   getModuleDepth,
+  inferDividerX,
   inferDoorX,
   inferDoorZ,
   inferLegX,
@@ -97,6 +98,20 @@ describe('distributeHorizontally', () => {
     const positions = distributeHorizontally(2, 1000, 18);
     assert.equal(positions.length, 2);
     assert.ok(positions[0] < positions[1]);
+  });
+});
+
+describe('inferDividerX', () => {
+  it('centers central divider', () => {
+    assert.equal(inferDividerX({ nombre: 'Divisor central', ancho: 300 }, 1000, 18), 350);
+  });
+
+  it('places left divider near left side', () => {
+    assert.equal(inferDividerX({ nombre: 'Divisor izquierdo', ancho: 30 }, 1000, 18), 18);
+  });
+
+  it('places right divider near right side', () => {
+    assert.equal(inferDividerX({ nombre: 'Divisor derecho', ancho: 30 }, 1000, 18), 952);
   });
 });
 

@@ -74,3 +74,15 @@ describe('detectFamily', () => {
     assert.equal(detectFamily(pieces, '1'), 'cabinet');
   });
 });
+
+describe('inferRole - dividers', () => {
+  it('classifies central divider/montante as divider', () => {
+    assert.equal(inferRole(piece('Montante central', { ancho: 300, alto: 2200 })), 'divider');
+    assert.equal(inferRole(piece('Divisor central', { ancho: 250, alto: 1800 })), 'divider');
+  });
+
+  it('classifies side dividers as divider', () => {
+    assert.equal(inferRole(piece('Divisor izquierdo', { ancho: 30, alto: 2200 })), 'divider');
+    assert.equal(inferRole(piece('Divisor derecho', { ancho: 30, alto: 2200 })), 'divider');
+  });
+});
