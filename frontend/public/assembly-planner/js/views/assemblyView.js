@@ -46,12 +46,26 @@ export function createAssemblyView(store) {
       container.innerHTML = `
         <div class="card">
           <div class="card__body">
-            <div class="alert alert--danger">
-              Hay un ciclo en las dependencias. Corrígelo en la vista Grafo para continuar.
+            <div class="alert alert--danger mb-2">
+              <strong>Hay un ciclo en las dependencias.</strong><br>
+              El ciclo detectado es: <code>${state.cycle.join(' → ')}</code>.<br>
+              Ve a la vista <strong>Grafo</strong>, elimina la flecha que cierra el bucle o usa <em>Restaurar heurísticas</em>.
+            </div>
+            <div class="flex gap-1">
+              <button id="btn-assembly-goto-graph" class="btn btn--secondary">Ir al Grafo</button>
+              <button id="btn-assembly-reset-deps" class="btn btn--primary">Restablecer dependencias sugeridas</button>
             </div>
           </div>
         </div>
       `;
+      container.querySelector('#btn-assembly-goto-graph')?.addEventListener('click', () => {
+        const { switchTab } = await import('../app.js');
+        switchTab('grafo');
+      });
+      container.querySelector('#btn-assembly-reset-deps')?.addEventListener('click', async () => {
+        const { resetDependencies } = await import('../app.js');
+        resetDependencies();
+      });
       return;
     }
 

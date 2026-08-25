@@ -52,7 +52,28 @@ export function createManualView(store) {
     }
 
     if (state.cycle) {
-      container.innerHTML = `<div class="card"><div class="card__body"><div class="alert alert--danger">Hay un ciclo en las dependencias. Corrígelo en la vista Grafo antes de generar el manual.</div></div></div>`;
+      container.innerHTML = `
+        <div class="card">
+          <div class="card__body">
+            <div class="alert alert--danger mb-2">
+              <strong>Hay un ciclo en las dependencias.</strong><br>
+              El ciclo detectado es: <code>${state.cycle.join(' → ')}</code>.<br>
+              Revisa la vista <strong>Grafo</strong> y usa <em>Restaurar heurísticas</em> o elimina la flecha que cierra el bucle antes de generar el manual.
+            </div>
+            <div class="flex gap-1">
+              <button id="btn-manual-goto-graph" class="btn btn--secondary">Ir al Grafo</button>
+              <button id="btn-manual-reset-deps" class="btn btn--primary">Restablecer dependencias sugeridas</button>
+            </div>
+          </div>
+        </div>`;
+      container.querySelector('#btn-manual-goto-graph')?.addEventListener('click', () => {
+        const { switchTab } = await import('../app.js');
+        switchTab('grafo');
+      });
+      container.querySelector('#btn-manual-reset-deps')?.addEventListener('click', async () => {
+        const { resetDependencies } = await import('../app.js');
+        resetDependencies();
+      });
       return;
     }
 
