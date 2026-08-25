@@ -140,4 +140,18 @@ export const VERTICAL_POSITIONS = {
   shoeRackBottomOffset: 20,
   shoeRackGap: 20,
   shelfMiddleGap: 20,
+  // Cajones
+  drawerFaceGap: 20,
+  drawerBottomOffset: 80,
+  // Puertas
+  doorGap: 2,
+  doorTopOffset: 0,
+  doorBottomOffset: 0,
+  // Travesaños / soportes
+  braceTopOffset: 120,
+  braceBottomOffset: 80,
+  // Espejos
+  mirrorOffset: 120,
+  // Patas
+  legOffsetX: 20,
 };

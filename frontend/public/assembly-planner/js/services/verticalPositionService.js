@@ -101,25 +101,47 @@ export function getDefaultVerticalPosition(piece, moduleH, thickness, overrides 
   if (role === 'seat_panel') return v('seatHeight');
 
   if (role === 'drawer_face' || role === 'drawer_bottom') {
-    const rank = drawerRank(piece);
-    if (rank <= 10) return moduleH - t - h;
-    if (rank >= 90) return t;
-    return (moduleH - h) / 2;
+    return getDrawerDefaultPosition(piece, moduleH, t, overrides);
   }
 
-  if (role === 'door') {
-    if (text.includes('superior') || text.includes('sup')) return moduleH - h - t;
-    if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return t;
-    return (moduleH - h) / 2;
-  }
+  if (role === 'door') return getDoorDefaultPosition(piece, moduleH, t, overrides);
+  if (role === 'brace') return getBraceDefaultPosition(piece, moduleH, t, overrides);
 
-  if (role === 'brace') {
-    if (text.includes('superior') || text.includes('sup')) return moduleH - t - h;
-    if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return t;
-    return (moduleH - h) / 2;
-  }
+  // Espejo: cerca de la tapa.
+  if (role === 'mirror') return moduleH - t - h - v('mirrorOffset');
 
   return moduleH / 2;
+}
+
+function getDrawerDefaultPosition(piece, moduleH, t, overrides) {
+  const h = Number(piece?.alto) || 0;
+  const rank = drawerRank(piece);
+  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
+  if (rank <= 10) return moduleH - t - h;
+  if (rank >= 90) return t + v('drawerBottomOffset');
+  return (moduleH - h) / 2;
+}
+
+function getDoorDefaultPosition(piece, moduleH, t, overrides) {
+  const h = Number(piece?.alto) || 0;
+  const n = normalizeName(piece?.nombre || '');
+  const id = normalizeName(piece?.id || '');
+  const text = `${n} ${id}`;
+  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
+  if (text.includes('superior') || text.includes('sup')) return moduleH - t - h - v('doorTopOffset');
+  if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return t + v('doorBottomOffset');
+  return (moduleH - h) / 2;
+}
+
+function getBraceDefaultPosition(piece, moduleH, t, overrides) {
+  const h = Number(piece?.alto) || 0;
+  const n = normalizeName(piece?.nombre || '');
+  const id = normalizeName(piece?.id || '');
+  const text = `${n} ${id}`;
+  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
+  if (text.includes('superior') || text.includes('sup')) return moduleH - t - h - v('braceTopOffset');
+  if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return t + v('braceBottomOffset');
+  return (moduleH - h) / 2;
 }
 
 export function calculateVerticalPositions(moduleH, thickness, pieces, options = {}) {

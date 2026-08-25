@@ -7,7 +7,7 @@ import { buildEngineForModule } from '../svgEngine.js';
 import { calculateSupportWarnings } from '../components/manual/manualSupportWarnings.js';
 import { buildStandaloneHtml, exportCurrentStepPdf, download } from '../components/manual/manualExporter.js';
 import { switchTab, resetDependencies } from '../app.js';
-import { calculateVerticalPositions } from '../services/verticalPositionService.js';
+import { calculateVerticalPositions, getDefaultVerticalPosition } from '../services/verticalPositionService.js';
 import { getModuleDimensions } from '../services/geometryService.js';
 import { inferThickness } from '../services/isoGeometryService.js';
 import { detectFamily } from '../services/classifierService.js';
@@ -487,6 +487,11 @@ export function createManualView(store) {
       : [];
     const posById = new Map(repisaPositions.map(({ piece, y, h, zone }) => [piece.id, { y, h, zone }]));
 
+    const bracePositions = travesanos.length
+      ? travesanos.map((t) => ({ piece: t, y: getDefaultVerticalPosition(t, moduleH, thickness, state.userConfig) }))
+      : [];
+    const posByBraceId = new Map(bracePositions.map(({ piece, y }) => [piece.id, y]));
+
     const mmToSvg = (yMm) => interiorY + interiorH - ((yMm - thickness) / usableH) * interiorH;
 
     function drawRepisaGroup(group, y, label = '', growDown = true) {
@@ -581,7 +586,8 @@ export function createManualView(store) {
       travesanos.forEach((t, i) => {
         const isActive = activeIds.has(t.id);
         const isDone = completedIds.has(t.id) || isActive;
-        const ty = interiorY + 30 + i * 16;
+        const yMm = posByBraceId.get(t.id) ?? (thickness + 30 + i * 16);
+        const ty = mmToSvg(yMm);
         const label = t.nombre.split(' ').slice(0, 2).join(' ');
         svgParts.push(rect(interiorX, ty, interiorW, th, t.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}', label));
       });

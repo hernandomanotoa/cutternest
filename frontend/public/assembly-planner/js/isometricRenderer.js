@@ -31,7 +31,7 @@ import { inferRole, detectFamily } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
 import { isGlobalPiece, getModuleLabel, ALL_MODULE_ID } from './services/moduleService.js';
-import { Z_INDEX as Z_INDEX_CONFIG, ROLE_COLORS, AXES_COLORS, COLORS } from './core/config.js';
+import { Z_INDEX as Z_INDEX_CONFIG, ROLE_COLORS, AXES_COLORS, COLORS, VERTICAL_POSITIONS } from './core/config.js';
 
 function normalizeNameLocal(s) {
   return _normalizeName(s);
@@ -243,8 +243,8 @@ export class IsometricRenderer {
       const dims = getPieceDims(leg, 'leg', thickness, family);
       const w = dims.w;
       const h = dims.h;
-      const x = inferLegX(leg, moduleW, w);
-      const y = inferLegY(leg, moduleD, w);
+      const x = inferLegX(leg, moduleW, w, this.verticalPositionOverrides);
+      const y = inferLegY(leg, moduleD, w, this.verticalPositionOverrides);
       geometries.push({
         x, y, z: -h, w, d: w, h,
         color: leg.color || ROLE_COLORS.leg, role: 'leg', name: leg.nombre, id: leg.id,
@@ -279,7 +279,7 @@ export class IsometricRenderer {
     doors.forEach((door) => {
       const dims = getPieceDims(door, 'door', thickness, family);
       const x = inferDoorX(door, moduleW, dims.w, thickness);
-      const z = inferDoorZ(door, moduleH, dims.h, thickness);
+      const z = inferDoorZ(door, moduleH, dims.h, thickness, this.verticalPositionOverrides);
       const baseGeo = {
         x, y: moduleD, z, w: dims.w, d: thickness, h: dims.h,
         color: door.color, role: 'door', name: door.nombre, id: door.id,
@@ -316,7 +316,7 @@ export class IsometricRenderer {
     braces.forEach((brace) => {
       const dims = getPieceDims(brace, 'brace', thickness, family);
       const x = inferBraceX(brace, moduleW, dims.w, thickness);
-      const z = inferBraceZ(brace, moduleH, dims.h, thickness);
+      const z = inferBraceZ(brace, moduleH, dims.h, thickness, this.verticalPositionOverrides);
       geometries.push({
         x, y: moduleD - thickness, z, w: dims.w, d: thickness, h: dims.h,
         color: brace.color, role: 'brace', name: brace.nombre, id: brace.id, opacity: 0.7,
@@ -360,7 +360,9 @@ export class IsometricRenderer {
       const zone = zones[zi];
       const zoneH = Math.max(0, zone.yEnd - zone.yStart);
       const totalH = group.reduce((s, d) => s + d.h, 0);
-      const gap = totalH < zoneH ? (zoneH - totalH) / (group.length + 1) : 0;
+      const drawerFaceGap = this.verticalPositionOverrides?.drawerFaceGap ?? VERTICAL_POSITIONS.drawerFaceGap;
+      const distributedGap = group.length > 0 ? (zoneH - totalH) / (group.length + 1) : 0;
+      const gap = totalH < zoneH ? Math.min(drawerFaceGap, distributedGap) : 0;
       const scale = totalH > zoneH ? zoneH / totalH : 1;
       let currentZ = zone.yStart + gap;
 
@@ -626,10 +628,12 @@ export class IsometricRenderer {
           color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
         });
       } else if (role === 'mirror') {
-        // Espejo montado en la pared trasera, centrado en X y a altura de ojos.
+        // Espejo montado en la pared trasera, centrado en X y con offset desde tapa.
         const w = Number(p.ancho) || moduleW;
         const h = Number(p.alto) || 600;
-        const zPos = Math.max(thickness, (moduleH - h) / 2);
+        const zPos = Number.isFinite(p.pos_z)
+          ? Number(p.pos_z)
+          : Math.max(thickness, moduleH - thickness - h - (this.verticalPositionOverrides?.mirrorOffset ?? VERTICAL_POSITIONS.mirrorOffset));
         geometries.push({
           x: Math.max(0, (moduleW - w) / 2),
           y: -thickness,
@@ -658,7 +662,9 @@ export class IsometricRenderer {
     // Si hay izquierda + derecha, cada una ocupa la mitad; si es una sola, todo.
     const doorCount = globalDoors.length;
     if (doorCount) {
-      const doorW = doorCount >= 2 ? moduleW / doorCount : moduleW;
+      const doorGap = this.verticalPositionOverrides?.doorGap ?? VERTICAL_POSITIONS.doorGap;
+      const availableW = Math.max(0, moduleW - (doorCount - 1) * doorGap);
+      const doorW = doorCount >= 2 ? availableW / doorCount : moduleW;
       globalDoors.forEach((door, idx) => {
         const dn = normalizeNameLocal(door.nombre);
         const did = normalizeNameLocal(door.id);
@@ -668,12 +674,12 @@ export class IsometricRenderer {
         if (doorCount >= 2) {
           if (isLeft) x = 0;
           else if (isRight) x = moduleW - doorW;
-          else x = idx * doorW;
+          else x = idx * (doorW + doorGap);
         }
         const h = Number(door.alto) || moduleH - 2 * thickness;
         const z = Number.isFinite(door.pos_z)
           ? Number(door.pos_z)
-          : Math.max(thickness, moduleH - h - thickness);
+          : Math.max(thickness, moduleH - h - thickness - (this.verticalPositionOverrides?.doorTopOffset ?? VERTICAL_POSITIONS.doorTopOffset));
         const baseGeo = {
           x, y: moduleD, z, w: doorW, d: thickness, h,
           color: door.color || ROLE_COLORS.door, role: 'door', name: door.nombre, id: door.id,

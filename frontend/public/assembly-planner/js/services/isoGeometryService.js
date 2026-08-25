@@ -3,6 +3,7 @@
 
 import { normalizeName } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
+import { VERTICAL_POSITIONS } from '../core/config.js';
 
 export function getModuleDepth(pieces) {
   let d = 0;
@@ -142,11 +143,12 @@ export function inferDoorX(door, moduleW, doorW, thickness) {
   return (moduleW - doorW) / 2;
 }
 
-export function inferDoorZ(door, moduleH, doorH, thickness) {
+export function inferDoorZ(door, moduleH, doorH, thickness, overrides = {}) {
   if (Number.isFinite(door?.pos_z)) return door.pos_z;
+  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
   const n = normalizeName(door.nombre);
-  if (n.includes('superior') || n.includes('sup')) return moduleH - doorH - thickness;
-  if (n.includes('inferior') || n.includes('inf')) return thickness;
+  if (n.includes('superior') || n.includes('sup')) return moduleH - doorH - thickness - v('doorTopOffset');
+  if (n.includes('inferior') || n.includes('inf')) return thickness + v('doorBottomOffset');
   return (moduleH - doorH) / 2;
 }
 
@@ -168,37 +170,40 @@ export function inferBraceX(brace, moduleW, braceW, thickness) {
   return (moduleW - braceW) / 2;
 }
 
-export function inferBraceZ(brace, moduleH, braceH, thickness) {
+export function inferBraceZ(brace, moduleH, braceH, thickness, overrides = {}) {
   if (Number.isFinite(brace?.pos_z)) return brace.pos_z;
+  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
   const n = normalizeName(brace.nombre);
-  if (n.includes('superior') || n.includes('sup')) return moduleH - thickness - braceH;
-  if (n.includes('inferior') || n.includes('inf')) return thickness;
+  if (n.includes('superior') || n.includes('sup')) return moduleH - thickness - braceH - v('braceTopOffset');
+  if (n.includes('inferior') || n.includes('inf')) return thickness + v('braceBottomOffset');
   return (moduleH - braceH) / 2;
 }
 
-export function inferLegX(leg, moduleW, legW) {
+export function inferLegX(leg, moduleW, legW, overrides = {}) {
+  const offset = overrides.legOffsetX ?? VERTICAL_POSITIONS.legOffsetX;
   const n = normalizeName(leg.nombre);
   const id = normalizeName(leg.id);
-  const hasFront = n.includes('front') || n.includes('delanter') || id.includes('front');
-  const hasBack = n.includes('back') || n.includes('tras') || n.includes('posterior') || id.includes('back');
   const hasLeft = n.includes('izquierdo') || n.includes('izq') || id.includes('izq');
   const hasRight = n.includes('derecho') || n.includes('der') || id.includes('der');
+  const hasFront = n.includes('front') || n.includes('delanter') || id.includes('front');
+  const hasBack = n.includes('back') || n.includes('tras') || n.includes('posterior') || id.includes('back');
 
-  if (hasLeft) return 20;
-  if (hasRight) return moduleW - legW - 20;
+  if (hasLeft) return offset;
+  if (hasRight) return moduleW - legW - offset;
   if (hasFront || hasBack) return moduleW / 2 - legW / 2;
   return moduleW / 2 - legW / 2;
 }
 
-export function inferLegY(leg, moduleD, legW) {
+export function inferLegY(leg, moduleD, legW, overrides = {}) {
+  const offset = overrides.legOffsetX ?? VERTICAL_POSITIONS.legOffsetX;
   const n = normalizeName(leg.nombre);
   const id = normalizeName(leg.id);
   const hasFront = n.includes('front') || n.includes('delanter') || id.includes('front');
   const hasBack = n.includes('back') || n.includes('tras') || n.includes('posterior') || id.includes('back');
 
-  if (hasBack) return 20;
-  if (hasFront) return moduleD - legW - 20;
-  return moduleD - legW - 20;
+  if (hasBack) return offset;
+  if (hasFront) return moduleD - legW - offset;
+  return moduleD - legW - offset;
 }
 
 export function shouldShowLabel(geo, projectedPoints) {

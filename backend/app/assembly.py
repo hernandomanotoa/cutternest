@@ -40,6 +40,27 @@ from app.schemas import (
 DEFAULT_POSITION_TOLERANCE_MM = 2.0
 DEFAULT_ROTATION_TOLERANCE_DEG = 5.0
 
+_VERTICAL_OFFSETS = {
+    "defaultGap": 20.0,
+    "fixedBottomMargin": 20.0,
+    "shelfTopOffset": 120.0,
+    "shelfBottomOffset": 80.0,
+    "shelfMiddleGap": 20.0,
+    "shoeRackBottomOffset": 20.0,
+    "shoeRackGap": 20.0,
+    "drawerFaceGap": 20.0,
+    "drawerBottomOffset": 80.0,
+    "doorGap": 2.0,
+    "doorTopOffset": 0.0,
+    "doorBottomOffset": 0.0,
+    "braceTopOffset": 120.0,
+    "braceBottomOffset": 80.0,
+    "mirrorOffset": 120.0,
+    "legOffsetX": 20.0,
+    "seatHeight": 450.0,
+    "hangerRailHeight": 1700.0,
+}
+
 _PIECE_KINDS: List[Tuple[str, str]] = [
     ("izquierdo", "lateral_izq"),
     ("izq", "lateral_izq"),
@@ -607,18 +628,18 @@ class AssemblyEngine:
             for p in patas:
                 placed.append(_build_placed_piece(p, mod, "pata", seq_by_module_type[mod.code]))
             # Estantes / repisas
-            for p in estantes:
+            for idx, p in enumerate(estantes):
                 piece_kind = _piece_type_with_fallback(p)
-                placed.append(_build_placed_piece(p, mod, piece_kind, seq_by_module_type[mod.code]))
+                placed.append(_build_placed_piece(p, mod, piece_kind, seq_by_module_type[mod.code], index=idx, count=len(estantes)))
             # Zapateros
-            for p in zapateros:
-                placed.append(_build_placed_piece(p, mod, "zapatero", seq_by_module_type[mod.code]))
+            for idx, p in enumerate(zapateros):
+                placed.append(_build_placed_piece(p, mod, "zapatero", seq_by_module_type[mod.code], index=idx, count=len(zapateros)))
             # Zócalos
             for p in zocalos:
                 placed.append(_build_placed_piece(p, mod, "zocalo", seq_by_module_type[mod.code]))
             # Cajones
-            for p in cajones:
-                placed.append(_build_placed_piece(p, mod, "cajon", seq_by_module_type[mod.code]))
+            for idx, p in enumerate(cajones):
+                placed.append(_build_placed_piece(p, mod, "cajon", seq_by_module_type[mod.code], index=idx, count=len(cajones)))
             # Tapa
             if tapa:
                 placed.append(_build_placed_piece(tapa, mod, "tapa", seq_by_module_type[mod.code]))
@@ -1326,25 +1347,33 @@ def _position_for_kind(kind: str, mod: _Module, dims: Tuple[float, float, float]
         lat_thickness = mod.lateral_thickness_mm
         return _point3d(mod.x_mm + lat_thickness, mod.base_thickness_mm, mod.depth_mm - h)
     if kind == "estante":
-        usable = mod.height_mm
-        n = max(count, 1)
-        if count == 1:
-            y = mod.base_thickness_mm + usable / 2
+        offset_superior = _VERTICAL_OFFSETS["shelfTopOffset"]
+        offset_inferior = _VERTICAL_OFFSETS["shelfBottomOffset"]
+        zone = _vertical_zone_from_name(piece.name, default="middle")
+        if zone == "top":
+            y = mod.base_thickness_mm + mod.height_mm - h - offset_superior
+        elif zone == "bottom":
+            y = mod.base_thickness_mm + offset_inferior
         else:
-            step = usable / (n + 1)
-            y = mod.base_thickness_mm + step * (index + 1)
+            usable = mod.height_mm
+            n = max(count, 1)
+            if count == 1:
+                y = mod.base_thickness_mm + usable / 2
+            else:
+                step = usable / (n + 1)
+                y = mod.base_thickness_mm + step * (index + 1)
         return _point3d(mod.x_mm + mod.lateral_thickness_mm, y - h / 2, 0.0)
     if kind == "repisa":
         thickness = h
-        offset_superior = 18.0
-        offset_inferior = 18.0
+        offset_superior = _VERTICAL_OFFSETS["shelfTopOffset"]
+        offset_inferior = _VERTICAL_OFFSETS["shelfBottomOffset"]
         zone = _vertical_zone_from_name(piece.name, default="middle")
         if zone == "top":
             y = mod.base_thickness_mm + mod.height_mm - thickness - offset_superior
         elif zone == "bottom":
             y = mod.base_thickness_mm + offset_inferior
         elif zone == "zapatero":
-            y = mod.base_thickness_mm + 20.0
+            y = mod.base_thickness_mm + _VERTICAL_OFFSETS["shoeRackBottomOffset"] + index * (thickness + _VERTICAL_OFFSETS["shoeRackGap"])
         else:
             usable = mod.height_mm
             n = max(count, 1)
@@ -1355,17 +1384,23 @@ def _position_for_kind(kind: str, mod: _Module, dims: Tuple[float, float, float]
                 y = mod.base_thickness_mm + step * (index + 1)
         return _point3d(mod.x_mm + mod.lateral_thickness_mm, y, 0.0)
     if kind == "puerta":
-        door_width = mod.width_mm / max(count, 1)
-        x = mod.x_mm + index * door_width
-        return _point3d(x, mod.base_thickness_mm, mod.depth_mm - h)
+        door_gap = _VERTICAL_OFFSETS["doorGap"]
+        available_w = max(0, mod.width_mm - (count - 1) * door_gap)
+        door_width = available_w / max(count, 1)
+        x = mod.x_mm + index * (door_width + door_gap)
+        y_offset = _VERTICAL_OFFSETS["doorBottomOffset"]
+        if _vertical_zone_from_name(piece.name, default="middle") == "top":
+            y = mod.base_thickness_mm + mod.height_mm - h - _VERTICAL_OFFSETS["doorTopOffset"]
+        else:
+            y = mod.base_thickness_mm + y_offset
+        return _point3d(x, y, mod.depth_mm - h)
     if kind == "zapatero":
         thickness = h
-        offset_superior = 18.0
         zone = _vertical_zone_from_name(piece.name, default="bottom")
         if zone == "top":
-            y = mod.base_thickness_mm + mod.height_mm - thickness - offset_superior
+            y = mod.base_thickness_mm + mod.height_mm - thickness - _VERTICAL_OFFSETS["shelfTopOffset"]
         elif zone == "bottom" or zone == "zapatero":
-            y = mod.base_thickness_mm + 20.0
+            y = mod.base_thickness_mm + _VERTICAL_OFFSETS["shoeRackBottomOffset"] + index * (thickness + _VERTICAL_OFFSETS["shoeRackGap"])
         elif zone == "middle":
             usable = mod.height_mm
             n = max(count, 1)
@@ -1378,7 +1413,8 @@ def _position_for_kind(kind: str, mod: _Module, dims: Tuple[float, float, float]
     if kind == "zocalo":
         return _point3d(mod.x_mm + mod.lateral_thickness_mm, 0.0, 0.0)
     if kind == "cajon":
-        return _point3d(mod.x_mm + mod.lateral_thickness_mm, mod.base_thickness_mm + mod.height_mm / 2, 0.0)
+        y = mod.base_thickness_mm + _VERTICAL_OFFSETS["drawerBottomOffset"] + index * (h + _VERTICAL_OFFSETS["drawerFaceGap"])
+        return _point3d(mod.x_mm + mod.lateral_thickness_mm, y, 0.0)
     return _point3d(mod.x_mm, mod.base_thickness_mm, 0.0)
 
 

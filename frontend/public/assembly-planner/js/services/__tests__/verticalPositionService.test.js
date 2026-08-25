@@ -82,7 +82,7 @@ describe('getDefaultVerticalPosition', () => {
     const drawerInf = piece('Frente cajón inferior', { alto: 150 });
     const drawerMed = piece('Frente cajón', { alto: 150 });
     assert.equal(getDefaultVerticalPosition(drawerSup, MODULE_H, THICKNESS), MODULE_H - THICKNESS - 150);
-    assert.equal(getDefaultVerticalPosition(drawerInf, MODULE_H, THICKNESS), THICKNESS);
+    assert.equal(getDefaultVerticalPosition(drawerInf, MODULE_H, THICKNESS), THICKNESS + VERTICAL_POSITIONS.drawerBottomOffset);
     assert.equal(getDefaultVerticalPosition(drawerMed, MODULE_H, THICKNESS), (MODULE_H - 150) / 2);
   });
 
