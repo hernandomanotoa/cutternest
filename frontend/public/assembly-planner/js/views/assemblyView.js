@@ -1,8 +1,8 @@
 // assemblyView.js — Vista de ensamblaje, timeline y simulador
 
-import { $, $$, getModulePieces, getModuleLabel } from '../utils.js';
+import { $, $$, getModulePieces, getModuleLabel, isGlobalPiece } from '../utils.js';
 import { COLORS } from '../core/config.js';
-import { recalculateAll, setStatus } from '../app.js';
+import { switchTab, resetDependencies, setStatus } from '../app.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
 
 export function createAssemblyView(store) {
@@ -56,11 +56,9 @@ export function createAssemblyView(store) {
         </div>
       `;
       container.querySelector('#btn-assembly-goto-graph')?.addEventListener('click', () => {
-        const { switchTab } = await import('../app.js');
         switchTab('grafo');
       });
-      container.querySelector('#btn-assembly-reset-deps')?.addEventListener('click', async () => {
-        const { resetDependencies } = await import('../app.js');
+      container.querySelector('#btn-assembly-reset-deps')?.addEventListener('click', () => {
         resetDependencies();
       });
       return;

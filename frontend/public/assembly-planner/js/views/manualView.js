@@ -6,6 +6,7 @@ import { generarInstruccion, toolsForStep } from '../instructions.js';
 import { buildEngineForModule } from '../svgEngine.js';
 import { calculateSupportWarnings } from '../components/manual/manualSupportWarnings.js';
 import { buildStandaloneHtml, exportCurrentStepPdf, download } from '../components/manual/manualExporter.js';
+import { switchTab, resetDependencies } from '../app.js';
 import { calculateVerticalPositions } from '../services/verticalPositionService.js';
 import { getModuleDimensions } from '../services/geometryService.js';
 import { inferThickness } from '../services/isoGeometryService.js';
@@ -67,11 +68,9 @@ export function createManualView(store) {
           </div>
         </div>`;
       container.querySelector('#btn-manual-goto-graph')?.addEventListener('click', () => {
-        const { switchTab } = await import('../app.js');
         switchTab('grafo');
       });
-      container.querySelector('#btn-manual-reset-deps')?.addEventListener('click', async () => {
-        const { resetDependencies } = await import('../app.js');
+      container.querySelector('#btn-manual-reset-deps')?.addEventListener('click', () => {
         resetDependencies();
       });
       return;
