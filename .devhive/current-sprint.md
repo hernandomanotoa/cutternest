@@ -34,6 +34,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A21 | Vista completa del mueble | Guardian | ✅ Completado | Selector `Vista completa` agrupa módulos y globales; 107 tests OK. |
 | A22 | Clasificación y render de divisores verticales | Guardian | ✅ Completado | Montante central y divisores izq/der se clasifican como `divider`; render vertical completo de base a tapa. 112 tests OK. |
 | A23 | Riel colgador respeta altura configurada y pos_z | Guardian | ✅ Completado | `isometricRenderer.js` usa `getDefaultVerticalPosition`; test de integración; 114 tests OK. |
+| A24 | Render de puertas globales (divididas o completas) | Guardian | ✅ Completado | `isometricRenderer.js` reparte ancho según `izq`/`der`; una sola ocupa todo. 116 tests OK. |
 
 ## Leyenda estados
 
