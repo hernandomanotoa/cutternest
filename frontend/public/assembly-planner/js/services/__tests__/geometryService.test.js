@@ -90,11 +90,11 @@ describe('shelfRank', () => {
 });
 
 describe('calculateShelfPositions', () => {
-  it('distributes shelves evenly', () => {
+  it('stacks shelves from base', () => {
     const shelves = [piece('Repisa 1', 500, 18, 18), piece('Repisa 2', 500, 18, 18)];
     const positions = calculateShelfPositions(600, shelves, 18, 'cabinet');
     assert.equal(positions.length, 2);
-    assert.ok(positions[0].y > positions[1].y);
+    assert.ok(positions[0].y < positions[1].y);
   });
 
   it('returns empty array when no shelves', () => {

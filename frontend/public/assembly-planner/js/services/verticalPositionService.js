@@ -192,28 +192,44 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       currentBottom = item.y + item.h + gap;
     });
 
-  // Piezas 'middle': distribuidas uniformemente en el espacio restante,
-  // de arriba a abajo. Si una pieza middle tiene pos_z explícito, se respeta.
+  // Piezas 'middle': apiladas consecutivamente desde la base o desde el último
+  // zapatero/repisa inferior hacia arriba, usando shelfMiddleGap.
+  // Si una pieza middle tiene pos_z explícito, se respeta.
   const middleTopEnd = topItems.length ? currentTop + gap : moduleH - t - gap;
-  const middleBottomStart = bottomItems.length
-    ? currentBottom - gap
-    : fixedItems.length
-      ? currentFixed - gap
-      : t + gap;
-
   const distributeItems = middleItems.filter((i) => !i.hasPosZ);
-  const available = Math.max(0, middleTopEnd - middleBottomStart);
-  const totalMiddleH = distributeItems.reduce((sum, i) => sum + i.h, 0);
-  const middleGap = distributeItems.length
-    ? (available - totalMiddleH) / (distributeItems.length + 1)
-    : 0;
-  const effectiveMiddleGap = shelfMiddleGap && !options.gap ? shelfMiddleGap : middleGap;
+  const effectiveMiddleGap =
+    options.gap ?? overrides.shelfMiddleGap ?? VERTICAL_POSITIONS.shelfMiddleGap;
 
-  let currentMiddle = middleTopEnd - effectiveMiddleGap;
+  const middleBottomStart = bottomItems.length
+    ? currentBottom
+    : fixedItems.length
+      ? currentFixed - shoeRackGap + effectiveMiddleGap
+      : t + fixedBottomMargin;
+
+  // Ordenar de abajo hacia arriba para apilar de forma consecutiva.
+  distributeItems.sort((a, b) => a.y - b.y);
+
+  let currentMiddle = middleBottomStart;
+  let lastMiddleTop = currentMiddle;
   distributeItems.forEach((item) => {
-    item.y = currentMiddle - item.h;
-    currentMiddle -= item.h + effectiveMiddleGap;
+    item.y = currentMiddle;
+    currentMiddle += item.h + effectiveMiddleGap;
+    lastMiddleTop = item.y + item.h;
   });
+
+  // Si el apilamiento excede el límite superior, comprimir uniformemente.
+  if (distributeItems.length && lastMiddleTop > middleTopEnd) {
+    const available = Math.max(0, middleTopEnd - middleBottomStart);
+    const totalMiddleH = distributeItems.reduce((sum, i) => sum + i.h, 0);
+    const compressedGap = distributeItems.length > 1
+      ? Math.max(0, (available - totalMiddleH) / (distributeItems.length - 1))
+      : 0;
+    currentMiddle = middleBottomStart;
+    distributeItems.forEach((item) => {
+      item.y = currentMiddle;
+      currentMiddle += item.h + compressedGap;
+    });
+  }
 
   return items;
 }

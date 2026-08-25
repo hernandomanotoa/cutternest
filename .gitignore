@@ -72,3 +72,4 @@ htmlcov/
 # Windows alternate data streams
 *Zone.Identifier*
 *Zone.Identifier
+frontend/public/assembly-planner/pnpm-lock.yaml

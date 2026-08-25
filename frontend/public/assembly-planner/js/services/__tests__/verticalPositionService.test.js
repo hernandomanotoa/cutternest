@@ -114,7 +114,7 @@ describe('calculateVerticalPositions', () => {
     assert.ok(bottom.y >= 18);
   });
 
-  it('distributes middle shelves evenly between top and bottom zones', () => {
+  it('stacks middle shelves consecutively from base with shelfMiddleGap', () => {
     const shelves = [
       piece('Repisa 1'),
       piece('Repisa 2'),
@@ -123,12 +123,15 @@ describe('calculateVerticalPositions', () => {
     const positions = calculateVerticalPositions(600, 18, shelves);
     assert.equal(positions.length, 3);
     const ys = positions.map((p) => p.y);
-    // Middle shelves are rendered top-to-bottom; first entry is highest.
-    assert.ok(ys[0] > ys[1] && ys[1] > ys[2]);
-    // They should be spread out, not stacked at the top.
-    const gap01 = ys[0] - ys[1];
-    const gap12 = ys[1] - ys[2];
-    assert.ok(Math.abs(gap01 - gap12) < 1);
+    // Middle shelves are stacked from base upward.
+    assert.ok(ys[0] < ys[1] && ys[1] < ys[2]);
+    // First shelf sits above the bottom panel with the fixed bottom margin.
+    assert.equal(ys[0], 18 + VERTICAL_POSITIONS.fixedBottomMargin);
+    // Gaps between consecutive middle shelves use shelfMiddleGap.
+    const gap01 = ys[1] - (ys[0] + 18);
+    const gap12 = ys[2] - (ys[1] + 18);
+    assert.equal(gap01, VERTICAL_POSITIONS.shelfMiddleGap);
+    assert.equal(gap12, VERTICAL_POSITIONS.shelfMiddleGap);
   });
 
   it('keeps bottom shelves above a fixed-bottom zapatero', () => {
@@ -140,6 +143,28 @@ describe('calculateVerticalPositions', () => {
     const fixed = positions.find((p) => p.zone === 'fixed-bottom');
     const bottom = positions.find((p) => p.zone === 'bottom');
     assert.ok(bottom.y >= fixed.y + fixed.h);
+  });
+
+  it('stacks middle shelves consecutively above shoe racks', () => {
+    const shelves = [
+      piece('Zapatero 1', { alto: 150 }),
+      piece('Zapatero 2', { alto: 150 }),
+      piece('Repisa 1'),
+      piece('Repisa 2'),
+    ];
+    const positions = calculateVerticalPositions(600, 18, shelves);
+    const racks = positions
+      .filter((p) => p.zone === 'fixed-bottom')
+      .sort((a, b) => a.y - b.y);
+    const middle = positions
+      .filter((p) => p.zone === 'middle')
+      .sort((a, b) => a.y - b.y);
+    const lastRackTop = racks[racks.length - 1].y + racks[racks.length - 1].h;
+    // Gap from last shoe rack to first middle shelf uses shelfMiddleGap.
+    assert.equal(middle[0].y - lastRackTop, VERTICAL_POSITIONS.shelfMiddleGap);
+    // Middle shelves stack with shelfMiddleGap between them.
+    const middleGap = middle[1].y - (middle[0].y + middle[0].h);
+    assert.equal(middleGap, VERTICAL_POSITIONS.shelfMiddleGap);
   });
 
   it('respects an explicit pos_z override', () => {
@@ -168,7 +193,8 @@ describe('calculateVerticalPositions', () => {
       piece('Repisa 2'),
     ];
     const positions = calculateVerticalPositions(600, 18, shelves, { overrides: { shelfMiddleGap: 100 } });
-    const gap = positions[0].y - (positions[1].y + positions[1].h);
+    // Stacked from base: positions[0] is lower, positions[1] is higher.
+    const gap = positions[1].y - (positions[0].y + positions[0].h);
     assert.equal(gap, 100);
   });
 
