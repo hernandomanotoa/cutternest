@@ -19,6 +19,7 @@
 
 import { normalizeName } from './utils/normalize.js';
 import { inferRole, detectFamily } from './services/classifierService.js';
+import { ALL_MODULE_ID } from './services/moduleService.js';
 import {
   getPieceDims,
   getModuleDimensions,
@@ -872,10 +873,12 @@ function fillGapsWithDividers(engine, roles, meta, shelfPositions, drawerGroups,
 export function buildEngineForModule(pieces, moduleId, options = {}) {
   const family = options.family || detectFamily(pieces, moduleId);
   const modId = String(moduleId).trim();
-  const modulePieces = pieces.filter((p) => {
-    const mod = String(p.modulo || '').trim();
-    return mod === modId || mod.startsWith(modId);
-  });
+  const modulePieces = modId === ALL_MODULE_ID
+    ? pieces
+    : pieces.filter((p) => {
+        const mod = String(p.modulo || '').trim();
+        return mod === modId || mod.startsWith(modId);
+      });
 
   if (!modulePieces.length) return null;
 

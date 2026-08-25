@@ -30,7 +30,7 @@ import {
 import { inferRole, detectFamily } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
-import { isGlobalPiece, getModuleLabel } from './services/moduleService.js';
+import { isGlobalPiece, getModuleLabel, ALL_MODULE_ID } from './services/moduleService.js';
 import { Z_INDEX as Z_INDEX_CONFIG, ROLE_COLORS, AXES_COLORS, COLORS } from './core/config.js';
 
 function normalizeNameLocal(s) {
@@ -136,7 +136,11 @@ export class IsometricRenderer {
       }
     }
 
-    const allPieces = isGlobalModule ? globalPieces : [...exactPieces, ...subInsertPieces];
+    const allPieces = isGlobalModule
+      ? globalPieces
+      : target === ALL_MODULE_ID
+        ? pieces
+        : [...exactPieces, ...subInsertPieces];
 
     if (!allPieces.length) {
       this.container.innerHTML =
