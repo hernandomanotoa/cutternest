@@ -24,7 +24,7 @@ export function inferRole(piece) {
 
   if (n.includes('zocalo')) return 'bottom_panel';
 
-  if (n.includes('estante') || n.includes('repisa')) return 'shelf';
+  if (n.includes('estante') || n.includes('repisa') || n.includes('zapatero')) return 'shelf';
   if (n.includes('divisor') || n.includes('division')) return 'divider';
   if (n.includes('montante') && (n.includes('central') || n.includes('centro'))) return 'divider';
 

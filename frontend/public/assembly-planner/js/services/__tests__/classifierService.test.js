@@ -34,6 +34,11 @@ describe('inferRole', () => {
     assert.equal(inferRole(piece('Lateral Izquierdo')), 'side_panel');
   });
 
+  it('detects shoe racks as shelves', () => {
+    assert.equal(inferRole(piece('Zapatero inclinado 1', { ancho: 829, alto: 330 })), 'shelf');
+    assert.equal(inferRole(piece('Estante regulable', { ancho: 829, alto: 550 })), 'shelf');
+  });
+
   it('falls back to shape heuristics', () => {
     assert.equal(inferRole(piece('Tabla', { ancho: 1200, alto: 100 })), 'shelf');
     assert.equal(inferRole(piece('Tabla', { ancho: 100, alto: 1200 })), 'side_panel');
