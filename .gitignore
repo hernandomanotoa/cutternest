@@ -58,6 +58,10 @@ data/frontend-vite-cache/
 
 # Coverage / tests
 .coverage
+
+# Temporary agent artifacts
+.artifacts/
+
 coverage/
 .pytest_cache/
 htmlcov/
