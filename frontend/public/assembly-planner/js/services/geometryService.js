@@ -74,8 +74,9 @@ export function getModuleDimensions(pieces, thickness = 15, family = null) {
     roles.length && Number(roles[0].espesor) ? Number(roles[0].espesor) : thickness;
 
   if (detectedFamily === 'cabinet' || detectedFamily === 'shelving' || detectedFamily === 'wardrobe') {
-    const back = roles.find((p) => p.role === 'back_panel');
-    if (back) {
+    const backs = roles.filter((p) => p.role === 'back_panel');
+    if (backs.length) {
+      const back = backs.sort((a, b) => Number(b.ancho) - Number(a.ancho))[0];
       const { w, h } = dims.get(back.id);
       return { width: w, height: h, thickness: inferredThickness };
     }

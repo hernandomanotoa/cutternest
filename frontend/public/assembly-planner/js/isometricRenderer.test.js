@@ -76,37 +76,62 @@ describe('IsometricRenderer hanger rail', () => {
 });
 
 describe('IsometricRenderer global doors', () => {
-  it('splits left/right global doors across module width', () => {
+  const globalBase = [
+    { id: 'glb-trasera', nombre: 'Panel posterior armario', ancho: 1600, alto: 2300, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: 'estructura' },
+  ];
+
+  it('splits left/right global doors across full width', () => {
     const container = { innerHTML: '' };
     const renderer = new IsometricRenderer(container, { scale: 0.12 });
     const pieces = [
       ...basePieces,
+      ...globalBase,
+      { id: 'glb-puerta-izq', nombre: 'Puerta corrediza izquierda', ancho: 780, alto: 2250, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-puerta-der', nombre: 'Puerta corrediza derecha', ancho: 780, alto: 2250, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: 'estructura' },
+    ];
+    renderer.render('estructura', pieces);
+    const polys = parsePolygons(container.innerHTML);
+    const doorPolys = polys.filter((p) => p.fill === DOOR_FILL);
+    assert.equal(doorPolys.length, 2, 'two front door faces should exist');
+    const [left, right] = doorPolys.sort((a, b) => a.cx - b.cx);
+    assert.ok(left.cx < right.cx, 'left door should be left of right door');
+
+    // Doors should span nearly the full width of the back panel (1600 mm)
+    const allXs = doorPolys.flatMap((p) => p.coords.map((c) => c.x));
+    const totalSpan = Math.max(...allXs) - Math.min(...allXs);
+    assert.ok(totalSpan > 1600 * 0.12 - 5, 'doors should span nearly full width');
+  });
+
+  it('single global door spans full width', () => {
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, { scale: 0.12 });
+    const pieces = [
+      ...basePieces,
+      ...globalBase,
+      { id: 'glb-puerta', nombre: 'Puerta corrediza', ancho: 780, alto: 2250, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: 'estructura' },
+    ];
+    renderer.render('estructura', pieces);
+    const polys = parsePolygons(container.innerHTML);
+    const doorPolys = polys.filter((p) => p.fill === DOOR_FILL);
+    assert.equal(doorPolys.length, 1, 'single front door face should exist');
+
+    const xs = doorPolys[0].coords.map((c) => c.x);
+    const width = Math.max(...xs) - Math.min(...xs);
+    assert.ok(width > 1600 * 0.12 - 5, 'single door should span nearly full width');
+  });
+
+  it('does not render global doors in individual module view', () => {
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, { scale: 0.12 });
+    const pieces = [
+      ...basePieces,
+      ...globalBase,
       { id: 'glb-puerta-izq', nombre: 'Puerta corrediza izquierda', ancho: 780, alto: 2250, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: 'estructura' },
       { id: 'glb-puerta-der', nombre: 'Puerta corrediza derecha', ancho: 780, alto: 2250, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: 'estructura' },
     ];
     renderer.render('1', pieces);
     const polys = parsePolygons(container.innerHTML);
     const doorPolys = polys.filter((p) => p.fill === DOOR_FILL);
-    assert.equal(doorPolys.length, 2, 'two front door faces should exist');
-    const [left, right] = doorPolys.sort((a, b) => a.cx - b.cx);
-    assert.ok(left.cx < right.cx, 'left door should be left of right door');
-  });
-
-  it('single global door spans full module width', () => {
-    const container = { innerHTML: '' };
-    const renderer = new IsometricRenderer(container, { scale: 0.12 });
-    const pieces = [
-      ...basePieces,
-      { id: 'glb-puerta', nombre: 'Puerta corrediza', ancho: 780, alto: 2250, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: 'estructura' },
-    ];
-    renderer.render('1', pieces);
-    const polys = parsePolygons(container.innerHTML);
-    const doorPolys = polys.filter((p) => p.fill === DOOR_FILL);
-    assert.equal(doorPolys.length, 1, 'single front door face should exist');
-
-    // Width in projection should be close to module width (800 mm * scale)
-    const xs = doorPolys[0].coords.map((c) => c.x);
-    const width = Math.max(...xs) - Math.min(...xs);
-    assert.ok(width > 800 * 0.12 - 5, 'single door should span nearly full module width');
+    assert.equal(doorPolys.length, 0, 'global doors should not appear in module view');
   });
 });

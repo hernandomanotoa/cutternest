@@ -160,14 +160,15 @@ export class IsometricRenderer {
 
     if (isGlobalModule) {
       // Vista global: renderizar todas las piezas globales con su geometría propia
-      // (zócalo, tapa corrida, panel trasero, espejo, etc.)
-      geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness));
+      // (zócalo, tapa corrida, panel trasero, espejo, puertas, etc.)
+      geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, true));
     } else {
       // Piezas del módulo principal + submódulos insertos
       geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family));
       // Superponer piezas de estructura global (zócalo, tapa corrida, espejo...)
+      // Las puertas globales solo se dibujan en vista completa o estructura global.
       if (globalPieces.length) {
-        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness));
+        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, target === ALL_MODULE_ID));
       }
     }
 
@@ -593,7 +594,7 @@ export class IsometricRenderer {
     return positions;
   }
 
-  _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness) {
+  _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true) {
     const geometries = [];
     const globalDoors = [];
     globalPieces.forEach((p) => {
@@ -635,9 +636,10 @@ export class IsometricRenderer {
           color, role: 'mirror', name: p.nombre, id: p.id, opacity: 0.9,
         });
       } else if (role === 'door') {
-        // Puertas globales (corredizas/frontales del mueble completo).
-        // Se acumulan todas las puertas globales para repartir el ancho.
-        globalDoors.push(p);
+        // Puertas globales: solo se renderizan en vista completa o estructura global.
+        if (includeDoors) {
+          globalDoors.push(p);
+        }
       } else {
         // Pieza global genérica: caja según ancho/alto/espesor
         const w = Number(p.ancho) || moduleW;
