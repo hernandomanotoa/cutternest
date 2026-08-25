@@ -7,6 +7,9 @@ import { drawerRank } from './isoGeometryService.js';
 import { VERTICAL_POSITIONS } from '../core/config.js';
 
 export function determineVerticalZone(piece) {
+  const role = inferRole(piece);
+  if (role === 'drawer_face') return 'drawer';
+
   const n = normalizeName(piece?.nombre || '');
   const id = normalizeName(piece?.id || '');
   const text = `${n} ${id}`;
@@ -214,8 +217,28 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       currentBottom = item.y + item.h + gap;
     });
 
-  // Piezas 'middle': apiladas consecutivamente desde la base o desde el último
-  // zapatero/repisa inferior hacia arriba, usando shelfMiddleGap.
+  // Piezas 'drawer' (frentes de cajón): apiladas consecutivamente desde la base,
+  // zapatero o repisa inferior, usando drawerFaceGap.
+  const drawerFaceGap = overrides.drawerFaceGap ?? VERTICAL_POSITIONS.drawerFaceGap;
+  const drawerBottomOffset = overrides.drawerBottomOffset ?? VERTICAL_POSITIONS.drawerBottomOffset;
+  const drawerItems = items.filter((i) => i.zone === 'drawer');
+  let currentDrawer = bottomItems.length
+    ? currentBottom
+    : fixedItems.length
+      ? currentFixed
+      : t + drawerBottomOffset;
+  drawerItems
+    .slice()
+    .sort((a, b) => drawerRank(a.piece) - drawerRank(b.piece))
+    .forEach((item) => {
+      if (!item.hasPosZ) {
+        item.y = Math.max(item.y, currentDrawer);
+      }
+      currentDrawer = item.y + item.h + drawerFaceGap;
+    });
+
+  // Piezas 'middle': apiladas consecutivamente desde la base, el último zapatero,
+  // repisa inferior o frente de cajón hacia arriba, usando shelfMiddleGap.
   // Si una pieza middle tiene pos_z explícito, se respeta.
   const middleTopEnd = topItems.length ? currentTop + gap : moduleH - t - gap;
   const distributeItems = middleItems.filter((i) => !i.hasPosZ);
@@ -224,9 +247,11 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
 
   const middleBottomStart = bottomItems.length
     ? currentBottom
-    : fixedItems.length
-      ? currentFixed - shoeRackGap + effectiveMiddleGap
-      : t + fixedBottomMargin;
+    : drawerItems.length
+      ? currentDrawer
+      : fixedItems.length
+        ? currentFixed - shoeRackGap + effectiveMiddleGap
+        : t + fixedBottomMargin;
 
   // Ordenar de abajo hacia arriba para apilar de forma consecutiva.
   distributeItems.sort((a, b) => a.y - b.y);

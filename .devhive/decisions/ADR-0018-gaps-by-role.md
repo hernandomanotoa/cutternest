@@ -50,10 +50,10 @@ export const VERTICAL_POSITIONS = {
 ### Cambios en capas
 
 - **`js/core/config.js`**: nuevos offsets.
-- **`js/services/verticalPositionService.js`**: `getDefaultVerticalPosition` usa funciones específicas por rol (`getDrawerDefaultPosition`, `getDoorDefaultPosition`, `getBraceDefaultPosition`) y espejo.
+- **`js/services/verticalPositionService.js`**: `getDefaultVerticalPosition` usa funciones específicas por rol (`getDrawerDefaultPosition`, `getDoorDefaultPosition`, `getBraceDefaultPosition`) y espejo. `determineVerticalZone` añade la zona `drawer`. `calculateVerticalPositions` apila frentes de cajón con `drawerFaceGap`.
 - **`js/services/isoGeometryService.js`**: `inferDoorZ`, `inferBraceZ`, `inferLegX`, `inferLegY` aceptan overrides.
 - **`js/isometricRenderer.js`**: pasa `this.verticalPositionOverrides` a helpers; aplica `doorGap` en puertas globales; aplica `drawerFaceGap` en `_buildDrawerGeometries`; aplica `mirrorOffset` al espejo.
-- **`js/views/manualView.js`**: posiciona travesaños con `getDefaultVerticalPosition` convertido a SVG.
+- **`js/views/manualView.js`**: usa `calculateVerticalPositions` para repisas, travesaños, frentes de cajón y puertas; usa `getDefaultVerticalPosition` para espejos.
 - **`js/views/settingsView.js` e `js/components/inlineVerticalConfig.js`**: UI con nuevos campos.
 - **`backend/app/assembly.py`**: constante `_VERTICAL_OFFSETS` duplicada; `_position_for_kind` y bucles de estantes/zapateros/cajones usan index/count y los offsets.
 

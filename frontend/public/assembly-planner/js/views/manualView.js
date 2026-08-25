@@ -492,6 +492,24 @@ export function createManualView(store) {
       : [];
     const posByBraceId = new Map(bracePositions.map(({ piece, y }) => [piece.id, y]));
 
+    const drawerPositions = frentesCajon.length
+      ? calculateVerticalPositions(moduleH, thickness, frentesCajon, { overrides: state.userConfig })
+      : [];
+    const posByDrawerId = new Map(drawerPositions.map(({ piece, y, h }) => [piece.id, { y, h }]));
+
+    const doors = all.filter((p) => norm(p.nombre).includes('puerta') && !norm(p.nombre).includes('cajon'));
+    const doorPositions = doors.length
+      ? calculateVerticalPositions(moduleH, thickness, doors, { overrides: state.userConfig })
+      : [];
+    const posByDoorId = new Map(doorPositions.map(({ piece, y, h }) => [piece.id, { y, h }]));
+
+    const mirrors = all.filter((p) => norm(p.nombre).includes('espejo'));
+    const mirrorPositions = mirrors.map((m) => ({
+      piece: m,
+      y: getDefaultVerticalPosition(m, moduleH, thickness, state.userConfig),
+    }));
+    const posByMirrorId = new Map(mirrorPositions.map(({ piece, y }) => [piece.id, y]));
+
     const mmToSvg = (yMm) => interiorY + interiorH - ((yMm - thickness) / usableH) * interiorH;
 
     function drawRepisaGroup(group, y, label = '', growDown = true) {
@@ -593,44 +611,56 @@ export function createManualView(store) {
       });
     }
 
-    frentesCajon.forEach((frente, i) => {
+    frentesCajon.forEach((frente) => {
       const isActive = activeIds.has(frente.id);
       const isDone = completedIds.has(frente.id) || isActive;
-      if (frentesCajon.length === 2) {
-        const fw = Math.min(120, interiorW - 40);
-        const fh = Math.min(80, (interiorH - 60) / 2);
-        const fx = interiorX + (interiorW - fw) / 2;
-        const fy = i === 0 ? interiorY + 20 : interiorY + interiorH - fh - 20;
-        svgParts.push(rect(fx, fy, fw, fh, frente.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}', 'Frente'));
-      } else {
-        const fw = frentesCajon.length > 1 ? Math.min(120, (interiorW - 40) / frentesCajon.length) : Math.min(120, interiorW - 40);
-        const fh = Math.min(80, interiorH - 60);
-        const spacing = frentesCajon.length > 1 ? (interiorW - frentesCajon.length * fw) / (frentesCajon.length + 1) : (interiorW - fw) / 2;
-        const fx = interiorX + spacing + i * (fw + spacing);
-        const fy = interiorY + interiorH - fh - 10;
-        svgParts.push(rect(fx, fy, fw, fh, frente.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}', 'Frente'));
-      }
+      const pos = posByDrawerId.get(frente.id);
+      const hReal = pos ? pos.h : 80;
+      const ySvg = pos ? mmToSvg(pos.y) : interiorY + interiorH - 80;
+      const fh = Math.max(10, (hReal / usableH) * interiorH);
+      const fw = Math.min(120, interiorW - 40);
+      const fx = interiorX + (interiorW - fw) / 2;
+      svgParts.push(rect(fx, ySvg, fw, fh, frente.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}', 'Frente'));
+    });
+
+    // Puertas
+    doors.forEach((door) => {
+      const isActive = activeIds.has(door.id);
+      const isDone = completedIds.has(door.id) || isActive;
+      const pos = posByDoorId.get(door.id);
+      const hReal = Number(door.alto) || (moduleH - 2 * thickness);
+      const ySvg = pos ? mmToSvg(pos.y) : mmToSvg((moduleH - hReal) / 2);
+      const dh = Math.max(10, (hReal / usableH) * interiorH);
+      const dw = Math.max(10, ((Number(door.ancho) || moduleW) / moduleW) * interiorW);
+      const dx = interiorX + (interiorW - dw) / 2;
+      const label = door.nombre.split(' ').slice(0, 2).join(' ');
+      svgParts.push(rect(dx, ySvg, dw, dh, door.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}', label));
+    });
+
+    // Espejos
+    mirrors.forEach((m) => {
+      const isActive = activeIds.has(m.id);
+      const isDone = completedIds.has(m.id) || isActive;
+      const hReal = Number(m.alto) || 600;
+      const ySvg = mmToSvg(posByMirrorId.get(m.id) ?? (moduleH - hReal) / 2);
+      const mh = Math.max(10, (hReal / usableH) * interiorH);
+      const mw = Math.max(10, ((Number(m.ancho) || interiorW) / moduleW) * interiorW);
+      const mx = interiorX + (interiorW - mw) / 2;
+      svgParts.push(rect(mx, ySvg, mw, mh, m.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}', 'Espejo'));
     });
 
     tiradores.forEach((tir) => {
       const isActive = activeIds.has(tir.id);
       const isDone = completedIds.has(tir.id) || isActive;
       if (frentesCajon.length > 0) {
-        frentesCajon.forEach((frente, fi) => {
-          let fw, fh, fx, fy;
-          if (frentesCajon.length === 2) {
-            fw = Math.min(120, interiorW - 40);
-            fh = Math.min(80, (interiorH - 60) / 2);
-            fx = interiorX + (interiorW - fw) / 2;
-            fy = fi === 0 ? interiorY + 20 : interiorY + interiorH - fh - 20;
-          } else {
-            fw = frentesCajon.length > 1 ? Math.min(120, (interiorW - 40) / frentesCajon.length) : Math.min(120, interiorW - 40);
-            fh = Math.min(80, interiorH - 60);
-            const spacing = frentesCajon.length > 1 ? (interiorW - frentesCajon.length * fw) / (frentesCajon.length + 1) : (interiorW - fw) / 2;
-            fx = interiorX + spacing + fi * (fw + spacing);
-            fy = interiorY + interiorH - fh - 10;
-          }
-          svgParts.push(circle(fx + fw / 2, fy + fh / 2, 6, tir.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}'));
+        frentesCajon.forEach((frente) => {
+          const pos = posByDrawerId.get(frente.id);
+          const hReal = pos ? pos.h : 80;
+          const ySvg = pos ? mmToSvg(pos.y) : interiorY + interiorH - 80;
+          const fh = Math.max(10, (hReal / usableH) * interiorH);
+          const fw = Math.min(120, interiorW - 40);
+          const fx = interiorX + (interiorW - fw) / 2;
+          svgParts.push(circle(fx + fw / 2, ySvg + fh / 2, 6, tir.color, isDone ? 1 : 0.25, isActive ? '${COLORS.strokeActive}' : '${COLORS.strokePanel}'));
         });
       } else {
         const tx = boxX + boxW / 2;
