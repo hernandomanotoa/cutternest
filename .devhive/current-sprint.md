@@ -31,6 +31,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A17 | Panel de configuración de offsets verticales | assembly-planner-agent | ✅ Completado | ADR-0016 A16.7. 101 tests frontend OK. |
 | A18 | Panel inline de offsets en vista isométrica | assembly-planner-agent | ✅ Completado | ADR-0016 A18. 103 tests frontend OK. |
 | A19 | Catálogo de ejemplos CSV por espacio | Guardian | ✅ Completado | 14 muebles nuevos, selector por espacio, generador `scripts/generar-ejemplos-catalogo.py`. 103 tests frontend OK. |
+| A21 | Vista completa del mueble | Guardian | ✅ Completado | Selector `Vista completa` agrupa módulos y globales; 107 tests OK. |
 
 ## Leyenda estados
 
