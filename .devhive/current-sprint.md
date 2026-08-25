@@ -37,6 +37,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A24 | Render de puertas globales (divididas o completas) | Guardian | ✅ Completado | Solo en `estructura`/`all`; reparten ancho del mueble; 117 tests OK. |
 | A25 | Profundidad real en vista global/estructura | Guardian | ✅ Completado | `moduleD` usa todas las piezas; evita achatamiento por zócalo/corona. 117 tests OK. |
 | A26 | Clasificar zapateros como estantes | Guardian | ✅ Completado | `classifierService.js` detecta 'zapatero' como `shelf`; 118 tests OK. |
+| A27 | Desactivar cache del Assembly Planner en nginx | Guardian | ✅ Completado | Location `/assembly-planner/` con `Cache-Control: no-cache`. 118 tests OK. |
 
 ## Leyenda estados
 
