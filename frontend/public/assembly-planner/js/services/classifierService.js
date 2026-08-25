@@ -26,6 +26,7 @@ export function inferRole(piece) {
 
   if (n.includes('estante') || n.includes('repisa')) return 'shelf';
   if (n.includes('divisor') || n.includes('division')) return 'divider';
+  if (n.includes('montante') && (n.includes('central') || n.includes('centro'))) return 'divider';
 
   if (n.includes('base')) return 'bottom_panel';
   if (n.includes('tapa') || n.includes('techo') || n.includes('tapa de trabajo')) return 'top_panel';

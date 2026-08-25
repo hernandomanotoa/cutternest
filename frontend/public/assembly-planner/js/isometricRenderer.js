@@ -419,24 +419,47 @@ export class IsometricRenderer {
     const geometries = [];
     if (!dividers.length) return geometries;
 
-    const zones = this._calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top);
-    const groups = groupDividersIntoZones(dividers, zones);
+    // Divisores verticales (montantes) se dibujan de base a tapa en una sola pieza,
+    // sin recortar por zonas de estantes. Divisores horizontales se tratan como
+    // paneles intermedios y se colocan en la zona correspondiente.
+    const vertical = [];
+    const horizontal = [];
+    dividers.forEach((div) => {
+      const dims = getPieceDims(div, 'divider', thickness, 'cabinet');
+      const isVertical = Number(div.alto) > Number(div.ancho) * 1.5;
+      if (isVertical) vertical.push({ div, dims });
+      else horizontal.push({ div, dims });
+    });
 
-    groups.forEach(({ dividers: group, zone }) => {
-      const zoneHeight = Math.max(0, zone.yEnd - zone.yStart);
-      const positions = distributeHorizontally(group.length, moduleW, thickness);
-      group.forEach((div, i) => {
-        const dims = getPieceDims(div, 'divider', thickness, 'cabinet');
-        const divW = dims.w || thickness;
-        const divH = Math.min(dims.h || zoneHeight, zoneHeight);
-        const x = Math.max(thickness, Math.min(positions[i] - divW / 2, moduleW - thickness - divW));
-        const z = zone.yStart + Math.max(0, zoneHeight - divH) / 2;
-        geometries.push({
-          x, y: 0, z, w: divW, d: moduleD, h: divH,
-          color: div.color, role: 'divider', name: div.nombre, id: div.id,
-        });
+    vertical.forEach(({ div, dims }) => {
+      const divW = dims.w || thickness;
+      const x = Math.max(thickness, Math.min(inferDividerX(div, moduleW, thickness), moduleW - thickness - divW));
+      const z = thickness;
+      const h = Math.min(dims.h || moduleH - 2 * thickness, moduleH - 2 * thickness);
+      geometries.push({
+        x, y: 0, z, w: divW, d: moduleD, h,
+        color: div.color, role: 'divider', name: div.nombre, id: div.id,
       });
     });
+
+    if (horizontal.length) {
+      const zones = this._calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top);
+      const groups = groupDividersIntoZones(horizontal.map((h) => h.div), zones);
+      groups.forEach(({ dividers: group, zone }) => {
+        const zoneHeight = Math.max(0, zone.yEnd - zone.yStart);
+        group.forEach((div) => {
+          const dims = getPieceDims(div, 'divider', thickness, 'cabinet');
+          const divW = dims.w || thickness;
+          const divH = Math.min(dims.h || zoneHeight, zoneHeight);
+          const x = Math.max(thickness, Math.min(inferDividerX(div, moduleW, thickness), moduleW - thickness - divW));
+          const z = zone.yStart + Math.max(0, zoneHeight - divH) / 2;
+          geometries.push({
+            x, y: 0, z, w: divW, d: moduleD, h: divH,
+            color: div.color, role: 'divider', name: div.nombre, id: div.id,
+          });
+        });
+      });
+    }
 
     return geometries;
   }

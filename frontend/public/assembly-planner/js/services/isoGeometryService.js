@@ -121,9 +121,17 @@ export function distributeHorizontally(count, moduleW, sideWidth) {
 export function inferDividerX(div, moduleW, thickness) {
   const n = normalizeName(div.nombre);
   const id = normalizeName(div.id);
+  if (n.includes('central') || n.includes('centro') || id.includes('central') || id.includes('centro')) {
+    return (moduleW - Number(div.ancho || thickness)) / 2;
+  }
+  if (n.includes('izquierdo') || n.includes('izq') || id.includes('izquierdo') || id.includes('izq')) {
+    return thickness;
+  }
+  if (n.includes('derecho') || n.includes('der') || id.includes('derecho') || id.includes('der')) {
+    return moduleW - Number(div.ancho || thickness) - thickness;
+  }
   const m = (id.match(/(\d+)/) || n.match(/(\d+)/) || [null, 1])[1];
   const idx = parseInt(m, 10);
-  if (n.includes('central') || n.includes('centro')) return (moduleW - thickness) / 2;
   return (moduleW * idx) / 10;
 }
 
