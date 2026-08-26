@@ -90,6 +90,8 @@ export class IsometricRenderer {
   constructor(container, options = {}) {
     this.container = container;
     this.scale = options.scale || 0.12;
+    this.baseScale = options.baseScale || 0.12;
+    this.textScale = Math.max(0.6, Math.min(2.5, this.scale / this.baseScale));
     this.isoDepth = options.isoDepth || 0.5;
     this.padding = options.padding || 100;
     this.showDimensions = options.showDimensions !== false;
@@ -808,7 +810,7 @@ export class IsometricRenderer {
           const cx = frontPts.reduce((s, p) => s + p.x, 0) / frontPts.length;
           const cy = frontPts.reduce((s, p) => s + p.y, 0) / frontPts.length;
           labels.push(
-            `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="${COLORS.textDark}" font-size="9" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">${escapeHtml(label)}</text>`
+            `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="${COLORS.textDark}" font-size="${(9 * this.textScale).toFixed(1)}" font-weight="600" font-family="system-ui,sans-serif" pointer-events="none">${escapeHtml(label)}</text>`
           );
         }
       }
@@ -830,10 +832,15 @@ export class IsometricRenderer {
       if (pieceDims) extra = this._dimensionDefs() + extra + pieceDims;
     }
 
+    const titleSize = 16 * this.textScale;
+    const subtitleSize = 11 * this.textScale;
+    const titleY = 28 * this.textScale;
+    const subtitleY = 50 * this.textScale;
+
     return `
 <svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista isométrica${title}" style="background:${COLORS.background};width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
-  <text x="${vbW / 2}" y="28" text-anchor="middle" fill="${COLORS.textPrimary}" font-size="16" font-weight="700">VISTA ISOMÉTRICA${title}</text>
-  <text x="${vbW / 2}" y="50" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="11">${dimsText}</text>
+  <text x="${vbW / 2}" y="${titleY.toFixed(1)}" text-anchor="middle" fill="${COLORS.textPrimary}" font-size="${titleSize.toFixed(1)}" font-weight="700">VISTA ISOMÉTRICA${title}</text>
+  <text x="${vbW / 2}" y="${subtitleY.toFixed(1)}" text-anchor="middle" fill="${COLORS.textSecondary}" font-size="${subtitleSize.toFixed(1)}">${dimsText}</text>
   <g transform="translate(0,0)">
     ${polygons.join('\n    ')}
     ${labels.join('\n    ')}
@@ -928,8 +935,8 @@ export class IsometricRenderer {
 
     const contentW = maxX - minX;
     const contentH = maxY - minY;
-    const titleSpace = 60;
-    const axesSpace = this.showAxes ? 70 : 0;
+    const titleSpace = 60 * this.textScale;
+    const axesSpace = this.showAxes ? 70 * this.textScale : 0;
 
     // PASADA 2: desplazar todo al área positiva, dejando padding
     const originX = -minX + this.padding;
@@ -974,11 +981,11 @@ export class IsometricRenderer {
     return `
     <g opacity="0.9">
       <line x1="${ox}" y1="${oy}" x2="${xTip.x}" y2="${xTip.y}" stroke="${AXES_COLORS.x}" stroke-width="2" />
-      <text x="${xTip.x + 5}" y="${xTip.y + 4}" fill="${AXES_COLORS.x}" font-size="11" font-weight="bold" text-anchor="start">X (ancho)</text>
+      <text x="${xTip.x + 5}" y="${xTip.y + 4}" fill="${AXES_COLORS.x}" font-size="${(11 * this.textScale).toFixed(1)}" font-weight="bold" text-anchor="start">X (ancho)</text>
       <line x1="${ox}" y1="${oy}" x2="${yTip.x}" y2="${yTip.y}" stroke="${AXES_COLORS.y}" stroke-width="2" />
-      <text x="${yTip.x + 5}" y="${yTip.y + 4}" fill="${AXES_COLORS.y}" font-size="11" font-weight="bold" text-anchor="start">Y (prof.)</text>
+      <text x="${yTip.x + 5}" y="${yTip.y + 4}" fill="${AXES_COLORS.y}" font-size="${(11 * this.textScale).toFixed(1)}" font-weight="bold" text-anchor="start">Y (prof.)</text>
       <line x1="${ox}" y1="${oy}" x2="${zTip.x}" y2="${zTip.y}" stroke="${AXES_COLORS.z}" stroke-width="2" />
-      <text x="${zTip.x}" y="${zTip.y - 5}" fill="${AXES_COLORS.z}" font-size="11" font-weight="bold" text-anchor="middle">Z (alto)</text>
+      <text x="${zTip.x}" y="${zTip.y - 5}" fill="${AXES_COLORS.z}" font-size="${(11 * this.textScale).toFixed(1)}" font-weight="bold" text-anchor="middle">Z (alto)</text>
     </g>`;
   }
 
@@ -986,7 +993,7 @@ export class IsometricRenderer {
     // Dimensiones en esquina superior derecha (proyección corregida).
     const tx = ox + (moduleW + moduleD * this.isoDepth) * this.scale + 10;
     const ty = oy - moduleH * this.scale - 10;
-    return `<text x="${tx}" y="${ty}" fill="${COLORS.textSecondary}" font-size="10" font-family="monospace">W=${moduleW} D=${moduleD} H=${moduleH}</text>`;
+    return `<text x="${tx}" y="${ty}" fill="${COLORS.textSecondary}" font-size="${(10 * this.textScale).toFixed(1)}" font-family="monospace">W=${moduleW} D=${moduleD} H=${moduleH}</text>`;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1015,7 +1022,8 @@ export class IsometricRenderer {
   // ═══════════════════════════════════════════════════════════
 
   _dimensionDefs() {
-    const make = (id, fill) => `<marker id="${id}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+    const s = this.textScale;
+    const make = (id, fill) => `<marker id="${id}" markerWidth="${6 * s}" markerHeight="${6 * s}" refX="${5 * s}" refY="${3 * s}" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L6,3 L0,6 L1.5,3 z" fill="${fill}" />
     </marker>`;
     return `<defs>
@@ -1054,20 +1062,23 @@ export class IsometricRenderer {
   }
 
   _drawDimensionLine(a, b, value, offX, offY, color = '#94a3b8', markerId = 'dimArrow') {
-    const ax = a.x + offX;
-    const ay = a.y + offY;
-    const bx = b.x + offX;
-    const by = b.y + offY;
+    const s = this.textScale;
+    const ax = a.x + offX * s;
+    const ay = a.y + offY * s;
+    const bx = b.x + offX * s;
+    const by = b.y + offY * s;
     const mx = (ax + bx) / 2;
     const my = (ay + by) / 2;
     const text = String(value);
-    const tw = Math.max(14, text.length * 5.5);
-    const th = 10;
+    const tw = Math.max(14 * s, text.length * 5.5 * s);
+    const th = 10 * s;
+    const fs = 8 * s;
+    const dy = 3 * s;
     return `
     <line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6" />
     <line x1="${b.x.toFixed(1)}" y1="${b.y.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6" />
     <line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.75" marker-start="url(#${markerId})" marker-end="url(#${markerId})" opacity="0.85" />
-    <rect x="${(mx - tw / 2).toFixed(1)}" y="${(my - th / 2).toFixed(1)}" width="${tw.toFixed(1)}" height="${th}" rx="2" fill="rgba(15,23,42,0.75)" stroke="none" />
-    <text x="${mx.toFixed(1)}" y="${(my + 3).toFixed(1)}" text-anchor="middle" fill="#f1f5f9" font-size="8" font-family="monospace" font-weight="600">${text}</text>`;
+    <rect x="${(mx - tw / 2).toFixed(1)}" y="${(my - th / 2).toFixed(1)}" width="${tw.toFixed(1)}" height="${th.toFixed(1)}" rx="${2 * s}" fill="rgba(15,23,42,0.75)" stroke="none" />
+    <text x="${mx.toFixed(1)}" y="${(my + dy).toFixed(1)}" text-anchor="middle" fill="#f1f5f9" font-size="${fs.toFixed(1)}" font-family="monospace" font-weight="600">${text}</text>`;
   }
 }
