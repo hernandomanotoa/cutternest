@@ -819,7 +819,12 @@ export class IsometricRenderer {
     }
 
     let extra = '';
-    if (this.showDimensions) extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
+    if (this.showDimensions) {
+      extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
+      if (this.explodeFactor <= 0) {
+        extra += this._drawMainDimensions(ox, oy, moduleW, moduleD, moduleH);
+      }
+    }
     if (this.explodeFactor > 0) {
       const pieceDims = this._drawExplodedDimensions(geometries, ox, oy);
       if (pieceDims) extra = this._dimensionDefs() + extra + pieceDims;
@@ -985,14 +990,39 @@ export class IsometricRenderer {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // COTAS PRINCIPALES EN VISTA NORMAL
+  // ═══════════════════════════════════════════════════════════
+
+  _drawMainDimensions(ox, oy, moduleW, moduleD, moduleH) {
+    // Cotas globales del módulo: ancho (X), profundidad (Y) y alto (Z).
+    // Se dibujan sobre las aristas visibles de la caja envolvente.
+    const p000 = this._isoProject(0, moduleD, 0, ox, oy);        // inferior-izq-frontal
+    const pW00 = this._isoProject(moduleW, moduleD, 0, ox, oy);   // inferior-der-frontal
+    const p0D0 = this._isoProject(moduleW, 0, 0, ox, oy);         // inferior-der-trasera
+    const pW0H = this._isoProject(moduleW, moduleD, moduleH, ox, oy); // superior-der-frontal
+    let svg = '';
+    // Ancho (X): arista inferior frontal
+    svg += this._drawDimensionLine(p000, pW00, Math.round(moduleW), 0, 18, AXES_COLORS.x, 'dimArrowX');
+    // Profundidad (Y): arista inferior derecha
+    svg += this._drawDimensionLine(p0D0, pW00, Math.round(moduleD), 18, 0, AXES_COLORS.y, 'dimArrowY');
+    // Alto (Z): arista frontal derecha vertical
+    svg += this._drawDimensionLine(pW00, pW0H, Math.round(moduleH), 28, 0, AXES_COLORS.z, 'dimArrowZ');
+    return svg;
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // COTAS DE PIEZAS EN VISTA EXPLODIDA
   // ═══════════════════════════════════════════════════════════
 
   _dimensionDefs() {
+    const make = (id, fill) => `<marker id="${id}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 L1.5,3 z" fill="${fill}" />
+    </marker>`;
     return `<defs>
-    <marker id="dimArrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L6,3 L0,6 L1.5,3 z" fill="#94a3b8" />
-    </marker>
+    ${make('dimArrow', '#94a3b8')}
+    ${make('dimArrowX', AXES_COLORS.x)}
+    ${make('dimArrowY', AXES_COLORS.y)}
+    ${make('dimArrowZ', AXES_COLORS.z)}
   </defs>`;
   }
 
@@ -1023,21 +1053,20 @@ export class IsometricRenderer {
     return svg;
   }
 
-  _drawDimensionLine(a, b, value, offX, offY) {
+  _drawDimensionLine(a, b, value, offX, offY, color = '#94a3b8', markerId = 'dimArrow') {
     const ax = a.x + offX;
     const ay = a.y + offY;
     const bx = b.x + offX;
     const by = b.y + offY;
     const mx = (ax + bx) / 2;
     const my = (ay + by) / 2;
-    const color = '#94a3b8';
     const text = String(value);
     const tw = Math.max(14, text.length * 5.5);
     const th = 10;
     return `
     <line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6" />
     <line x1="${b.x.toFixed(1)}" y1="${b.y.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6" />
-    <line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.75" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)" opacity="0.85" />
+    <line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.75" marker-start="url(#${markerId})" marker-end="url(#${markerId})" opacity="0.85" />
     <rect x="${(mx - tw / 2).toFixed(1)}" y="${(my - th / 2).toFixed(1)}" width="${tw.toFixed(1)}" height="${th}" rx="2" fill="rgba(15,23,42,0.75)" stroke="none" />
     <text x="${mx.toFixed(1)}" y="${(my + 3).toFixed(1)}" text-anchor="middle" fill="#f1f5f9" font-size="8" font-family="monospace" font-weight="600">${text}</text>`;
   }

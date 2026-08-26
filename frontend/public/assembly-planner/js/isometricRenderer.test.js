@@ -152,6 +152,23 @@ describe('IsometricRenderer exploded dimensions', () => {
     assert.ok(svg.includes('>2270<'), 'height dimension should be shown');
   });
 
+  it('shows main module dimensions in normal view', () => {
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, {
+      scale: 0.12,
+      explodeFactor: 0,
+      verticalPositionOverrides: {},
+    });
+    renderer.render('1', basePieces);
+    const svg = container.innerHTML;
+    assert.ok(svg.includes('url(#dimArrowX)'), 'width arrow marker should be present');
+    assert.ok(svg.includes('url(#dimArrowY)'), 'depth arrow marker should be present');
+    assert.ok(svg.includes('url(#dimArrowZ)'), 'height arrow marker should be present');
+    assert.ok(svg.includes('>800<'), 'module width dimension should be shown');
+    assert.ok(svg.includes('>550<'), 'module depth dimension should be shown');
+    assert.ok(svg.includes('>2300<'), 'module height dimension should be shown');
+  });
+
   it('hides piece dimension lines when not exploded', () => {
     const container = { innerHTML: '' };
     const renderer = new IsometricRenderer(container, {
@@ -161,6 +178,7 @@ describe('IsometricRenderer exploded dimensions', () => {
     });
     renderer.render('1', basePieces);
     const svg = container.innerHTML;
-    assert.ok(!svg.includes('dimArrow'), 'no dimension arrows should be present');
+    assert.ok(!svg.includes('>2270<'), 'no piece height dimension should be shown');
+    assert.ok(!svg.includes('url(#dimArrow)'), 'no generic piece dimension arrows should be present');
   });
 });

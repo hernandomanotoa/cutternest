@@ -104,7 +104,7 @@ export function createIsometricView(store) {
       render();
     });
     container.querySelector('#btn-iso-explode')?.addEventListener('click', () => {
-      explodeFactor = explodeFactor > 0 ? 0 : 0.3;
+      explodeFactor = explodeFactor > 0 ? 0 : 0.7;
       render();
     });
     container.querySelector('#btn-iso-flip')?.addEventListener('click', () => {
