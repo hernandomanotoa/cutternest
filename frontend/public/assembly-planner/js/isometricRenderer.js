@@ -250,6 +250,7 @@ export class IsometricRenderer {
       geometries.push({
         x, y: 0, z: thickness, w: thickness, d: moduleD, h: moduleH - 2 * thickness,
         color: side.color, role: isFront ? 'side_panel_front' : 'side_panel_rear', name: side.nombre, id: side.id,
+        opacity: 0.8,
       });
     });
 
