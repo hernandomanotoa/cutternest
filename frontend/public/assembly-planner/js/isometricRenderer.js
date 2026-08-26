@@ -199,9 +199,9 @@ export class IsometricRenderer {
     }
 
     const sorted = sortByDepth(geometries);
-    const { viewBox, originX, originY } = this._calculateViewport(geometries);
+    const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries);
 
-    const svg = this._buildSVG(sorted, viewBox, originX, originY, moduleLabel, moduleW, moduleD, moduleH);
+    const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH);
     this.container.innerHTML = svg;
   }
 
@@ -761,7 +761,7 @@ export class IsometricRenderer {
     };
   }
 
-  _buildSVG(geometries, viewBox, ox, oy, moduleLabel, moduleW, moduleD, moduleH) {
+  _buildSVG(geometries, viewBox, ox, oy, axesSpace, moduleLabel, moduleW, moduleD, moduleH) {
     const polygons = [];
     const labels = [];
 
@@ -778,7 +778,7 @@ export class IsometricRenderer {
       // Insertar ejes justo después de las piezas de fondo (back_panel y lateral trasero),
       // para que queden sobre la estructura base pero debajo de repisas y frentes.
       if (!axesInserted && this.showAxes && getZIndex(geo.role) > 2) {
-        polygons.push(this._drawAxes(vbW, vbH));
+        polygons.push(this._drawAxes(vbW, vbH, axesSpace));
         axesInserted = true;
       }
 
@@ -809,7 +809,7 @@ export class IsometricRenderer {
     });
 
     if (this.showAxes && !axesInserted) {
-      polygons.push(this._drawAxes(vbW, vbH));
+      polygons.push(this._drawAxes(vbW, vbH, axesSpace));
     }
 
     let extra = '';
@@ -914,18 +914,20 @@ export class IsometricRenderer {
     const contentW = maxX - minX;
     const contentH = maxY - minY;
     const titleSpace = 60;
+    const axesSpace = this.showAxes ? 70 : 0;
 
     // PASADA 2: desplazar todo al área positiva, dejando padding
     const originX = -minX + this.padding;
     const originY = -minY + this.padding + titleSpace;
 
     const viewBoxW = Math.ceil(contentW + 2 * this.padding);
-    const viewBoxH = Math.ceil(contentH + 2 * this.padding + titleSpace);
+    const viewBoxH = Math.ceil(contentH + 2 * this.padding + titleSpace + axesSpace);
 
     return {
       viewBox: `0 0 ${viewBoxW} ${viewBoxH}`,
       originX,
       originY,
+      axesSpace,
       width: viewBoxW,
       height: viewBoxH,
     };
@@ -945,10 +947,10 @@ export class IsometricRenderer {
   // EJES Y DIMENSIONES
   // ═══════════════════════════════════════════════════════════
 
-  _drawAxes(viewW, viewH) {
-    // Leyenda de ejes en esquina inferior izquierda del SVG, fuera del dibujo del módulo.
+  _drawAxes(viewW, viewH, axesSpace) {
+    // Leyenda de ejes en un área reservada debajo del dibujo del módulo.
     const ox = this.padding + 16;
-    const oy = viewH - this.padding - 16;
+    const oy = viewH - Math.max(16, axesSpace / 2);
     const len = 28;
     const xTip = { x: ox + len, y: oy };
     const yTip = { x: ox + len * 0.5, y: oy + len * 0.5 };
