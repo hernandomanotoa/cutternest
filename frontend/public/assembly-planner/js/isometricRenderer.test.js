@@ -182,3 +182,26 @@ describe('IsometricRenderer exploded dimensions', () => {
     assert.ok(!svg.includes('url(#dimArrow)'), 'no generic piece dimension arrows should be present');
   });
 });
+
+describe('IsometricRenderer module gap mode', () => {
+  const module2Pieces = basePieces.map((p) => ({
+    ...p,
+    id: p.id.replace('m1', 'm2'),
+    nombre: p.nombre.replace('M1', 'M2'),
+    modulo: '2',
+  }));
+
+  it('projected all view is wider than compact all view', () => {
+    const pieces = [...basePieces, ...module2Pieces];
+    const projected = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, moduleGapMode: 'projected' });
+    projected.render('all', pieces);
+    const compact = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, moduleGapMode: 'compact' });
+    compact.render('all', pieces);
+
+    const parseW = (svg) => {
+      const match = svg.match(/viewBox="0 0 ([\d.]+)/);
+      return match ? parseFloat(match[1]) : 0;
+    };
+    assert.ok(parseW(projected.container.innerHTML) > parseW(compact.container.innerHTML), 'projected view should be wider');
+  });
+});

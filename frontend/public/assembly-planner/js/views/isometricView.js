@@ -17,6 +17,7 @@ export function createIsometricView(store) {
   let isoFlip = true;
   let fullscreenChangeHandler = null;
   let webkitFullscreenChangeHandler = null;
+  let moduleGapMode = 'projected';
 
   function mount(parent) {
     container = parent;
@@ -83,6 +84,10 @@ export function createIsometricView(store) {
             <button id="btn-iso-doors" class="btn btn--secondary btn--sm">Abrir puertas</button>
             <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
             <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
+              <input type="checkbox" id="iso-gap-mode" ${moduleGapMode === 'projected' ? 'checked' : ''} style="cursor:pointer;">
+              <span>Gap profundidad</span>
+            </label>
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;">
@@ -167,6 +172,13 @@ export function createIsometricView(store) {
     document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
     fullscreenChangeHandler = updateFullscreenBtn;
     webkitFullscreenChangeHandler = updateFullscreenBtn;
+
+    const gapCheckbox = container.querySelector('#iso-gap-mode');
+    if (gapCheckbox) gapCheckbox.checked = moduleGapMode === 'projected';
+    gapCheckbox?.addEventListener('change', () => {
+      moduleGapMode = gapCheckbox.checked ? 'projected' : 'compact';
+      render();
+    });
   }
 
   function render() {
@@ -181,6 +193,7 @@ export function createIsometricView(store) {
       drawerGap,
       doorAngle,
       explodeFactor,
+      moduleGapMode,
       isoFlip,
       labelMode: 'auto',
       verticalPositionOverrides: state.userConfig,

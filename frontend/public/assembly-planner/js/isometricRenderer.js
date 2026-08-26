@@ -99,6 +99,7 @@ export class IsometricRenderer {
     this.drawerGap = options.drawerGap || 15;
     this.doorAngle = options.doorAngle || 0;
     this.explodeFactor = options.explodeFactor || 0;
+    this.moduleGapMode = options.moduleGapMode || 'projected';
     this.labelMode = options.labelMode || 'auto';
     this.isoFlip = options.isoFlip || false;
     this.verticalPositionOverrides = options.verticalPositionOverrides || null;
@@ -182,9 +183,10 @@ export class IsometricRenderer {
         // es W + D*isoDepth. Si sumamos solo W, los laterales se superponen.
         subGeometries.forEach((g) => { g.x += offsetX; });
         geometries.push(...subGeometries);
-        // Separación entre módulos: ancho del módulo + proyección de la
-        // profundidad + espesor del material para evitar superposición visual.
-        offsetX += dims.width + moduleD * this.isoDepth + dims.thickness;
+        // Separación entre módulos: ancho del módulo + espesor + opcionalmente
+        // la proyección de la profundidad para evitar superposición isométrica.
+        const projectedGap = this.moduleGapMode === 'projected' ? moduleD * this.isoDepth : 0;
+        offsetX += dims.width + projectedGap + dims.thickness;
       });
       // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
       if (globalPieces.length) {
