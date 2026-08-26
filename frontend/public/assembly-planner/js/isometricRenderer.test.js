@@ -135,3 +135,32 @@ describe('IsometricRenderer global doors', () => {
     assert.equal(doorPolys.length, 0, 'global doors should not appear in module view');
   });
 });
+
+describe('IsometricRenderer exploded dimensions', () => {
+  it('shows piece dimension lines when explodeFactor is set', () => {
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, {
+      scale: 0.12,
+      explodeFactor: 0.3,
+      verticalPositionOverrides: {},
+    });
+    renderer.render('1', basePieces);
+    const svg = container.innerHTML;
+    assert.ok(svg.includes('url(#dimArrow)'), 'dimension arrows should be rendered');
+    assert.ok(svg.includes('>800<'), 'width dimension should be shown');
+    assert.ok(svg.includes('>550<'), 'depth dimension should be shown');
+    assert.ok(svg.includes('>2270<'), 'height dimension should be shown');
+  });
+
+  it('hides piece dimension lines when not exploded', () => {
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, {
+      scale: 0.12,
+      explodeFactor: 0,
+      verticalPositionOverrides: {},
+    });
+    renderer.render('1', basePieces);
+    const svg = container.innerHTML;
+    assert.ok(!svg.includes('dimArrow'), 'no dimension arrows should be present');
+  });
+});

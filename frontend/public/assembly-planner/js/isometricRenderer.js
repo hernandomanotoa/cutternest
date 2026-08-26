@@ -820,6 +820,10 @@ export class IsometricRenderer {
 
     let extra = '';
     if (this.showDimensions) extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
+    if (this.explodeFactor > 0) {
+      const pieceDims = this._drawExplodedDimensions(geometries, ox, oy);
+      if (pieceDims) extra = this._dimensionDefs() + extra + pieceDims;
+    }
 
     return `
 <svg viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista isométrica${title}" style="background:${COLORS.background};width:100%;height:auto;display:block;" preserveAspectRatio="xMidYMid meet">
@@ -978,5 +982,63 @@ export class IsometricRenderer {
     const tx = ox + (moduleW + moduleD * this.isoDepth) * this.scale + 10;
     const ty = oy - moduleH * this.scale - 10;
     return `<text x="${tx}" y="${ty}" fill="${COLORS.textSecondary}" font-size="10" font-family="monospace">W=${moduleW} D=${moduleD} H=${moduleH}</text>`;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // COTAS DE PIEZAS EN VISTA EXPLODIDA
+  // ═══════════════════════════════════════════════════════════
+
+  _dimensionDefs() {
+    return `<defs>
+    <marker id="dimArrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 L1.5,3 z" fill="#94a3b8" />
+    </marker>
+  </defs>`;
+  }
+
+  _drawExplodedDimensions(geometries, ox, oy) {
+    if (this.explodeFactor <= 0) return '';
+    const minPieceDim = 40;
+    return geometries
+      .filter((g) => Math.max(g.w || 0, g.d || 0, g.h || 0) >= minPieceDim && g.role !== 'handle')
+      .map((g) => this._drawPieceDimensions(g, ox, oy))
+      .join('');
+  }
+
+  _drawPieceDimensions(geo, ox, oy) {
+    const { projected } = this._projectCuboid(geo, ox, oy);
+    const p2 = projected[2];
+    const p5 = projected[5];
+    const p6 = projected[6];
+    const p7 = projected[7];
+    if (!p2 || !p5 || !p6 || !p7) return '';
+    const minDim = 40;
+    let svg = '';
+    // Ancho (X): arista frontal superior 7 -> 6
+    if (geo.w >= minDim) svg += this._drawDimensionLine(p7, p6, Math.round(geo.w), -8, -8);
+    // Profundidad (Y): arista superior derecha 5 -> 6
+    if (geo.d >= minDim) svg += this._drawDimensionLine(p5, p6, Math.round(geo.d), 8, -8);
+    // Alto (Z): arista frontal derecha vertical 2 -> 6
+    if (geo.h >= minDim) svg += this._drawDimensionLine(p2, p6, Math.round(geo.h), 8, 0);
+    return svg;
+  }
+
+  _drawDimensionLine(a, b, value, offX, offY) {
+    const ax = a.x + offX;
+    const ay = a.y + offY;
+    const bx = b.x + offX;
+    const by = b.y + offY;
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const color = '#94a3b8';
+    const text = String(value);
+    const tw = Math.max(14, text.length * 5.5);
+    const th = 10;
+    return `
+    <line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6" />
+    <line x1="${b.x.toFixed(1)}" y1="${b.y.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6" />
+    <line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${color}" stroke-width="0.75" marker-start="url(#dimArrow)" marker-end="url(#dimArrow)" opacity="0.85" />
+    <rect x="${(mx - tw / 2).toFixed(1)}" y="${(my - th / 2).toFixed(1)}" width="${tw.toFixed(1)}" height="${th}" rx="2" fill="rgba(15,23,42,0.75)" stroke="none" />
+    <text x="${mx.toFixed(1)}" y="${(my + 3).toFixed(1)}" text-anchor="middle" fill="#f1f5f9" font-size="8" font-family="monospace" font-weight="600">${text}</text>`;
   }
 }
