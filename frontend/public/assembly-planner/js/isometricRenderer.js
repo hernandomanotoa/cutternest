@@ -173,20 +173,21 @@ export class IsometricRenderer {
       const moduleGroups = this._groupByModule(nonGlobalPieces);
       const sortedIds = this._sortModuleIds(Object.keys(moduleGroups));
       let offsetX = 0;
-      sortedIds.forEach((mid) => {
+      sortedIds.forEach((mid, idx) => {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
         const subGeometries = this._buildModuleGeometries(
           group, dims.width, moduleD, dims.height, dims.thickness, family
         );
-        // Compensar la proyección isométrica: el ancho visual de un módulo
-        // es W + D*isoDepth. Si sumamos solo W, los laterales se superponen.
+        // Calcular ancho visual real del módulo (según el modo de gap) para
+        // espaciar los módulos de forma precisa y evitar superposiciones.
+        const useProjection = this.moduleGapMode === 'projected';
+        const bounds = this._computeModuleBounds(subGeometries, useProjection);
+        const moduleVisualWidth = bounds.max - bounds.min;
         subGeometries.forEach((g) => { g.x += offsetX; });
         geometries.push(...subGeometries);
-        // Separación entre módulos: ancho del módulo + espesor + opcionalmente
-        // la proyección de la profundidad para evitar superposición isométrica.
-        const projectedGap = this.moduleGapMode === 'projected' ? moduleD * this.isoDepth : 0;
-        offsetX += dims.width + projectedGap + dims.thickness;
+        // Dejar un pequeño espacio igual al espesor entre módulos.
+        offsetX += moduleVisualWidth + dims.thickness;
       });
       // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
       if (globalPieces.length) {
@@ -661,6 +662,32 @@ export class IsometricRenderer {
       }
       return a.localeCompare(b);
     });
+  }
+
+  _computeModuleBounds(geometries, includeDepth = true) {
+    // Calcula el rango horizontal (en unidades reales) que ocupa un módulo.
+    // includeDepth añade la proyección de la profundidad (isoDepth) para
+    // evitar superposición isométrica; con false usa solo la proyección X.
+    let minX = Infinity;
+    let maxX = -Infinity;
+    const xFactor = this.isoFlip ? -this.isoDepth : this.isoDepth;
+    geometries.forEach((g) => {
+      const corners = [
+        [g.x, g.y],
+        [g.x + g.w, g.y],
+        [g.x + g.w, g.y + g.d],
+        [g.x, g.y + g.d],
+      ];
+      corners.forEach(([x, y]) => {
+        const px = includeDepth ? x + y * xFactor : x;
+        minX = Math.min(minX, px);
+        maxX = Math.max(maxX, px);
+      });
+    });
+    return {
+      min: isFinite(minX) ? minX : 0,
+      max: isFinite(maxX) ? maxX : 0,
+    };
   }
 
   _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true) {
