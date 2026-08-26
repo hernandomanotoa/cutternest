@@ -17,7 +17,7 @@ export function createIsometricView(store) {
   let isoFlip = true;
   let fullscreenChangeHandler = null;
   let webkitFullscreenChangeHandler = null;
-  let moduleGapMode = 'projected';
+  let moduleGapMode = 'compact';
 
   function mount(parent) {
     container = parent;

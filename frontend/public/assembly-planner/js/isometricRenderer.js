@@ -99,7 +99,7 @@ export class IsometricRenderer {
     this.drawerGap = options.drawerGap || 15;
     this.doorAngle = options.doorAngle || 0;
     this.explodeFactor = options.explodeFactor || 0;
-    this.moduleGapMode = options.moduleGapMode || 'projected';
+    this.moduleGapMode = options.moduleGapMode || 'compact';
     this.labelMode = options.labelMode || 'auto';
     this.isoFlip = options.isoFlip || false;
     this.verticalPositionOverrides = options.verticalPositionOverrides || null;
