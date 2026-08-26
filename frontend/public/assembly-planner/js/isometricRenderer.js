@@ -210,7 +210,8 @@ export class IsometricRenderer {
     const sorted = sortByDepth(geometries);
     const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries);
 
-    const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH);
+    const isAllView = target === ALL_MODULE_ID;
+    const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView);
     this.container.innerHTML = svg;
   }
 
@@ -800,7 +801,7 @@ export class IsometricRenderer {
     };
   }
 
-  _buildSVG(geometries, viewBox, ox, oy, axesSpace, moduleLabel, moduleW, moduleD, moduleH) {
+  _buildSVG(geometries, viewBox, ox, oy, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView = false) {
     const polygons = [];
     const labels = [];
 
@@ -810,7 +811,7 @@ export class IsometricRenderer {
     const vbH = vbParts[3] || 600;
 
     const title = moduleLabel ? ` — ${escapeHtml(moduleLabel)}` : '';
-    const dimsText = `${moduleW} × ${moduleD} × ${moduleH} mm`;
+    const dimsText = isAllView ? '' : `${moduleW} × ${moduleD} × ${moduleH} mm`;
     let axesInserted = false;
 
     geometries.forEach((geo) => {
@@ -852,13 +853,14 @@ export class IsometricRenderer {
     }
 
     let extra = '';
-    if (this.showDimensions) {
+    const showDims = this.showDimensions && !isAllView;
+    if (showDims) {
       extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
       if (this.explodeFactor <= 0) {
         extra += this._drawMainDimensions(ox, oy, moduleW, moduleD, moduleH);
       }
     }
-    if (this.explodeFactor > 0) {
+    if (!isAllView && this.explodeFactor > 0) {
       const pieceDims = this._drawExplodedDimensions(geometries, ox, oy);
       if (pieceDims) extra = this._dimensionDefs() + extra + pieceDims;
     }
