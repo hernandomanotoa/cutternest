@@ -176,9 +176,11 @@ export class IsometricRenderer {
         const subGeometries = this._buildModuleGeometries(
           group, dims.width, moduleD, dims.height, dims.thickness, family
         );
+        // Compensar la proyección isométrica: el ancho visual de un módulo
+        // es W + D*isoDepth. Si sumamos solo W, los laterales se superponen.
         subGeometries.forEach((g) => { g.x += offsetX; });
         geometries.push(...subGeometries);
-        offsetX += dims.width;
+        offsetX += dims.width + 2 * moduleD * this.isoDepth;
       });
       // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
       if (globalPieces.length) {
@@ -621,15 +623,18 @@ export class IsometricRenderer {
   _groupByModule(pieces) {
     const moduleIds = [...new Set(
       pieces.map((p) => String(p.modulo || '').trim()).filter(Boolean)
-    )];
-    const groups = {};
+    )].sort((a, b) => b.length - a.length); // prefijos más largos primero
+    const parentMap = new Map();
     moduleIds.forEach((mid) => {
-      if (!groups[mid]) groups[mid] = [];
+      const parent = moduleIds.find((pid) => pid !== mid && mid.startsWith(pid)) || mid;
+      parentMap.set(mid, parent);
     });
+    const groups = {};
     pieces.forEach((p) => {
       const mid = String(p.modulo || '').trim();
-      const parent = moduleIds.find((pid) => pid !== mid && mid.startsWith(pid + '-')) || mid;
-      if (groups[parent]) groups[parent].push(p);
+      const parent = parentMap.get(mid) || mid;
+      if (!groups[parent]) groups[parent] = [];
+      groups[parent].push(p);
     });
     return groups;
   }
