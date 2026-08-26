@@ -93,7 +93,7 @@ export class IsometricRenderer {
     this.isoDepth = options.isoDepth || 0.5;
     this.padding = options.padding || 100;
     this.showDimensions = options.showDimensions !== false;
-    this.showAxes = options.showAxes !== false;
+    this.showAxes = options.showAxes === true;
     this.drawerGap = options.drawerGap || 15;
     this.doorAngle = options.doorAngle || 0;
     this.explodeFactor = options.explodeFactor || 0;

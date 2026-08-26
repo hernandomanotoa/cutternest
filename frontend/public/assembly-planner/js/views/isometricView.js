@@ -143,7 +143,6 @@ export function createIsometricView(store) {
       isoDepth: 0.5,
       padding: 100,
       showDimensions: true,
-      showAxes: true,
       drawerGap,
       doorAngle,
       explodeFactor,
