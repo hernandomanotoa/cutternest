@@ -182,7 +182,9 @@ export class IsometricRenderer {
         // es W + D*isoDepth. Si sumamos solo W, los laterales se superponen.
         subGeometries.forEach((g) => { g.x += offsetX; });
         geometries.push(...subGeometries);
-        offsetX += dims.width + 2 * moduleD * this.isoDepth;
+        // Separación entre módulos: ancho del módulo + proyección de la
+        // profundidad + espesor del material para evitar superposición visual.
+        offsetX += dims.width + moduleD * this.isoDepth + dims.thickness;
       });
       // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
       if (globalPieces.length) {
