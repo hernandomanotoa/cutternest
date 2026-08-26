@@ -15,6 +15,8 @@ export function createIsometricView(store) {
   let drawerGap = 15;
   let doorAngle = 0;
   let isoFlip = true;
+  let fullscreenChangeHandler = null;
+  let webkitFullscreenChangeHandler = null;
 
   function mount(parent) {
     container = parent;
@@ -31,6 +33,14 @@ export function createIsometricView(store) {
     if (unsubscribeConfig) {
       unsubscribeConfig();
       unsubscribeConfig = null;
+    }
+    if (fullscreenChangeHandler) {
+      document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
+      fullscreenChangeHandler = null;
+    }
+    if (webkitFullscreenChangeHandler) {
+      document.removeEventListener('webkitfullscreenchange', webkitFullscreenChangeHandler);
+      webkitFullscreenChangeHandler = null;
     }
     container = null;
     canvas = null;
@@ -72,6 +82,7 @@ export function createIsometricView(store) {
             <button id="btn-iso-drawers" class="btn btn--secondary btn--sm">Abrir cajones</button>
             <button id="btn-iso-doors" class="btn btn--secondary btn--sm">Abrir puertas</button>
             <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
+            <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;">
@@ -132,6 +143,30 @@ export function createIsometricView(store) {
       a.remove();
       URL.revokeObjectURL(url);
     });
+
+    const card = container.querySelector('.card');
+    const btnFullscreen = container.querySelector('#btn-iso-fullscreen');
+    function updateFullscreenBtn() {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (btnFullscreen) btnFullscreen.textContent = isFull ? 'Salir pantalla completa' : '⛶ Pantalla completa';
+    }
+    function toggleFullscreen() {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (isFull) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else if (card) {
+        if (card.requestFullscreen) card.requestFullscreen();
+        else if (card.webkitRequestFullscreen) card.webkitRequestFullscreen();
+      }
+    }
+    if (fullscreenChangeHandler) document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
+    if (webkitFullscreenChangeHandler) document.removeEventListener('webkitfullscreenchange', webkitFullscreenChangeHandler);
+    btnFullscreen?.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+    fullscreenChangeHandler = updateFullscreenBtn;
+    webkitFullscreenChangeHandler = updateFullscreenBtn;
   }
 
   function render() {
