@@ -164,13 +164,33 @@ export class IsometricRenderer {
       // Vista global: renderizar todas las piezas globales con su geometría propia
       // (zócalo, tapa corrida, panel trasero, espejo, puertas, etc.)
       geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, true));
+    } else if (target === ALL_MODULE_ID) {
+      // Vista de todos los módulos: alinearlos horizontalmente de M1 a Mn.
+      const nonGlobalPieces = allPieces.filter((p) => !isGlobalPiece(p));
+      const moduleGroups = this._groupByModule(nonGlobalPieces);
+      const sortedIds = this._sortModuleIds(Object.keys(moduleGroups));
+      let offsetX = 0;
+      sortedIds.forEach((mid) => {
+        const group = moduleGroups[mid];
+        const dims = getModuleDimensions(group, inferThickness(group), family);
+        const subGeometries = this._buildModuleGeometries(
+          group, dims.width, moduleD, dims.height, dims.thickness, family
+        );
+        subGeometries.forEach((g) => { g.x += offsetX; });
+        geometries.push(...subGeometries);
+        offsetX += dims.width;
+      });
+      // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
+      if (globalPieces.length) {
+        geometries.push(...this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true));
+      }
     } else {
       // Piezas del módulo principal + submódulos insertos
       geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family));
       // Superponer piezas de estructura global (zócalo, tapa corrida, espejo...)
       // Las puertas globales solo se dibujan en vista completa o estructura global.
       if (globalPieces.length) {
-        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, target === ALL_MODULE_ID));
+        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, false));
       }
     }
 
@@ -596,6 +616,39 @@ export class IsometricRenderer {
       }
     }
     return positions;
+  }
+
+  _groupByModule(pieces) {
+    const moduleIds = [...new Set(
+      pieces.map((p) => String(p.modulo || '').trim()).filter(Boolean)
+    )];
+    const groups = {};
+    moduleIds.forEach((mid) => {
+      if (!groups[mid]) groups[mid] = [];
+    });
+    pieces.forEach((p) => {
+      const mid = String(p.modulo || '').trim();
+      const parent = moduleIds.find((pid) => pid !== mid && mid.startsWith(pid + '-')) || mid;
+      if (groups[parent]) groups[parent].push(p);
+    });
+    return groups;
+  }
+
+  _sortModuleIds(ids) {
+    return [...ids].sort((a, b) => {
+      const ma = a.match(/^(M?)(\d+)(.*)$/i);
+      const mb = b.match(/^(M?)(\d+)(.*)$/i);
+      if (ma && mb) {
+        const prefixA = ma[1].toLowerCase();
+        const prefixB = mb[1].toLowerCase();
+        if (prefixA !== prefixB) return prefixA.localeCompare(prefixB);
+        const numA = parseInt(ma[2], 10);
+        const numB = parseInt(mb[2], 10);
+        if (numA !== numB) return numA - numB;
+        return (ma[3] || '').localeCompare(mb[3] || '');
+      }
+      return a.localeCompare(b);
+    });
   }
 
   _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true) {
