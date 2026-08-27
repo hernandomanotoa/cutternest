@@ -1,34 +1,34 @@
-id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
 # --- Estructura global ---
-glb-base,Base corrida,1800,600,1,si,#C19A6B,18,"T,B,L,R",estructura
-glb-tapa,Tapa corrida,1800,600,1,si,#C19A6B,18,"T,B,L,R",estructura
-glb-fondo,Fondo,1800,2300,1,no,#F2F2F2,3,,estructura
-glb-lateral-izq,Lateral izquierdo,18,2300,1,no,#C19A6B,18,"T,B,L",estructura
-glb-lateral-der,Lateral derecho,18,2300,1,no,#C19A6B,18,"T,B,R",estructura
-glb-particion-1,Partición 1,18,2300,1,no,#C19A6B,18,"T,B",estructura
-glb-particion-2,Partición 2,18,2300,1,no,#C19A6B,18,"T,B",estructura
-glb-particion-3,Partición 3,18,2300,1,no,#C19A6B,18,"T,B",estructura
+glb-base,Base corrida,1800,600,1,si,#C19A6B,18,"T,B,L,R",estructura,
+glb-tapa,Tapa corrida,1800,600,1,si,#C19A6B,18,"T,B,L,R",estructura,
+glb-fondo,Fondo,1800,2300,1,no,#F2F2F2,3,,estructura,
+glb-lateral-izq,Lateral izquierdo,18,2300,1,no,#C19A6B,18,"T,B,L",estructura,
+glb-lateral-der,Lateral derecho,18,2300,1,no,#C19A6B,18,"T,B,R",estructura,
+glb-particion-1,Partición 1,18,2300,1,no,#C19A6B,18,"T,B",estructura,
+glb-particion-2,Partición 2,18,2300,1,no,#C19A6B,18,"T,B",estructura,
+glb-particion-3,Partición 3,18,2300,1,no,#C19A6B,18,"T,B",estructura,
 
 # --- Módulo 1: cajonera con puertas ---
-m1-zocalo,Zócalo M1,450,80,1,no,#C19A6B,18,"T,B,L,R",1
-m1-puerta-izq,Puerta izquierda M1,215,2220,1,no,#D9C2A3,18,"T,B,L,R",1
-m1-puerta-der,Puerta derecha M1,215,2220,1,no,#D9C2A3,18,"T,B,R",1
-m1-tirador-izq,Tirador izquierdo M1,20,60,1,no,#A0A0A0,5,,1
-m1-tirador-der,Tirador derecho M1,20,60,1,no,#A0A0A0,5,,1
+m1-zocalo,Zócalo M1,450,80,1,no,#C19A6B,18,"T,B,L,R",1,
+m1-puerta-izq,Puerta izquierda M1,215,2220,1,no,#D9C2A3,18,"T,B,L,R",1,
+m1-puerta-der,Puerta derecha M1,215,2220,1,no,#D9C2A3,18,"T,B,R",1,
+m1-tirador-izq,Tirador izquierdo M1,20,60,1,no,#A0A0A0,5,,1,
+m1-tirador-der,Tirador derecho M1,20,60,1,no,#A0A0A0,5,,1,
 
 # --- Módulo 2: estantes ---
-m2-zocalo,Zócalo M2,450,80,1,no,#C19A6B,18,"T,B,L,R",2
-m2-estante-1,Estante 1 M2,414,600,1,si,#D9C2A3,18,"T,B,L,R",2
-m2-estante-2,Estante 2 M2,414,600,1,si,#D9C2A3,18,"T,B,L,R",2
-m2-estante-3,Estante 3 M2,414,600,1,si,#D9C2A3,18,"T,B,L,R",2
+m2-zocalo,Zócalo M2,450,80,1,no,#C19A6B,18,"T,B,L,R",2,
+m2-estante-1,Estante 1 M2,414,600,1,si,#D9C2A3,18,"T,B,L,R",2,
+m2-estante-2,Estante 2 M2,414,600,1,si,#D9C2A3,18,"T,B,L,R",2,
+m2-estante-3,Estante 3 M2,414,600,1,si,#D9C2A3,18,"T,B,L,R",2,
 
 # --- Módulo 3: barra colgadora ---
-m3-zocalo,Zócalo M3,450,80,1,no,#C19A6B,18,"T,B,L,R",3
-m3-barra,Barra colgadora M3,414,25,1,no,#A0A0A0,25,,3
-m3-estante,Estante M3,414,600,1,si,#D9C2A3,18,"T,B,L,R",3
+m3-zocalo,Zócalo M3,450,80,1,no,#C19A6B,18,"T,B,L,R",3,
+m3-barra,Barra colgadora M3,414,25,1,no,#A0A0A0,25,,3,
+m3-estante,Estante M3,414,600,1,si,#D9C2A3,18,"T,B,L,R",3,
 
 # --- Módulo 4: zapateros ---
-m4-zocalo,Zócalo M4,450,80,1,no,#C19A6B,18,"T,B,L,R",4
-m4-zapatero-1,Zapatero 1 M4,414,300,1,no,#D9C2A3,18,"T,B,L,R",4
-m4-zapatero-2,Zapatero 2 M4,414,300,1,no,#D9C2A3,18,"T,B,L,R",4
-m4-zapatero-3,Zapatero 3 M4,414,300,1,no,#D9C2A3,18,"T,B,L,R",4
+m4-zocalo,Zócalo M4,450,80,1,no,#C19A6B,18,"T,B,L,R",4,
+m4-zapatero-1,Zapatero 1 M4,414,300,1,no,#D9C2A3,18,"T,B,L,R",4,
+m4-zapatero-2,Zapatero 2 M4,414,300,1,no,#D9C2A3,18,"T,B,L,R",4,
+m4-zapatero-3,Zapatero 3 M4,414,300,1,no,#D9C2A3,18,"T,B,L,R",4,

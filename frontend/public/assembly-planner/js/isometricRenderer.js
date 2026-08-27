@@ -12,7 +12,6 @@ import {
   applyDoorRotation,
   applyExplode,
   calculateVerticalZones,
-  distributeHorizontally,
   drawerRank,
   getModuleDepth,
   groupDividersIntoZones,
@@ -20,7 +19,6 @@ import {
   inferBraceZ,
   inferDividerX,
   inferDoorX,
-  inferDoorZ,
   inferLegX,
   inferLegY,
   inferRailZ,
@@ -59,16 +57,25 @@ function getZIndex(role) {
   return Z_INDEX_CONFIG[role] ?? 10;
 }
 
-function getDepthKey(geo) {
-  // Usar el centroide de la pieza completa para el painter's algorithm.
+function getDepthKey(geo, xFactor = 0.5) {
+  // Usar el centroide proyectado en X para el painter's algorithm.
+  // Esto permite que piezas de módulos adyacentes en vista completa se
+  // ordenen correctamente según su posición visual, no solo real.
   const cx = geo.x + geo.w / 2;
   const cy = geo.y + geo.d / 2;
   const cz = geo.z + geo.h / 2;
-  return cx + cy + cz;
+  return cx + cy * xFactor + cz;
 }
 
-function sortByDepth(geometries) {
+function sortByDepth(geometries, xFactor = 0.5) {
   return geometries.slice().sort((a, b) => {
+    // Vista completa: pintar módulo a módulo (M1 completo, luego M2, ...).
+    // En vista individual/global moduleSeq es undefined para todos y este
+    // chequeo no altera el orden existente.
+    const ma = a.moduleSeq ?? 0;
+    const mb = b.moduleSeq ?? 0;
+    if (ma !== mb) return ma - mb;
+
     const za = getZIndex(a.role);
     const zb = getZIndex(b.role);
 
@@ -79,10 +86,10 @@ function sortByDepth(geometries) {
 
     // Orden de armado de abajo hacia arriba (por Z base).
     // Si la diferencia es significativa (> espesor típico) usamos Z base;
-    // si no, desempatamos por profundidad para mantener realismo 3D.
+    // si no, desempatamos por profundidad proyectada para mantener realismo 3D.
     const zDiff = a.z - b.z;
     if (Math.abs(zDiff) > 20) return zDiff;
-    return getDepthKey(a) - getDepthKey(b);
+    return getDepthKey(a, xFactor) - getDepthKey(b, xFactor);
   });
 }
 
@@ -99,10 +106,10 @@ export class IsometricRenderer {
     this.drawerGap = options.drawerGap || 15;
     this.doorAngle = options.doorAngle || 0;
     this.explodeFactor = options.explodeFactor || 0;
-    this.moduleGapMode = options.moduleGapMode || 'compact';
+    this.moduleGapMode = options.moduleGapMode || 'projected';
     this.labelMode = options.labelMode || 'auto';
     this.isoFlip = options.isoFlip || false;
-    this.verticalPositionOverrides = options.verticalPositionOverrides || null;
+    this.verticalPositionOverrides = options.verticalPositionOverrides || {};
   }
 
   render(moduleId, pieces, _dependencies) {
@@ -171,7 +178,7 @@ export class IsometricRenderer {
       // Vista de todos los módulos: alinearlos horizontalmente de M1 a Mn.
       const nonGlobalPieces = allPieces.filter((p) => !isGlobalPiece(p));
       const moduleGroups = this._groupByModule(nonGlobalPieces);
-      const sortedIds = this._sortModuleIds(Object.keys(moduleGroups));
+      const sortedIds = this._sortModuleIds(Object.keys(moduleGroups)).reverse();
       let offsetX = 0;
       sortedIds.forEach((mid, idx) => {
         const group = moduleGroups[mid];
@@ -179,19 +186,28 @@ export class IsometricRenderer {
         const subGeometries = this._buildModuleGeometries(
           group, dims.width, moduleD, dims.height, dims.thickness, family
         );
-        // Calcular ancho visual real del módulo (según el modo de gap) para
-        // espaciar los módulos de forma precisa y evitar superposiciones.
+        // 'compact' pega los módulos lateral con lateral (compartiendo
+        // laterales, como un mueble ya ensamblado). 'projected' añade la
+        // proyección de la profundidad + un gap de espesor para verlos como
+        // módulos separados.
         const useProjection = this.moduleGapMode === 'projected';
         const bounds = this._computeModuleBounds(subGeometries, useProjection);
         const moduleVisualWidth = bounds.max - bounds.min;
         subGeometries.forEach((g) => { g.x += offsetX; });
+        // Etiqueta para pintar módulo a módulo (M1 completo, luego M2, ...).
+        subGeometries.forEach((g) => { g.moduleSeq = idx; });
         geometries.push(...subGeometries);
-        // Dejar un pequeño espacio igual al espesor entre módulos.
-        offsetX += moduleVisualWidth + dims.thickness;
+        // 'projected' deja un gap visible (espesor) entre módulos; 'compact'
+        // los pega lateral con lateral (sin gap extra).
+        const extraGap = useProjection ? dims.thickness : 0;
+        offsetX += moduleVisualWidth + extraGap;
       });
       // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
+      // Se pintan después de todos los módulos (moduleSeq mayor).
       if (globalPieces.length) {
-        geometries.push(...this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true));
+        const globalGeoms = this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true);
+        globalGeoms.forEach((g) => { g.moduleSeq = sortedIds.length; });
+        geometries.push(...globalGeoms);
       }
     } else {
       // Piezas del módulo principal + submódulos insertos
@@ -207,7 +223,8 @@ export class IsometricRenderer {
       geometries = applyExplode(geometries, moduleW, moduleD, moduleH, this.explodeFactor);
     }
 
-    const sorted = sortByDepth(geometries);
+    const xFactor = this.isoFlip ? -this.isoDepth : this.isoDepth;
+    const sorted = sortByDepth(geometries, xFactor);
     const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries);
 
     const isAllView = target === ALL_MODULE_ID;
@@ -258,7 +275,9 @@ export class IsometricRenderer {
       geometries.push({
         x, y: 0, z: thickness, w: thickness, d: moduleD, h: moduleH - 2 * thickness,
         color: side.color, role: isFront ? 'side_panel_front' : 'side_panel_rear', name: side.nombre, id: side.id,
-        opacity: 0.8,
+        // Los laterales se dibujan semi-transparentes para dejar ver el
+        // interior (repisas/estantes) a través de ellos.
+        opacity: 0.4,
       });
     });
 
@@ -305,23 +324,20 @@ export class IsometricRenderer {
       );
     }
 
-    // Puertas
-    const doors = roles.filter((p) => p.role === 'door');
-    doors.forEach((door) => {
-      const dims = getPieceDims(door, 'door', thickness, family);
-      const x = inferDoorX(door, moduleW, dims.w, thickness);
-      const z = inferDoorZ(door, moduleH, dims.h, thickness, this.verticalPositionOverrides);
-      const baseGeo = {
-        x, y: moduleD, z, w: dims.w, d: thickness, h: dims.h,
-        color: door.color, role: 'door', name: door.nombre, id: door.id,
-      };
-      geometries.push(applyDoorRotation(baseGeo, this.doorAngle));
-    });
+    // Puertas y vidrios (paneles frontales): se apilan verticalmente para
+    // diferenciar superior/inferior y evitar solapes cuando hay varios.
+    const frontPanels = [
+      ...roles.filter((p) => p.role === 'door'),
+      ...roles.filter((p) => p.role === 'glass'),
+    ];
+    if (frontPanels.length) {
+      geometries.push(...this._buildFrontPanelGeometries(frontPanels, moduleW, moduleD, moduleH, thickness, family));
+    }
 
     // Cajones
     const drawers = roles.filter((p) => p.role.startsWith('drawer_') || p.role === 'handle');
     if (drawers.length) {
-      geometries.push(...this._buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family));
+      geometries.push(...this._buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions));
     }
 
     // Riel colgador
@@ -357,19 +373,98 @@ export class IsometricRenderer {
     return geometries;
   }
 
-  _buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family) {
+  _buildFrontPanelGeometries(panels, moduleW, moduleD, moduleH, thickness, family) {
+    const overrides = this.verticalPositionOverrides || {};
+    const gap = overrides.doorGap ?? VERTICAL_POSITIONS.doorGap;
+    const topOffset = overrides.doorTopOffset ?? VERTICAL_POSITIONS.doorTopOffset;
+    const bottomOffset = overrides.doorBottomOffset ?? VERTICAL_POSITIONS.doorBottomOffset;
+
+    const items = panels.map((piece) => {
+      const role = inferRole(piece);
+      const dims = getPieceDims(piece, role, thickness, family);
+      const w = dims.w || moduleW - 2 * thickness;
+      const h = dims.h || moduleH - 2 * thickness;
+      const x = inferDoorX(piece, moduleW, w, thickness);
+      const n = normalizeNameLocal(piece.nombre);
+      const id = normalizeNameLocal(piece.id);
+      const text = `${n} ${id}`;
+      let column = 'center';
+      if (n.includes('izquierda') || n.includes('izq') || id.includes('izq')) column = 'left';
+      else if (n.includes('derecha') || n.includes('der') || id.includes('der')) column = 'right';
+      let zone = 'middle';
+      if (text.includes('superior') || text.includes('sup')) zone = 'top';
+      else if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) zone = 'bottom';
+      return { piece, role, x, w, h, column, zone, hasPosZ: Number.isFinite(piece.pos_z), posZ: Number(piece.pos_z) };
+    });
+
+    // Agrupar por columna (izquierda/centro/derecha): solo se apilan los
+    // paneles que comparten columna (ej. puerta superior + puerta inferior).
+    const groups = new Map();
+    items.forEach((it) => {
+      if (!groups.has(it.column)) groups.set(it.column, []);
+      groups.get(it.column).push(it);
+    });
+
+    const geos = [];
+    groups.forEach((group) => {
+      const tops = group.filter((i) => i.zone === 'top');
+      const bottoms = group.filter((i) => i.zone === 'bottom');
+      const middles = group.filter((i) => i.zone === 'middle');
+      const zMap = new Map();
+
+      let topY = moduleH - thickness - topOffset;
+      tops.slice().sort((a, b) => b.h - a.h).forEach((it) => {
+        const z = it.hasPosZ ? it.posZ : topY - it.h;
+        zMap.set(it, z);
+        topY = z - gap;
+      });
+
+      let bottomY = thickness + bottomOffset;
+      bottoms.slice().sort((a, b) => a.h - b.h).forEach((it) => {
+        const z = it.hasPosZ ? it.posZ : bottomY;
+        zMap.set(it, z);
+        bottomY = z + it.h + gap;
+      });
+
+      const middleTop = tops.length ? topY + gap : moduleH - thickness - topOffset;
+      const middleBottom = bottoms.length ? bottomY - gap : thickness + bottomOffset;
+      const available = Math.max(0, middleTop - middleBottom);
+      const totalH = middles.reduce((s, i) => s + i.h, 0);
+      const n = middles.length;
+      const middleGap = n > 1 ? Math.min(gap, Math.max(0, (available - totalH) / (n - 1))) : 0;
+      let cur = middleBottom + (n > 1 ? 0 : Math.max(0, (available - totalH) / 2));
+      middles.slice().sort((a, b) => a.h - b.h).forEach((it) => {
+        const z = it.hasPosZ ? it.posZ : cur;
+        zMap.set(it, z);
+        cur = z + it.h + middleGap;
+      });
+
+      group.forEach((it) => {
+        const z = zMap.get(it);
+        const baseGeo = {
+          x: it.x, y: moduleD, z, w: it.w,
+          d: it.role === 'glass' ? (Number(it.piece.espesor) || thickness) : thickness,
+          h: it.h,
+          color: it.piece.color, role: it.role, name: it.piece.nombre, id: it.piece.id,
+          opacity: it.role === 'glass' ? 0.3 : 0.35,
+        };
+        geos.push(it.role === 'door' ? applyDoorRotation(baseGeo, this.doorAngle) : baseGeo);
+      });
+    });
+
+    return geos;
+  }
+
+  _buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions = []) {
     const geometries = [];
     const faces = roles.filter((p) => inferRole(p) === 'drawer_face');
     if (!faces.length) return geometries;
 
     // Ubicar cada cajón dentro del hueco (zona) que le corresponde.
-    // Las zonas están definidas por base/tapa/repisas.
-    const shelves = roles.filter((p) => inferRole(p) === 'shelf');
+    // Las zonas están definidas por base/tapa/repisas. shelfPositions se
+    // calcula una sola vez en _buildModuleGeometries y se reutiliza aquí.
     const hasBottom = roles.some((p) => inferRole(p) === 'bottom_panel');
     const hasTop = roles.some((p) => inferRole(p) === 'top_panel');
-    const shelfPositions = shelves.length
-      ? calculateVerticalPositions(moduleH, thickness, shelves, { overrides: this.verticalPositionOverrides })
-      : [];
     const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, hasBottom, hasTop);
 
     const dims = faces.map((f) => ({ face: f, ...getPieceDims(f, 'drawer_face', thickness, family) }));
@@ -486,7 +581,7 @@ export class IsometricRenderer {
     });
 
     if (horizontal.length) {
-      const zones = this._calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top);
+      const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top);
       const groups = groupDividersIntoZones(horizontal.map((h) => h.div), zones);
       groups.forEach(({ dividers: group, zone }) => {
         const zoneHeight = Math.max(0, zone.yEnd - zone.yStart);
@@ -569,64 +664,6 @@ export class IsometricRenderer {
     });
 
     return geometries;
-  }
-
-  _calculateVerticalZones(moduleH, thickness, shelfPositions, hasBottom, hasTop) {
-    const zones = [];
-    const sorted = [...shelfPositions].sort((a, b) => a.y - b.y);
-    let yStart = hasBottom ? thickness : 0;
-    sorted.forEach((sp) => {
-      zones.push({ yStart, yEnd: sp.y });
-      yStart = sp.y + sp.h;
-    });
-    const yEnd = hasTop ? moduleH - thickness : moduleH;
-    zones.push({ yStart, yEnd });
-    return zones;
-  }
-
-  _groupDividersIntoZones(dividers, zones) {
-    if (!zones.length) return [];
-    const groups = zones.map((zone) => ({ zone, dividers: [] }));
-    const unassigned = [];
-
-    dividers.forEach((div) => {
-      const text = `${normalizeNameLocal(div.nombre)} ${normalizeNameLocal(div.id)}`;
-      let idx = -1;
-      // zones[0] es el hueco inferior (base -> primera repisa),
-      // zones[zones.length - 1] es el hueco superior (última repisa -> tapa).
-      if (text.includes('inf') || text.includes('inferior')) idx = 0;
-      else if (text.includes('med') || text.includes('medio')) idx = 1;
-      else if (text.includes('sup') || text.includes('superior')) idx = zones.length - 1;
-
-      if (idx >= 0 && idx < zones.length) {
-        groups[idx].dividers.push(div);
-      } else {
-        unassigned.push(div);
-      }
-    });
-
-    // Distribuir los no asignados en las zonas con menos divisores
-    while (unassigned.length) {
-      groups.sort((a, b) => a.dividers.length - b.dividers.length);
-      groups[0].dividers.push(unassigned.shift());
-    }
-
-    return groups.filter((g) => g.dividers.length);
-  }
-
-  _distributeHorizontally(count, moduleW, sideWidth) {
-    const positions = [];
-    if (count <= 0) return positions;
-    if (count === 1) {
-      positions.push(moduleW / 2);
-    } else {
-      const interiorW = Math.max(0, moduleW - 2 * sideWidth);
-      const step = interiorW / (count + 1);
-      for (let i = 1; i <= count; i++) {
-        positions.push(sideWidth + i * step);
-      }
-    }
-    return positions;
   }
 
   _groupByModule(pieces) {
@@ -732,7 +769,7 @@ export class IsometricRenderer {
           y: -thickness,
           z: zPos,
           w, d: thickness, h,
-          color, role: 'mirror', name: p.nombre, id: p.id, opacity: 0.9,
+          color, role: 'mirror', name: p.nombre, id: p.id, opacity: 0.45,
         });
       } else if (role === 'door') {
         // Puertas globales: solo se renderizan en vista completa o estructura global.
@@ -776,6 +813,7 @@ export class IsometricRenderer {
         const baseGeo = {
           x, y: moduleD, z, w: doorW, d: thickness, h,
           color: door.color || ROLE_COLORS.door, role: 'door', name: door.nombre, id: door.id,
+          opacity: 0.35,
         };
         geometries.push(applyDoorRotation(baseGeo, this.doorAngle));
       });

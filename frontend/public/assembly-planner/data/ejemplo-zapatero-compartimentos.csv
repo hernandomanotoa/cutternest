@@ -1,14 +1,14 @@
 # CutterNest Piezas v1
 # Ejemplo de zapatero con compartimentos
 # 2 divisores verticales crean 3 compartimentos con 3 niveles.
-id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
-m1-base,Base modulo M1,900,350,1,si,#8B5A2B,15,"T,B,L,R",1
-m1-tapa,Tapa modulo M1,900,350,1,si,#8B5A2B,15,"T,B,L,R",1
-m1-lateral-izq,Lateral izquierdo M1,350,1200,1,no,#8B5A2B,15,"T,B,L",1
-m1-lateral-der,Lateral derecho M1,350,1200,1,no,#8B5A2B,15,"T,B,R",1
-m1-fondo,Fondo modulo M1,900,1200,1,no,#F2F2F2,15,"",1
-m1-divisor-izq,Divisor zapatero izq,15,1170,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-divisor-der,Divisor zapatero der,15,1170,1,no,#D9C2A3,15,"T,B,L,R",1
-m1-bandeja-superior,Bandeja zapatero superior,870,15,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-bandeja-media,Bandeja zapatero media,870,15,1,si,#D9C2A3,15,"T,B,L,R",1
-m1-bandeja-inferior,Bandeja zapatero inferior,870,15,1,si,#D9C2A3,15,"T,B,L,R",1
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
+m1-base,Base modulo M1,900,350,1,si,#8B5A2B,15,"T,B,L,R",1,
+m1-tapa,Tapa modulo M1,900,350,1,si,#8B5A2B,15,"T,B,L,R",1,
+m1-lateral-izq,Lateral izquierdo M1,350,1200,1,no,#8B5A2B,15,"T,B,L",1,
+m1-lateral-der,Lateral derecho M1,350,1200,1,no,#8B5A2B,15,"T,B,R",1,
+m1-fondo,Fondo modulo M1,900,1200,1,no,#F2F2F2,15,"",1,
+m1-divisor-izq,Divisor zapatero izq,15,1170,1,no,#D9C2A3,15,"T,B,L,R",1,
+m1-divisor-der,Divisor zapatero der,15,1170,1,no,#D9C2A3,15,"T,B,L,R",1,
+m1-bandeja-superior,Bandeja zapatero superior,870,15,1,si,#D9C2A3,15,"T,B,L,R",1,
+m1-bandeja-media,Bandeja zapatero media,870,15,1,si,#D9C2A3,15,"T,B,L,R",1,
+m1-bandeja-inferior,Bandeja zapatero inferior,870,15,1,si,#D9C2A3,15,"T,B,L,R",1,

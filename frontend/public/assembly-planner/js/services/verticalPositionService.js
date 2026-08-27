@@ -65,6 +65,7 @@ function getPositioningHeight(piece, thickness) {
  * para una pieza según su rol y palabras clave del nombre/id.
  */
 export function getDefaultVerticalPosition(piece, moduleH, thickness, overrides = {}) {
+  overrides = overrides || {};
   const n = normalizeName(piece?.nombre || '');
   const id = normalizeName(piece?.id || '');
   const text = `${n} ${id}`;

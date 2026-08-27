@@ -163,6 +163,13 @@ describe('inferLegY', () => {
   it('places back leg at back edge', () => {
     assert.equal(inferLegY({ nombre: 'Pata trasera', id: 'PT' }, 500, 40), 20);
   });
+
+  it('uses legOffsetY (not legOffsetX) for depth margin', () => {
+    assert.equal(
+      inferLegY({ nombre: 'Pata delantera', id: 'PF' }, 500, 40, { legOffsetY: 30, legOffsetX: 10 }),
+      430
+    );
+  });
 });
 
 describe('shouldShowLabel', () => {

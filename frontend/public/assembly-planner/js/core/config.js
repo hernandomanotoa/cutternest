@@ -123,6 +123,7 @@ export const Z_INDEX = {
   seat_panel: 11,
   leg: 13,
   side_panel_front: 20,
+  glass: 24,
   front_panel: 25,
   drawer_face: 25,
   door: 25,
@@ -130,28 +131,32 @@ export const Z_INDEX = {
 };
 
 export const VERTICAL_POSITIONS = {
-  defaultGap: 20,
-  fixedBottomMargin: 20,
-  shelfTopOffset: 120,
-  shelfBottomOffset: 80,
-  seatHeight: 450,
-  hangerRailHeight: 1700,
-  // Offsets por tipo de pieza (Opción A)
-  shoeRackBottomOffset: 20,
-  shoeRackGap: 20,
-  shelfMiddleGap: 20,
-  // Cajones
-  drawerFaceGap: 20,
-  drawerBottomOffset: 80,
-  // Puertas
-  doorGap: 2,
-  doorTopOffset: 0,
-  doorBottomOffset: 0,
-  // Travesaños / soportes
-  braceTopOffset: 120,
-  braceBottomOffset: 80,
-  // Espejos
-  mirrorOffset: 120,
-  // Patas
-  legOffsetX: 20,
+  // ── Gap inferior (desde la base hacia arriba) ─────────────────
+  fixedBottomMargin: 20,     // margen fijo desde la base hasta la 1ª pieza
+  shelfBottomOffset: 80,     // repisa inferior: altura desde la base
+  drawerBottomOffset: 80,    // frente de cajón inferior: altura desde la base
+  braceBottomOffset: 80,     // travesaño inferior: altura desde la base
+  doorBottomOffset: 0,       // puerta inferior: altura desde la base
+  shoeRackBottomOffset: 20,  // zapatero: altura desde la base
+
+  // ── Gap entre piezas (apilado base → arriba) ─────────────────
+  defaultGap: 20,            // gap genérico entre piezas
+  shelfMiddleGap: 20,        // gap entre repisas/estantes regulables
+  shoeRackGap: 20,           // gap entre zapateros
+  drawerFaceGap: 20,         // gap entre frentes de cajón
+  doorGap: 2,                // gap entre puertas
+
+  // ── Alturas desde la base ─────────────────────────────────────
+  seatHeight: 450,           // altura del asiento
+  hangerRailHeight: 1700,    // altura del riel/barra colgadora
+
+  // ── Inset desde la tapa (piezas superiores, z resultante desde base) ──
+  shelfTopOffset: 120,       // repisa superior: inset desde la tapa
+  braceTopOffset: 120,       // travesaño superior: inset desde la tapa
+  doorTopOffset: 0,          // puerta superior: inset desde la tapa
+  mirrorOffset: 120,         // espejo: inset desde la tapa
+
+  // ── Patas (márgenes horizontales) ────────────────────────────
+  legOffsetX: 20,            // margen patas desde lateral (X)
+  legOffsetY: 20,            // margen patas desde frente/fondo (Y)
 };

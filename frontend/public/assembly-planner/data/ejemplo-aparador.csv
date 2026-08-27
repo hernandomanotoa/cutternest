@@ -1,38 +1,38 @@
 # CutterNest Piezas v1
 # Aparador tipo buffet para salón o comedor: cajonera, puertas y vitrina central.
-id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
-glb-zocalo,Zocalo aparador,1600,100,1,si,#C19A6B,15,"T,B,L,R",estructura
-glb-tapa,Tapa aparador,1600,40,1,si,#C19A6B,30,"T,B,L,R",estructura
-glb-trasera,Panel posterior aparador,1600,800,1,no,#F2F2F2,15,,estructura
-m1-base,Base aparador cajonera,1600,500,1,si,#C19A6B,30,"T,B,L,R",m1
-m1-tapa,Tapa aparador cajonera,1600,500,1,si,#C19A6B,30,"T,B,L,R",m1
-m1-lateral-izq,Lateral izquierdo aparador cajonera,500,800,1,no,#C19A6B,15,"T,B,L",m1
-m1-lateral-der,Lateral derecho aparador cajonera,500,800,1,no,#C19A6B,15,"T,B,R",m1
-m1-fondo,Fondo aparador cajonera,1600,800,1,no,#F2F2F2,15,,m1
-m11-frente,Frente cajon 1,460,180,1,si,#8B5A2B,15,"T,B,L,R",m11
-m11-lateral-izq,Lateral cajon 1,150,470,1,no,#D9C2A3,15,"T,B,L",m11
-m11-lateral-der,Lateral cajon 1,150,470,1,no,#D9C2A3,15,"T,B,R",m11
-m11-fondo,Fondo cajon 1,420,470,1,no,#F2F2F2,15,,m11
-m11-base,Base cajon 1,420,470,1,si,#D9C2A3,15,"T,B,L,R",m11
-m11-tirador,Tirador cajon 1,2,20,1,no,#A0A0A0,5,,m11
-m12-frente,Frente cajon 2,460,180,1,si,#8B5A2B,15,"T,B,L,R",m12
-m12-lateral-izq,Lateral cajon 2,150,470,1,no,#D9C2A3,15,"T,B,L",m12
-m12-lateral-der,Lateral cajon 2,150,470,1,no,#D9C2A3,15,"T,B,R",m12
-m12-fondo,Fondo cajon 2,420,470,1,no,#F2F2F2,15,,m12
-m12-base,Base cajon 2,420,470,1,si,#D9C2A3,15,"T,B,L,R",m12
-m12-tirador,Tirador cajon 2,2,20,1,no,#A0A0A0,5,,m12
-m2-base,Base aparador puertas,1600,500,1,si,#C19A6B,30,"T,B,L,R",m2
-m2-tapa,Tapa aparador puertas,1600,500,1,si,#C19A6B,30,"T,B,L,R",m2
-m2-lateral-izq,Lateral izquierdo aparador puertas,500,800,1,no,#C19A6B,15,"T,B,L",m2
-m2-lateral-der,Lateral derecho aparador puertas,500,800,1,no,#C19A6B,15,"T,B,R",m2
-m2-fondo,Fondo aparador puertas,1600,800,1,no,#F2F2F2,15,,m2
-m2-puerta,Puerta aparador,460,760,1,no,#FFFFFF,18,"T,B,L,R",m2
-m2-puerta-bisagra,Bisagra puerta aparador,2,20,2,no,#A0A0A0,5,,m2
-m3-base,Base aparador vitrina,1600,500,1,si,#C19A6B,30,"T,B,L,R",m3
-m3-tapa,Tapa aparador vitrina,1600,500,1,si,#C19A6B,30,"T,B,L,R",m3
-m3-lateral-izq,Lateral izquierdo aparador vitrina,500,800,1,no,#C19A6B,15,"T,B,L",m3
-m3-lateral-der,Lateral derecho aparador vitrina,500,800,1,no,#C19A6B,15,"T,B,R",m3
-m3-fondo,Fondo aparador vitrina,1600,800,1,no,#F2F2F2,15,,m3
-m3-repisa-superior,Repisa superior vitrina,500,200,1,si,#D9C2A3,15,"T,B,L,R",m3
-m3-repisa-inferior,Repisa inferior vitrina,500,200,1,si,#D9C2A3,15,"T,B,L,R",m3
-m3-vidrio,Vidrio vitrina,500,500,1,no,#E8F4F8,4,,m3
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
+glb-zocalo,Zocalo aparador,1600,100,1,si,#C19A6B,15,"T,B,L,R",estructura,
+glb-tapa,Tapa aparador,1600,40,1,si,#C19A6B,30,"T,B,L,R",estructura,
+glb-trasera,Panel posterior aparador,1600,800,1,no,#F2F2F2,15,,estructura,
+m1-base,Base aparador cajonera,1600,500,1,si,#C19A6B,30,"T,B,L,R",m1,
+m1-tapa,Tapa aparador cajonera,1600,500,1,si,#C19A6B,30,"T,B,L,R",m1,
+m1-lateral-izq,Lateral izquierdo aparador cajonera,500,800,1,no,#C19A6B,15,"T,B,L",m1,
+m1-lateral-der,Lateral derecho aparador cajonera,500,800,1,no,#C19A6B,15,"T,B,R",m1,
+m1-fondo,Fondo aparador cajonera,1600,800,1,no,#F2F2F2,15,,m1,
+m11-frente,Frente cajon 1,460,180,1,si,#8B5A2B,15,"T,B,L,R",m11,
+m11-lateral-izq,Lateral cajon 1,150,470,1,no,#D9C2A3,15,"T,B,L",m11,
+m11-lateral-der,Lateral cajon 1,150,470,1,no,#D9C2A3,15,"T,B,R",m11,
+m11-fondo,Fondo cajon 1,420,470,1,no,#F2F2F2,15,,m11,
+m11-base,Base cajon 1,420,470,1,si,#D9C2A3,15,"T,B,L,R",m11,
+m11-tirador,Tirador cajon 1,2,20,1,no,#A0A0A0,5,,m11,
+m12-frente,Frente cajon 2,460,180,1,si,#8B5A2B,15,"T,B,L,R",m12,
+m12-lateral-izq,Lateral cajon 2,150,470,1,no,#D9C2A3,15,"T,B,L",m12,
+m12-lateral-der,Lateral cajon 2,150,470,1,no,#D9C2A3,15,"T,B,R",m12,
+m12-fondo,Fondo cajon 2,420,470,1,no,#F2F2F2,15,,m12,
+m12-base,Base cajon 2,420,470,1,si,#D9C2A3,15,"T,B,L,R",m12,
+m12-tirador,Tirador cajon 2,2,20,1,no,#A0A0A0,5,,m12,
+m2-base,Base aparador puertas,1600,500,1,si,#C19A6B,30,"T,B,L,R",m2,
+m2-tapa,Tapa aparador puertas,1600,500,1,si,#C19A6B,30,"T,B,L,R",m2,
+m2-lateral-izq,Lateral izquierdo aparador puertas,500,800,1,no,#C19A6B,15,"T,B,L",m2,
+m2-lateral-der,Lateral derecho aparador puertas,500,800,1,no,#C19A6B,15,"T,B,R",m2,
+m2-fondo,Fondo aparador puertas,1600,800,1,no,#F2F2F2,15,,m2,
+m2-puerta,Puerta aparador,460,760,1,no,#FFFFFF,18,"T,B,L,R",m2,
+m2-puerta-bisagra,Bisagra puerta aparador,2,20,2,no,#A0A0A0,5,,m2,
+m3-base,Base aparador vitrina,1600,500,1,si,#C19A6B,30,"T,B,L,R",m3,
+m3-tapa,Tapa aparador vitrina,1600,500,1,si,#C19A6B,30,"T,B,L,R",m3,
+m3-lateral-izq,Lateral izquierdo aparador vitrina,500,800,1,no,#C19A6B,15,"T,B,L",m3,
+m3-lateral-der,Lateral derecho aparador vitrina,500,800,1,no,#C19A6B,15,"T,B,R",m3,
+m3-fondo,Fondo aparador vitrina,1600,800,1,no,#F2F2F2,15,,m3,
+m3-repisa-superior,Repisa superior vitrina,500,200,1,si,#D9C2A3,15,"T,B,L,R",m3,
+m3-repisa-inferior,Repisa inferior vitrina,500,200,1,si,#D9C2A3,15,"T,B,L,R",m3,
+m3-vidrio,Vidrio vitrina,500,500,1,no,#E8F4F8,4,,m3,

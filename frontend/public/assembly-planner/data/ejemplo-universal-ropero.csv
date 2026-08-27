@@ -1,10 +1,10 @@
-id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
-m5-base,Base ropero,1200,600,1,si,#C19A6B,15,"T,B,L,R",5
-m5-tapa,Tapa ropero,1200,600,1,si,#C19A6B,15,"T,B,L,R",5
-m5-lateral-izq,Lateral ropero izq,15,2200,1,no,#C19A6B,15,"T,B,L",5
-m5-lateral-der,Lateral ropero der,15,2200,1,no,#C19A6B,15,"T,B,R",5
-m5-fondo,Fondo ropero,1200,2200,1,no,#F2F2F2,15,,5
-m5-puerta-izq,Puerta izquierda,590,2180,1,no,#D9C2A3,15,"T,B,L,R",5
-m5-puerta-der,Puerta derecha,590,2180,1,no,#D9C2A3,15,"T,B,L,R",5
-m5-riel-colgador,Riel colgador,1100,40,1,no,#A0A0A0,25,,5
-m5-estante,Estante ropero,1100,40,1,no,#D9C2A3,18,"T,B,L,R",5
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
+m5-base,Base ropero,1200,600,1,si,#C19A6B,15,"T,B,L,R",5,
+m5-tapa,Tapa ropero,1200,600,1,si,#C19A6B,15,"T,B,L,R",5,
+m5-lateral-izq,Lateral ropero izq,15,2200,1,no,#C19A6B,15,"T,B,L",5,
+m5-lateral-der,Lateral ropero der,15,2200,1,no,#C19A6B,15,"T,B,R",5,
+m5-fondo,Fondo ropero,1200,2200,1,no,#F2F2F2,15,,5,
+m5-puerta-izq,Puerta izquierda,590,2180,1,no,#D9C2A3,15,"T,B,L,R",5,
+m5-puerta-der,Puerta derecha,590,2180,1,no,#D9C2A3,15,"T,B,L,R",5,
+m5-riel-colgador,Riel colgador,1100,40,1,no,#A0A0A0,25,,5,
+m5-estante,Estante ropero,1100,40,1,no,#D9C2A3,18,"T,B,L,R",5,

@@ -16,6 +16,7 @@ export function inferRole(piece) {
     return 'drawer_part';
   }
 
+  if (n.includes('vidrio') || n.includes('cristal') || id.includes('vidrio') || id.includes('cristal')) return 'glass';
   if (n.includes('puerta') || id.includes('puerta')) return 'door';
   if (n.includes('tirador') || id.includes('tirador')) return 'handle';
   if (n.includes('riel') || n.includes('barra') || id.includes('riel') || id.includes('barra')) return 'hanger_rail';

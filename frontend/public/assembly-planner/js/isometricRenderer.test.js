@@ -204,4 +204,90 @@ describe('IsometricRenderer module gap mode', () => {
     };
     assert.ok(parseW(projected.container.innerHTML) > parseW(compact.container.innerHTML), 'projected view should be wider');
   });
+
+  it('compact all view packs modules lateral con lateral (side by side)', () => {
+    const pieces = [...basePieces, ...module2Pieces];
+    const compact = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, moduleGapMode: 'compact', isoFlip: true });
+    compact.render('all', pieces);
+
+    const match = compact.container.innerHTML.match(/viewBox="0 0 ([\d.]+)/);
+    const viewBoxW = match ? parseFloat(match[1]) : 0;
+
+    // 2 módulos W=800 D=550: "lateral con lateral" (S=W) ⇒ span horizontal = 2W + D/2.
+    // No debe ser el espaciado "staircase" (2W + D) ni dejar un gap de espesor.
+    const expected = (2 * 800 + 550 / 2) * 0.12 + 2 * 100;
+    assert.ok(
+      Math.abs(viewBoxW - expected) <= 3,
+      `compact viewBoxW (${viewBoxW}) should be ≈ side-by-side ${expected}`
+    );
+  });
+});
+
+describe('IsometricRenderer module paint order', () => {
+  const module2Pieces = basePieces.map((p) => ({
+    ...p,
+    id: p.id.replace('m1', 'm2'),
+    nombre: p.nombre.replace('M1', 'M2'),
+    modulo: '2',
+  }));
+
+  it('all view paints module by module (M1 complete before M2)', () => {
+    const pieces = [...basePieces, ...module2Pieces];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, moduleGapMode: 'compact' });
+    renderer.render('all', pieces);
+
+    const polys = parsePolygons(renderer.container.innerHTML);
+    // La cara frontal del "fondo" (back_panel) tiene fill #F2F2F2.
+    const backFaces = polys
+      .map((p, i) => ({ i, p }))
+      .filter(({ p }) => p.fill === '#F2F2F2');
+
+    // Un fondo por módulo.
+    assert.equal(backFaces.length, 2, 'expected two back panel front faces (M1 y M2)');
+
+    // M1 se dibuja completo antes de M2: entre el fondo de M1 y el de M2
+    // deben estar las demás piezas de M1 (laterales, base, tapa).
+    const [first, second] = backFaces;
+    assert.ok(
+      second.i - first.i > 6,
+      `M2 back should come after M1 pieces (gap ${second.i - first.i})`
+    );
+  });
+});
+
+describe('IsometricRenderer glass transparency', () => {
+  it('renders vidrio/cristal as a transparent front panel', () => {
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-vidrio', nombre: 'Cristal puerta vitrina', ancho: 300, alto: 700, cantidad: 1, rotate: 'no', color: '#E8F4F8', espesor: 4, modulo: '1' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    renderer.render('1', pieces);
+
+    const svg = renderer.container.innerHTML;
+    // El vidrio se dibuja como panel frontal transparente (opacity 0.3).
+    assert.ok(
+      /fill="#E8F4F8"[^>]*opacity="0\.3"/.test(svg),
+      'glass front face should be rendered transparent (opacity 0.3)'
+    );
+  });
+});
+
+describe('IsometricRenderer front panel stacking', () => {
+  it('places superior door above inferior door', () => {
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-puerta-sup', nombre: 'Puerta superior', ancho: 400, alto: 900, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: '1' },
+      { id: 'm1-puerta-inf', nombre: 'Puerta inferior', ancho: 400, alto: 900, cantidad: 1, rotate: 'no', color: '#EEEEEE', espesor: 18, modulo: '1' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    renderer.render('1', pieces);
+
+    const polys = parsePolygons(renderer.container.innerHTML);
+    const sup = polys.filter((p) => p.fill === '#FFFFFF');
+    const inf = polys.filter((p) => p.fill === '#EEEEEE');
+    assert.equal(sup.length, 1, 'one superior door front face expected');
+    assert.equal(inf.length, 1, 'one inferior door front face expected');
+    assert.ok(sup[0].cy < inf[0].cy, `superior door should be above inferior (${sup[0].cy} < ${inf[0].cy})`);
+  });
 });

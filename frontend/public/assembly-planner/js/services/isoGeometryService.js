@@ -195,7 +195,7 @@ export function inferLegX(leg, moduleW, legW, overrides = {}) {
 }
 
 export function inferLegY(leg, moduleD, legW, overrides = {}) {
-  const offset = overrides.legOffsetX ?? VERTICAL_POSITIONS.legOffsetX;
+  const offset = overrides.legOffsetY ?? VERTICAL_POSITIONS.legOffsetY;
   const n = normalizeName(leg.nombre);
   const id = normalizeName(leg.id);
   const hasFront = n.includes('front') || n.includes('delanter') || id.includes('front');
