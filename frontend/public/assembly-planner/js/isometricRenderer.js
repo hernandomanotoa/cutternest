@@ -321,6 +321,44 @@ export class IsometricRenderer {
     const sideEndZ = topMount === 'internal' ? topPanelOffset + thickness : topPanelOffset;
     const sideH = Math.max(0, sideEndZ - sideStartZ);
 
+    // Zócalos frontales por módulo (plinth).
+    // Se colocan en la parte inferior frontal, con clasificación de montaje
+    // externo/interno/custom análoga a la del fondo.
+    // Se añaden ANTES que la base en el array de geometrías para garantizar que,
+    // si hay solape en la proyección, la base se pinte por encima del zócalo.
+    localPlinths.forEach((plinth) => {
+      const mount = classifyPlinthMount(plinth, moduleW, effectiveZocaloHeight, thickness);
+      const dims = getPieceDims(plinth, 'plinth', thickness, family);
+      const plinthD = Number(plinth.espesor) || thickness;
+      const cfg = getPieceOffsetConfig(
+        plinth,
+        undefined,
+        { pieceOffsets: this.verticalPositionOverrides?.pieceOffsets },
+        {}
+      );
+      const recess = Number.isFinite(cfg.offset) ? cfg.offset : 0;
+      let plinthW, plinthH, x;
+      if (mount === 'external') {
+        plinthW = moduleW;
+        plinthH = effectiveZocaloHeight;
+        x = 0;
+      } else if (mount === 'internal') {
+        plinthW = Math.max(0, moduleW - 2 * thickness);
+        plinthH = effectiveZocaloHeight;
+        x = thickness;
+      } else {
+        plinthW = Math.min(dims.w || moduleW, moduleW);
+        plinthH = Math.min(dims.h || effectiveZocaloHeight, effectiveZocaloHeight);
+        x = Math.max(0, (moduleW - plinthW) / 2);
+      }
+      const y = Math.max(0, moduleD - plinthD - recess);
+      geometries.push({
+        x, y, z: 0,
+        w: plinthW, d: plinthD, h: plinthH,
+        color: plinth.color || ROLE_COLORS.plinth, role: 'plinth', name: plinth.nombre, id: plinth.id,
+      });
+    });
+
     if (bottom) {
       let bx, by, bw, bd;
       if (baseMount === 'internal') {
@@ -415,42 +453,6 @@ export class IsometricRenderer {
       geometries.push({
         x, y, z: -h, w, d: w, h,
         color: leg.color || ROLE_COLORS.leg, role: 'leg', name: leg.nombre, id: leg.id,
-      });
-    });
-
-    // Zócalos frontales por módulo (plinth).
-    // Se colocan en la parte inferior frontal, con clasificación de montaje
-    // externo/interno/custom análoga a la del fondo.
-    localPlinths.forEach((plinth) => {
-      const mount = classifyPlinthMount(plinth, moduleW, effectiveZocaloHeight, thickness);
-      const dims = getPieceDims(plinth, 'plinth', thickness, family);
-      const plinthD = Number(plinth.espesor) || thickness;
-      const cfg = getPieceOffsetConfig(
-        plinth,
-        undefined,
-        { pieceOffsets: this.verticalPositionOverrides?.pieceOffsets },
-        {}
-      );
-      const recess = Number.isFinite(cfg.offset) ? cfg.offset : 0;
-      let plinthW, plinthH, x;
-      if (mount === 'external') {
-        plinthW = moduleW;
-        plinthH = effectiveZocaloHeight;
-        x = 0;
-      } else if (mount === 'internal') {
-        plinthW = Math.max(0, moduleW - 2 * thickness);
-        plinthH = effectiveZocaloHeight;
-        x = thickness;
-      } else {
-        plinthW = Math.min(dims.w || moduleW, moduleW);
-        plinthH = Math.min(dims.h || effectiveZocaloHeight, effectiveZocaloHeight);
-        x = Math.max(0, (moduleW - plinthW) / 2);
-      }
-      const y = Math.max(0, moduleD - plinthD - recess);
-      geometries.push({
-        x, y, z: 0,
-        w: plinthW, d: plinthD, h: plinthH,
-        color: plinth.color || ROLE_COLORS.plinth, role: 'plinth', name: plinth.nombre, id: plinth.id,
       });
     });
 
