@@ -80,7 +80,7 @@ Ambos valores se pueden editar en el panel **Offsets verticales** de la vista is
 Cuando `showDimensions` está activo, el SVG en vista normal muestra **cotas en la parte trasera** del módulo para no tapar la vista frontal:
 
 - **Cotas globales**: ancho (X) sobre la arista trasera inferior, profundidad (Y) sobre la arista trasera izquierda y alto (Z) sobre la arista trasera derecha.
-- **Cotas verticales de offsets y gaps**: se dibujan sobre la arista trasera izquierda y muestran:
+- **Cotas verticales de offsets y gaps**: se dibujan sobre la arista trasera derecha y muestran:
   - `bottomPanelOffset` (base desde el suelo).
   - `shoeRackBaseOffset` y `shoeRackGap` para zapateros.
   - `shelfBaseOffset`, `shelfMiddleBaseOffset` y `shelfMiddleGap` para repisas/estantes.

@@ -1123,7 +1123,7 @@ export class IsometricRenderer {
     const originX = -minX + this.padding + dimensionSpaceX;
     const originY = -minY + this.padding + titleSpace + dimensionSpaceY;
 
-    const viewBoxW = Math.ceil(contentW + 2 * this.padding + dimensionSpaceX);
+    const viewBoxW = Math.ceil(contentW + 2 * this.padding + 2 * dimensionSpaceX);
     const viewBoxH = Math.ceil(contentH + 2 * this.padding + titleSpace + axesSpace + dimensionSpaceY);
 
     return {
@@ -1214,14 +1214,14 @@ export class IsometricRenderer {
     const topBottom = top ? top.z : moduleH - t;
 
     let svg = '';
-    let currentOffX = -55;
+    let currentOffX = 55;
 
     const drawSegment = (z1, z2, value, color, label) => {
       if (value <= 0) return '';
-      const p1 = this._isoProject(0, 0, z1, ox, oy);
-      const p2 = this._isoProject(0, 0, z2, ox, oy);
+      const p1 = this._isoProject(moduleW, 0, z1, ox, oy);
+      const p2 = this._isoProject(moduleW, 0, z2, ox, oy);
       const line = this._drawDimensionLine(p1, p2, Math.round(value), currentOffX, 0, color, 'dimArrow');
-      currentOffX -= 18;
+      currentOffX += 18;
       return line;
     };
 
