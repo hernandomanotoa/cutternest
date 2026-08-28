@@ -3,9 +3,8 @@
 
 import { VERTICAL_POSITIONS } from '../core/config.js';
 import { updatePieceOffset, resetPieceOffsets } from '../app.js';
-import { getModulePieces } from '../utils.js';
-import { escapeHtml } from '../utils.js';
-import { inferRole } from '../services/classifierService.js';
+import { getModulePieces, escapeHtml } from '../utils.js';
+import { inferRole, isShoeRack } from '../services/classifierService.js';
 import {
   groupPiecesByOriginalId,
   getPieceOffsetConfig,
@@ -16,6 +15,35 @@ import {
 } from '../services/pieceOffsetService.js';
 
 const COLLAPSE_KEY = 'cn-assembly-piece-offsets-collapsed';
+const UI_STATE_KEY = 'cn-assembly-piece-offsets-ui';
+
+const ALL_VALUE = 'all';
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'bottom_panel', label: 'Base' },
+  { value: 'top_panel', label: 'Tapa' },
+  { value: 'shelf', label: 'Entrepaño' },
+  { value: 'shelf-shoe', label: 'Zapatero' },
+  { value: 'hanger_rail', label: 'Riel colgador' },
+];
+
+// Orden lógico de los grupos para que la base quede arriba y se reduzca el scroll.
+const GROUP_ORDER = [
+  'bottom_panel',
+  'top_panel',
+  'shelf',
+  'shelf-shoe',
+  'drawer_face',
+  'door',
+  'brace',
+  'mirror',
+  'hanger_rail',
+  'seat_panel',
+  'leg',
+  'divider',
+  'plinth',
+];
 
 function getCollapsed() {
   try {
@@ -34,6 +62,35 @@ function setCollapsed(value) {
   }
 }
 
+function readUiState() {
+  try {
+    const raw = localStorage.getItem(UI_STATE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeUiState(patch) {
+  try {
+    const current = readUiState();
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify({ ...current, ...patch }));
+  } catch {
+    // ignorar entornos sin storage
+  }
+}
+
+function getCategoryKey(piece) {
+  const role = inferRole(piece);
+  if (role === 'shelf' && isShoeRack(piece)) return 'shelf-shoe';
+  return role;
+}
+
+function getCategoryLabel(key) {
+  const option = CATEGORY_OPTIONS.find((o) => o.value === key);
+  return option ? option.label : getPieceTypeLabel({ nombre: '' });
+}
+
 export function createPieceOffsetsConfig() {
   function mount(parent, store) {
     const state = store.get();
@@ -41,10 +98,15 @@ export function createPieceOffsetsConfig() {
     const groups = groupPiecesByOriginalId(activePieces).filter((g) => isConfigurablePiece(g.piece));
 
     const collapsed = getCollapsed();
+    const ui = readUiState();
 
     const root = document.createElement('div');
-    root.className = `iso-config-panel card${collapsed ? ' is-collapsed' : ''}`;
+    root.className = `iso-config-panel cn-piece-offsets-panel${collapsed ? ' is-collapsed' : ''}`;
     root.style.width = '460px';
+    root.style.maxWidth = 'calc(100vw - 2rem)';
+    root.style.display = 'flex';
+    root.style.flexDirection = 'column';
+    root.style.overflow = 'hidden';
     root.innerHTML = `
       <div class="iso-config-panel__header">
         <span>Offsets y gaps por pieza</span>
@@ -53,8 +115,8 @@ export function createPieceOffsetsConfig() {
           <button class="btn btn--secondary btn--sm" data-reset>Restaurar defaults</button>
         </div>
       </div>
-      <div class="iso-config-panel__body" style="display:block;overflow:auto;">
-        ${renderTable(groups, activePieces, state.userConfig)}
+      <div class="iso-config-panel__body" style="display:block;overflow:hidden;">
+        ${renderPanel(groups, activePieces, state.userConfig, ui)}
       </div>
     `;
 
@@ -65,31 +127,34 @@ export function createPieceOffsetsConfig() {
       setCollapsed(!next);
     });
 
-    root.querySelectorAll('input[data-field]').forEach((input) => {
-      input.addEventListener('change', () => {
-        const originalId = input.dataset.originalId;
-        const field = input.dataset.field;
-        const value = parseFloat(input.value);
+    // Delegación de eventos para inputs de offset/gap, búsqueda, filtro y secciones.
+    root.addEventListener('click', (e) => {
+      const headerBtn = e.target.closest('[data-role-toggle]');
+      if (!headerBtn) return;
+      const role = headerBtn.dataset.roleToggle;
+      const tbody = root.querySelector(`tbody[data-role="${CSS.escape(role)}"]`);
+      toggleSection(headerBtn, tbody, role);
+    });
+
+    root.addEventListener('input', (e) => {
+      if (e.target.matches('[data-filter-search]')) {
+        applyFilters(root);
+        writeUiState({ search: e.target.value });
+      }
+    });
+
+    root.addEventListener('change', (e) => {
+      if (e.target.matches('input[data-field]')) {
+        const originalId = e.target.dataset.originalId;
+        const field = e.target.dataset.field;
+        const value = parseFloat(e.target.value);
         if (originalId && field && Number.isFinite(value)) {
           updatePieceOffset(originalId, field, value);
         }
-      });
-    });
-
-    const filterInput = root.querySelector('[data-filter]');
-    filterInput?.addEventListener('input', () => {
-      const term = filterInput.value.trim().toLowerCase();
-      root.querySelectorAll('.cn-piece-row').forEach((row) => {
-        const visible = !term || (row.dataset.search || '').includes(term);
-        row.style.display = visible ? '' : 'none';
-      });
-      root.querySelectorAll('[data-role-header]').forEach((header) => {
-        const role = header.dataset.roleHeader;
-        const tbody = root.querySelector(`tbody[data-role="${CSS.escape(role)}"]`);
-        if (!tbody) return;
-        const anyVisible = tbody.querySelector('.cn-piece-row:not([style*="none"])');
-        header.style.display = anyVisible ? '' : 'none';
-      });
+      } else if (e.target.matches('[data-filter-category]')) {
+        applyFilters(root);
+        writeUiState({ category: e.target.value });
+      }
     });
 
     root.querySelector('[data-reset]')?.addEventListener('click', () => {
@@ -97,55 +162,126 @@ export function createPieceOffsetsConfig() {
     });
 
     parent.appendChild(root);
+
+    // Restaurar estado de búsqueda/filtro tras montar.
+    const searchInput = root.querySelector('[data-filter-search]');
+    const categorySelect = root.querySelector('[data-filter-category]');
+    if (searchInput && ui.search) searchInput.value = ui.search;
+    if (categorySelect && ui.category) categorySelect.value = ui.category;
+    applyFilters(root);
+
     return root;
   }
 
   return { mount };
 }
 
-// Orden lógico de los grupos para que la base quede arriba y se reduzca el scroll.
-const GROUP_ORDER = [
-  'bottom_panel',
-  'top_panel',
-  'shelf',
-  'drawer_face',
-  'door',
-  'brace',
-  'mirror',
-  'hanger_rail',
-  'seat_panel',
-  'leg',
-  'divider',
-];
+function toggleSection(button, tbody, role) {
+  if (!tbody || !button) return;
+  const expanded = button.getAttribute('aria-expanded') !== 'true';
+  button.setAttribute('aria-expanded', String(expanded));
+  button.querySelector('.cn-group-header__chevron').textContent = expanded ? '▾' : '▸';
+  tbody.classList.toggle('is-collapsed', !expanded);
+  const ui = readUiState();
+  const collapsed = { ...(ui.collapsed || {}), [role]: !expanded };
+  writeUiState({ collapsed });
+}
 
-function renderTable(groups, activePieces, userConfig) {
+function computeInitialCollapsed(groups, ui) {
+  const collapsed = { ...(ui.collapsed || {}) };
+  // Si aún no hay preferencia guardada, colapsar automáticamente las secciones muy grandes
+  // para evitar scroll excesivo en modelos con muchas piezas.
+  const byCategory = new Map();
+  groups.forEach((g) => {
+    const key = getCategoryKey(g.piece);
+    if (!byCategory.has(key)) byCategory.set(key, 0);
+    byCategory.set(key, byCategory.get(key) + g.count);
+  });
+  byCategory.forEach((count, key) => {
+    if (!(key in collapsed) && count > 8) {
+      collapsed[key] = true;
+    }
+  });
+  return collapsed;
+}
+
+function renderPanel(groups, activePieces, userConfig, ui) {
   if (!groups.length) {
-    return '<p class="empty-state">No hay piezas configurables para este módulo.</p>';
+    return '<p class="empty-state" style="padding:0.75rem;">No hay piezas configurables para este módulo.</p>';
   }
 
-  const byRole = new Map();
+  const totalPieces = groups.reduce((sum, g) => sum + g.count, 0);
+  const categoryOptions = CATEGORY_OPTIONS.map(
+    (o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`
+  ).join('');
+  const initialCollapsed = computeInitialCollapsed(groups, ui);
+
+  return `
+    <div class="cn-piece-offsets__toolbar">
+      <input
+        type="search"
+        data-filter-search
+        placeholder="Buscar pieza..."
+        aria-label="Buscar pieza"
+      />
+      <select data-filter-category aria-label="Filtrar por categoría">
+        ${categoryOptions}
+      </select>
+      <span class="cn-piece-offsets__total" data-total-counter data-total="${totalPieces}">${totalPieces} piezas</span>
+    </div>
+    <div class="cn-piece-offsets__table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50%;">Pieza</th>
+            <th style="width:28%;">Offset / Inset</th>
+            <th style="width:22%;">Gap</th>
+          </tr>
+        </thead>
+        ${renderTbodies(groups, activePieces, userConfig, initialCollapsed)}
+      </table>
+    </div>
+  `;
+}
+
+function renderTbodies(groups, activePieces, userConfig, initialCollapsed) {
+  const byCategory = new Map();
   groups.forEach((g) => {
-    const role = inferRole(g.piece);
-    if (!byRole.has(role)) byRole.set(role, []);
-    byRole.get(role).push(g);
+    const key = getCategoryKey(g.piece);
+    if (!byCategory.has(key)) byCategory.set(key, []);
+    byCategory.get(key).push(g);
   });
 
-  const tbodies = GROUP_ORDER
-    .filter((role) => byRole.has(role))
-    .map((role) => {
-      const items = byRole.get(role).slice().sort((a, b) => {
-        const za = getPieceOffsetConfig(a.piece, undefined, userConfig).zone || '';
-        const zb = getPieceOffsetConfig(b.piece, undefined, userConfig).zone || '';
-        if (za !== zb) return za.localeCompare(zb);
-        return String(a.piece.nombre).localeCompare(String(b.piece.nombre));
-      });
-      const typeLabel = getPieceTypeLabel(items[0].piece);
-      const rows = items.map((item) => renderRow(item, activePieces, userConfig)).join('');
+  return GROUP_ORDER
+    .filter((key) => byCategory.has(key))
+    .map((key) => {
+      const items = byCategory
+        .get(key)
+        .slice()
+        .sort((a, b) => {
+          const za = getPieceOffsetConfig(a.piece, undefined, userConfig).zone || '';
+          const zb = getPieceOffsetConfig(b.piece, undefined, userConfig).zone || '';
+          if (za !== zb) return za.localeCompare(zb);
+          return String(a.piece.nombre).localeCompare(String(b.piece.nombre));
+        });
+      const typeLabel = getCategoryLabel(key);
+      const categoryCount = items.reduce((sum, it) => sum + it.count, 0);
+      const isCollapsed = !!initialCollapsed[key];
+      const rows = items.map((item) => renderRow(item, activePieces, userConfig, key)).join('');
       return `
-        <tbody data-role="${escapeHtml(role)}">
-          <tr class="cn-group-header" data-role-header="${escapeHtml(role)}">
-            <td colspan="3" style="padding:0.4rem 0.6rem;background:#1e293b;position:sticky;top:0;z-index:2;">
-              <strong style="color:#94a3b8;text-transform:uppercase;font-size:0.7rem;letter-spacing:0.04em;">${escapeHtml(typeLabel)}</strong>
+        <tbody data-role="${escapeHtml(key)}" id="tbody-${escapeHtml(key)}" class="${isCollapsed ? 'is-collapsed' : ''}">
+          <tr class="cn-group-header" data-role-header="${escapeHtml(key)}">
+            <td colspan="3">
+              <button
+                type="button"
+                data-role-toggle="${escapeHtml(key)}"
+                aria-expanded="${!isCollapsed}"
+                aria-controls="tbody-${escapeHtml(key)}"
+              >
+                <span class="cn-group-header__chevron">${isCollapsed ? '▸' : '▾'}</span>
+                <span>${escapeHtml(typeLabel)}</span>
+                <span class="cn-group-header__count">${categoryCount}</span>
+              </button>
             </td>
           </tr>
           ${rows}
@@ -153,32 +289,9 @@ function renderTable(groups, activePieces, userConfig) {
       `;
     })
     .join('');
-
-  return `
-    <div class="table-container" style="max-height:calc(100vh - 14rem);">
-      <div style="padding:0.35rem 0.5rem;background:#0f172a;position:sticky;top:0;z-index:3;border-bottom:1px solid #334155;">
-        <input
-          type="search"
-          data-filter
-          placeholder="Buscar pieza..."
-          style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:0.35rem;padding:0.35rem 0.5rem;color:#f1f5f9;font-size:0.8rem;"
-        />
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Pieza</th>
-            <th>Offset / Inset</th>
-            <th>Gap</th>
-          </tr>
-        </thead>
-        ${tbodies}
-      </table>
-    </div>
-  `;
 }
 
-function renderRow({ originalId, piece, count }, activePieces, userConfig) {
+function renderRow({ originalId, piece, count }, activePieces, userConfig, categoryKey) {
   const cfg = getPieceOffsetConfig(piece, undefined, userConfig);
   const showGap = shouldShowGap(piece, activePieces);
   const typeLabel = getPieceTypeLabel(piece);
@@ -189,7 +302,7 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig) {
   const searchText = escapeHtml(`${typeLabel} ${piece.nombre}`.toLowerCase());
 
   return `
-    <tr class="cn-piece-row" data-search="${searchText}">
+    <tr class="cn-piece-row" data-search="${searchText}" data-category="${escapeHtml(categoryKey)}" data-count="${count}">
       <td>
         <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
           <span class="badge badge--info">${escapeHtml(typeLabel)}</span>
@@ -206,6 +319,7 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig) {
           placeholder="${escapeHtml(offsetPlaceholder)}"
           step="any"
           min="0"
+          aria-label="${escapeHtml(offsetPlaceholder)} para ${escapeHtml(piece.nombre)}"
         />
       </td>
       <td>
@@ -219,12 +333,76 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig) {
                 placeholder="Gap entre piezas (mm)"
                 step="any"
                 min="0"
+                aria-label="Gap entre piezas (mm) para ${escapeHtml(piece.nombre)}"
               />`
             : '<span class="empty-state">—</span>'
         }
       </td>
     </tr>
   `;
+}
+
+function applyFilters(root) {
+  const searchInput = root.querySelector('[data-filter-search]');
+  const categorySelect = root.querySelector('[data-filter-category]');
+  const counter = root.querySelector('[data-total-counter]');
+  if (!searchInput || !categorySelect) return;
+
+  const term = searchInput.value.trim().toLowerCase();
+  const category = categorySelect.value;
+  const totalAll = Number(counter?.dataset.total || 0);
+
+  let visiblePieces = 0;
+
+  root.querySelectorAll('.cn-piece-row').forEach((row) => {
+    const matchesSearch = !term || (row.dataset.search || '').includes(term);
+    const matchesCategory = category === ALL_VALUE || row.dataset.category === category;
+    const visible = matchesSearch && matchesCategory;
+    row.style.display = visible ? '' : 'none';
+    if (visible) visiblePieces += Number(row.dataset.count || 1);
+  });
+
+  root.querySelectorAll('[data-role-header]').forEach((header) => {
+    const role = header.dataset.roleHeader;
+    const tbody = root.querySelector(`tbody[data-role="${CSS.escape(role)}"]`);
+    if (!tbody) return;
+    const anyVisible = tbody.querySelector('.cn-piece-row:not([style*="display: none"])');
+    header.style.display = anyVisible ? '' : 'none';
+    const btn = header.querySelector('[data-role-toggle]');
+
+    if (term || category !== ALL_VALUE) {
+      // Durante búsqueda o filtro, expandir automáticamente las categorías con coincidencias.
+      if (anyVisible && tbody.classList.contains('is-collapsed')) {
+        setExpanded(btn, tbody, role, true, false);
+      }
+    } else {
+      // Sin búsqueda ni filtro: restaurar estado de colapso persistido.
+      const ui = readUiState();
+      const desiredCollapsed = !!(ui.collapsed || {})[role];
+      const currentlyCollapsed = btn?.getAttribute('aria-expanded') === 'false';
+      if (currentlyCollapsed !== desiredCollapsed) {
+        setExpanded(btn, tbody, role, !desiredCollapsed, false);
+      }
+    }
+  });
+
+  if (counter) {
+    const showingAll = !term && category === ALL_VALUE;
+    counter.textContent = showingAll
+      ? `${totalAll} piezas`
+      : `${visiblePieces} de ${totalAll} piezas`;
+  }
+}
+
+function setExpanded(button, tbody, role, expanded, persist = true) {
+  if (!button || !tbody) return;
+  button.setAttribute('aria-expanded', String(expanded));
+  button.querySelector('.cn-group-header__chevron').textContent = expanded ? '▾' : '▸';
+  tbody.classList.toggle('is-collapsed', !expanded);
+  if (persist) {
+    const ui = readUiState();
+    writeUiState({ collapsed: { ...(ui.collapsed || {}), [role]: !expanded } });
+  }
 }
 
 function getDefaultKey(piece, zone) {
