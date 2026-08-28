@@ -26,7 +26,8 @@ describe('inferRole', () => {
   });
 
   it('detects structural panels', () => {
-    assert.equal(inferRole(piece('Zócalo')), 'bottom_panel');
+    assert.equal(inferRole(piece('Zócalo', { modulo: 'estructura' })), 'bottom_panel');
+    assert.equal(inferRole(piece('Zócalo', { modulo: '1' })), 'plinth');
     assert.equal(inferRole(piece('Estante 1')), 'shelf');
     assert.equal(inferRole(piece('Tapa')), 'top_panel');
     assert.equal(inferRole(piece('Fondo')), 'back_panel');

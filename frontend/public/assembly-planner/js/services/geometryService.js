@@ -23,6 +23,11 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
     return { w: ancho, h: useVisualThickness(alto, espesor) };
   }
 
+  if (role === 'plinth') {
+    // Zócalo frontal: ancho = anchura del módulo, alto = altura del zócalo.
+    return { w: ancho, h: alto };
+  }
+
   if (role === 'seat_panel') {
     if (rotate) [w, h] = [h, w];
     return { w, h: espesor };

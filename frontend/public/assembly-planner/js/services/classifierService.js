@@ -31,7 +31,12 @@ export function inferRole(piece) {
   if (n.includes('pata') || (n.includes('pie') && !n.includes('pieza')) || id.includes('pata')) return 'leg';
   if (n.includes('tirante') || n.includes('travesano') || n.includes('refuerzo') || n.includes('cantonera')) return 'brace';
 
-  if (n.includes('zocalo')) return 'bottom_panel';
+  // Zócalo: en módulos individuales es un frente inferior (plinth);
+  // solo se trata como base global cuando pertenece al módulo 'estructura'.
+  if (n.includes('zocalo')) {
+    const mod = String(piece.modulo || '').trim().toLowerCase();
+    return mod === 'estructura' ? 'bottom_panel' : 'plinth';
+  }
 
   if (n.includes('divisor') || n.includes('division')) return 'divider';
   if (n.includes('montante') && (n.includes('central') || n.includes('centro'))) return 'divider';

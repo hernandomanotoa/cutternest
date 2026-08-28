@@ -48,10 +48,12 @@ export function isConfigurablePiece(piece) {
  * - 'top': inset desde la cara inferior de la tapa.
  * - 'absolute': altura fija desde el suelo (riel/asiento).
  * - 'side': offset horizontal para piezas verticales (patas).
+ * - 'depth': receso desde el frente (zócalos frontales).
  * - 'none': pieza no configurable.
  */
 export function getPieceOffsetType(piece, zone) {
   const role = inferRole(piece);
+  if (role === 'plinth') return 'depth';
   if (role === 'hanger_rail' || role === 'seat_panel') return 'absolute';
   if (role === 'mirror' || zone === 'top') return 'top';
   if (role === 'leg') return 'side';
@@ -74,6 +76,8 @@ export function getOffsetPlaceholder(piece, zone) {
       return 'Altura desde suelo (mm)';
     case 'side':
       return 'Offset lateral (mm)';
+    case 'depth':
+      return 'Receso desde frente (mm)';
     case 'base':
     default:
       return 'Offset desde base (mm)';
@@ -136,6 +140,8 @@ export function getPieceZone(piece) {
  */
 export function getDefaultOffset(piece, zone = getPieceZone(piece), globalOverrides = {}) {
   const role = inferRole(piece);
+
+  if (role === 'plinth') return 0;
 
   if (role === 'bottom_panel') return defaultValue('bottomPanelOffset', globalOverrides);
 
@@ -241,6 +247,7 @@ export function getPieceTypeLabel(piece) {
     seat_panel: 'Asiento',
     leg: 'Pata',
     bottom_panel: 'Base',
+    plinth: 'Zócalo',
     top_panel: 'Tapa',
     back_panel: 'Fondo',
     side_panel: 'Lateral',

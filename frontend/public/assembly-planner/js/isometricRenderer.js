@@ -27,6 +27,7 @@ import {
   inferThickness,
   shouldShowLabel,
 } from './services/isoGeometryService.js';
+import { getPieceOffsetConfig } from './services/pieceOffsetService.js';
 import { inferRole, detectFamily, isShoeRack } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
@@ -246,6 +247,17 @@ export class IsometricRenderer {
     const geometries = [];
     const roles = pieces.map((p) => ({ ...p, role: inferRole(p) }));
 
+    // Cuando un módulo tiene una base propiamente dicha, las piezas nombradas
+    // "zócalo" se renderizan como zócalo frontal (plinth) en lugar de base.
+    const hasBottomPanel = roles.some((p) => p.role === 'bottom_panel');
+    roles.forEach((p) => {
+      const n = normalizeNameLocal(p.nombre);
+      const id = normalizeNameLocal(p.id);
+      if (hasBottomPanel && (n.includes('zocalo') || id.includes('zocalo'))) {
+        p.role = 'plinth';
+      }
+    });
+
     // Sillas / asientos tienen geometría propia
     if (family === 'seating') {
       return this._buildSeatingGeometries(roles, moduleW, moduleD, moduleH, thickness);
@@ -267,6 +279,13 @@ export class IsometricRenderer {
     const depthOffset = backThickness;
     const interiorDepth = Math.max(0, moduleD - backThickness - thickness);
 
+    // Altura del zócalo: puede venir de piezas globales o de zócalos por módulo.
+    const localPlinths = roles.filter((p) => p.role === 'plinth');
+    const localPlinthHeight = localPlinths.length
+      ? Math.max(...localPlinths.map((p) => Number(p.alto) || 0))
+      : 0;
+    const effectiveZocaloHeight = Math.max(zocaloHeight, localPlinthHeight);
+
     // Offsets verticales de base/tapa en el sistema de coordenadas del suelo.
     // bottomPanelOffset = altura de la cara inferior de la base.
     // topPanelOffset    = altura de la cara inferior de la tapa (borde inferior).
@@ -279,7 +298,7 @@ export class IsometricRenderer {
       ? bottomPieceOverride
       : (Number.isFinite(bottomPanelOverride)
         ? bottomPanelOverride
-        : (baseMount === 'internal' ? zocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset));
+        : (baseMount === 'internal' ? effectiveZocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset));
     const topPanelOverride = this.verticalPositionOverrides?.topPanelOffset;
     const topPanelOffset = Number.isFinite(topPanelOverride)
       ? topPanelOverride
@@ -382,6 +401,31 @@ export class IsometricRenderer {
       geometries.push({
         x, y, z: -h, w, d: w, h,
         color: leg.color || ROLE_COLORS.leg, role: 'leg', name: leg.nombre, id: leg.id,
+      });
+    });
+
+    // Zócalos frontales por módulo (plinth).
+    // Se colocan en la parte inferior frontal, ocupando el ancho del módulo y
+    // con la profundidad dada por su espesor. El offset por pieza controla el
+    // receso desde el frente.
+    localPlinths.forEach((plinth) => {
+      const dims = getPieceDims(plinth, 'plinth', thickness, family);
+      const plinthW = Math.min(dims.w || moduleW, moduleW);
+      const plinthH = Math.min(dims.h || effectiveZocaloHeight, effectiveZocaloHeight);
+      const plinthD = Number(plinth.espesor) || thickness;
+      const cfg = getPieceOffsetConfig(
+        plinth,
+        undefined,
+        { pieceOffsets: this.verticalPositionOverrides?.pieceOffsets },
+        {}
+      );
+      const recess = Number.isFinite(cfg.offset) ? cfg.offset : 0;
+      const x = Math.max(0, (moduleW - plinthW) / 2);
+      const y = Math.max(0, moduleD - plinthD - recess);
+      geometries.push({
+        x, y, z: 0,
+        w: plinthW, d: plinthD, h: plinthH,
+        color: plinth.color || ROLE_COLORS.plinth, role: 'plinth', name: plinth.nombre, id: plinth.id,
       });
     });
 
@@ -1078,6 +1122,7 @@ export class IsometricRenderer {
       side_panel: { color: ROLE_COLORS.side_panel, width: 1.5 },
       side_panel_rear: { color: ROLE_COLORS.side_panel, width: 1.5 },
       side_panel_front: { color: ROLE_COLORS.side_panel, width: 1.5 },
+      plinth: { color: ROLE_COLORS.plinth, width: 1.5 },
       bottom_panel: { color: ROLE_COLORS.bottom_panel, width: 1.5 },
       top_panel: { color: ROLE_COLORS.top_panel, width: 1.5 },
       shelf: { color: ROLE_COLORS.shelf, width: 1 },
