@@ -1,6 +1,8 @@
 // js/core/config.js — Constantes y configuración global del Assembly Planner
 // Cualquier magic number/color/threshold debe residir aquí.
 
+export const DEFAULT_THICKNESS = 15;
+
 export const COLORS = {
   background: '#0f172a',
   strokeDefault: '#475569',
@@ -67,7 +69,7 @@ export const DEFAULTS = {
   moduleWidth: 900,
   moduleHeight: 600,
   moduleDepth: 400,
-  thickness: 18,
+  thickness: DEFAULT_THICKNESS,
   pieceSize: 100,
   cantos: 'T,B,L,R',
 };
@@ -131,32 +133,37 @@ export const Z_INDEX = {
 };
 
 export const VERTICAL_POSITIONS = {
-  // ── Gap inferior (desde la base hacia arriba) ─────────────────
-  fixedBottomMargin: 20,     // margen fijo desde la base hasta la 1ª pieza
-  shelfBottomOffset: 80,     // repisa inferior: altura desde la base
-  drawerBottomOffset: 80,    // frente de cajón inferior: altura desde la base
-  braceBottomOffset: 80,     // travesaño inferior: altura desde la base
-  doorBottomOffset: 0,       // puerta inferior: altura desde la base
-  shoeRackBottomOffset: 20,  // zapatero: altura desde la base
+  // ── Offset: distancia desde un borde de referencia ───────────
+  bottomPanelOffset: 0,      // distancia suelo → cara inferior de la base (bottom_panel)
 
-  // ── Gap entre piezas (apilado base → arriba) ─────────────────
+  // ── Gap: espacio libre entre dos piezas o entre una pieza y un borde ──
+  firstInnerGap: 20,         // gap base → primera pieza interior (middle)
+
+  // Offsets desde la cara SUPERIOR de la base (base top → pieza inferior).
+  shelfBaseOffset: 80,       // repisa inferior: distancia desde la cara superior de la base
+  drawerBaseOffset: 80,      // frente de cajón inferior: distancia desde la cara superior de la base
+  braceBaseOffset: 80,       // travesaño inferior: distancia desde la cara superior de la base
+  doorBaseOffset: 0,         // puerta inferior: distancia desde la cara superior de la base
+  shoeRackBaseOffset: 20,    // zapatero: distancia desde la cara superior de la base
+
+  // ── Gap entre piezas del mismo tipo (apilado) ────────────────
   defaultGap: 20,            // gap genérico entre piezas
   shelfMiddleGap: 20,        // gap entre repisas/estantes regulables
   shoeRackGap: 20,           // gap entre zapateros
   drawerFaceGap: 20,         // gap entre frentes de cajón
   doorGap: 2,                // gap entre puertas
 
-  // ── Alturas desde la base ─────────────────────────────────────
+  // ── Alturas absolutas desde el suelo ──────────────────────────
   seatHeight: 450,           // altura del asiento
   hangerRailHeight: 1700,    // altura del riel/barra colgadora
 
-  // ── Inset desde la tapa (piezas superiores, z resultante desde base) ──
-  shelfTopOffset: 120,       // repisa superior: inset desde la tapa
-  braceTopOffset: 120,       // travesaño superior: inset desde la tapa
-  doorTopOffset: 0,          // puerta superior: inset desde la tapa
-  mirrorOffset: 120,         // espejo: inset desde la tapa
+  // ── Inset: distancia hacia adentro desde la cara INFERIOR de la tapa ──
+  shelfTopInset: 120,        // repisa superior: inset desde la cara inferior de la tapa
+  braceTopInset: 120,        // travesaño superior: inset desde la cara inferior de la tapa
+  doorTopInset: 0,           // puerta superior: inset desde la cara inferior de la tapa
+  mirrorTopInset: 120,       // espejo: inset desde la cara inferior de la tapa
 
-  // ── Patas (márgenes horizontales) ────────────────────────────
+  // ── Offset horizontal de patas ─────────────────────────────────
   legOffsetX: 20,            // margen patas desde lateral (X)
   legOffsetY: 20,            // margen patas desde frente/fondo (Y)
 };

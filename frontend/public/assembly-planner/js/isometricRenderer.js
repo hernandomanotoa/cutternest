@@ -6,6 +6,8 @@
 import {
   getPieceDims,
   getModuleDimensions,
+  classifyBackPanelMount,
+  classifyTopBottomMount,
 } from './services/geometryService.js';
 import { calculateVerticalPositions, getDefaultVerticalPosition } from './services/verticalPositionService.js';
 import {
@@ -25,7 +27,7 @@ import {
   inferThickness,
   shouldShowLabel,
 } from './services/isoGeometryService.js';
-import { inferRole, detectFamily } from './services/classifierService.js';
+import { inferRole, detectFamily, isShoeRack } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
 import { isGlobalPiece, getModuleLabel, ALL_MODULE_ID } from './services/moduleService.js';
@@ -115,6 +117,10 @@ export class IsometricRenderer {
   render(moduleId, pieces, _dependencies) {
     const family = detectFamily(pieces, moduleId);
     const globalPieces = pieces.filter((p) => isGlobalPiece(p));
+    const globalBottoms = globalPieces.filter((p) => inferRole(p) === 'bottom_panel');
+    const globalTops = globalPieces.filter((p) => inferRole(p) === 'top_panel');
+    const zocaloHeight = globalBottoms.length ? Math.max(...globalBottoms.map((p) => Number(p.alto) || 0)) : 0;
+    const coronaHeight = globalTops.length ? Math.max(...globalTops.map((p) => Number(p.alto) || 0)) : 0;
     const isGlobalModule = String(moduleId).toLowerCase() === 'estructura' || String(moduleId).toLowerCase() === 'global';
     const target = String(moduleId).trim();
 
@@ -178,13 +184,13 @@ export class IsometricRenderer {
       // Vista de todos los módulos: alinearlos horizontalmente de M1 a Mn.
       const nonGlobalPieces = allPieces.filter((p) => !isGlobalPiece(p));
       const moduleGroups = this._groupByModule(nonGlobalPieces);
-      const sortedIds = this._sortModuleIds(Object.keys(moduleGroups)).reverse();
+      const sortedIds = this._sortModuleIds(Object.keys(moduleGroups));
       let offsetX = 0;
       sortedIds.forEach((mid, idx) => {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
         const subGeometries = this._buildModuleGeometries(
-          group, dims.width, moduleD, dims.height, dims.thickness, family
+          group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight
         );
         // 'compact' pega los módulos lateral con lateral (compartiendo
         // laterales, como un mueble ya ensamblado). 'projected' añade la
@@ -211,7 +217,7 @@ export class IsometricRenderer {
       }
     } else {
       // Piezas del módulo principal + submódulos insertos
-      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family));
+      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight));
       // Superponer piezas de estructura global (zócalo, tapa corrida, espejo...)
       // Las puertas globales solo se dibujan en vista completa o estructura global.
       if (globalPieces.length) {
@@ -228,7 +234,7 @@ export class IsometricRenderer {
     const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries);
 
     const isAllView = target === ALL_MODULE_ID;
-    const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView);
+    const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView, thickness);
     this.container.innerHTML = svg;
   }
 
@@ -236,7 +242,7 @@ export class IsometricRenderer {
   // GEOMETRÍA 3D
   // ═══════════════════════════════════════════════════════════
 
-  _buildModuleGeometries(pieces, moduleW, moduleD, moduleH, thickness, family) {
+  _buildModuleGeometries(pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0) {
     const geometries = [];
     const roles = pieces.map((p) => ({ ...p, role: inferRole(p) }));
 
@@ -252,16 +258,79 @@ export class IsometricRenderer {
     const back = roles.find((p) => p.role === 'back_panel');
     const legs = roles.filter((p) => p.role === 'leg');
 
+    const baseMount = bottom ? classifyTopBottomMount(bottom, moduleW, moduleD, thickness) : 'external';
+    const topMount = top ? classifyTopBottomMount(top, moduleW, moduleD, thickness) : 'external';
+
+    // Piezas interiores (estantes/divisores) deben detenerse en la cara interior del fondo
+    // y en la cara interior del lateral frontal: no atraviesan ni el fondo ni los laterales.
+    const backThickness = back ? Number(back.espesor) || thickness : 0;
+    const depthOffset = backThickness;
+    const interiorDepth = Math.max(0, moduleD - backThickness - thickness);
+
+    // Offsets verticales de base/tapa en el sistema de coordenadas del suelo.
+    // bottomPanelOffset = altura de la cara inferior de la base.
+    // topPanelOffset    = altura de la cara inferior de la tapa (borde inferior).
+    const bottomPanelOverride = this.verticalPositionOverrides?.bottomPanelOffset;
+    const bottomPanelOffset = Number.isFinite(bottomPanelOverride)
+      ? bottomPanelOverride
+      : (baseMount === 'internal' ? zocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset);
+    const topPanelOverride = this.verticalPositionOverrides?.topPanelOffset;
+    const topPanelOffset = Number.isFinite(topPanelOverride)
+      ? topPanelOverride
+      : (topMount === 'internal' ? Math.max(0, moduleH - thickness - coronaHeight) : moduleH - thickness);
+
+    const sideStartZ = baseMount === 'internal' ? 0 : bottomPanelOffset + thickness;
+    const sideEndZ = topMount === 'internal' ? topPanelOffset + thickness : topPanelOffset;
+    const sideH = Math.max(0, sideEndZ - sideStartZ);
+
     if (bottom) {
+      let bx, by, bw, bd;
+      if (baseMount === 'internal') {
+        bx = thickness;
+        by = thickness;
+        bw = Math.max(0, moduleW - 2 * thickness);
+        bd = Math.max(0, moduleD - 2 * thickness);
+      } else if (baseMount === 'external') {
+        bx = 0;
+        by = 0;
+        bw = moduleW;
+        bd = moduleD;
+      } else {
+        // Custom: se respetan las medidas reales de la pieza y se centra en el módulo.
+        bw = Number(bottom.ancho) || moduleW;
+        bd = Number(bottom.alto) || moduleD;
+        bx = Math.max(0, (moduleW - bw) / 2);
+        by = Math.max(0, (moduleD - bd) / 2);
+      }
       geometries.push({
-        x: 0, y: 0, z: 0, w: moduleW, d: moduleD, h: thickness,
+        x: bx, y: by, z: bottomPanelOffset,
+        w: bw, d: bd, h: thickness,
         color: bottom.color, role: 'bottom_panel', name: bottom.nombre, id: bottom.id,
       });
     }
 
     if (top) {
+      let tx, ty, tw, td;
+      if (topMount === 'internal') {
+        tx = thickness;
+        ty = thickness;
+        tw = Math.max(0, moduleW - 2 * thickness);
+        td = Math.max(0, moduleD - 2 * thickness);
+      } else if (topMount === 'external') {
+        tx = 0;
+        ty = 0;
+        tw = moduleW;
+        td = moduleD;
+      } else {
+        // Custom: se respetan las medidas reales de la pieza y se centra en el módulo.
+        tw = Number(top.ancho) || moduleW;
+        td = Number(top.alto) || moduleD;
+        tx = Math.max(0, (moduleW - tw) / 2);
+        ty = Math.max(0, (moduleD - td) / 2);
+      }
       geometries.push({
-        x: 0, y: 0, z: moduleH - thickness, w: moduleW, d: moduleD, h: thickness,
+        x: tx, y: ty, z: topPanelOffset,
+        w: tw, d: td, h: thickness,
         color: top.color, role: 'top_panel', name: top.nombre, id: top.id,
       });
     }
@@ -273,7 +342,7 @@ export class IsometricRenderer {
       // y el izquierdo al frente. Con isoFlip=true es al revés.
       const isFront = this.isoFlip ? !isLeft : isLeft;
       geometries.push({
-        x, y: 0, z: thickness, w: thickness, d: moduleD, h: moduleH - 2 * thickness,
+        x, y: 0, z: sideStartZ, w: thickness, d: moduleD, h: sideH,
         color: side.color, role: isFront ? 'side_panel_front' : 'side_panel_rear', name: side.nombre, id: side.id,
         // Los laterales se dibujan semi-transparentes para dejar ver el
         // interior (repisas/estantes) a través de ellos.
@@ -282,8 +351,17 @@ export class IsometricRenderer {
     });
 
     if (back) {
+      const mount = classifyBackPanelMount(back, moduleW, moduleH, thickness);
+      const backDims = getPieceDims(back, 'back_panel', thickness, family);
+      const backThickness = Number(back.espesor) || thickness;
+      const isInternal = mount === 'internal';
       geometries.push({
-        x: 0, y: 0, z: thickness, w: moduleW, d: thickness, h: moduleH - 2 * thickness,
+        x: isInternal ? thickness : 0,
+        y: 0,
+        z: isInternal ? thickness : 0,
+        w: backDims.w,
+        d: backThickness,
+        h: backDims.h,
         color: back.color, role: 'back_panel', name: back.nombre, id: back.id, opacity: 0.35,
       });
     }
@@ -304,14 +382,25 @@ export class IsometricRenderer {
     // Estantes / repisas
     const shelves = roles.filter((p) => p.role === 'shelf');
     const shelfPositions = shelves.length
-      ? calculateVerticalPositions(moduleH, thickness, shelves, { overrides: this.verticalPositionOverrides })
+      ? calculateVerticalPositions(moduleH, thickness, shelves, {
+          overrides: this.verticalPositionOverrides,
+          baseOffset: bottomPanelOffset,
+          topPanelOffset,
+        })
       : [];
+    const interiorWidth = Math.max(0, moduleW - 2 * thickness);
     shelfPositions.forEach((sp) => {
       const dims = getPieceDims(sp.piece, 'shelf', thickness, family);
-      const w = dims.w || Math.max(0, moduleW - 2 * thickness);
+      // Las piezas horizontales interiores van embutidas entre laterales;
+      // nunca deben exceder el ancho interior, aunque el CSV traiga un ancho mayor.
+      const w = Math.min(dims.w || interiorWidth, interiorWidth);
       const x = Math.max(thickness, (moduleW - w) / 2);
+      // La profundidad de la repisa respeta el CSV (alto), pero no puede
+      // pasar la cara interior del fondo. Si no viene, usa toda la profundidad interior.
+      const shelfDepth = Math.min(Number(sp.piece.alto) || interiorDepth, interiorDepth);
+      const y = depthOffset;
       geometries.push({
-        x, y: 0, z: sp.y, w, d: moduleD, h: dims.h,
+        x, y, z: sp.y, w, d: shelfDepth, h: dims.h,
         color: sp.piece.color, role: 'shelf', name: sp.piece.nombre, id: sp.piece.id,
       });
     });
@@ -320,7 +409,7 @@ export class IsometricRenderer {
     const dividers = roles.filter((p) => p.role === 'divider');
     if (dividers.length) {
       geometries.push(
-        ...this._buildDividerGeometries(dividers, moduleW, moduleD, moduleH, thickness, shelfPositions, top, bottom)
+        ...this._buildDividerGeometries(dividers, moduleW, moduleD, moduleH, thickness, shelfPositions, top, bottom, backThickness, bottomPanelOffset, topPanelOffset)
       );
     }
 
@@ -331,13 +420,13 @@ export class IsometricRenderer {
       ...roles.filter((p) => p.role === 'glass'),
     ];
     if (frontPanels.length) {
-      geometries.push(...this._buildFrontPanelGeometries(frontPanels, moduleW, moduleD, moduleH, thickness, family));
+      geometries.push(...this._buildFrontPanelGeometries(frontPanels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset, topPanelOffset));
     }
 
     // Cajones
     const drawers = roles.filter((p) => p.role.startsWith('drawer_') || p.role === 'handle');
     if (drawers.length) {
-      geometries.push(...this._buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions));
+      geometries.push(...this._buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions, bottomPanelOffset, topPanelOffset));
     }
 
     // Riel colgador
@@ -346,7 +435,7 @@ export class IsometricRenderer {
       const dims = getPieceDims(rail, 'hanger_rail', thickness, family);
       const z = Number.isFinite(rail.pos_z)
         ? Number(rail.pos_z)
-        : getDefaultVerticalPosition(rail, moduleH, thickness, this.verticalPositionOverrides);
+        : getDefaultVerticalPosition(rail, moduleH, thickness, this.verticalPositionOverrides, bottomPanelOffset, topPanelOffset);
       geometries.push({
         x: thickness,
         y: moduleD / 2 - 12.5,
@@ -363,7 +452,7 @@ export class IsometricRenderer {
     braces.forEach((brace) => {
       const dims = getPieceDims(brace, 'brace', thickness, family);
       const x = inferBraceX(brace, moduleW, dims.w, thickness);
-      const z = inferBraceZ(brace, moduleH, dims.h, thickness, this.verticalPositionOverrides);
+      const z = inferBraceZ(brace, moduleH, dims.h, thickness, this.verticalPositionOverrides, topPanelOffset, bottomPanelOffset);
       geometries.push({
         x, y: moduleD - thickness, z, w: dims.w, d: thickness, h: dims.h,
         color: brace.color, role: 'brace', name: brace.nombre, id: brace.id, opacity: 0.7,
@@ -373,11 +462,14 @@ export class IsometricRenderer {
     return geometries;
   }
 
-  _buildFrontPanelGeometries(panels, moduleW, moduleD, moduleH, thickness, family) {
+  _buildFrontPanelGeometries(panels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset = 0, topPanelOffset = null) {
     const overrides = this.verticalPositionOverrides || {};
+    const t = Number(thickness) || 15;
     const gap = overrides.doorGap ?? VERTICAL_POSITIONS.doorGap;
-    const topOffset = overrides.doorTopOffset ?? VERTICAL_POSITIONS.doorTopOffset;
-    const bottomOffset = overrides.doorBottomOffset ?? VERTICAL_POSITIONS.doorBottomOffset;
+    const topInset = overrides.doorTopInset ?? VERTICAL_POSITIONS.doorTopInset;
+    const bottomOffset = overrides.doorBaseOffset ?? VERTICAL_POSITIONS.doorBaseOffset;
+    const baseTop = bottomPanelOffset + t;
+    const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
 
     const items = panels.map((piece) => {
       const role = inferRole(piece);
@@ -412,22 +504,22 @@ export class IsometricRenderer {
       const middles = group.filter((i) => i.zone === 'middle');
       const zMap = new Map();
 
-      let topY = moduleH - thickness - topOffset;
+      let topY = topLimit - topInset;
       tops.slice().sort((a, b) => b.h - a.h).forEach((it) => {
         const z = it.hasPosZ ? it.posZ : topY - it.h;
         zMap.set(it, z);
         topY = z - gap;
       });
 
-      let bottomY = thickness + bottomOffset;
+      let bottomY = baseTop + bottomOffset;
       bottoms.slice().sort((a, b) => a.h - b.h).forEach((it) => {
         const z = it.hasPosZ ? it.posZ : bottomY;
         zMap.set(it, z);
         bottomY = z + it.h + gap;
       });
 
-      const middleTop = tops.length ? topY + gap : moduleH - thickness - topOffset;
-      const middleBottom = bottoms.length ? bottomY - gap : thickness + bottomOffset;
+      const middleTop = tops.length ? topY + gap : topLimit - topInset;
+      const middleBottom = bottoms.length ? bottomY - gap : baseTop + bottomOffset;
       const available = Math.max(0, middleTop - middleBottom);
       const totalH = middles.reduce((s, i) => s + i.h, 0);
       const n = middles.length;
@@ -455,7 +547,7 @@ export class IsometricRenderer {
     return geos;
   }
 
-  _buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions = []) {
+  _buildDrawerGeometries(roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions = [], bottomPanelOffset = 0, topPanelOffset = null) {
     const geometries = [];
     const faces = roles.filter((p) => inferRole(p) === 'drawer_face');
     if (!faces.length) return geometries;
@@ -465,7 +557,7 @@ export class IsometricRenderer {
     // calcula una sola vez en _buildModuleGeometries y se reutiliza aquí.
     const hasBottom = roles.some((p) => inferRole(p) === 'bottom_panel');
     const hasTop = roles.some((p) => inferRole(p) === 'top_panel');
-    const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, hasBottom, hasTop);
+    const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, hasBottom, hasTop, bottomPanelOffset, topPanelOffset);
 
     const dims = faces.map((f) => ({ face: f, ...getPieceDims(f, 'drawer_face', thickness, family) }));
     // Ordenar: superior → medio → inferior
@@ -553,9 +645,15 @@ export class IsometricRenderer {
     return geometries;
   }
 
-  _buildDividerGeometries(dividers, moduleW, moduleD, moduleH, thickness, shelfPositions, top, bottom) {
+  _buildDividerGeometries(dividers, moduleW, moduleD, moduleH, thickness, shelfPositions, top, bottom, backThickness = 0, bottomPanelOffset = 0, topPanelOffset = null) {
     const geometries = [];
     if (!dividers.length) return geometries;
+
+    const depthOffset = backThickness;
+    const interiorDepth = Math.max(0, moduleD - backThickness);
+    const t = Number(thickness) || 15;
+    const baseTop = bottomPanelOffset + t;
+    const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
 
     // Divisores verticales (montantes) se dibujan de base a tapa en una sola pieza,
     // sin recortar por zonas de estantes. Divisores horizontales se tratan como
@@ -572,16 +670,16 @@ export class IsometricRenderer {
     vertical.forEach(({ div, dims }) => {
       const divW = dims.w || thickness;
       const x = Math.max(thickness, Math.min(inferDividerX(div, moduleW, thickness), moduleW - thickness - divW));
-      const z = thickness;
-      const h = Math.min(dims.h || moduleH - 2 * thickness, moduleH - 2 * thickness);
+      const z = baseTop;
+      const h = Math.min(dims.h || topLimit - baseTop, topLimit - baseTop);
       geometries.push({
-        x, y: 0, z, w: divW, d: moduleD, h,
+        x, y: depthOffset, z, w: divW, d: interiorDepth, h,
         color: div.color, role: 'divider', name: div.nombre, id: div.id,
       });
     });
 
     if (horizontal.length) {
-      const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top);
+      const zones = calculateVerticalZones(moduleH, thickness, shelfPositions, !!bottom, !!top, bottomPanelOffset, topPanelOffset);
       const groups = groupDividersIntoZones(horizontal.map((h) => h.div), zones);
       groups.forEach(({ dividers: group, zone }) => {
         const zoneHeight = Math.max(0, zone.yEnd - zone.yStart);
@@ -592,7 +690,7 @@ export class IsometricRenderer {
           const x = Math.max(thickness, Math.min(inferDividerX(div, moduleW, thickness), moduleW - thickness - divW));
           const z = zone.yStart + Math.max(0, zoneHeight - divH) / 2;
           geometries.push({
-            x, y: 0, z, w: divW, d: moduleD, h: divH,
+            x, y: depthOffset, z, w: divW, d: interiorDepth, h: divH,
             color: div.color, role: 'divider', name: div.nombre, id: div.id,
           });
         });
@@ -763,7 +861,7 @@ export class IsometricRenderer {
         const h = Number(p.alto) || 600;
         const zPos = Number.isFinite(p.pos_z)
           ? Number(p.pos_z)
-          : Math.max(thickness, moduleH - thickness - h - (this.verticalPositionOverrides?.mirrorOffset ?? VERTICAL_POSITIONS.mirrorOffset));
+          : Math.max(thickness, moduleH - thickness - h - (this.verticalPositionOverrides?.mirrorTopInset ?? VERTICAL_POSITIONS.mirrorTopInset));
         geometries.push({
           x: Math.max(0, (moduleW - w) / 2),
           y: -thickness,
@@ -809,7 +907,7 @@ export class IsometricRenderer {
         const h = Number(door.alto) || moduleH - 2 * thickness;
         const z = Number.isFinite(door.pos_z)
           ? Number(door.pos_z)
-          : Math.max(thickness, moduleH - h - thickness - (this.verticalPositionOverrides?.doorTopOffset ?? VERTICAL_POSITIONS.doorTopOffset));
+          : Math.max(thickness, moduleH - h - thickness - (this.verticalPositionOverrides?.doorTopInset ?? VERTICAL_POSITIONS.doorTopInset));
         const baseGeo = {
           x, y: moduleD, z, w: doorW, d: thickness, h,
           color: door.color || ROLE_COLORS.door, role: 'door', name: door.nombre, id: door.id,
@@ -839,7 +937,7 @@ export class IsometricRenderer {
     };
   }
 
-  _buildSVG(geometries, viewBox, ox, oy, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView = false) {
+  _buildSVG(geometries, viewBox, ox, oy, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView = false, thickness = 15) {
     const polygons = [];
     const labels = [];
 
@@ -893,14 +991,11 @@ export class IsometricRenderer {
     let extra = '';
     const showDims = this.showDimensions && !isAllView;
     if (showDims) {
-      extra += this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
-      if (this.explodeFactor <= 0) {
-        extra += this._drawMainDimensions(ox, oy, moduleW, moduleD, moduleH);
-      }
-    }
-    if (!isAllView && this.explodeFactor > 0) {
-      const pieceDims = this._drawExplodedDimensions(geometries, ox, oy);
-      if (pieceDims) extra = this._dimensionDefs() + extra + pieceDims;
+      const dims = this._drawDimensions(ox, oy, moduleW, moduleD, moduleH);
+      const mainDims = this.explodeFactor <= 0 ? this._drawMainDimensions(ox, oy, moduleW, moduleD, moduleH) : '';
+      const offsetDims = this.explodeFactor <= 0 ? this._drawVerticalOffsetDimensions(geometries, ox, oy, moduleW, moduleD, moduleH, thickness) : '';
+      const pieceDims = this.explodeFactor > 0 ? this._drawExplodedDimensions(geometries, ox, oy) : '';
+      extra = this._dimensionDefs() + dims + mainDims + offsetDims + pieceDims;
     }
 
     const titleSize = 16 * this.textScale;
@@ -1031,7 +1126,7 @@ export class IsometricRenderer {
     const words = String(geo.name || '').split(/\s+/).slice(0, 2);
     if (geo.role === 'side_panel') return normalizeNameLocal(geo.name).includes('izquierdo') ? 'Lat.Izq' : 'Lat.Der';
     if (geo.role === 'drawer_face') return 'Cajón';
-    if (geo.role === 'shelf') return 'Repisa';
+    if (geo.role === 'shelf') return isShoeRack({ nombre: geo.name, id: geo.id }) ? 'Zapatero' : 'Repisa';
     if (geo.role === 'door') return 'Puerta';
     return words.join(' ');
   }
@@ -1085,6 +1180,64 @@ export class IsometricRenderer {
     svg += this._drawDimensionLine(p0D0, pW00, Math.round(moduleD), 18, 0, AXES_COLORS.y, 'dimArrowY');
     // Alto (Z): arista frontal derecha vertical
     svg += this._drawDimensionLine(pW00, pW0H, Math.round(moduleH), 28, 0, AXES_COLORS.z, 'dimArrowZ');
+    return svg;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // COTAS DE OFFSETS VERTICALES EN VISTA NORMAL
+  // ═══════════════════════════════════════════════════════════
+
+  _drawVerticalOffsetDimensions(geometries, ox, oy, moduleW, moduleD, moduleH, thickness) {
+    const bottom = geometries.find((g) => g.role === 'bottom_panel');
+    const top = geometries.find((g) => g.role === 'top_panel');
+    const t = Number(thickness) || 15;
+    const overrides = this.verticalPositionOverrides || {};
+    const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
+
+    const baseBottom = bottom ? bottom.z : 0;
+    const baseTop = baseBottom + t;
+    const topBottom = top ? top.z : moduleH - t;
+
+    let svg = '';
+    let currentOffX = 55;
+
+    const drawSegment = (z1, z2, value, color, label) => {
+      if (value <= 0) return '';
+      const p1 = this._isoProject(moduleW, moduleD, z1, ox, oy);
+      const p2 = this._isoProject(moduleW, moduleD, z2, ox, oy);
+      const line = this._drawDimensionLine(p1, p2, Math.round(value), currentOffX, 0, color, 'dimArrow');
+      currentOffX += 18;
+      return line;
+    };
+
+    // Offset de la base desde el suelo.
+    svg += drawSegment(0, baseBottom, baseBottom, '#f59e0b', 'bottomPanelOffset');
+
+    // Gap desde la cara superior de la base hasta la primera pieza interior.
+    const firstInnerGap = v('firstInnerGap');
+    svg += drawSegment(baseTop, baseTop + firstInnerGap, firstInnerGap, '#4ECDC4', 'firstInnerGap');
+
+    // Insets desde la cara inferior de la tapa.
+    if (geometries.some((g) => g.role === 'shelf')) {
+      const shelfTopInset = v('shelfTopInset');
+      svg += drawSegment(topBottom - shelfTopInset, topBottom, shelfTopInset, '#f97316', 'shelfTopInset');
+    }
+
+    if (geometries.some((g) => g.role === 'door')) {
+      const doorTopInset = v('doorTopInset');
+      svg += drawSegment(topBottom - doorTopInset, topBottom, doorTopInset, '#3b82f6', 'doorTopInset');
+    }
+
+    if (geometries.some((g) => g.role === 'brace')) {
+      const braceTopInset = v('braceTopInset');
+      svg += drawSegment(topBottom - braceTopInset, topBottom, braceTopInset, '#94a3b8', 'braceTopInset');
+    }
+
+    if (geometries.some((g) => g.role === 'mirror')) {
+      const mirrorTopInset = v('mirrorTopInset');
+      svg += drawSegment(topBottom - mirrorTopInset, topBottom, mirrorTopInset, '#DDA0DD', 'mirrorTopInset');
+    }
+
     return svg;
   }
 

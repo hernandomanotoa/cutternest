@@ -64,16 +64,25 @@ export function applyExplode(geometries, moduleW, moduleD, moduleH, explodeFacto
   });
 }
 
-export function calculateVerticalZones(moduleH, thickness, shelfPositions = [], hasBottom = false, hasTop = false) {
+export function calculateVerticalZones(
+  moduleH,
+  thickness,
+  shelfPositions = [],
+  hasBottom = false,
+  hasTop = false,
+  baseOffset = 0,
+  topPanelOffset = null
+) {
   const zones = [];
   const sorted = [...shelfPositions].sort((a, b) => a.y - b.y);
-  let yStart = hasBottom ? thickness : 0;
+  const baseTop = baseOffset + (hasBottom ? thickness : 0);
+  const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : (hasTop ? moduleH - thickness : moduleH);
+  let yStart = baseTop;
   sorted.forEach((sp) => {
     zones.push({ yStart, yEnd: sp.y });
     yStart = sp.y + sp.h;
   });
-  const yEnd = hasTop ? moduleH - thickness : moduleH;
-  zones.push({ yStart, yEnd });
+  zones.push({ yStart, yEnd: topLimit });
   return zones;
 }
 
@@ -143,12 +152,23 @@ export function inferDoorX(door, moduleW, doorW, thickness) {
   return (moduleW - doorW) / 2;
 }
 
-export function inferDoorZ(door, moduleH, doorH, thickness, overrides = {}) {
+export function inferDoorZ(
+  door,
+  moduleH,
+  doorH,
+  thickness,
+  overrides = {},
+  topPanelOffset = null,
+  baseOffset = 0
+) {
   if (Number.isFinite(door?.pos_z)) return door.pos_z;
   const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
   const n = normalizeName(door.nombre);
-  if (n.includes('superior') || n.includes('sup')) return moduleH - doorH - thickness - v('doorTopOffset');
-  if (n.includes('inferior') || n.includes('inf')) return thickness + v('doorBottomOffset');
+  const t = Number(thickness) || 15;
+  const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
+  const baseTop = baseOffset + t;
+  if (n.includes('superior') || n.includes('sup')) return topLimit - doorH - v('doorTopInset');
+  if (n.includes('inferior') || n.includes('inf')) return baseTop + v('doorBaseOffset');
   return (moduleH - doorH) / 2;
 }
 
@@ -170,12 +190,23 @@ export function inferBraceX(brace, moduleW, braceW, thickness) {
   return (moduleW - braceW) / 2;
 }
 
-export function inferBraceZ(brace, moduleH, braceH, thickness, overrides = {}) {
+export function inferBraceZ(
+  brace,
+  moduleH,
+  braceH,
+  thickness,
+  overrides = {},
+  topPanelOffset = null,
+  baseOffset = 0
+) {
   if (Number.isFinite(brace?.pos_z)) return brace.pos_z;
   const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
   const n = normalizeName(brace.nombre);
-  if (n.includes('superior') || n.includes('sup')) return moduleH - thickness - braceH - v('braceTopOffset');
-  if (n.includes('inferior') || n.includes('inf')) return thickness + v('braceBottomOffset');
+  const t = Number(thickness) || 15;
+  const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
+  const baseTop = baseOffset + t;
+  if (n.includes('superior') || n.includes('sup')) return topLimit - braceH - v('braceTopInset');
+  if (n.includes('inferior') || n.includes('inf')) return baseTop + v('braceBaseOffset');
   return (moduleH - braceH) / 2;
 }
 

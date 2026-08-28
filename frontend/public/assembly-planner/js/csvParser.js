@@ -2,6 +2,8 @@
 
 import { isHexColor, normalizeColor } from './utils.js';
 import { normalizeName, nameIncludes } from './utils/normalize.js';
+import { inferRole } from './services/classifierService.js';
+import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMount } from './services/geometryService.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
@@ -120,31 +122,54 @@ function validateDimensions(pieces, warnings) {
       if (!back) warnings.push(`Módulo ${modId}: falta pieza fondo/trasera.`);
     }
 
+    // Dimensiones de la caja exterior del módulo (normaliza piezas internas).
+    const sideThickness = laterals.length ? laterals[0].espesor : base ? base.espesor : 15;
+    const moduleBox = getModuleDimensions(modPieces, sideThickness);
+    const interiorWidth = Math.max(0, moduleBox.width - 2 * sideThickness);
+    const backThickness = back ? Number(back.espesor) || sideThickness : 0;
+    const interiorDepth = Math.max(0, moduleBox.depth - backThickness - sideThickness);
+
     if (base && top) {
-      if (Math.abs(base.ancho - top.ancho) > 1) {
+      const thickness = Number(base.espesor) || Number(top.espesor) || sideThickness;
+      const baseMount = classifyTopBottomMount(base, moduleBox.width, moduleBox.depth, thickness);
+      const topMount = classifyTopBottomMount(top, moduleBox.width, moduleBox.depth, thickness);
+      const baseAncho = baseMount === 'internal' ? base.ancho + 2 * thickness : base.ancho;
+      const baseAlto = baseMount === 'internal' ? base.alto + 2 * thickness : base.alto;
+      const topAncho = topMount === 'internal' ? top.ancho + 2 * thickness : top.ancho;
+      const topAlto = topMount === 'internal' ? top.alto + 2 * thickness : top.alto;
+      if (Math.abs(baseAncho - topAncho) > 2) {
         warnings.push(`Módulo ${modId}: base (${base.ancho} mm) y tapa (${top.ancho} mm) tienen anchos diferentes.`);
       }
-      if (Math.abs(base.alto - top.alto) > 1) {
+      if (Math.abs(baseAlto - topAlto) > 2) {
         warnings.push(`Módulo ${modId}: base (${base.alto} mm) y tapa (${top.alto} mm) tienen profundidades diferentes.`);
       }
     }
-    if (back && base && Math.abs(back.ancho - base.ancho) > 1) {
-      warnings.push(`Módulo ${modId}: fondo (${back.ancho} mm) y base (${base.ancho} mm) tienen anchos diferentes.`);
+    // Fondo: validar según tipo de montaje (externo / interno / custom)
+    if (back && base && laterals.length) {
+      const mount = classifyBackPanelMount(back, moduleBox.width, moduleBox.height, sideThickness);
+      const tol = 2;
+      if (mount === 'external') {
+        if (Math.abs(back.ancho - moduleBox.width) > tol || Math.abs(back.alto - moduleBox.height) > tol) {
+          warnings.push(`Módulo ${modId}: fondo externo (${back.ancho}×${back.alto} mm) no coincide con caja ${moduleBox.width}×${moduleBox.height} mm.`);
+        }
+      } else if (mount === 'internal') {
+        const expectedW = Math.max(0, moduleBox.width - 2 * sideThickness);
+        const expectedH = Math.max(0, moduleBox.height - 2 * sideThickness);
+        if (Math.abs(back.ancho - expectedW) > tol || Math.abs(back.alto - expectedH) > tol) {
+          warnings.push(`Módulo ${modId}: fondo interno (${back.ancho}×${back.alto} mm) no coincide con medida esperada ${expectedW}×${expectedH} mm.`);
+        }
+      }
+      // custom: no se validan medidas (es intencionalmente distinto)
     }
 
-    const sideThickness = laterals.length ? laterals[0].espesor : base ? base.espesor : 0;
-    const lateralHeight = laterals.length ? Math.max(laterals[0].ancho, laterals[0].alto) : 0;
-    const interiorWidth = base ? base.ancho - 2 * sideThickness : 0;
-
-    if (back && laterals.length && Math.abs(back.alto - lateralHeight) > 1) {
-      warnings.push(`Módulo ${modId}: fondo (${back.alto} mm) y lateral (${lateralHeight} mm) tienen alturas diferentes.`);
-    }
-
-    // Estantes/repisas
-    const shelves = findPieces(modPieces, ['estante', 'repisa']);
+    // Estantes/repisas/zapateras (horizontales interiores, rol shelf)
+    const shelves = modPieces.filter((p) => inferRole(p) === 'shelf');
     shelves.forEach((s) => {
       if (interiorWidth > 0 && s.ancho > interiorWidth + 1) {
         warnings.push(`Módulo ${modId}: "${s.nombre}" (${s.ancho} mm) excede ancho interior (${interiorWidth} mm).`);
+      }
+      if (interiorDepth > 0 && s.alto > interiorDepth + 1) {
+        warnings.push(`Módulo ${modId}: "${s.nombre}" (${s.alto} mm) excede profundidad interior disponible (${interiorDepth} mm).`);
       }
     });
 
@@ -161,7 +186,7 @@ function validateDimensions(pieces, warnings) {
       }
 
       if (base && subLaterals.length) {
-        const maxDepth = base.alto - 10;
+        const maxDepth = Math.max(0, interiorDepth - 10);
         subLaterals.forEach((lat) => {
           const latRealHeight = Math.max(lat.ancho, lat.alto);
           if (latRealHeight > maxDepth + 1) {
@@ -192,9 +217,11 @@ function validateDimensions(pieces, warnings) {
     const zocalo = findPiece(globalPieces, ['zocalo']);
     const sumaBases = parentModules.reduce((sum, modId) => {
       const b = findPiece(modules[modId], ['base']);
-      return sum + (b ? b.ancho : 0);
+      if (!b) return sum;
+      const modBox = getModuleDimensions(modules[modId], b.espesor);
+      return sum + modBox.width;
     }, 0);
-    if (zocalo && sumaBases > 0 && Math.abs(zocalo.ancho - sumaBases) > 1) {
+    if (zocalo && sumaBases > 0 && Math.abs(zocalo.ancho - sumaBases) > 2) {
       warnings.push(`Estructura global: zócalo (${zocalo.ancho} mm) no coincide con suma de bases (${sumaBases} mm). Verifica que incluya solo módulos que toquen el suelo.`);
     }
   });
@@ -298,8 +325,8 @@ function classifyPiece(piece, allPieces, warnings) {
     piece.orientacion = 'mixto';
   }
 
-  // Pandeo en repisas/estantes
-  const luz = Math.max(piece.ancho, piece.alto);
+  // Pandeo en repisas/estantes: la luz es el vano entre apoyos (ancho de la pieza).
+  const luz = piece.ancho;
   const conSoporte = hasSoporteEnModulo();
   if ((name.includes('repisa') || name.includes('estante')) && luz > 800 && piece.espesor <= 15) {
     if (conSoporte) {
@@ -309,8 +336,12 @@ function classifyPiece(piece, allPieces, warnings) {
       warnings.push(`CRÍTICO: "${piece.nombre}" (luz ${luz} mm, espesor ${piece.espesor} mm) requiere soporte central o divisor.`);
     }
   } else if ((name.includes('repisa') || name.includes('estante')) && luz >= 600 && luz <= 800 && piece.espesor <= 15) {
-    piece.riesgo = 'alto';
-    warnings.push(`ALTO: "${piece.nombre}" (luz ${luz} mm) recomienda soporte intermedio.`);
+    if (conSoporte) {
+      piece.riesgo = 'medio';
+    } else {
+      piece.riesgo = 'alto';
+      warnings.push(`ALTO: "${piece.nombre}" (luz ${luz} mm) recomienda soporte intermedio.`);
+    }
   } else if ((name.includes('repisa') || name.includes('estante')) && luz >= 400 && luz < 600 && piece.espesor === 15) {
     piece.riesgo = 'medio';
   } else if ((name.includes('repisa') || name.includes('estante')) && luz < 400) {

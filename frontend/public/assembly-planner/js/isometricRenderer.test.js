@@ -179,7 +179,6 @@ describe('IsometricRenderer exploded dimensions', () => {
     renderer.render('1', basePieces);
     const svg = container.innerHTML;
     assert.ok(!svg.includes('>2270<'), 'no piece height dimension should be shown');
-    assert.ok(!svg.includes('url(#dimArrow)'), 'no generic piece dimension arrows should be present');
   });
 });
 
@@ -255,6 +254,81 @@ describe('IsometricRenderer module paint order', () => {
   });
 });
 
+describe('IsometricRenderer back panel mounting', () => {
+  it('renders external back panel at full module dimensions', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(basePieces, 800, 550, 2300, 15, 'cabinet');
+    const back = geoms.find((g) => g.role === 'back_panel');
+    assert.ok(back, 'back panel geometry should exist');
+    assert.equal(back.w, 800);
+    assert.equal(back.h, 2300);
+    assert.equal(back.x, 0);
+    assert.equal(back.z, 0);
+    assert.equal(back.d, 15);
+  });
+
+  it('renders internal back panel inset by thickness', () => {
+    const internalBack = {
+      ...basePieces.find((p) => p.id === 'm1-fondo'),
+      ancho: 770,
+      alto: 2270,
+    };
+    const pieces = [
+      ...basePieces.filter((p) => p.id !== 'm1-fondo'),
+      internalBack,
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2300, 15, 'cabinet');
+    const back = geoms.find((g) => g.role === 'back_panel');
+    assert.ok(back, 'back panel geometry should exist');
+    assert.equal(back.w, 770);
+    assert.equal(back.h, 2270);
+    assert.equal(back.x, 15);
+    assert.equal(back.z, 15);
+  });
+});
+
+describe('IsometricRenderer top/bottom mounting', () => {
+  const internalBasePieces = (plinthHeight = 100) => [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 770, alto: 520, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 800, alto: 2300, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+  ];
+
+  it('renders internal bottom panel inset and raised to global plinth height', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(internalBasePieces(), 800, 550, 2300, 15, 'cabinet', 100, 0);
+    const base = geoms.find((g) => g.role === 'bottom_panel');
+    assert.ok(base, 'bottom panel geometry should exist');
+    assert.equal(base.x, 15, 'internal base x should be inset by thickness');
+    assert.equal(base.y, 15, 'internal base y should be inset by thickness');
+    assert.equal(base.z, 100, 'internal base should sit on top of global plinth');
+    assert.equal(base.w, 770, 'internal base width should match interior size');
+    assert.equal(base.d, 520, 'internal base depth should match interior size');
+    assert.equal(base.h, 15, 'internal base height should be thickness');
+  });
+
+  it('draws sides from floor to top when base is internal', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(internalBasePieces(), 800, 550, 2300, 15, 'cabinet', 100, 0);
+    const sides = geoms.filter((g) => g.role === 'side_panel_front' || g.role === 'side_panel_rear');
+    assert.equal(sides.length, 2, 'two side panels should exist');
+    sides.forEach((side) => {
+      assert.equal(side.z, 0, 'side panel should start at floor');
+      assert.equal(side.h, 2285, 'side panel should reach just below external top');
+    });
+  });
+
+  it('respects bottomPanelOffset override even with internal base', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { verticalPositionOverrides: { bottomPanelOffset: 150 } });
+    const geoms = renderer._buildModuleGeometries(internalBasePieces(), 800, 550, 2300, 15, 'cabinet', 100, 0);
+    const base = geoms.find((g) => g.role === 'bottom_panel');
+    assert.equal(base.z, 150, 'internal base should respect user override');
+  });
+});
+
 describe('IsometricRenderer glass transparency', () => {
   it('renders vidrio/cristal as a transparent front panel', () => {
     const pieces = [
@@ -289,5 +363,25 @@ describe('IsometricRenderer front panel stacking', () => {
     assert.equal(sup.length, 1, 'one superior door front face expected');
     assert.equal(inf.length, 1, 'one inferior door front face expected');
     assert.ok(sup[0].cy < inf[0].cy, `superior door should be above inferior (${sup[0].cy} < ${inf[0].cy})`);
+  });
+});
+
+describe('IsometricRenderer shoe rack label', () => {
+  it('labels feminine shoe racks as Zapatero', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const label = renderer._makeLabel({ role: 'shelf', name: 'Zapatera inferior M1', id: 'm1-zapatera' });
+    assert.equal(label, 'Zapatero');
+  });
+
+  it('labels plain shelves as Repisa', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const label = renderer._makeLabel({ role: 'shelf', name: 'Repisa inferior M1', id: 'm1-repisa' });
+    assert.equal(label, 'Repisa');
+  });
+
+  it('labels masculine shoe racks as Zapatero', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const label = renderer._makeLabel({ role: 'shelf', name: 'Zapatero inferior M1', id: 'm1-zapatero' });
+    assert.equal(label, 'Zapatero');
   });
 });

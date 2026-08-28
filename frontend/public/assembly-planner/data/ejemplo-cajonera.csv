@@ -1,93 +1,71 @@
-# CutterNest Piezas v1
-# Ejemplo: cuatro módulos con cajones verticales y repisas superior/inferior.
-# - Módulo 1: dos cajones apilados (submódulos 11 y 12), repisa superior e inferior.
-# - Módulo 2: dos cajones apilados (submódulos 21 y 22), repisa superior e inferior.
-# - Módulo 3: 4 repisas regulables.
-# - Módulo 4: 4 repisas regulables.
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
-
-# --- Modulo 1: cajonera doble con repisas superior e inferior ---
 m1-base,Base modulo M1,450,520,1,si,#C19A6B,15,"T,B,L,R",1,
 m1-tapa,Tapa modulo M1,450,520,1,si,#C19A6B,15,"T,B,L,R",1,
 m1-lateral-izq,Lateral izquierdo M1,15,2300,1,no,#C19A6B,15,"T,B,L",1,
 m1-lateral-der,Lateral derecho M1,15,2300,1,no,#C19A6B,15,"T,B,R",1,
 m1-fondo,Fondo modulo M1,450,2300,1,no,#F2F2F2,15,,1,
 m1-travesano,Travesano trasero M1,370,40,1,no,#4ECDC4,15,"T,B,L,R",1,
-m1-repisa-1,Repisa superior M1,390,520,1,si,#D9C2A3,15,"T,B,L,R",1,
-m1-repisa-2,Repisa inferior M1,390,520,1,si,#D9C2A3,15,"T,B,L,R",1,
+m1-repisa-1,Repisa superior M1,390,490,1,si,#D9C2A3,15,"T,B,L,R",1,
+m1-repisa-2,Repisa inferior M1,390,490,1,si,#D9C2A3,15,"T,B,L,R",1,
 m1-divisor-sup-izq,Divisor superior izq M1,30,285,1,no,#C19A6B,15,"T,B,L,R",1,
 m1-divisor-sup-der,Divisor superior der M1,30,285,1,no,#C19A6B,15,"T,B,L,R",1,
 m1-divisor-med-izq,Divisor medio izq M1,30,1670,1,no,#D9C2A3,15,"T,B,L,R",1,
 m1-divisor-med-der,Divisor medio der M1,30,1670,1,no,#D9C2A3,15,"T,B,L,R",1,
 m1-divisor-inf-izq,Divisor inferior izq M1,30,300,1,no,#C19A6B,15,"T,B,L,R",1,
 m1-divisor-inf-der,Divisor inferior der M1,30,300,1,no,#C19A6B,15,"T,B,L,R",1,
-
-# --- Submodulo 11: cajon superior del modulo 1 ---
 m11-cajon-frente,Frente cajon superior M1,400,180,1,si,#8B5A2B,15,"T,B,L,R",11,
 m11-cajon-lateral-izq,Lateral cajon sup M1,450,180,1,no,#D9C2A3,15,"T,B,L",11,
 m11-cajon-lateral-der,Lateral cajon sup der M1,450,180,1,no,#D9C2A3,15,"T,B,R",11,
 m11-cajon-fondo,Fondo cajon sup M1,360,180,1,no,#F2F2F2,15,,11,
 m11-cajon-base,Base cajon sup M1,360,180,1,si,#D9C2A3,15,"T,B,L,R",11,
 m11-cajon-tirador,Tirador cajon sup M1,2,20,1,no,#A0A0A0,5,,11,
-
-# --- Submodulo 12: cajon inferior del modulo 1 ---
 m12-cajon-frente,Frente cajon inferior M1,400,180,1,si,#8B5A2B,15,"T,B,L,R",12,
 m12-cajon-lateral-izq,Lateral cajon inf M1,450,180,1,no,#D9C2A3,15,"T,B,L",12,
 m12-cajon-lateral-der,Lateral cajon inf der M1,450,180,1,no,#D9C2A3,15,"T,B,R",12,
 m12-cajon-fondo,Fondo cajon inf M1,360,180,1,no,#F2F2F2,15,,12,
 m12-cajon-base,Base cajon inf M1,360,180,1,si,#D9C2A3,15,"T,B,L,R",12,
 m12-cajon-tirador,Tirador cajon inf M1,2,20,1,no,#A0A0A0,5,,12,
-
-# --- Modulo 2: cajonera doble con repisas superior e inferior ---
 m2-base,Base modulo M2,460,520,1,si,#8B5A2B,15,"T,B,L,R",2,
 m2-tapa,Tapa modulo M2,460,520,1,si,#8B5A2B,15,"T,B,L,R",2,
 m2-lateral-izq,Lateral izquierdo M2,15,2300,1,no,#8B5A2B,15,"T,B,L",2,
 m2-lateral-der,Lateral derecho M2,15,2300,1,no,#8B5A2B,15,"T,B,R",2,
 m2-fondo,Fondo modulo M2,460,2300,1,no,#F2F2F2,15,,2,
 m2-travesano,Travesano trasero M2,380,40,1,no,#4ECDC4,15,"T,B,L,R",2,
-m2-repisa-1,Repisa superior M2,400,520,1,si,#D9C2A3,15,"T,B,L,R",2,
-m2-repisa-2,Repisa inferior M2,400,520,1,si,#D9C2A3,15,"T,B,L,R",2,
+m2-repisa-1,Repisa superior M2,400,490,1,si,#D9C2A3,15,"T,B,L,R",2,
+m2-repisa-2,Repisa inferior M2,400,490,1,si,#D9C2A3,15,"T,B,L,R",2,
 m2-divisor-sup-izq,Divisor superior izq M2,30,285,1,no,#8B5A2B,15,"T,B,L,R",2,
 m2-divisor-sup-der,Divisor superior der M2,30,285,1,no,#8B5A2B,15,"T,B,L,R",2,
 m2-divisor-med-izq,Divisor medio izq M2,30,1670,1,no,#D9C2A3,15,"T,B,L,R",2,
 m2-divisor-med-der,Divisor medio der M2,30,1670,1,no,#D9C2A3,15,"T,B,L,R",2,
 m2-divisor-inf-izq,Divisor inferior izq M2,30,300,1,no,#8B5A2B,15,"T,B,L,R",2,
 m2-divisor-inf-der,Divisor inferior der M2,30,300,1,no,#8B5A2B,15,"T,B,L,R",2,
-
-# --- Submodulo 21: cajon superior del modulo 2 ---
 m21-cajon-frente,Frente cajon superior M2,410,180,1,si,#C19A6B,15,"T,B,L,R",21,
 m21-cajon-lateral-izq,Lateral cajon sup M2,460,180,1,no,#D9C2A3,15,"T,B,L",21,
 m21-cajon-lateral-der,Lateral cajon sup der M2,460,180,1,no,#D9C2A3,15,"T,B,R",21,
 m21-cajon-fondo,Fondo cajon sup M2,370,180,1,no,#F2F2F2,15,,21,
 m21-cajon-base,Base cajon sup M2,370,180,1,si,#D9C2A3,15,"T,B,L,R",21,
 m21-cajon-tirador,Tirador cajon sup M2,2,20,1,no,#A0A0A0,5,,21,
-
-# --- Submodulo 22: cajon inferior del modulo 2 ---
 m22-cajon-frente,Frente cajon inferior M2,410,180,1,si,#C19A6B,15,"T,B,L,R",22,
 m22-cajon-lateral-izq,Lateral cajon inf M2,460,180,1,no,#D9C2A3,15,"T,B,L",22,
 m22-cajon-lateral-der,Lateral cajon inf der M2,460,180,1,no,#D9C2A3,15,"T,B,R",22,
 m22-cajon-fondo,Fondo cajon inf M2,370,180,1,no,#F2F2F2,15,,22,
 m22-cajon-base,Base cajon inf M2,370,180,1,si,#D9C2A3,15,"T,B,L,R",22,
 m22-cajon-tirador,Tirador cajon inf M2,2,20,1,no,#A0A0A0,5,,22,
-
-# --- Modulo 3: 4 repisas ---
 m3-base,Base modulo M3,500,520,1,si,#C19A6B,15,"T,B,L,R",3,
 m3-tapa,Tapa modulo M3,500,520,1,si,#C19A6B,15,"T,B,L,R",3,
 m3-lateral-izq,Lateral izquierdo M3,15,2300,1,no,#C19A6B,15,"T,B,L",3,
 m3-lateral-der,Lateral derecho M3,15,2300,1,no,#C19A6B,15,"T,B,R",3,
 m3-fondo,Fondo modulo M3,500,2300,1,no,#F2F2F2,15,,3,
-m3-repisa-1,Repisa 1 M3,440,520,1,si,#D9C2A3,15,"T,B,L,R",3,
-m3-repisa-2,Repisa 2 M3,440,520,1,si,#D9C2A3,15,"T,B,L,R",3,
-m3-repisa-3,Repisa 3 M3,440,520,1,si,#D9C2A3,15,"T,B,L,R",3,
-m3-repisa-4,Repisa 4 M3,440,520,1,si,#D9C2A3,15,"T,B,L,R",3,
-
-# --- Modulo 4: 4 repisas ---
+m3-repisa-1,Repisa 1 M3,440,490,1,si,#D9C2A3,15,"T,B,L,R",3,
+m3-repisa-2,Repisa 2 M3,440,490,1,si,#D9C2A3,15,"T,B,L,R",3,
+m3-repisa-3,Repisa 3 M3,440,490,1,si,#D9C2A3,15,"T,B,L,R",3,
+m3-repisa-4,Repisa 4 M3,440,490,1,si,#D9C2A3,15,"T,B,L,R",3,
 m4-base,Base modulo M4,510,520,1,si,#8B5A2B,15,"T,B,L,R",4,
 m4-tapa,Tapa modulo M4,510,520,1,si,#8B5A2B,15,"T,B,L,R",4,
 m4-lateral-izq,Lateral izquierdo M4,15,2300,1,no,#8B5A2B,15,"T,B,L",4,
 m4-lateral-der,Lateral derecho M4,15,2300,1,no,#8B5A2B,15,"T,B,R",4,
 m4-fondo,Fondo modulo M4,510,2300,1,no,#F2F2F2,15,,4,
-m4-repisa-1,Repisa 1 M4,450,520,1,si,#D9C2A3,15,"T,B,L,R",4,
-m4-repisa-2,Repisa 2 M4,450,520,1,si,#D9C2A3,15,"T,B,L,R",4,
-m4-repisa-3,Repisa 3 M4,450,520,1,si,#D9C2A3,15,"T,B,L,R",4,
-m4-repisa-4,Repisa 4 M4,450,520,1,si,#D9C2A3,15,"T,B,L,R",4,
+m4-repisa-1,Repisa 1 M4,450,490,1,si,#D9C2A3,15,"T,B,L,R",4,
+m4-repisa-2,Repisa 2 M4,450,490,1,si,#D9C2A3,15,"T,B,L,R",4,
+m4-repisa-3,Repisa 3 M4,450,490,1,si,#D9C2A3,15,"T,B,L,R",4,
+m4-repisa-4,Repisa 4 M4,450,490,1,si,#D9C2A3,15,"T,B,L,R",4,

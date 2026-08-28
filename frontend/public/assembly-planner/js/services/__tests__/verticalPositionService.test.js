@@ -19,10 +19,19 @@ const piece = (name, overrides = {}) => ({
 const MODULE_H = 1800;
 const THICKNESS = 18;
 
+// Alias para evitar confusión en las fórmulas de los tests.
+const baseTop = THICKNESS + VERTICAL_POSITIONS.bottomPanelOffset;
+
 describe('determineVerticalZone', () => {
   it('classifies zapatero as fixed-bottom', () => {
     assert.equal(determineVerticalZone(piece('Zapatero')), 'fixed-bottom');
     assert.equal(determineVerticalZone(piece('Repisa zapatero')), 'fixed-bottom');
+  });
+
+  it('classifies zapatera (feminine) as fixed-bottom', () => {
+    assert.equal(determineVerticalZone(piece('Zapatera inferior')), 'fixed-bottom');
+    assert.equal(determineVerticalZone(piece('Repisa zapatera')), 'fixed-bottom');
+    assert.equal(determineVerticalZone(piece('Zapateras M2')), 'fixed-bottom');
   });
 
   it('classifies superior keywords as top', () => {
@@ -52,7 +61,17 @@ describe('determineVerticalZone', () => {
 
 describe('getDefaultVerticalPosition', () => {
   it('places zapatero just above the base', () => {
-    assert.equal(getDefaultVerticalPosition(piece('Zapatero'), MODULE_H, THICKNESS), VERTICAL_POSITIONS.shoeRackBottomOffset);
+    assert.equal(
+      getDefaultVerticalPosition(piece('Zapatero'), MODULE_H, THICKNESS),
+      baseTop + VERTICAL_POSITIONS.shoeRackBaseOffset
+    );
+  });
+
+  it('places zapatera just above the base', () => {
+    assert.equal(
+      getDefaultVerticalPosition(piece('Zapatera inferior'), MODULE_H, THICKNESS),
+      baseTop + VERTICAL_POSITIONS.shoeRackBaseOffset
+    );
   });
 
   it('places seat panels at standard seat height', () => {
@@ -66,14 +85,14 @@ describe('getDefaultVerticalPosition', () => {
   it('places top shelves near the top panel', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Repisa superior'), MODULE_H, THICKNESS),
-      MODULE_H - THICKNESS - VERTICAL_POSITIONS.shelfTopOffset
+      MODULE_H - THICKNESS - VERTICAL_POSITIONS.shelfTopInset
     );
   });
 
   it('places bottom shelves above the bottom panel', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Repisa inferior'), MODULE_H, THICKNESS),
-      THICKNESS + VERTICAL_POSITIONS.shelfBottomOffset
+      baseTop + VERTICAL_POSITIONS.shelfBaseOffset
     );
   });
 
@@ -82,7 +101,7 @@ describe('getDefaultVerticalPosition', () => {
     const drawerInf = piece('Frente cajón inferior', { alto: 150 });
     const drawerMed = piece('Frente cajón', { alto: 150 });
     assert.equal(getDefaultVerticalPosition(drawerSup, MODULE_H, THICKNESS), MODULE_H - THICKNESS - 150);
-    assert.equal(getDefaultVerticalPosition(drawerInf, MODULE_H, THICKNESS), THICKNESS + VERTICAL_POSITIONS.drawerBottomOffset);
+    assert.equal(getDefaultVerticalPosition(drawerInf, MODULE_H, THICKNESS), baseTop + VERTICAL_POSITIONS.drawerBaseOffset);
     assert.equal(getDefaultVerticalPosition(drawerMed, MODULE_H, THICKNESS), (MODULE_H - 150) / 2);
   });
 
@@ -96,7 +115,7 @@ describe('calculateVerticalPositions', () => {
     const positions = calculateVerticalPositions(600, 18, [piece('Zapatero', { alto: 150 })]);
     assert.equal(positions.length, 1);
     assert.equal(positions[0].zone, 'fixed-bottom');
-    assert.equal(positions[0].y, VERTICAL_POSITIONS.fixedBottomMargin);
+    assert.equal(positions[0].y, baseTop + VERTICAL_POSITIONS.shoeRackBaseOffset);
   });
 
   it('places top shelves near the top and bottom shelves near the bottom', () => {
@@ -108,10 +127,10 @@ describe('calculateVerticalPositions', () => {
     const top = positions.find((p) => p.zone === 'top');
     const bottom = positions.find((p) => p.zone === 'bottom');
     assert.ok(top.y > bottom.y);
-    // Superior shelf sits below the top panel with a comfortable offset.
+    // Superior shelf sits below the top panel with a comfortable inset.
     assert.ok(top.y + top.h <= 600 - 18);
     // Inferior shelf sits above the bottom panel.
-    assert.ok(bottom.y >= 18);
+    assert.ok(bottom.y >= baseTop);
   });
 
   it('stacks middle shelves consecutively from base with shelfMiddleGap', () => {
@@ -125,8 +144,8 @@ describe('calculateVerticalPositions', () => {
     const ys = positions.map((p) => p.y);
     // Middle shelves are stacked from base upward.
     assert.ok(ys[0] < ys[1] && ys[1] < ys[2]);
-    // First shelf sits above the bottom panel with the fixed bottom margin.
-    assert.equal(ys[0], 18 + VERTICAL_POSITIONS.fixedBottomMargin);
+    // First shelf sits above the bottom panel with firstInnerGap.
+    assert.equal(ys[0], baseTop + VERTICAL_POSITIONS.firstInnerGap);
     // Gaps between consecutive middle shelves use shelfMiddleGap.
     const gap01 = ys[1] - (ys[0] + 18);
     const gap12 = ys[2] - (ys[1] + 18);
@@ -187,6 +206,18 @@ describe('calculateVerticalPositions', () => {
     assert.equal(gap, VERTICAL_POSITIONS.shoeRackGap);
   });
 
+  it('stacks feminine shoe racks with shoeRackGap', () => {
+    const racks = [
+      piece('Zapatera 1', { alto: 150 }),
+      piece('Zapatera 2', { alto: 150 }),
+    ];
+    const positions = calculateVerticalPositions(600, 18, racks);
+    assert.equal(positions.length, 2);
+    positions.forEach((p) => assert.equal(p.zone, 'fixed-bottom'));
+    const gap = positions[1].y - (positions[0].y + positions[0].h);
+    assert.equal(gap, VERTICAL_POSITIONS.shoeRackGap);
+  });
+
   it('uses shelfMiddleGap for middle shelves', () => {
     const shelves = [
       piece('Repisa 1'),
@@ -196,6 +227,16 @@ describe('calculateVerticalPositions', () => {
     // Stacked from base: positions[0] is lower, positions[1] is higher.
     const gap = positions[1].y - (positions[0].y + positions[0].h);
     assert.equal(gap, 100);
+  });
+
+  it('applies a raised base offset to all horizontal pieces', () => {
+    const shelves = [piece('Repisa 1'), piece('Repisa 2')];
+    const baseOffset = 80;
+    const positions = calculateVerticalPositions(600, 18, shelves, { baseOffset });
+    const expectedBaseTop = baseOffset + 18;
+    assert.equal(positions[0].y, expectedBaseTop + VERTICAL_POSITIONS.firstInnerGap);
+    const gap = positions[1].y - (positions[0].y + positions[0].h);
+    assert.equal(gap, VERTICAL_POSITIONS.shelfMiddleGap);
   });
 
   it('returns empty array when no pieces', () => {

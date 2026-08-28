@@ -17,12 +17,8 @@ import { parseCSV, piecesToCSV, createEmptyPiece } from './csvParser.js';
 import { sugerirDependencias } from './heuristics.js';
 import { topologicalLevels, buildSteps } from './topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
-import { createGraphView } from './views/graphView.js';
 import { createStructuralView } from './views/structuralView.js';
-import { createAssemblyView } from './views/assemblyView.js';
-import { createManualView } from './views/manualView.js';
 import { createIsometricView } from './views/isometricView.js';
-import { createSettingsView } from './views/settingsView.js';
 import { calculateHardware } from './hardware.js';
 import { getStore, setStore, createStore } from './core/store.js';
 import { VERTICAL_POSITIONS } from './core/config.js';
@@ -36,11 +32,7 @@ export const GLOBAL_MODULE_ID = 'global';
 const viewFactories = {
   csv: createCSVView,
   estructural: createStructuralView,
-  grafo: createGraphView,
-  ensamblaje: createAssemblyView,
-  manual: createManualView,
   isometric: createIsometricView,
-  settings: createSettingsView,
 };
 
 let currentViewInstance = null;

@@ -75,6 +75,11 @@
               <option value="./data/ejemplo-basico.csv">📄 Básico</option>
               <option value="./data/ejemplo-global.csv">🌍 Global</option>
             </optgroup>
+            <optgroup label="Fondo (montaje)">
+              <option value="./data/ejemplo-fondo-externo.csv">📦 Fondo externo</option>
+              <option value="./data/ejemplo-fondo-interno.csv">📦 Fondo interno</option>
+              <option value="./data/ejemplo-fondo-custom.csv">📦 Fondo custom</option>
+            </optgroup>
           </select>
         </div>
         <button id="btn-load-example" class="btn btn--secondary">Cargar</button>
@@ -88,11 +93,7 @@
     <nav class="tabs" role="tablist" aria-label="Vistas">
       <button class="tab tab--active" data-view="csv" role="tab" aria-selected="true">CSV</button>
       <button class="tab" data-view="estructural" role="tab">Estructural</button>
-      <button class="tab" data-view="grafo" role="tab">Grafo</button>
-      <button class="tab" data-view="ensamblaje" role="tab">Ensamblaje</button>
-      <button class="tab" data-view="manual" role="tab">Manual</button>
       <button class="tab" data-view="isometric" role="tab">🧊 Isométrica</button>
-      <button class="tab" data-view="settings" role="tab">⚙ Config</button>
     </nav>
 
     <main class="main-layout">

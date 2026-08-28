@@ -47,17 +47,17 @@ describe('userConfigService', () => {
       const config = loadUserConfig();
       assert.equal(config.defaultGap, 40);
       assert.equal(config.seatHeight, 500);
-      assert.equal(config.fixedBottomMargin, VERTICAL_POSITIONS.fixedBottomMargin);
+      assert.equal(config.firstInnerGap, VERTICAL_POSITIONS.firstInnerGap);
     });
 
     it('ignores invalid stored values', () => {
       storage.setItem(
         'cn-assembly-config',
-        JSON.stringify({ defaultGap: 'bad', shelfTopOffset: 200 })
+        JSON.stringify({ defaultGap: 'bad', shelfTopInset: 200 })
       );
       const config = loadUserConfig();
       assert.equal(config.defaultGap, VERTICAL_POSITIONS.defaultGap);
-      assert.equal(config.shelfTopOffset, 200);
+      assert.equal(config.shelfTopInset, 200);
     });
 
     it('falls back to defaults when localStorage is unavailable', () => {

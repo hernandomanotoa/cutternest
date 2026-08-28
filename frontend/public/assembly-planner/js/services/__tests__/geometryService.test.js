@@ -4,6 +4,8 @@ import {
   useVisualThickness,
   getPieceDims,
   getModuleDimensions,
+  classifyBackPanelMount,
+  classifyTopBottomMount,
   shelfRank,
   calculateShelfPositions,
 } from '../geometryService.js';
@@ -47,7 +49,8 @@ describe('getPieceDims', () => {
 
   it('computes side panel seen from edge', () => {
     const p = piece('Lateral', 600, 400, 18);
-    assert.deepEqual(getPieceDims(p, 'side_panel', 18, 'cabinet'), { w: 18, h: 600 });
+    // ancho = profundidad, alto = altura -> el alto del lateral es `alto` (400).
+    assert.deepEqual(getPieceDims(p, 'side_panel', 18, 'cabinet'), { w: 18, h: 400 });
   });
 
   it('rotates dims when rotate is si', () => {
@@ -62,7 +65,7 @@ describe('getModuleDimensions', () => {
       piece('Fondo', 800, 600, 15, 'no', { id: 'F' }),
       piece('Base', 800, 100, 15, 'no', { id: 'B' }),
     ];
-    assert.deepEqual(getModuleDimensions(pieces, 15, 'cabinet'), { width: 800, height: 600, thickness: 15 });
+    assert.deepEqual(getModuleDimensions(pieces, 15, 'cabinet'), { width: 800, height: 600, depth: 100, thickness: 15 });
   });
 
   it('derives table dims from top and legs', () => {
@@ -73,10 +76,60 @@ describe('getModuleDimensions', () => {
     const dims = getModuleDimensions(pieces, 25, 'table');
     assert.equal(dims.width, 900);
     assert.equal(dims.height, 725);
+    assert.equal(dims.depth, 25);
   });
 
   it('falls back to defaults when no pieces', () => {
-    assert.deepEqual(getModuleDimensions([], 18), { width: 900, height: 600, thickness: 18 });
+    assert.deepEqual(getModuleDimensions([], 18), { width: 900, height: 600, depth: 0, thickness: 18 });
+  });
+});
+
+describe('classifyBackPanelMount', () => {
+  it('detects external back (full module box)', () => {
+    const back = piece('Fondo', 865, 2400, 18, 'no');
+    assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'external');
+  });
+
+  it('detects internal back (inset by thickness on each side)', () => {
+    const back = piece('Fondo', 829, 2364, 18, 'no');
+    assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'internal');
+  });
+
+  it('returns custom for arbitrary dimensions', () => {
+    const back = piece('Fondo', 800, 2000, 18, 'no');
+    assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'custom');
+  });
+
+  it('uses default thickness 15 when not provided', () => {
+    const back = piece('Fondo', 835, 2370, 15, 'no');
+    assert.equal(classifyBackPanelMount(back, 865, 2400), 'internal');
+  });
+});
+
+describe('classifyTopBottomMount', () => {
+  it('detects external top/bottom panel', () => {
+    const top = piece('Tapa', 800, 550, 15);
+    assert.equal(classifyTopBottomMount(top, 800, 550, 15), 'external');
+  });
+
+  it('detects internal top/bottom panel', () => {
+    const bottom = piece('Base', 770, 520, 15);
+    assert.equal(classifyTopBottomMount(bottom, 800, 550, 15), 'internal');
+  });
+
+  it('returns custom for arbitrary dimensions', () => {
+    const bottom = piece('Base', 600, 400, 15);
+    assert.equal(classifyTopBottomMount(bottom, 800, 550, 15), 'custom');
+  });
+
+  it('allows ±2 mm tolerance for external panels', () => {
+    const top = piece('Tapa', 802, 548, 15);
+    assert.equal(classifyTopBottomMount(top, 800, 550, 15), 'external');
+  });
+
+  it('allows ±2 mm tolerance for internal panels', () => {
+    const bottom = piece('Base', 772, 522, 15);
+    assert.equal(classifyTopBottomMount(bottom, 800, 550, 15), 'internal');
   });
 });
 
