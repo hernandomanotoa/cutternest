@@ -271,9 +271,15 @@ export class IsometricRenderer {
     // bottomPanelOffset = altura de la cara inferior de la base.
     // topPanelOffset    = altura de la cara inferior de la tapa (borde inferior).
     const bottomPanelOverride = this.verticalPositionOverrides?.bottomPanelOffset;
-    const bottomPanelOffset = Number.isFinite(bottomPanelOverride)
-      ? bottomPanelOverride
-      : (baseMount === 'internal' ? zocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset);
+    // El override por pieza para la base tiene prioridad sobre el global.
+    const bottomPieceOverride = bottom
+      ? this.verticalPositionOverrides?.pieceOffsets?.[bottom?.originalId || bottom?.id]?.offset
+      : undefined;
+    const bottomPanelOffset = Number.isFinite(bottomPieceOverride)
+      ? bottomPieceOverride
+      : (Number.isFinite(bottomPanelOverride)
+        ? bottomPanelOverride
+        : (baseMount === 'internal' ? zocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset));
     const topPanelOverride = this.verticalPositionOverrides?.topPanelOffset;
     const topPanelOffset = Number.isFinite(topPanelOverride)
       ? topPanelOverride

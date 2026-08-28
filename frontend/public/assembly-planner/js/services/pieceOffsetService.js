@@ -64,6 +64,9 @@ export function getPieceOffsetType(piece, zone) {
  */
 export function getOffsetPlaceholder(piece, zone) {
   const type = getPieceOffsetType(piece, zone);
+  const role = inferRole(piece);
+  if (role === 'bottom_panel') return 'Altura desde suelo (mm)';
+  if (role === 'top_panel') return 'Inset desde tapa (mm)';
   switch (type) {
     case 'top':
       return 'Inset superior (mm)';
