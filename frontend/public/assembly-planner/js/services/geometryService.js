@@ -249,3 +249,24 @@ export function classifyTopBottomMount(panel, moduleW, moduleD, thickness = DEFA
   if (internal) return 'internal';
   return 'custom';
 }
+
+/**
+ * Clasifica el montaje del zócalo frontal (plinth) de forma análoga al fondo:
+ *  - 'external': ocupa todo el ancho del módulo y la altura de zócalo.
+ *  - 'internal': queda embutido entre laterales (ancho≈moduleW-2t)
+ *                a la altura del zócalo.
+ *  - 'custom':   cualquier otra medida; se respetan las medidas de la pieza.
+ */
+export function classifyPlinthMount(plinth, moduleW, plinthH, thickness = DEFAULT_THICKNESS) {
+  const tol = 2;
+  const w = Number(plinth.ancho) || 0;
+  const h = Number(plinth.alto) || 0;
+  const interiorW = Math.max(0, moduleW - 2 * thickness);
+
+  const external = Math.abs(w - moduleW) <= tol && Math.abs(h - plinthH) <= tol;
+  const internal = Math.abs(w - interiorW) <= tol && Math.abs(h - plinthH) <= tol;
+
+  if (external) return 'external';
+  if (internal) return 'internal';
+  return 'custom';
+}

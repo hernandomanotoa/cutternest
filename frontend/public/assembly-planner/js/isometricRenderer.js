@@ -8,6 +8,7 @@ import {
   getModuleDimensions,
   classifyBackPanelMount,
   classifyTopBottomMount,
+  classifyPlinthMount,
 } from './services/geometryService.js';
 import { calculateVerticalPositions, getDefaultVerticalPosition } from './services/verticalPositionService.js';
 import {
@@ -279,12 +280,24 @@ export class IsometricRenderer {
     const depthOffset = backThickness;
     const interiorDepth = Math.max(0, moduleD - backThickness - thickness);
 
-    // Altura del zócalo: puede venir de piezas globales o de zócalos por módulo.
+    // Zócalos frontales por módulo (plinth).
     const localPlinths = roles.filter((p) => p.role === 'plinth');
     const localPlinthHeight = localPlinths.length
       ? Math.max(...localPlinths.map((p) => Number(p.alto) || 0))
       : 0;
     const effectiveZocaloHeight = Math.max(zocaloHeight, localPlinthHeight);
+
+    // Si algún zócalo se retrae hacia el fondo, hacemos la base semitransparente
+    // para que se vea el zócalo a través de ella.
+    const hasRecessedPlinth = localPlinths.some((plinth) => {
+      const cfg = getPieceOffsetConfig(
+        plinth,
+        undefined,
+        { pieceOffsets: this.verticalPositionOverrides?.pieceOffsets },
+        {}
+      );
+      return Number.isFinite(cfg.offset) && cfg.offset > 0;
+    });
 
     // Offsets verticales de base/tapa en el sistema de coordenadas del suelo.
     // bottomPanelOffset = altura de la cara inferior de la base.
@@ -331,6 +344,7 @@ export class IsometricRenderer {
         x: bx, y: by, z: bottomPanelOffset,
         w: bw, d: bd, h: thickness,
         color: bottom.color, role: 'bottom_panel', name: bottom.nombre, id: bottom.id,
+        opacity: hasRecessedPlinth ? 0.45 : undefined,
       });
     }
 
@@ -405,13 +419,11 @@ export class IsometricRenderer {
     });
 
     // Zócalos frontales por módulo (plinth).
-    // Se colocan en la parte inferior frontal, ocupando el ancho del módulo y
-    // con la profundidad dada por su espesor. El offset por pieza controla el
-    // receso desde el frente.
+    // Se colocan en la parte inferior frontal, con clasificación de montaje
+    // externo/interno/custom análoga a la del fondo.
     localPlinths.forEach((plinth) => {
+      const mount = classifyPlinthMount(plinth, moduleW, effectiveZocaloHeight, thickness);
       const dims = getPieceDims(plinth, 'plinth', thickness, family);
-      const plinthW = Math.min(dims.w || moduleW, moduleW);
-      const plinthH = Math.min(dims.h || effectiveZocaloHeight, effectiveZocaloHeight);
       const plinthD = Number(plinth.espesor) || thickness;
       const cfg = getPieceOffsetConfig(
         plinth,
@@ -420,7 +432,20 @@ export class IsometricRenderer {
         {}
       );
       const recess = Number.isFinite(cfg.offset) ? cfg.offset : 0;
-      const x = Math.max(0, (moduleW - plinthW) / 2);
+      let plinthW, plinthH, x;
+      if (mount === 'external') {
+        plinthW = moduleW;
+        plinthH = effectiveZocaloHeight;
+        x = 0;
+      } else if (mount === 'internal') {
+        plinthW = Math.max(0, moduleW - 2 * thickness);
+        plinthH = effectiveZocaloHeight;
+        x = thickness;
+      } else {
+        plinthW = Math.min(dims.w || moduleW, moduleW);
+        plinthH = Math.min(dims.h || effectiveZocaloHeight, effectiveZocaloHeight);
+        x = Math.max(0, (moduleW - plinthW) / 2);
+      }
       const y = Math.max(0, moduleD - plinthD - recess);
       geometries.push({
         x, y, z: 0,

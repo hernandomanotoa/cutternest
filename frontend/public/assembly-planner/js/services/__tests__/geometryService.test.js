@@ -6,6 +6,7 @@ import {
   getModuleDimensions,
   classifyBackPanelMount,
   classifyTopBottomMount,
+  classifyPlinthMount,
   shelfRank,
   calculateShelfPositions,
 } from '../geometryService.js';
@@ -130,6 +131,28 @@ describe('classifyTopBottomMount', () => {
   it('allows ±2 mm tolerance for internal panels', () => {
     const bottom = piece('Base', 772, 522, 15);
     assert.equal(classifyTopBottomMount(bottom, 800, 550, 15), 'internal');
+  });
+});
+
+describe('classifyPlinthMount', () => {
+  it('detects external plinth matching full module width and plinth height', () => {
+    const plinth = piece('Zócalo', 800, 100, 15);
+    assert.equal(classifyPlinthMount(plinth, 800, 100, 15), 'external');
+  });
+
+  it('detects internal plinth inset by thickness on each side', () => {
+    const plinth = piece('Zócalo', 770, 100, 15);
+    assert.equal(classifyPlinthMount(plinth, 800, 100, 15), 'internal');
+  });
+
+  it('returns custom for arbitrary dimensions', () => {
+    const plinth = piece('Zócalo', 600, 80, 15);
+    assert.equal(classifyPlinthMount(plinth, 800, 100, 15), 'custom');
+  });
+
+  it('uses default thickness 15 when not provided', () => {
+    const plinth = piece('Zócalo', 770, 100, 15);
+    assert.equal(classifyPlinthMount(plinth, 800, 100), 'internal');
   });
 });
 
