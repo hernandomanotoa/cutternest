@@ -231,9 +231,9 @@ export class IsometricRenderer {
 
     const xFactor = this.isoFlip ? -this.isoDepth : this.isoDepth;
     const sorted = sortByDepth(geometries, xFactor);
-    const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries);
-
     const isAllView = target === ALL_MODULE_ID;
+    const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries, isAllView);
+
     const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView, thickness);
     this.container.innerHTML = svg;
   }
@@ -1089,7 +1089,7 @@ export class IsometricRenderer {
     return strokes[role] || { color: ROLE_COLORS.default, width: 1 };
   }
 
-  _calculateViewport(geometries) {
+  _calculateViewport(geometries, isAllView = false) {
     // PASADA 1: proyectar TODOS los vértices con origen provisional (0,0)
     // para descubrir el rango real de coordenadas (incluyendo negativas).
     let minX = Infinity;
@@ -1116,12 +1116,15 @@ export class IsometricRenderer {
     const titleSpace = 60 * this.textScale;
     const axesSpace = this.showAxes ? 70 * this.textScale : 0;
 
-    // PASADA 2: desplazar todo al área positiva, dejando padding
-    const originX = -minX + this.padding;
-    const originY = -minY + this.padding + titleSpace;
+    const dimensionSpaceX = this.showDimensions && !isAllView ? 100 * this.textScale : 0;
+    const dimensionSpaceY = this.showDimensions && !isAllView ? 45 * this.textScale : 0;
 
-    const viewBoxW = Math.ceil(contentW + 2 * this.padding);
-    const viewBoxH = Math.ceil(contentH + 2 * this.padding + titleSpace + axesSpace);
+    // PASADA 2: desplazar todo al área positiva, dejando padding
+    const originX = -minX + this.padding + dimensionSpaceX;
+    const originY = -minY + this.padding + titleSpace + dimensionSpaceY;
+
+    const viewBoxW = Math.ceil(contentW + 2 * this.padding + dimensionSpaceX);
+    const viewBoxH = Math.ceil(contentH + 2 * this.padding + titleSpace + axesSpace + dimensionSpaceY);
 
     return {
       viewBox: `0 0 ${viewBoxW} ${viewBoxH}`,
@@ -1180,17 +1183,17 @@ export class IsometricRenderer {
 
   _drawMainDimensions(ox, oy, moduleW, moduleD, moduleH) {
     // Cotas globales del módulo: ancho (X), profundidad (Y) y alto (Z).
-    // Se dibujan sobre las aristas visibles de la caja envolvente.
-    const p000 = this._isoProject(0, moduleD, 0, ox, oy);        // inferior-izq-frontal
-    const pW00 = this._isoProject(moduleW, moduleD, 0, ox, oy);   // inferior-der-frontal
-    const p0D0 = this._isoProject(moduleW, 0, 0, ox, oy);         // inferior-der-trasera
-    const pW0H = this._isoProject(moduleW, moduleD, moduleH, ox, oy); // superior-der-frontal
+    // Se dibujan sobre la arista trasera para no tapar la vista frontal.
+    const p000 = this._isoProject(0, 0, 0, ox, oy);              // inferior-izq-trasera
+    const pW00 = this._isoProject(moduleW, 0, 0, ox, oy);       // inferior-der-trasera
+    const p0D0 = this._isoProject(0, moduleD, 0, ox, oy);        // inferior-izq-frontal
+    const pW0H = this._isoProject(moduleW, 0, moduleH, ox, oy);  // superior-der-trasera
     let svg = '';
-    // Ancho (X): arista inferior frontal
-    svg += this._drawDimensionLine(p000, pW00, Math.round(moduleW), 0, 18, AXES_COLORS.x, 'dimArrowX');
-    // Profundidad (Y): arista inferior derecha
-    svg += this._drawDimensionLine(p0D0, pW00, Math.round(moduleD), 18, 0, AXES_COLORS.y, 'dimArrowY');
-    // Alto (Z): arista frontal derecha vertical
+    // Ancho (X): arista inferior trasera
+    svg += this._drawDimensionLine(p000, pW00, Math.round(moduleW), 0, -18, AXES_COLORS.x, 'dimArrowX');
+    // Profundidad (Y): arista trasera izquierda
+    svg += this._drawDimensionLine(p000, p0D0, Math.round(moduleD), -18, 0, AXES_COLORS.y, 'dimArrowY');
+    // Alto (Z): arista trasera derecha vertical
     svg += this._drawDimensionLine(pW00, pW0H, Math.round(moduleH), 28, 0, AXES_COLORS.z, 'dimArrowZ');
     return svg;
   }
@@ -1211,40 +1214,93 @@ export class IsometricRenderer {
     const topBottom = top ? top.z : moduleH - t;
 
     let svg = '';
-    let currentOffX = 55;
+    let currentOffX = -55;
 
     const drawSegment = (z1, z2, value, color, label) => {
       if (value <= 0) return '';
-      const p1 = this._isoProject(moduleW, moduleD, z1, ox, oy);
-      const p2 = this._isoProject(moduleW, moduleD, z2, ox, oy);
+      const p1 = this._isoProject(0, 0, z1, ox, oy);
+      const p2 = this._isoProject(0, 0, z2, ox, oy);
       const line = this._drawDimensionLine(p1, p2, Math.round(value), currentOffX, 0, color, 'dimArrow');
-      currentOffX += 18;
+      currentOffX -= 18;
       return line;
+    };
+
+    const drawGapStack = (items, baseColor) => {
+      if (!items.length) return '';
+      items.sort((a, b) => a.z - b.z);
+      let s = '';
+      const first = items[0];
+      const firstGap = first.z - baseTop;
+      if (firstGap > 0) {
+        s += drawSegment(baseTop, first.z, firstGap, baseColor, 'baseOffset');
+      }
+      for (let i = 1; i < items.length; i++) {
+        const prev = items[i - 1];
+        const curr = items[i];
+        const gap = curr.z - (prev.z + prev.h);
+        if (gap > 0) {
+          s += drawSegment(prev.z + prev.h, curr.z, gap, baseColor, 'gap');
+        }
+      }
+      return s;
     };
 
     // Offset de la base desde el suelo.
     svg += drawSegment(0, baseBottom, baseBottom, '#f59e0b', 'bottomPanelOffset');
 
-    // Gap desde la cara superior de la base hasta la primera pieza interior.
-    const firstInnerGap = v('firstInnerGap');
-    svg += drawSegment(baseTop, baseTop + firstInnerGap, firstInnerGap, '#4ECDC4', 'firstInnerGap');
+    // Zapateros: offset desde la base + gaps.
+    const shoeRacks = geometries.filter(
+      (g) => g.role === 'shelf' && isShoeRack({ nombre: g.name, id: g.id })
+    );
+    svg += drawGapStack(shoeRacks, '#10b981');
 
-    // Insets desde la cara inferior de la tapa.
-    if (geometries.some((g) => g.role === 'shelf')) {
-      const shelfTopInset = v('shelfTopInset');
-      svg += drawSegment(topBottom - shelfTopInset, topBottom, shelfTopInset, '#f97316', 'shelfTopInset');
-    }
+    // Repisas (no zapateros): offset desde la base + gaps.
+    const shelves = geometries.filter(
+      (g) => g.role === 'shelf' && !isShoeRack({ nombre: g.name, id: g.id })
+    );
+    svg += drawGapStack(shelves, '#4ECDC4');
 
-    if (geometries.some((g) => g.role === 'door')) {
+    // Frentes de cajón: offset desde la base + gaps.
+    const drawers = geometries.filter((g) => g.role === 'drawer_face');
+    svg += drawGapStack(drawers, '#f59e0b');
+
+    // Puertas: base offset, top inset y gap entre puertas.
+    const doors = geometries.filter((g) => g.role === 'door').sort((a, b) => a.z - b.z);
+    if (doors.length) {
+      const doorBaseOffset = doors[0].z - baseTop;
+      if (doorBaseOffset > 0) {
+        svg += drawSegment(baseTop, doors[0].z, doorBaseOffset, '#3b82f6', 'doorBaseOffset');
+      }
+      for (let i = 1; i < doors.length; i++) {
+        const prev = doors[i - 1];
+        const gap = doors[i].x - (prev.x + prev.w);
+        if (gap > 0) {
+          // Cota horizontal de gap entre puertas (en arista superior trasera).
+          const p1 = this._isoProject(prev.x + prev.w, 0, topBottom, ox, oy);
+          const p2 = this._isoProject(doors[i].x, 0, topBottom, ox, oy);
+          svg += this._drawDimensionLine(p1, p2, Math.round(gap), 0, -18, '#3b82f6', 'dimArrow');
+        }
+      }
       const doorTopInset = v('doorTopInset');
-      svg += drawSegment(topBottom - doorTopInset, topBottom, doorTopInset, '#3b82f6', 'doorTopInset');
+      if (doorTopInset > 0) {
+        svg += drawSegment(topBottom - doorTopInset, topBottom, doorTopInset, '#3b82f6', 'doorTopInset');
+      }
     }
 
-    if (geometries.some((g) => g.role === 'brace')) {
+    // Travesaños: base offset y top inset.
+    const braces = geometries.filter((g) => g.role === 'brace').sort((a, b) => a.z - b.z);
+    if (braces.length) {
+      const braceBaseOffset = braces[0].z - baseTop;
+      if (braceBaseOffset > 0) {
+        svg += drawSegment(baseTop, braces[0].z, braceBaseOffset, '#94a3b8', 'braceBaseOffset');
+      }
       const braceTopInset = v('braceTopInset');
-      svg += drawSegment(topBottom - braceTopInset, topBottom, braceTopInset, '#94a3b8', 'braceTopInset');
+      if (braceTopInset > 0) {
+        svg += drawSegment(topBottom - braceTopInset, topBottom, braceTopInset, '#94a3b8', 'braceTopInset');
+      }
     }
 
+    // Espejo: inset desde tapa.
     if (geometries.some((g) => g.role === 'mirror')) {
       const mirrorTopInset = v('mirrorTopInset');
       svg += drawSegment(topBottom - mirrorTopInset, topBottom, mirrorTopInset, '#DDA0DD', 'mirrorTopInset');

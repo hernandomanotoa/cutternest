@@ -366,6 +366,7 @@ describe('IsometricRenderer front panel stacking', () => {
   });
 });
 
+
 describe('IsometricRenderer shoe rack label', () => {
   it('labels feminine shoe racks as Zapatero', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
@@ -383,5 +384,39 @@ describe('IsometricRenderer shoe rack label', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const label = renderer._makeLabel({ role: 'shelf', name: 'Zapatero inferior M1', id: 'm1-zapatero' });
     assert.equal(label, 'Zapatero');
+  });
+});
+
+describe('IsometricRenderer rear offset/gap dimensions', () => {
+  it('draws shelf middle base offset and gap on the rear edge', () => {
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-repisa-med', nombre: 'Repisa media M1', ancho: 800, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 18, modulo: '1' },
+      { id: 'm1-repisa-central', nombre: 'Repisa central M1', ancho: 800, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 18, modulo: '1' },
+    ];
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, {
+      scale: 0.12,
+      showDimensions: true,
+      verticalPositionOverrides: { shelfMiddleBaseOffset: 100, shelfMiddleGap: 45 },
+    });
+    renderer.render('1', pieces);
+    const svg = container.innerHTML;
+    assert.ok(svg.includes('>100<'), 'shelf middle base offset dimension should be shown');
+    assert.ok(svg.includes('>45<'), 'shelf middle gap dimension should be shown');
+  });
+
+  it('draws shoe rack base offset and gap', () => {
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-zapatero-inf', nombre: 'Zapatero inferior M1', ancho: 800, alto: 300, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 18, modulo: '1' },
+      { id: 'm1-zapatero-sup', nombre: 'Zapatero superior M1', ancho: 800, alto: 300, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 18, modulo: '1' },
+    ];
+    const container = { innerHTML: '' };
+    const renderer = new IsometricRenderer(container, { scale: 0.12, showDimensions: true, verticalPositionOverrides: { shoeRackBaseOffset: 80, shoeRackGap: 60 } });
+    renderer.render('1', pieces);
+    const svg = container.innerHTML;
+    assert.ok(svg.includes('>80<'), 'shoe rack base offset dimension should be shown');
+    assert.ok(svg.includes('>60<'), 'shoe rack gap dimension should be shown');
   });
 });

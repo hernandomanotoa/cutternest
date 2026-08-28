@@ -77,7 +77,19 @@ Algunos grupos de piezas se apilan usando un par de valores: un offset desde la 
 
 Ambos valores se pueden editar en el panel **Offsets verticales** de la vista isométrica. El panel se puede colapsar o expandir con el botón ▼/▶ de su cabecera.
 
-Cuando `showDimensions` está activo, el SVG en vista normal muestra **cotas de offsets verticales** en la arista derecha-trasera del módulo, a la derecha de la cota de altura total.
+Cuando `showDimensions` está activo, el SVG en vista normal muestra **cotas en la parte trasera** del módulo para no tapar la vista frontal:
+
+- **Cotas globales**: ancho (X) sobre la arista trasera inferior, profundidad (Y) sobre la arista trasera izquierda y alto (Z) sobre la arista trasera derecha.
+- **Cotas verticales de offsets y gaps**: se dibujan sobre la arista trasera izquierda y muestran:
+  - `bottomPanelOffset` (base desde el suelo).
+  - `shoeRackBaseOffset` y `shoeRackGap` para zapateros.
+  - `shelfBaseOffset`, `shelfMiddleBaseOffset` y `shelfMiddleGap` para repisas/estantes.
+  - `drawerBaseOffset` y `drawerFaceGap` para frentes de cajón.
+  - `doorBaseOffset`, `doorTopInset` y `doorGap` para puertas.
+  - `braceBaseOffset` y `braceTopInset` para travesaños.
+  - `mirrorTopInset` para espejos.
+
+El `viewBox` se expande automáticamente cuando las cotas están activas para evitar que se corten.
 
 ### Laterales (`side_panel`)
 
