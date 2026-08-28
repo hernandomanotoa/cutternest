@@ -937,6 +937,17 @@ export class IsometricRenderer {
     };
   }
 
+  _polygonArea(projected, indices) {
+    let area = 0;
+    const n = indices.length;
+    for (let i = 0; i < n; i++) {
+      const a = projected[indices[i]];
+      const b = projected[indices[(i + 1) % n]];
+      area += a.x * b.y - b.x * a.y;
+    }
+    return Math.abs(area) / 2;
+  }
+
   _buildSVG(geometries, viewBox, ox, oy, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView = false, thickness = 15) {
     const polygons = [];
     const labels = [];
@@ -964,6 +975,7 @@ export class IsometricRenderer {
       const opacity = geo.opacity ?? 1;
 
       faces.forEach((face) => {
+        if (this._polygonArea(projected, face.indices) < 0.5) return;
         const pts = face.indices.map((i) => `${projected[i].x},${projected[i].y}`).join(' ');
         polygons.push(
           `<polygon points="${pts}" fill="${colors[face.name]}" stroke="${stroke.color}" stroke-width="${stroke.width}" opacity="${opacity}" />`
