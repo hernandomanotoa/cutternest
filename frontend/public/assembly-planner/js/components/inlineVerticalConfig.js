@@ -16,7 +16,8 @@ const CONFIG_FIELDS = [
   // Repisas / estantes
   { key: 'shelfTopInset', label: 'Inset repisa superior desde tapa (mm)', roles: ['shelf'] },
   { key: 'shelfBaseOffset', label: 'Offset repisa inferior desde base (mm)', roles: ['shelf'] },
-  { key: 'shelfMiddleGap', label: 'Gap estantes regulables (mm)', roles: ['shelf'] },
+  { key: 'shelfMiddleBaseOffset', label: 'Offset estantes regulables desde base (mm)', roles: ['shelf'] },
+  { key: 'shelfMiddleGap', label: 'Gap entre estantes regulables (mm)', roles: ['shelf'] },
   // Zapateros
   { key: 'shoeRackBaseOffset', label: 'Offset zapatero desde base (mm)', zapatero: true },
   { key: 'shoeRackGap', label: 'Gap entre zapateros (mm)', zapatero: true },
@@ -41,6 +42,25 @@ const CONFIG_FIELDS = [
   { key: 'hangerRailHeight', label: 'Altura riel colgador (mm)', roles: ['hanger_rail'] },
 ];
 
+const COLLAPSE_KEY = 'cn-assembly-vertical-config-collapsed';
+
+function getCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setCollapsed(value) {
+  try {
+    if (value) localStorage.setItem(COLLAPSE_KEY, '1');
+    else localStorage.removeItem(COLLAPSE_KEY);
+  } catch {
+    // ignorar entornos sin storage
+  }
+}
+
 export function createInlineVerticalConfig() {
   function mount(parent, store) {
     const state = store.get();
@@ -57,12 +77,17 @@ export function createInlineVerticalConfig() {
       return true;
     });
 
+    const collapsed = getCollapsed();
+
     const root = document.createElement('div');
-    root.className = 'iso-config-panel card';
+    root.className = `iso-config-panel card${collapsed ? ' is-collapsed' : ''}`;
     root.innerHTML = `
       <div class="iso-config-panel__header">
         <span>Offsets verticales</span>
-        <button class="btn btn--secondary btn--sm" data-reset>Restaurar defaults</button>
+        <div class="iso-config-panel__actions">
+          <button class="btn btn--icon btn--sm" data-toggle title="Ocultar/mostrar offsets">${collapsed ? '▶' : '▼'}</button>
+          <button class="btn btn--secondary btn--sm" data-reset>Restaurar defaults</button>
+        </div>
       </div>
       <div class="iso-config-panel__body">
         ${
@@ -90,6 +115,13 @@ export function createInlineVerticalConfig() {
         }
       </div>
     `;
+
+    const toggleBtn = root.querySelector('[data-toggle]');
+    toggleBtn?.addEventListener('click', () => {
+      const next = !root.classList.toggle('is-collapsed');
+      toggleBtn.textContent = next ? '▼' : '▶';
+      setCollapsed(!next);
+    });
 
     root.querySelectorAll('input[data-config-key]').forEach((input) => {
       input.addEventListener('change', () => {

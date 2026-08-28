@@ -148,6 +148,7 @@ export const VERTICAL_POSITIONS = {
 
   // ── Gap entre piezas del mismo tipo (apilado) ────────────────
   defaultGap: 20,            // gap genérico entre piezas
+  shelfMiddleBaseOffset: 20, // offset estantes regulables desde la cara superior de la base
   shelfMiddleGap: 20,        // gap entre repisas/estantes regulables
   shoeRackGap: 20,           // gap entre zapateros
   drawerFaceGap: 20,         // gap entre frentes de cajón

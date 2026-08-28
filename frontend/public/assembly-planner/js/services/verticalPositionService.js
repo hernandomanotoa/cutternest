@@ -179,7 +179,13 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   const shoeRackBaseOffset =
     overrides.shoeRackBaseOffset ?? VERTICAL_POSITIONS.shoeRackBaseOffset;
   const shoeRackGap = overrides.shoeRackGap ?? VERTICAL_POSITIONS.shoeRackGap;
+  const shelfMiddleBaseOffset =
+    overrides.shelfMiddleBaseOffset ?? VERTICAL_POSITIONS.shelfMiddleBaseOffset;
   const shelfMiddleGap = overrides.shelfMiddleGap ?? VERTICAL_POSITIONS.shelfMiddleGap;
+
+  function v(key) {
+    return overrides[key] ?? VERTICAL_POSITIONS[key];
+  }
 
   const items = pieces.map((piece) => {
     const zone = determineVerticalZone(piece);
@@ -213,17 +219,28 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       currentTop = item.y - gap;
     });
 
+  // Helper genérico para apilar piezas fijas inferiores (zapateros) con un offset
+  // desde la cara superior de la base y un gap constante entre ellas.
+  function stackFixedBottom(items) {
+    const baseOffset = v('shoeRackBaseOffset');
+    const gap = v('shoeRackGap');
+    let cursor = baseTop + baseOffset;
+    items
+      .slice()
+      .sort((a, b) => a.y - b.y)
+      .forEach((item) => {
+        if (!item.hasPosZ) {
+          item.y = Math.max(item.y, cursor);
+        }
+        cursor = item.y + item.h + gap;
+      });
+    return cursor;
+  }
+
   // Piezas 'fixed-bottom' (zapatero): offset y gap propios.
-  let currentFixed = baseTop + shoeRackBaseOffset;
-  fixedItems
-    .slice()
-    .sort((a, b) => a.y - b.y)
-    .forEach((item) => {
-      if (!item.hasPosZ) {
-        item.y = Math.max(item.y, currentFixed);
-      }
-      currentFixed = item.y + item.h + shoeRackGap;
-    });
+  const currentFixed = fixedItems.length
+    ? stackFixedBottom(fixedItems)
+    : baseTop + v('shoeRackBaseOffset');
 
   // Piezas 'bottom': cerca de la base; si hay zapatero, se apilan encima de él.
   let currentBottom = fixedItems.length ? currentFixed : baseTop + firstInnerGap;
@@ -269,8 +286,8 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
     : drawerItems.length
       ? currentDrawer
       : fixedItems.length
-        ? currentFixed - shoeRackGap + effectiveMiddleGap
-        : baseTop + firstInnerGap;
+        ? currentFixed - v('shoeRackGap') + effectiveMiddleGap
+        : baseTop + v('shelfMiddleBaseOffset');
 
   // Ordenar de abajo hacia arriba para apilar de forma consecutiva.
   distributeItems.sort((a, b) => a.y - b.y);

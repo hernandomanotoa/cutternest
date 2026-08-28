@@ -66,6 +66,17 @@ El render usa tres tipos de medidas verticales, con nombres estandarizados:
 | `Gap`    | Espacio libre entre dos piezas.                                              | `shelfMiddleGap`: separación entre repisas regulables. |
 | `Inset`  | Distancia hacia adentro desde un borde superior o frontal.                   | `shelfTopInset`: distancia desde la cara inferior de la tapa hasta la repisa superior. |
 
+#### Pares Offset + Gap
+
+Algunos grupos de piezas se apilan usando un par de valores: un offset desde la base y un gap entre elementos consecutivos.
+
+| Grupo                  | Offset                                | Gap                          |
+|------------------------|----------------------------------------|------------------------------|
+| Estantes regulables    | `shelfMiddleBaseOffset`               | `shelfMiddleGap`             |
+| Zapateros              | `shoeRackBaseOffset`                  | `shoeRackGap`                |
+
+Ambos valores se pueden editar en el panel **Offsets verticales** de la vista isométrica. El panel se puede colapsar o expandir con el botón ▼/▶ de su cabecera.
+
 Cuando `showDimensions` está activo, el SVG en vista normal muestra **cotas de offsets verticales** en la arista derecha-trasera del módulo, a la derecha de la cota de altura total.
 
 ### Laterales (`side_panel`)

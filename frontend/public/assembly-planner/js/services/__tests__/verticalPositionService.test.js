@@ -144,8 +144,8 @@ describe('calculateVerticalPositions', () => {
     const ys = positions.map((p) => p.y);
     // Middle shelves are stacked from base upward.
     assert.ok(ys[0] < ys[1] && ys[1] < ys[2]);
-    // First shelf sits above the bottom panel with firstInnerGap.
-    assert.equal(ys[0], baseTop + VERTICAL_POSITIONS.firstInnerGap);
+    // First shelf sits above the bottom panel with shelfMiddleBaseOffset.
+    assert.equal(ys[0], baseTop + VERTICAL_POSITIONS.shelfMiddleBaseOffset);
     // Gaps between consecutive middle shelves use shelfMiddleGap.
     const gap01 = ys[1] - (ys[0] + 18);
     const gap12 = ys[2] - (ys[1] + 18);
@@ -234,9 +234,22 @@ describe('calculateVerticalPositions', () => {
     const baseOffset = 80;
     const positions = calculateVerticalPositions(600, 18, shelves, { baseOffset });
     const expectedBaseTop = baseOffset + 18;
-    assert.equal(positions[0].y, expectedBaseTop + VERTICAL_POSITIONS.firstInnerGap);
+    assert.equal(positions[0].y, expectedBaseTop + VERTICAL_POSITIONS.shelfMiddleBaseOffset);
     const gap = positions[1].y - (positions[0].y + positions[0].h);
     assert.equal(gap, VERTICAL_POSITIONS.shelfMiddleGap);
+  });
+
+  it('uses shelfMiddleBaseOffset as the starting point for middle shelves', () => {
+    const shelves = [
+      piece('Repisa 1'),
+      piece('Repisa 2'),
+    ];
+    const positions = calculateVerticalPositions(600, 18, shelves, {
+      overrides: { shelfMiddleBaseOffset: 120, shelfMiddleGap: 80 },
+    });
+    assert.equal(positions[0].y, baseTop + 120);
+    const gap = positions[1].y - (positions[0].y + positions[0].h);
+    assert.equal(gap, 80);
   });
 
   it('returns empty array when no pieces', () => {

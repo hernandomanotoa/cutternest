@@ -617,13 +617,17 @@ tr.csv-row-inactive td {
   position: absolute;
   top: 0;
   right: 0;
-  width: 220px;
+  width: 400px;
   max-height: calc(100vh - 12rem);
   overflow-y: auto;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
+}
+
+.iso-config-panel.is-collapsed .iso-config-panel__body {
+  display: none;
 }
 
 .iso-config-panel__header {
@@ -638,16 +642,33 @@ tr.csv-row-inactive td {
   color: var(--text-primary);
 }
 
+.iso-config-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.iso-config-panel__actions .btn--icon {
+  padding: 0.25rem 0.4rem;
+  min-width: 1.6rem;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
 .iso-config-panel__body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
   padding: 0.75rem;
 }
 
 .iso-config-panel .form-group {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
 }
 
-.iso-config-panel .form-group:last-child {
-  margin-bottom: 0;
+.iso-config-panel .empty-state {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .iso-config-panel label {
@@ -658,4 +679,10 @@ tr.csv-row-inactive td {
   width: 100%;
   padding: 0.35rem 0.5rem;
   font-size: 0.8rem;
+}
+
+@media (max-width: 480px) {
+  .iso-config-panel {
+    width: calc(100vw - 2rem);
+  }
 }
