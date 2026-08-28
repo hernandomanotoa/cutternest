@@ -36,7 +36,7 @@ describe('userConfigService', () => {
   describe('loadUserConfig', () => {
     it('returns defaults when localStorage is empty', () => {
       const config = loadUserConfig();
-      assert.deepEqual(config, VERTICAL_POSITIONS);
+      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {} });
     });
 
     it('merges saved overrides with defaults', () => {
@@ -63,7 +63,7 @@ describe('userConfigService', () => {
     it('falls back to defaults when localStorage is unavailable', () => {
       delete globalThis.localStorage;
       const config = loadUserConfig();
-      assert.deepEqual(config, VERTICAL_POSITIONS);
+      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {} });
     });
   });
 
@@ -73,6 +73,13 @@ describe('userConfigService', () => {
       const raw = storage.getItem('cn-assembly-config');
       const saved = JSON.parse(raw);
       assert.deepEqual(saved, { defaultGap: 35 });
+    });
+
+    it('stores pieceOffsets overrides', () => {
+      saveUserConfig({ ...VERTICAL_POSITIONS, pieceOffsets: { r1: { offset: 10, gap: 20 } } });
+      const raw = storage.getItem('cn-assembly-config');
+      const saved = JSON.parse(raw);
+      assert.deepEqual(saved.pieceOffsets, { r1: { offset: 10, gap: 20 } });
     });
 
     it('does nothing when values match defaults', () => {

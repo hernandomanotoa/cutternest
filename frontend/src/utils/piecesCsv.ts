@@ -2,10 +2,11 @@ import type { PieceInput } from '../types'
 
 const VERSION = 'CutterNest Piezas v1'
 const BASE_COLUMNS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos']
-const OPTIONAL_COLUMNS = ['modulo']
+const OPTIONAL_COLUMNS = ['modulo', 'pos_z']
 const COLUMNS = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS]
-// Hash refleja el formato con rotate y modulo como columna opcional
-const TEMPLATE_HASH = 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3'
+const WITH_MODULO = [...BASE_COLUMNS, 'modulo']
+// Hash refleja el formato alineado con el Assembly Planner (11 columnas)
+const TEMPLATE_HASH = 'c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5'
 const BOM = '\uFEFF'
 
 export { VERSION, BASE_COLUMNS, OPTIONAL_COLUMNS, COLUMNS, TEMPLATE_HASH }
@@ -69,6 +70,7 @@ export function generateCsv(pieces: PieceInput[]): string {
         String(p.espesor),
         escapeCsv(p.cantos || ''),
         escapeCsv(p.modulo || ''),
+        p.pos_z != null ? String(p.pos_z) : '',
       ].join(',')
     )
     .join('\n')
@@ -99,13 +101,12 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
   if (header === null) {
     return { valid: false, error: 'Archivo no valido: falta la fila de encabezados' }
   }
-  const hasModulo = header.length === COLUMNS.length && headerMatches(header, COLUMNS)
+  const full = header.length === COLUMNS.length && headerMatches(header, COLUMNS)
+  const withModuloOnly = header.length === WITH_MODULO.length && headerMatches(header, WITH_MODULO)
   const baseOnly = header.length === BASE_COLUMNS.length && headerMatches(header, BASE_COLUMNS)
-  if (!hasModulo && !baseOnly) {
-    return { valid: false, error: `Archivo no valido: las columnas deben ser ${BASE_COLUMNS.join(', ')} (opcionalmente seguido de modulo)` }
+  if (!full && !withModuloOnly && !baseOnly) {
+    return { valid: false, error: `Archivo no valido: las columnas deben ser ${BASE_COLUMNS.join(', ')} (opcionalmente seguido de modulo y pos_z)` }
   }
-
-  const hasModuloCol = hasModulo
 
   const pieces: PieceInput[] = []
   let rowIndex = 0
@@ -117,10 +118,12 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
     }
     rowIndex++
     const values = parseCsvLine(line).map((v) => unescapeCsv(v).trim())
-    const expectedCols = hasModuloCol ? COLUMNS.length : BASE_COLUMNS.length
+    const expectedCols = full ? COLUMNS.length : withModuloOnly ? WITH_MODULO.length : BASE_COLUMNS.length
     if (values.length !== expectedCols) {
       return { valid: false, error: `Fila ${rowIndex}: numero de columnas incorrecto` }
     }
+    const normalized = [...values]
+    while (normalized.length < COLUMNS.length) normalized.push('')
     const [
       id,
       nombre,
@@ -132,7 +135,8 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
       espesorStr,
       cantos,
       modulo,
-    ] = hasModuloCol ? values : [...values, '']
+      posZStr,
+    ] = normalized
     if (!nombre) {
       return { valid: false, error: `Fila ${rowIndex}: el nombre es obligatorio` }
     }
@@ -158,6 +162,14 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
     if (rotateStr !== 'si' && rotateStr !== 'no') {
       return { valid: false, error: `Fila ${rowIndex}: rotate debe ser 'si' o 'no'` }
     }
+    let pos_z: number | undefined
+    if (posZStr !== '') {
+      const parsed = parseFloat(posZStr)
+      if (Number.isNaN(parsed)) {
+        return { valid: false, error: `Fila ${rowIndex}: pos_z debe ser numérico` }
+      }
+      pos_z = parsed
+    }
     pieces.push({
       id: id || nombre.toLowerCase().replace(/\s+/g, '-'),
       nombre,
@@ -169,6 +181,7 @@ export function parseCsv(text: string): { valid: true; pieces: PieceInput[] } | 
       espesor,
       cantos: cantos || '',
       modulo: modulo || undefined,
+      pos_z,
     })
   }
 

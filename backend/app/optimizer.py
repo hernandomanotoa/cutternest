@@ -53,9 +53,14 @@ def _validate_pieces_fit(
     board_width_mm: float,
     board_height_mm: float,
     margin_mm: float,
+    kerf_mm: float,
     rects: List[Tuple[float, float, str, bool, Dict[str, Any]]],
 ) -> None:
-    """Rechaza piezas que no caben en el tablero utilizable ni rotando."""
+    """Rechaza piezas que no caben en el tablero utilizable ni rotando.
+
+    La pieza se considera con su tamaño real más el kerf (ancho de la sierra),
+    para garantizar que quepa respetando el margen del tablero.
+    """
     usable_w = board_width_mm - 2 * margin_mm
     usable_h = board_height_mm - 2 * margin_mm
     if usable_w <= 0 or usable_h <= 0:
@@ -65,7 +70,10 @@ def _validate_pieces_fit(
         )
 
     for w, h, rid, rot, original in rects:
-        fits = (w <= usable_w and h <= usable_h) or (rot and h <= usable_w and w <= usable_h)
+        fits = (
+            (w + kerf_mm <= usable_w and h + kerf_mm <= usable_h)
+            or (rot and h + kerf_mm <= usable_w and w + kerf_mm <= usable_h)
+        )
         if not fits:
             name = original.get("nombre", rid.rsplit("__", 1)[0])
             raise HTTPException(
@@ -92,7 +100,7 @@ def optimize_cuts(
     margin_mm = margin_mm if margin_mm is not None else settings.margen_mm
 
     rects = _expanded_rects(pieces)
-    _validate_pieces_fit(board_width_mm, board_height_mm, margin_mm, rects)
+    _validate_pieces_fit(board_width_mm, board_height_mm, margin_mm, kerf_mm, rects)
 
     # Preparar bins: sobrantes primero, luego tableros nuevos de respaldo.
     offcut_boards = []
@@ -108,18 +116,27 @@ def optimize_cuts(
 
     packer = _packer_with_best_algorithm(rotation=True)
 
+    # Área útil para tableros nuevos (se descuenta el margen de los bordes).
+    usable_w = board_width_mm - 2 * margin_mm
+    usable_h = board_height_mm - 2 * margin_mm
+
+    # Dimensiones originales (con kerf) para detectar rotación correctamente.
     # rectpack 0.2.2 solo soporta rotación global; la validación previa respeta el
     # flag `rotate` de cada pieza rechazando piezas que no caben sin rotar.
+    orig_dims: Dict[str, Tuple[float, float]] = {}
     for w, h, rid, _rot, _ in rects:
-        packer.add_rect(w, h, rid)
+        w_kerf = w + kerf_mm
+        h_kerf = h + kerf_mm
+        orig_dims[rid] = (w_kerf, h_kerf)
+        packer.add_rect(w_kerf, h_kerf, rid)
 
-    # Sobrantes como bins finitos.
+    # Sobrantes como bins finitos (ya vienen en medidas útiles, sin margen).
     for off in offcut_boards:
         packer.add_bin(off["width"], off["height"], bid=off["bid"])
 
-    # Tableros nuevos de respaldo (límite razonable).
+    # Tableros nuevos de respaldo (área útil, con margen ya descontado).
     for i in range(50):
-        packer.add_bin(board_width_mm, board_height_mm, bid=f"nuevo_{i}")
+        packer.add_bin(usable_w, usable_h, bid=f"nuevo_{i}")
 
     packer.pack()
 
@@ -127,26 +144,28 @@ def optimize_cuts(
     bins: Dict[str, Dict[str, Any]] = {}
     for abin in packer:
         bid = abin.bid
+        is_new_board = bid.startswith("nuevo_")
         if bid not in bins:
             bins[bid] = {
-                "width": abin.width,
-                "height": abin.height,
+                "width": abin.width + (2 * margin_mm if is_new_board else 0),
+                "height": abin.height + (2 * margin_mm if is_new_board else 0),
                 "placements": [],
             }
         for rect in abin:
             rid = rect.rid
             base_id, _idx = rid.rsplit("__", 1)
             original = next((r[4] for r in rects if r[2] == rid), None)
+            ow, _oh = orig_dims.get(rid, (rect.width, rect.height))
             bins[bid]["placements"].append({
                 "id": base_id,
                 "nombre": original["nombre"] if original else base_id,
-                "x": rect.x,
-                "y": rect.y,
-                "w": rect.width,
-                "h": rect.height,
+                "x": rect.x + (margin_mm if is_new_board else 0),
+                "y": rect.y + (margin_mm if is_new_board else 0),
+                "w": rect.width - kerf_mm,
+                "h": rect.height - kerf_mm,
                 "color": original.get("color", "#3B82F6") if original else "#3B82F6",
                 "espesor": original.get("espesor", 18.0) if original else 18.0,
-                "rotado": rect.width != float(original["ancho"]) if original else False,
+                "rotado": abs(rect.width - ow) > 1e-6,
             })
 
     # Filtrar bins vacíos, reindexar y calcular métricas.

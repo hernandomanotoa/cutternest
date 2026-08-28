@@ -11,8 +11,6 @@ import toast from 'react-hot-toast'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Box,
-  ChevronLeft,
-  ChevronRight,
   Clipboard,
   Copy,
   Download,
@@ -28,6 +26,7 @@ import {
   Scissors,
   Trash2,
   Upload,
+  X,
 } from 'lucide-react'
 import { api, API_BASE_URL } from '../../api/client'
 import { getApiErrorMessage } from '../../utils/apiError'
@@ -64,6 +63,7 @@ import {
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { Badge } from '../ui/Badge'
+import { Tabs, TabsTrigger } from '../ui/Tabs'
 import { Tooltip } from '../ui/Tooltip'
 import { useSelectionStore } from '../../stores/selectionStore'
 
@@ -84,7 +84,6 @@ const ejemploEstanteria: PieceInput[] = [
 const DEFAULT_MATERIAL = 'MDF Melamina'
 const DEFAULT_THICKNESS = 18
 const CONFIG_KEY = 'cutternest-optimizer-config'
-const PER_PAGE = 10
 
 interface PersistedConfig {
   tablero?: BoardInput
@@ -155,9 +154,16 @@ export function OptimizerPage() {
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(config.useOffcuts ?? false)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo'>('piezas')
-  const [page, setPage] = useState(1)
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null)
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
+  const [showTips, setShowTips] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      return window.localStorage.getItem('cutternest-optimizer-tips') !== 'dismissed'
+    } catch {
+      return true
+    }
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { selectedPieceCode, setSelectedPieceCode, clearSelection } = useSelectionStore()
 
@@ -192,10 +198,6 @@ export function OptimizerPage() {
   useEffect(() => {
     saveTemplate(piezas)
   }, [piezas])
-
-  useEffect(() => {
-    setPage(1)
-  }, [piezas.length])
 
   useEffect(() => {
     const handler = (e: globalThis.KeyboardEvent) => {
@@ -380,13 +382,6 @@ export function OptimizerPage() {
     }
   }, [projectId])
 
-  const totalPages = Math.max(1, Math.ceil(piezas.length / PER_PAGE))
-  const paginatedPieces = useMemo(
-    () => piezas.slice((page - 1) * PER_PAGE, page * PER_PAGE),
-    [piezas, page]
-  )
-  const startItem = piezas.length === 0 ? 0 : (page - 1) * PER_PAGE + 1
-  const endItem = Math.min(page * PER_PAGE, piezas.length)
   const groupedPieces = useMemo(() => groupPiecesByDimensions(piezas), [piezas])
   const totalPiecesCount = useMemo(() => totalPieces(piezas), [piezas])
 
@@ -496,7 +491,7 @@ export function OptimizerPage() {
   const handleRowKeyDown = (e: KeyboardEvent<HTMLInputElement>, rowIndex: number) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (rowIndex === paginatedPieces.length - 1 && page === totalPages) {
+      if (rowIndex === piezas.length - 1) {
         addEmptyRow()
       }
     }
@@ -507,6 +502,11 @@ export function OptimizerPage() {
   const avgUtilization = useMemo(() => {
     if (!result?.length) return null
     return Math.round(result.reduce((sum, b) => sum + b.utilizacion, 0) / result.length)
+  }, [result])
+
+  const totalAreaM2 = useMemo(() => {
+    if (!result?.length) return null
+    return (result.reduce((sum, b) => sum + b.ancho * b.alto, 0) / 1_000_000).toFixed(2)
   }, [result])
 
   const boardSelectorValue = useMemo(() => {
@@ -744,6 +744,17 @@ export function OptimizerPage() {
                   }
                 />
               </div>
+              <Input
+                type='number'
+                placeholder='Espesor (mm)'
+                value={currentPiece.espesor || ''}
+                onChange={(e) =>
+                  setCurrentPiece((p) => ({
+                    ...p,
+                    espesor: parseFloat(e.target.value) || tablero.espesor,
+                  }))
+                }
+              />
               <label className='flex items-center gap-2 text-sm text-foreground'>
                 <input
                   type='checkbox'
@@ -781,10 +792,114 @@ export function OptimizerPage() {
               </Button>
             </CardContent>
           </Card>
+
+          {result && (
+            <Card className='border-l-4 border-l-primary'>
+              <CardHeader>
+                <CardTitle className='text-lg'>Resumen</CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <div className='grid grid-cols-3 gap-3'>
+                  <div>
+                    <p className='text-xs text-muted-foreground'>Tableros</p>
+                    <p className='text-2xl font-bold text-foreground'>{result.length}</p>
+                  </div>
+                  <div>
+                    <p className='text-xs text-muted-foreground'>Piezas</p>
+                    <p className='text-2xl font-bold text-foreground'>{totalPiecesCount}</p>
+                  </div>
+                  <div>
+                    <p className='text-xs text-muted-foreground'>Área total</p>
+                    <p className='text-2xl font-bold text-foreground'>{totalAreaM2 ?? '—'} m²</p>
+                  </div>
+                </div>
+                <div>
+                  <p className='text-sm text-muted-foreground'>Utilización promedio</p>
+                  <div className='flex items-baseline gap-2'>
+                    <p className='text-3xl font-bold text-foreground'>{avgUtilization}%</p>
+                    {avgUtilization !== null && (
+                      <Badge variant={utilizationTone(avgUtilization)}>
+                        {avgUtilization >= 85
+                          ? 'Excelente'
+                          : avgUtilization >= 70
+                          ? 'Buena'
+                          : 'Regular'}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className='grid grid-cols-2 gap-2 pt-2'>
+                  {projectId && (
+                    <>
+                      <Button asChild>
+                        <Link to={`/quote/${projectId}`}>
+                          <FileText className='mr-2 h-4 w-4' /> Cotizar
+                        </Link>
+                      </Button>
+                      <Button variant='secondary' asChild>
+                        <Link to={`/assembly/${projectId}`}>
+                          <Maximize2 className='mr-2 h-4 w-4' /> Ensamblaje
+                        </Link>
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    variant='outline'
+                    onClick={() => generatePdf('cutlist')}
+                    disabled={!projectId}
+                  >
+                    <FileText className='mr-2 h-4 w-4' /> Cut list
+                  </Button>
+                  <Button
+                    variant='outline'
+                    onClick={() => generatePdf('labels')}
+                    disabled={!projectId}
+                  >
+                    <RotateCw className='mr-2 h-4 w-4' /> Etiquetas
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {showTips && (
+            <Card>
+              <CardHeader>
+                <div className='flex items-center justify-between'>
+                  <CardTitle className='text-lg'>Consejos</CardTitle>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    onClick={() => {
+                      setShowTips(false)
+                      if (typeof window !== 'undefined') {
+                        try {
+                          window.localStorage.setItem('cutternest-optimizer-tips', 'dismissed')
+                        } catch {
+                          /* ignore */
+                        }
+                      }
+                    }}
+                    aria-label='Ocultar consejos'
+                  >
+                    <X className='h-4 w-4' />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className='list-disc space-y-1 pl-4 text-sm text-muted-foreground'>
+                  <li>Presiona Enter en la última celda para agregar una fila.</li>
+                  <li>Duplica piezas similares con el botón de copia.</li>
+                  <li>Usa el margen para simular restricciones reales de corte.</li>
+                  <li>El color de cada pieza se refleja en el layout 2D/3D.</li>
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Panel central: editor + canvas */}
-        <div className='space-y-6 xl:col-span-6'>
+        <div className='space-y-6 xl:col-span-9'>
           <Card>
             <CardHeader>
               <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
@@ -795,30 +910,10 @@ export function OptimizerPage() {
                   </CardDescription>
                 </div>
                 <div className='flex flex-wrap items-center gap-2'>
-                  <div className='flex rounded-md border border-border bg-muted p-1'>
-                    <button
-                      type='button'
-                      onClick={() => setActiveTab('piezas')}
-                      className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-                        activeTab === 'piezas'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Piezas ({piezas.length})
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setActiveTab('conteo')}
-                      className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-                        activeTab === 'conteo'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Conteo
-                    </button>
-                  </div>
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'piezas' | 'conteo')}>
+                    <TabsTrigger value='piezas'>Piezas ({piezas.length})</TabsTrigger>
+                    <TabsTrigger value='conteo'>Conteo</TabsTrigger>
+                  </Tabs>
                 </div>
               </div>
             </CardHeader>
@@ -890,14 +985,42 @@ export function OptimizerPage() {
               </div>
 
               {activeTab === 'piezas' ? (
-                <>
-                  <div className='overflow-x-auto rounded-md border'>
+                piezas.length === 0 ? (
+                  <div className='flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border py-12 text-center'>
+                    <Scissors className='h-8 w-8 text-muted-foreground' />
+                    <p className='max-w-sm text-sm text-muted-foreground'>
+                      No hay piezas todavía. Agrega una pieza, pega un CSV o carga el ejemplo.
+                    </p>
+                    <div className='flex flex-wrap justify-center gap-2'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={restaurarEjemplo}
+                        leftIcon={<RefreshCcw className='h-4 w-4' />}
+                      >
+                        Cargar ejemplo
+                      </Button>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={pegarCsv}
+                        leftIcon={<Clipboard className='h-4 w-4' />}
+                      >
+                        Pegar CSV
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className='overflow-x-auto rounded-md border'>
                     <table className='w-full text-sm'>
                       <thead className='bg-muted/50 text-muted-foreground'>
                         <tr>
+                          <th className='p-2 text-left font-medium'>ID</th>
                           <th className='p-2 text-left font-medium'>Nombre</th>
                           <th className='p-2 text-left font-medium'>Ancho</th>
                           <th className='p-2 text-left font-medium'>Alto</th>
+                          <th className='p-2 text-left font-medium w-16'>Esp.</th>
                           <th className='p-2 text-left font-medium w-20'>Cant.</th>
                           <th className='p-2 text-left font-medium w-16'>Rot.</th>
                           <th className='p-2 text-left font-medium'>Color</th>
@@ -906,8 +1029,8 @@ export function OptimizerPage() {
                         </tr>
                       </thead>
                       <tbody className='divide-y divide-border'>
-                        {paginatedPieces.map((p, i) => {
-                          const globalIndex = (page - 1) * PER_PAGE + i
+                        {piezas.map((p, i) => {
+                          const globalIndex = i
                           const error = pieceError(p)
                           return (
                             <tr
@@ -921,6 +1044,17 @@ export function OptimizerPage() {
                                   : 'hover:bg-muted/30'
                               }`}
                             >
+                              <td className='p-2'>
+                                <Input
+                                  value={p.id || ''}
+                                  onChange={(e) =>
+                                    updatePiece(globalIndex, { id: e.target.value })
+                                  }
+                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  placeholder='auto'
+                                  className='h-8 min-w-[6rem]'
+                                />
+                              </td>
                               <td className='p-2'>
                                 <Input
                                   value={p.nombre}
@@ -955,6 +1089,19 @@ export function OptimizerPage() {
                                   }
                                   onKeyDown={(e) => handleRowKeyDown(e, i)}
                                   className='h-8 w-20'
+                                />
+                              </td>
+                              <td className='p-2'>
+                                <Input
+                                  type='number'
+                                  value={p.espesor || ''}
+                                  onChange={(e) =>
+                                    updatePiece(globalIndex, {
+                                      espesor: parseFloat(e.target.value) || 0,
+                                    })
+                                  }
+                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  className='h-8 w-16'
                                 />
                               </td>
                               <td className='p-2'>
@@ -1058,38 +1205,9 @@ export function OptimizerPage() {
                         })}
                       </tbody>
                     </table>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className='flex items-center justify-between text-sm text-muted-foreground'>
-                      <span>
-                        Mostrando {startItem}-{endItem} de {piezas.length}
-                      </span>
-                      <div className='flex items-center gap-2'>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          disabled={page === 1}
-                          leftIcon={<ChevronLeft className='h-4 w-4' />}
-                        >
-                          Anterior
-                        </Button>
-                        <span className='px-2'>
-                          {page} / {totalPages}
-                        </span>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                          disabled={page === totalPages}
-                          rightIcon={<ChevronRight className='h-4 w-4' />}
-                        >
-                          Siguiente
-                        </Button>
-                      </div>
                     </div>
-                  )}
-                </>
+                  </>
+                )
               ) : (
                 <PieceCountTab
                   groups={groupedPieces}
@@ -1192,82 +1310,6 @@ export function OptimizerPage() {
               </CardContent>
             </Card>
           )}
-        </div>
-
-        {/* Panel derecho: resultados / acciones */}
-        <div className='space-y-6 xl:col-span-3'>
-          {result && (
-            <Card className='border-l-4 border-l-primary'>
-              <CardHeader>
-                <CardTitle className='text-lg'>Resumen</CardTitle>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <div>
-                  <p className='text-sm text-muted-foreground'>Tableros usados</p>
-                  <p className='text-2xl font-bold text-foreground'>{result.length}</p>
-                </div>
-                <div>
-                  <p className='text-sm text-muted-foreground'>Utilización promedio</p>
-                  <div className='flex items-baseline gap-2'>
-                    <p className='text-3xl font-bold text-foreground'>{avgUtilization}%</p>
-                    {avgUtilization !== null && (
-                      <Badge variant={utilizationTone(avgUtilization)}>
-                        {avgUtilization >= 85
-                          ? 'Excelente'
-                          : avgUtilization >= 70
-                          ? 'Buena'
-                          : 'Regular'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className='grid grid-cols-2 gap-2 pt-2'>
-                  {projectId && (
-                    <>
-                      <Button asChild>
-                        <Link to={`/quote/${projectId}`}>
-                          <FileText className='mr-2 h-4 w-4' /> Cotizar
-                        </Link>
-                      </Button>
-                      <Button variant='secondary' asChild>
-                        <Link to={`/assembly/${projectId}`}>
-                          <Maximize2 className='mr-2 h-4 w-4' /> Ensamblaje
-                        </Link>
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    variant='outline'
-                    onClick={() => generatePdf('cutlist')}
-                    disabled={!projectId}
-                  >
-                    <FileText className='mr-2 h-4 w-4' /> Cut list
-                  </Button>
-                  <Button
-                    variant='outline'
-                    onClick={() => generatePdf('labels')}
-                    disabled={!projectId}
-                  >
-                    <RotateCw className='mr-2 h-4 w-4' /> Etiquetas
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className='text-lg'>Consejos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className='list-disc space-y-1 pl-4 text-sm text-muted-foreground'>
-                <li>Presiona Enter en la última celda para agregar una fila.</li>
-                <li>Duplica piezas similares con el botón de copia.</li>
-                <li>Usa el margen para simular restricciones reales de corte.</li>
-                <li>El color de cada pieza se refleja en el layout 2D/3D.</li>
-              </ul>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

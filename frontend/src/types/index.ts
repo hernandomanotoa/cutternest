@@ -33,6 +33,7 @@ export interface PieceInput {
   espesor: number;
   cantos?: string;
   modulo?: string;
+  pos_z?: number | null;
 }
 
 export interface Placement {

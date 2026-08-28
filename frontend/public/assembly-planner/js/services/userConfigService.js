@@ -15,7 +15,7 @@ function getStorage() {
 }
 
 export function loadUserConfig() {
-  const config = { ...VERTICAL_POSITIONS };
+  const config = { ...VERTICAL_POSITIONS, pieceOffsets: {} };
   const storage = getStorage();
   if (!storage) return config;
 
@@ -31,6 +31,9 @@ export function loadUserConfig() {
               config[key] = value;
             }
           }
+        }
+        if (parsed.pieceOffsets && typeof parsed.pieceOffsets === 'object') {
+          config.pieceOffsets = { ...parsed.pieceOffsets };
         }
       }
     }
@@ -56,6 +59,13 @@ export function saveUserConfig(overrides) {
       ) {
         diff[key] = value;
       }
+    }
+    if (
+      overrides?.pieceOffsets &&
+      typeof overrides.pieceOffsets === 'object' &&
+      Object.keys(overrides.pieceOffsets).length > 0
+    ) {
+      diff.pieceOffsets = overrides.pieceOffsets;
     }
     storage.setItem(STORAGE_KEY, JSON.stringify(diff));
   } catch {

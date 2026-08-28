@@ -3,7 +3,7 @@
 import { getModulePieces, getModuleLabel, getModules } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
-import { createInlineVerticalConfig } from '../components/inlineVerticalConfig.js';
+import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
 
 export function createIsometricView(store) {
   let unsubscribe = null;
@@ -99,7 +99,7 @@ export function createIsometricView(store) {
     canvas = container.querySelector('#iso-canvas');
     render();
 
-    createInlineVerticalConfig().mount(
+    createPieceOffsetsConfig().mount(
       container.querySelector('#iso-config-host'),
       store
     );

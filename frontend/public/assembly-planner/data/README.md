@@ -80,14 +80,22 @@ Ambos valores se pueden editar en el panel **Offsets verticales** de la vista is
 Cuando `showDimensions` está activo, el SVG en vista normal muestra **cotas en la parte trasera** del módulo para no tapar la vista frontal:
 
 - **Cotas globales**: ancho (X) sobre la arista trasera inferior, profundidad (Y) sobre la arista trasera izquierda y alto (Z) sobre la arista trasera derecha.
-- **Cotas verticales de offsets y gaps**: se dibujan sobre la arista trasera derecha y muestran:
-  - `bottomPanelOffset` (base desde el suelo).
-  - `shoeRackBaseOffset` y `shoeRackGap` para zapateros.
-  - `shelfBaseOffset`, `shelfMiddleBaseOffset` y `shelfMiddleGap` para repisas/estantes.
-  - `drawerBaseOffset` y `drawerFaceGap` para frentes de cajón.
-  - `doorBaseOffset`, `doorTopInset` y `doorGap` para puertas.
-  - `braceBaseOffset` y `braceTopInset` para travesaños.
-  - `mirrorTopInset` para espejos.
+- **Cotas verticales de offsets y gaps**: se dibujan sobre la arista trasera derecha y muestran los espacios reales entre piezas según la configuración activa.
+
+### Configuración de offsets y gaps por pieza
+
+En la vista isométrica se muestra una tabla con una fila por cada pieza configurable del módulo activo:
+
+| Columna | Contenido |
+|---------|-----------|
+| **Pieza** | Nombre de la pieza y tipo (Zapatero, Entrepaño, Puerta, etc.). Si el CSV tiene `cantidad > 1`, se muestra el multiplicador. |
+| **Offset / Inset** | Input editable. Placeholder adaptativo: `Offset desde base (mm)`, `Inset superior (mm)`, `Altura desde suelo (mm)` o `Offset lateral (mm)`. |
+| **Gap** | Input editable. Solo aparece si hay más de una pieza del mismo tipo en el módulo. |
+
+- Los valores se toman por defecto de la configuración global (`VERTICAL_POSITIONS`).
+- Al editar una celda, el cambio se aplica inmediatamente al SVG y se persiste en `localStorage` dentro de `userConfig.pieceOffsets`.
+- El botón **Restaurar defaults** elimina todos los overrides por pieza y vuelve a los valores globales.
+- Piezas meramente estructurales (fondos, laterales, divisores, partes de cajón, tiradores, etc.) no aparecen en la tabla.
 
 El `viewBox` se expande automáticamente cuando las cotas están activas para evitar que se corten.
 

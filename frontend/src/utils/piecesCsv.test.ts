@@ -34,7 +34,7 @@ describe('piecesCsv', () => {
     const csv = generateCsv(sample)
     expect(csv).toContain('CutterNest Piezas v1')
     expect(csv).toContain(`hash: ${TEMPLATE_HASH}`)
-    expect(csv).toContain('id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo')
+    expect(csv).toContain('id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z')
     expect(csv).toContain('Base,1200,600,1,si,#FF6B6B,18,"T,B,L,R",')
     expect(csv).toContain('Lateral Izq,500,1800,2,no,#45B7D1,18,"T,B,L",')
   })
@@ -64,6 +64,16 @@ describe('piecesCsv', () => {
     if (!result.valid) return
     expect(result.pieces).toHaveLength(1)
     expect(result.pieces[0].modulo).toBe('SUP-M01')
+  })
+
+  it('parses CSV with modulo and pos_z columns (aligned with Assembly Planner)', () => {
+    const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nid,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z\nbase,Base,1200,600,1,si,#FF6B6B,18,,SUP-M01,850`
+    const result = parseCsv(csv)
+    expect(result.valid).toBe(true)
+    if (!result.valid) return
+    expect(result.pieces).toHaveLength(1)
+    expect(result.pieces[0].modulo).toBe('SUP-M01')
+    expect(result.pieces[0].pos_z).toBe(850)
   })
   it('rejects CSV with wrong columns', () => {
     const csv = `# CutterNest Piezas v1\n# hash: ${TEMPLATE_HASH}\nnombre,ancho\nBase,120\n`

@@ -5,59 +5,25 @@ import { normalizeName } from '../utils/normalize.js';
 import { inferRole, isShoeRack } from './classifierService.js';
 import { drawerRank } from './isoGeometryService.js';
 import { VERTICAL_POSITIONS } from '../core/config.js';
+import { getPieceOffsetConfig, getPieceZone } from './pieceOffsetService.js';
 
 export function determineVerticalZone(piece) {
-  const role = inferRole(piece);
-  if (role === 'drawer_face') return 'drawer';
-
-  const n = normalizeName(piece?.nombre || '');
-  const id = normalizeName(piece?.id || '');
-  const text = `${n} ${id}`;
-
-  if (isShoeRack(piece)) return 'fixed-bottom';
-
-  if (
-    text.includes('superior') ||
-    text.includes('sup') ||
-    text.includes('alto') ||
-    text.includes('top')
-  ) {
-    return 'top';
-  }
-
-  if (
-    text.includes('inferior') ||
-    text.includes('inf') ||
-    text.includes('bajo') ||
-    text.includes('bottom')
-  ) {
-    return 'bottom';
-  }
-
-  const isShelfLike =
-    n.includes('repisa') ||
-    n.includes('estante') ||
-    id.includes('repisa') ||
-    id.includes('estante');
-  if (isShelfLike && (n.includes('base') || id.includes('base'))) {
-    return 'bottom';
-  }
-
-  if (
-    text.includes('medio') ||
-    text.includes('central') ||
-    text.includes('centro')
-  ) {
-    return 'middle';
-  }
-
-  return 'middle';
+  return getPieceZone(piece);
 }
 
 function getPositioningHeight(piece, thickness) {
   const alto = Number(piece?.alto) || 0;
   const espesor = Number(piece?.espesor) || thickness || 15;
   return alto <= espesor * 1.5 ? alto : espesor;
+}
+
+function cfgFor(piece, zone, overrides, pieceOffsets) {
+  return getPieceOffsetConfig(
+    piece,
+    zone,
+    { pieceOffsets },
+    overrides
+  );
 }
 
 /**
@@ -73,7 +39,8 @@ export function getDefaultVerticalPosition(
   thickness,
   overrides = {},
   baseOffset = 0,
-  topPanelOffset = null
+  topPanelOffset = null,
+  pieceOffsets = {}
 ) {
   overrides = overrides || {};
   const n = normalizeName(piece?.nombre || '');
@@ -86,77 +53,63 @@ export function getDefaultVerticalPosition(
   const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
   const baseTop = baseOffset + t;
   const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
+  const zone = determineVerticalZone(piece);
+  const cfg = cfgFor(piece, zone, overrides, pieceOffsets);
 
   // Zapatero/zapatera: justo encima de la cara superior de la base.
-  if (isShoeRack(piece)) return baseTop + v('shoeRackBaseOffset');
+  if (isShoeRack(piece)) return baseTop + cfg.offset;
 
   if (role === 'bottom_panel') return baseOffset;
   if (role === 'top_panel') return topLimit;
 
   if (role === 'shelf') {
-    if (
-      text.includes('superior') ||
-      text.includes('sup') ||
-      text.includes('alto') ||
-      text.includes('top')
-    ) {
-      return topLimit - v('shelfTopInset');
-    }
-    if (
-      text.includes('inferior') ||
-      text.includes('inf') ||
-      text.includes('bajo') ||
-      text.includes('bottom')
-    ) {
-      return baseTop + v('shelfBaseOffset');
-    }
+    if (zone === 'top') return topLimit - cfg.offset;
+    if (zone === 'bottom') return baseTop + cfg.offset;
+    // middle: el apilamiento decide; usamos el centro como posición inicial.
     return moduleH / 2;
   }
 
-  if (role === 'hanger_rail') return v('hangerRailHeight');
-  if (role === 'seat_panel') return v('seatHeight');
+  if (role === 'hanger_rail') return cfg.offset;
+  if (role === 'seat_panel') return cfg.offset;
 
   if (role === 'drawer_face' || role === 'drawer_bottom') {
-    return getDrawerDefaultPosition(piece, moduleH, t, overrides, baseTop, topLimit);
+    return getDrawerDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit);
   }
 
-  if (role === 'door') return getDoorDefaultPosition(piece, moduleH, t, overrides, baseTop, topLimit);
-  if (role === 'brace') return getBraceDefaultPosition(piece, moduleH, t, overrides, baseTop, topLimit);
+  if (role === 'door') return getDoorDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit);
+  if (role === 'brace') return getBraceDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit);
 
   // Espejo: cerca de la tapa.
-  if (role === 'mirror') return topLimit - h - v('mirrorTopInset');
+  if (role === 'mirror') return topLimit - h - cfg.offset;
 
   return moduleH / 2;
 }
 
-function getDrawerDefaultPosition(piece, moduleH, t, overrides, baseTop, topLimit) {
+function getDrawerDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit) {
   const h = Number(piece?.alto) || 0;
   const rank = drawerRank(piece);
-  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
   if (rank <= 10) return topLimit - h;
-  if (rank >= 90) return baseTop + v('drawerBaseOffset');
+  if (rank >= 90) return baseTop + cfg.offset;
   return (moduleH - h) / 2;
 }
 
-function getDoorDefaultPosition(piece, moduleH, t, overrides, baseTop, topLimit) {
+function getDoorDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit) {
   const h = Number(piece?.alto) || 0;
   const n = normalizeName(piece?.nombre || '');
   const id = normalizeName(piece?.id || '');
   const text = `${n} ${id}`;
-  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
-  if (text.includes('superior') || text.includes('sup')) return topLimit - h - v('doorTopInset');
-  if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return baseTop + v('doorBaseOffset');
+  if (text.includes('superior') || text.includes('sup')) return topLimit - h - cfg.offset;
+  if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return baseTop + cfg.offset;
   return (moduleH - h) / 2;
 }
 
-function getBraceDefaultPosition(piece, moduleH, t, overrides, baseTop, topLimit) {
+function getBraceDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit) {
   const h = Number(piece?.alto) || 0;
   const n = normalizeName(piece?.nombre || '');
   const id = normalizeName(piece?.id || '');
   const text = `${n} ${id}`;
-  const v = (key) => overrides[key] ?? VERTICAL_POSITIONS[key];
-  if (text.includes('superior') || text.includes('sup')) return topLimit - h - v('braceTopInset');
-  if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return baseTop + v('braceBaseOffset');
+  if (text.includes('superior') || text.includes('sup')) return topLimit - h - cfg.offset;
+  if (text.includes('inferior') || text.includes('inf') || text.includes('bajo')) return baseTop + cfg.offset;
   return (moduleH - h) / 2;
 }
 
@@ -164,6 +117,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   if (!pieces.length) return [];
 
   const overrides = options.overrides || {};
+  const pieceOffsets = options.pieceOffsets || {};
   const t = Number(thickness) || 15;
   const baseOffset = Number(options.baseOffset) || 0;
   const baseTop = baseOffset + t;
@@ -171,40 +125,31 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
     ? options.topPanelOffset
     : moduleH - t;
 
-  const gap = options.gap ?? overrides.defaultGap ?? VERTICAL_POSITIONS.defaultGap;
-  const firstInnerGap =
-    options.firstInnerGap ??
-    overrides.firstInnerGap ??
-    VERTICAL_POSITIONS.firstInnerGap;
-  const shoeRackBaseOffset =
-    overrides.shoeRackBaseOffset ?? VERTICAL_POSITIONS.shoeRackBaseOffset;
-  const shoeRackGap = overrides.shoeRackGap ?? VERTICAL_POSITIONS.shoeRackGap;
-  const shelfMiddleBaseOffset =
-    overrides.shelfMiddleBaseOffset ?? VERTICAL_POSITIONS.shelfMiddleBaseOffset;
-  const shelfMiddleGap = overrides.shelfMiddleGap ?? VERTICAL_POSITIONS.shelfMiddleGap;
-
   function v(key) {
     return overrides[key] ?? VERTICAL_POSITIONS[key];
   }
 
   const items = pieces.map((piece) => {
     const zone = determineVerticalZone(piece);
+    const cfg = cfgFor(piece, zone, overrides, pieceOffsets);
     const hasPosZ = Number.isFinite(piece?.pos_z);
     const defaultY = hasPosZ
       ? piece.pos_z
-      : getDefaultVerticalPosition(piece, moduleH, t, overrides, baseOffset, topPanelOffset);
+      : getDefaultVerticalPosition(piece, moduleH, t, overrides, baseOffset, topPanelOffset, pieceOffsets);
     return {
       piece,
       h: getPositioningHeight(piece, t),
       zone,
       y: defaultY,
       hasPosZ,
+      cfg,
     };
   });
 
   const topItems = items.filter((i) => i.zone === 'top');
   const bottomItems = items.filter((i) => i.zone === 'bottom');
   const fixedItems = items.filter((i) => i.zone === 'fixed-bottom');
+  const drawerItems = items.filter((i) => i.zone === 'drawer');
   const middleItems = items.filter((i) => i.zone === 'middle');
 
   // Piezas 'top': se respetan los defaults y se apilan hacia abajo solo si hay solapamientos.
@@ -216,15 +161,16 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.min(item.y, currentTop - item.h);
       }
+      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('defaultGap');
       currentTop = item.y - gap;
     });
 
   // Helper genérico para apilar piezas fijas inferiores (zapateros) con un offset
   // desde la cara superior de la base y un gap constante entre ellas.
   function stackFixedBottom(items) {
-    const baseOffset = v('shoeRackBaseOffset');
-    const gap = v('shoeRackGap');
-    let cursor = baseTop + baseOffset;
+    if (!items.length) return baseTop;
+    const first = items[0];
+    let cursor = baseTop + first.cfg.offset;
     items
       .slice()
       .sort((a, b) => a.y - b.y)
@@ -232,6 +178,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
         if (!item.hasPosZ) {
           item.y = Math.max(item.y, cursor);
         }
+        const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('shoeRackGap');
         cursor = item.y + item.h + gap;
       });
     return cursor;
@@ -240,10 +187,18 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   // Piezas 'fixed-bottom' (zapatero): offset y gap propios.
   const currentFixed = fixedItems.length
     ? stackFixedBottom(fixedItems)
-    : baseTop + v('shoeRackBaseOffset');
+    : baseTop + (fixedItems[0]?.cfg.offset ?? v('shoeRackBaseOffset'));
 
   // Piezas 'bottom': cerca de la base; si hay zapatero, se apilan encima de él.
-  let currentBottom = fixedItems.length ? currentFixed : baseTop + firstInnerGap;
+  let currentBottom;
+  if (bottomItems.length) {
+    const firstBottom = bottomItems.slice().sort((a, b) => a.y - b.y)[0];
+    currentBottom = fixedItems.length
+      ? currentFixed
+      : baseTop + firstBottom.cfg.offset;
+  } else {
+    currentBottom = fixedItems.length ? currentFixed : baseTop + v('firstInnerGap');
+  }
   bottomItems
     .slice()
     .sort((a, b) => a.y - b.y)
@@ -251,19 +206,27 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.max(item.y, currentBottom);
       }
+      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('defaultGap');
       currentBottom = item.y + item.h + gap;
     });
 
   // Piezas 'drawer' (frentes de cajón): apiladas consecutivamente desde la base,
-  // zapatero o repisa inferior, usando drawerFaceGap.
-  const drawerFaceGap = overrides.drawerFaceGap ?? VERTICAL_POSITIONS.drawerFaceGap;
-  const drawerBaseOffset = overrides.drawerBaseOffset ?? VERTICAL_POSITIONS.drawerBaseOffset;
-  const drawerItems = items.filter((i) => i.zone === 'drawer');
-  let currentDrawer = bottomItems.length
-    ? currentBottom
-    : fixedItems.length
-      ? currentFixed
-      : baseTop + drawerBaseOffset;
+  // zapatero o repisa inferior.
+  let currentDrawer;
+  if (drawerItems.length) {
+    const firstDrawer = drawerItems.slice().sort((a, b) => drawerRank(a.piece) - drawerRank(b.piece))[0];
+    currentDrawer = bottomItems.length
+      ? currentBottom
+      : fixedItems.length
+        ? currentFixed
+        : baseTop + firstDrawer.cfg.offset;
+  } else {
+    currentDrawer = bottomItems.length
+      ? currentBottom
+      : fixedItems.length
+        ? currentFixed
+        : baseTop + v('drawerBaseOffset');
+  }
   drawerItems
     .slice()
     .sort((a, b) => drawerRank(a.piece) - drawerRank(b.piece))
@@ -271,23 +234,40 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.max(item.y, currentDrawer);
       }
-      currentDrawer = item.y + item.h + drawerFaceGap;
+      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('drawerFaceGap');
+      currentDrawer = item.y + item.h + gap;
     });
 
   // Piezas 'middle': apiladas consecutivamente desde la base, el último zapatero,
-  // repisa inferior o frente de cajón hacia arriba, usando shelfMiddleGap.
-  const middleTopEnd = topItems.length ? currentTop + gap : topPanelOffset - gap;
+  // repisa inferior o frente de cajón hacia arriba.
   const distributeItems = middleItems.filter((i) => !i.hasPosZ);
-  const effectiveMiddleGap =
-    options.gap ?? overrides.shelfMiddleGap ?? VERTICAL_POSITIONS.shelfMiddleGap;
+  const topGap = topItems.length
+    ? (topItems[topItems.length - 1]?.cfg.gap ?? v('defaultGap'))
+    : v('defaultGap');
+  const middleTopEnd = topItems.length ? currentTop + topGap : topPanelOffset - topGap;
 
-  const middleBottomStart = bottomItems.length
-    ? currentBottom
-    : drawerItems.length
-      ? currentDrawer
-      : fixedItems.length
-        ? currentFixed - v('shoeRackGap') + effectiveMiddleGap
-        : baseTop + v('shelfMiddleBaseOffset');
+  let middleBottomStart;
+  if (distributeItems.length) {
+    const firstMiddle = distributeItems.slice().sort((a, b) => a.y - b.y)[0];
+    if (bottomItems.length) {
+      middleBottomStart = currentBottom;
+    } else if (drawerItems.length) {
+      middleBottomStart = currentDrawer;
+    } else if (fixedItems.length) {
+      const lastFixedGap = fixedItems[fixedItems.length - 1]?.cfg.gap ?? v('shoeRackGap');
+      middleBottomStart = currentFixed - lastFixedGap + firstMiddle.cfg.gap;
+    } else {
+      middleBottomStart = baseTop + firstMiddle.cfg.offset;
+    }
+  } else {
+    middleBottomStart = bottomItems.length
+      ? currentBottom
+      : drawerItems.length
+        ? currentDrawer
+        : fixedItems.length
+          ? currentFixed - v('shoeRackGap') + v('shelfMiddleGap')
+          : baseTop + v('shelfMiddleBaseOffset');
+  }
 
   // Ordenar de abajo hacia arriba para apilar de forma consecutiva.
   distributeItems.sort((a, b) => a.y - b.y);
@@ -296,7 +276,8 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   let lastMiddleTop = currentMiddle;
   distributeItems.forEach((item) => {
     item.y = currentMiddle;
-    currentMiddle += item.h + effectiveMiddleGap;
+    const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('shelfMiddleGap');
+    currentMiddle += item.h + gap;
     lastMiddleTop = item.y + item.h;
   });
 

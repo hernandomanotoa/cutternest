@@ -310,9 +310,27 @@ export function updateUserConfig(key, value) {
   saveUserConfig(next);
 }
 
+export function updatePieceOffset(originalId, field, value) {
+  const store = getStore();
+  const state = store.get();
+  const pieceOffsets = { ...(state.userConfig?.pieceOffsets || {}) };
+  pieceOffsets[originalId] = { ...pieceOffsets[originalId], [field]: Number(value) };
+  const next = { ...state.userConfig, pieceOffsets };
+  store.set({ userConfig: next });
+  saveUserConfig(next);
+}
+
+export function resetPieceOffsets() {
+  const store = getStore();
+  const state = store.get();
+  const next = { ...state.userConfig, pieceOffsets: {} };
+  store.set({ userConfig: next });
+  saveUserConfig(next);
+}
+
 export function resetUserConfig() {
   const store = getStore();
-  store.set({ userConfig: { ...VERTICAL_POSITIONS } });
+  store.set({ userConfig: { ...VERTICAL_POSITIONS, pieceOffsets: {} } });
   resetUserConfigService();
 }
 

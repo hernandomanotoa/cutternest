@@ -33,7 +33,7 @@ def optimize(request: Request, payload: OptimizeRequest, db: Session = Depends(g
         pieces=pieces,
         offcuts=offcuts,
         kerf_mm=payload.tablero.kerf_mm,
-        margin_mm=payload.tablero.margin_mm,
+        margin_mm=payload.tablero.margen_mm,
     )
     return OptimizeResponse(
         tableros=result["tableros"],

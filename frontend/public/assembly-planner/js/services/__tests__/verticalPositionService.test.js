@@ -252,7 +252,45 @@ describe('calculateVerticalPositions', () => {
     assert.equal(gap, 80);
   });
 
-  it('returns empty array when no pieces', () => {
-    assert.deepEqual(calculateVerticalPositions(600, 18, []), []);
+  it('uses per-piece offset and gap overrides', () => {
+    const shelves = [
+      piece('Repisa 1', { id: 'r1' }),
+      piece('Repisa 2', { id: 'r2' }),
+    ];
+    const pieceOffsets = {
+      r1: { offset: 100, gap: 60 },
+      r2: { offset: 0, gap: 60 },
+    };
+    const positions = calculateVerticalPositions(600, 18, shelves, { pieceOffsets });
+    assert.equal(positions[0].y, baseTop + 100);
+    const gap = positions[1].y - (positions[0].y + 18);
+    assert.equal(gap, 60);
+  });
+
+  it('uses per-piece shoe rack overrides', () => {
+    const racks = [
+      piece('Zapatero 1', { id: 'z1', alto: 150 }),
+      piece('Zapatero 2', { id: 'z2', alto: 150 }),
+    ];
+    const pieceOffsets = {
+      z1: { offset: 50, gap: 100 },
+      z2: { offset: 50, gap: 100 },
+    };
+    const positions = calculateVerticalPositions(600, 18, racks, { pieceOffsets });
+    assert.equal(positions[0].y, baseTop + 50);
+    const h = positions[0].h;
+    const gap = positions[1].y - (positions[0].y + h);
+    assert.equal(gap, 100);
+  });
+
+  it('respects an explicit pos_z even with piece overrides', () => {
+    const shelves = [
+      piece('Repisa A', { id: 'r1' }),
+      piece('Repisa B', { id: 'r2', pos_z: 250 }),
+    ];
+    const pieceOffsets = { r1: { offset: 10 }, r2: { offset: 10 } };
+    const positions = calculateVerticalPositions(600, 18, shelves, { pieceOffsets });
+    const override = positions.find((p) => p.piece.nombre === 'Repisa B');
+    assert.equal(override.y, 250);
   });
 });

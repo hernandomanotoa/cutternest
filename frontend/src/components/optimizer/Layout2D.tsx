@@ -106,6 +106,10 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
           const y = p.y * SCALE
           const w = p.w * SCALE
           const h = p.h * SCALE
+          const cx = x + w / 2
+          const cy = y + h / 2
+          const isVertical = h > w
+          const fontSize = Math.max(4, Math.min(w, h) * 0.14)
 
           return (
             <g
@@ -142,17 +146,31 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
                 opacity={0.15}
                 pointerEvents='none'
               />
-              <text
-                x={x + w / 2}
-                y={y + h / 2}
-                textAnchor='middle'
-                dominantBaseline='middle'
-                fontSize={Math.max(4, Math.min(w, h) * 0.14)}
-                fill='hsl(var(--foreground))'
+              <g
+                transform={isVertical ? `rotate(90, ${cx}, ${cy})` : undefined}
                 pointerEvents='none'
               >
-                {p.nombre}
-              </text>
+                <text
+                  x={cx}
+                  y={cy - fontSize * 0.7}
+                  textAnchor='middle'
+                  dominantBaseline='middle'
+                  fontSize={fontSize}
+                  fill='hsl(var(--foreground))'
+                >
+                  {p.nombre}
+                </text>
+                <text
+                  x={cx}
+                  y={cy + fontSize * 0.7}
+                  textAnchor='middle'
+                  dominantBaseline='middle'
+                  fontSize={fontSize * 0.75}
+                  fill='hsl(var(--muted-foreground))'
+                >
+                  {p.w.toFixed(1)}×{p.h.toFixed(1)} mm
+                </text>
+              </g>
               {p.rotado && (
                 <g transform={`translate(${x + w - 6}, ${y + 6})`} pointerEvents='none'>
                   <circle r='4' fill='hsl(var(--primary))' />

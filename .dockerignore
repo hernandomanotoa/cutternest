@@ -1,0 +1,30 @@
+# Build artifacts and local state that must never enter the Docker context
+.git
+.gitignore
+**/node_modules
+**/.venv
+**/.venv-*
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/dist
+**/build
+**/.vite
+
+# Persistent/local data
+data
+backups
+*.db
+*.sqlite
+*.sqlite3
+
+# Agent tooling and docs (not needed to build the image)
+.agents
+.artifacts
+.devhive
+docs
+
+# Sensitive / local env files
+.env
+.env.*
+!.env.example

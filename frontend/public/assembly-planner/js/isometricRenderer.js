@@ -384,6 +384,7 @@ export class IsometricRenderer {
     const shelfPositions = shelves.length
       ? calculateVerticalPositions(moduleH, thickness, shelves, {
           overrides: this.verticalPositionOverrides,
+          pieceOffsets: this.verticalPositionOverrides?.pieceOffsets,
           baseOffset: bottomPanelOffset,
           topPanelOffset,
         })
