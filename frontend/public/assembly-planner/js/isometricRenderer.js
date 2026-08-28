@@ -1184,16 +1184,18 @@ export class IsometricRenderer {
 
   _drawMainDimensions(ox, oy, moduleW, moduleD, moduleH) {
     // Cotas globales del módulo: ancho (X), profundidad (Y) y alto (Z).
-    // Se dibujan sobre la arista trasera para no tapar la vista frontal.
-    const p000 = this._isoProject(0, 0, 0, ox, oy);              // inferior-izq-trasera
-    const pW00 = this._isoProject(moduleW, 0, 0, ox, oy);       // inferior-der-trasera
+    // - Ancho: se cambia de lado, ahora en la arista inferior frontal.
+    // - Profundidad: se mueve al frente, en la arista derecha frontal que recede hacia atrás.
+    // - Altura: se mantiene en la arista trasera derecha vertical.
     const p0D0 = this._isoProject(0, moduleD, 0, ox, oy);        // inferior-izq-frontal
-    const pW0H = this._isoProject(moduleW, 0, moduleH, ox, oy);  // superior-der-trasera
+    const pW00 = this._isoProject(moduleW, 0, 0, ox, oy);        // inferior-der-trasera
+    const pWD0 = this._isoProject(moduleW, moduleD, 0, ox, oy);  // inferior-der-frontal
+    const pW0H = this._isoProject(moduleW, 0, moduleH, ox, oy);    // superior-der-trasera
     let svg = '';
-    // Ancho (X): arista inferior trasera
-    svg += this._drawDimensionLine(p000, pW00, Math.round(moduleW), 0, -18, AXES_COLORS.x, 'dimArrowX');
-    // Profundidad (Y): arista trasera izquierda
-    svg += this._drawDimensionLine(p000, p0D0, Math.round(moduleD), -18, 0, AXES_COLORS.y, 'dimArrowY');
+    // Ancho (X): arista inferior frontal
+    svg += this._drawDimensionLine(p0D0, pWD0, Math.round(moduleW), 0, 18, AXES_COLORS.x, 'dimArrowX');
+    // Profundidad (Y): arista derecha frontal que recede hacia la trasera
+    svg += this._drawDimensionLine(pWD0, pW00, Math.round(moduleD), 18, 0, AXES_COLORS.y, 'dimArrowY');
     // Alto (Z): arista trasera derecha vertical
     svg += this._drawDimensionLine(pW00, pW0H, Math.round(moduleH), 28, 0, AXES_COLORS.z, 'dimArrowZ');
     return svg;
