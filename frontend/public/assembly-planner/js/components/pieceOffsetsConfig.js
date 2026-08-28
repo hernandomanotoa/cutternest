@@ -5,6 +5,7 @@ import { VERTICAL_POSITIONS } from '../core/config.js';
 import { updatePieceOffset, resetPieceOffsets } from '../app.js';
 import { getModulePieces } from '../utils.js';
 import { escapeHtml } from '../utils.js';
+import { inferRole } from '../services/classifierService.js';
 import {
   groupPiecesByOriginalId,
   getPieceOffsetConfig,
@@ -75,6 +76,22 @@ export function createPieceOffsetsConfig() {
       });
     });
 
+    const filterInput = root.querySelector('[data-filter]');
+    filterInput?.addEventListener('input', () => {
+      const term = filterInput.value.trim().toLowerCase();
+      root.querySelectorAll('.cn-piece-row').forEach((row) => {
+        const visible = !term || (row.dataset.search || '').includes(term);
+        row.style.display = visible ? '' : 'none';
+      });
+      root.querySelectorAll('[data-role-header]').forEach((header) => {
+        const role = header.dataset.roleHeader;
+        const tbody = root.querySelector(`tbody[data-role="${CSS.escape(role)}"]`);
+        if (!tbody) return;
+        const anyVisible = tbody.querySelector('.cn-piece-row:not([style*="none"])');
+        header.style.display = anyVisible ? '' : 'none';
+      });
+    });
+
     root.querySelector('[data-reset]')?.addEventListener('click', () => {
       resetPieceOffsets();
     });
@@ -86,63 +103,67 @@ export function createPieceOffsetsConfig() {
   return { mount };
 }
 
+// Orden lógico de los grupos para que la base quede arriba y se reduzca el scroll.
+const GROUP_ORDER = [
+  'bottom_panel',
+  'top_panel',
+  'shelf',
+  'drawer_face',
+  'door',
+  'brace',
+  'mirror',
+  'hanger_rail',
+  'seat_panel',
+  'leg',
+  'divider',
+];
+
 function renderTable(groups, activePieces, userConfig) {
   if (!groups.length) {
     return '<p class="empty-state">No hay piezas configurables para este módulo.</p>';
   }
 
-  const rows = groups
-    .map(({ originalId, piece, count }) => {
-      const cfg = getPieceOffsetConfig(piece, undefined, userConfig);
-      const showGap = shouldShowGap(piece, activePieces);
-      const typeLabel = getPieceTypeLabel(piece);
-      const offsetPlaceholder = getOffsetPlaceholder(piece, cfg.zone);
-      const offsetValue = Number.isFinite(cfg.offset) ? cfg.offset : VERTICAL_POSITIONS[getDefaultKey(piece, cfg.zone)] || 0;
-      const gapValue = Number.isFinite(cfg.gap) ? cfg.gap : 0;
-      const qtyBadge = count > 1 ? `<span class="badge badge--secondary">×${count}</span>` : '';
+  const byRole = new Map();
+  groups.forEach((g) => {
+    const role = inferRole(g.piece);
+    if (!byRole.has(role)) byRole.set(role, []);
+    byRole.get(role).push(g);
+  });
 
+  const tbodies = GROUP_ORDER
+    .filter((role) => byRole.has(role))
+    .map((role) => {
+      const items = byRole.get(role).slice().sort((a, b) => {
+        const za = getPieceOffsetConfig(a.piece, undefined, userConfig).zone || '';
+        const zb = getPieceOffsetConfig(b.piece, undefined, userConfig).zone || '';
+        if (za !== zb) return za.localeCompare(zb);
+        return String(a.piece.nombre).localeCompare(String(b.piece.nombre));
+      });
+      const typeLabel = getPieceTypeLabel(items[0].piece);
+      const rows = items.map((item) => renderRow(item, activePieces, userConfig)).join('');
       return `
-        <tr>
-          <td>
-            <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
-              <span class="badge badge--info">${escapeHtml(typeLabel)}</span>
-              <span>${escapeHtml(piece.nombre)}</span>
-              ${qtyBadge}
-            </div>
-          </td>
-          <td>
-            <input
-              type="number"
-              data-original-id="${escapeHtml(originalId)}"
-              data-field="offset"
-              value="${offsetValue}"
-              placeholder="${escapeHtml(offsetPlaceholder)}"
-              step="any"
-              min="0"
-            />
-          </td>
-          <td>
-            ${
-              showGap
-                ? `<input
-                    type="number"
-                    data-original-id="${escapeHtml(originalId)}"
-                    data-field="gap"
-                    value="${gapValue}"
-                    placeholder="Gap entre piezas (mm)"
-                    step="any"
-                    min="0"
-                  />`
-                : '<span class="empty-state">—</span>'
-            }
-          </td>
-        </tr>
+        <tbody data-role="${escapeHtml(role)}">
+          <tr class="cn-group-header" data-role-header="${escapeHtml(role)}">
+            <td colspan="3" style="padding:0.4rem 0.6rem;background:#1e293b;position:sticky;top:0;z-index:2;">
+              <strong style="color:#94a3b8;text-transform:uppercase;font-size:0.7rem;letter-spacing:0.04em;">${escapeHtml(typeLabel)}</strong>
+            </td>
+          </tr>
+          ${rows}
+        </tbody>
       `;
     })
     .join('');
 
   return `
     <div class="table-container" style="max-height:calc(100vh - 14rem);">
+      <div style="padding:0.35rem 0.5rem;background:#0f172a;position:sticky;top:0;z-index:3;border-bottom:1px solid #334155;">
+        <input
+          type="search"
+          data-filter
+          placeholder="Buscar pieza..."
+          style="width:100%;background:#1e293b;border:1px solid #334155;border-radius:0.35rem;padding:0.35rem 0.5rem;color:#f1f5f9;font-size:0.8rem;"
+        />
+      </div>
       <table>
         <thead>
           <tr>
@@ -151,11 +172,58 @@ function renderTable(groups, activePieces, userConfig) {
             <th>Gap</th>
           </tr>
         </thead>
-        <tbody>
-          ${rows}
-        </tbody>
+        ${tbodies}
       </table>
     </div>
+  `;
+}
+
+function renderRow({ originalId, piece, count }, activePieces, userConfig) {
+  const cfg = getPieceOffsetConfig(piece, undefined, userConfig);
+  const showGap = shouldShowGap(piece, activePieces);
+  const typeLabel = getPieceTypeLabel(piece);
+  const offsetPlaceholder = getOffsetPlaceholder(piece, cfg.zone);
+  const offsetValue = Number.isFinite(cfg.offset) ? cfg.offset : VERTICAL_POSITIONS[getDefaultKey(piece, cfg.zone)] || 0;
+  const gapValue = Number.isFinite(cfg.gap) ? cfg.gap : 0;
+  const qtyBadge = count > 1 ? `<span class="badge badge--secondary">×${count}</span>` : '';
+  const searchText = escapeHtml(`${typeLabel} ${piece.nombre}`.toLowerCase());
+
+  return `
+    <tr class="cn-piece-row" data-search="${searchText}">
+      <td>
+        <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+          <span class="badge badge--info">${escapeHtml(typeLabel)}</span>
+          <span>${escapeHtml(piece.nombre)}</span>
+          ${qtyBadge}
+        </div>
+      </td>
+      <td>
+        <input
+          type="number"
+          data-original-id="${escapeHtml(originalId)}"
+          data-field="offset"
+          value="${offsetValue}"
+          placeholder="${escapeHtml(offsetPlaceholder)}"
+          step="any"
+          min="0"
+        />
+      </td>
+      <td>
+        ${
+          showGap
+            ? `<input
+                type="number"
+                data-original-id="${escapeHtml(originalId)}"
+                data-field="gap"
+                value="${gapValue}"
+                placeholder="Gap entre piezas (mm)"
+                step="any"
+                min="0"
+              />`
+            : '<span class="empty-state">—</span>'
+        }
+      </td>
+    </tr>
   `;
 }
 
