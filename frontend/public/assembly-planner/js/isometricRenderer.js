@@ -8,13 +8,15 @@ import {
   getModuleDimensions,
   classifyBackPanelMount,
   classifyTopBottomMount,
+  classifyTopBottomMountAxes,
   classifyPlinthMount,
 } from './services/geometryService.js';
-import { calculateVerticalPositions, getDefaultVerticalPosition } from './services/verticalPositionService.js';
+import { calculateVerticalPositions, determineVerticalZone, findTopShelfLimit, getDefaultVerticalPosition } from './services/verticalPositionService.js';
 import {
   applyDoorRotation,
   applyExplode,
   calculateVerticalZones,
+  computeBays,
   drawerRank,
   getModuleDepth,
   groupDividersIntoZones,
@@ -25,11 +27,12 @@ import {
   inferLegX,
   inferLegY,
   inferRailZ,
+  inferShelfBayIndex,
   inferThickness,
   shouldShowLabel,
 } from './services/isoGeometryService.js';
 import { getPieceOffsetConfig } from './services/pieceOffsetService.js';
-import { inferRole, detectFamily, isShoeRack } from './services/classifierService.js';
+import { inferRole, detectFamily, isDividerVertical, isShoeRack } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
 import { isGlobalPiece, getModuleLabel, ALL_MODULE_ID } from './services/moduleService.js';
@@ -71,7 +74,25 @@ function getDepthKey(geo, xFactor = 0.5) {
   return cx + cy * xFactor + cz;
 }
 
-function sortByDepth(geometries, xFactor = 0.5) {
+function getSideOrder(geo) {
+  // Agrupar piezas horizontales laterales y divisores para que el SVG
+  // refleje el orden de ensamblaje: izquierda → divisor → derecha → corrida.
+  if (geo.role === 'divider') return 1;
+  if (geo.role !== 'shelf') return null;
+  const text = normalizeNameLocal(`${geo.name || ''} ${geo.id || ''}`);
+  const isSideSpecific =
+    text.includes('izquierdo') || text.includes('izq') ||
+    text.includes('derecho') || text.includes('der');
+  const isBottomLike = geo.zone === 'bottom' || geo.zone === 'fixed-bottom';
+  // Repisas/zapateros inferiores corrida (sin lado) se pintan antes que los
+  // estantes laterales, porque actúan como base elevada para ellos.
+  if (isBottomLike && !isSideSpecific) return -1;
+  if (text.includes('izquierdo') || text.includes('izq')) return 0;
+  if (text.includes('derecho') || text.includes('der')) return 2;
+  return 3; // repisas corrida / central / sin lado
+}
+
+export function sortByDepth(geometries, xFactor = 0.5) {
   return geometries.slice().sort((a, b) => {
     // Vista completa: pintar módulo a módulo (M1 completo, luego M2, ...).
     // En vista individual/global moduleSeq es undefined para todos y este
@@ -87,6 +108,15 @@ function sortByDepth(geometries, xFactor = 0.5) {
     const aSpecial = za <= 2 || za >= 20;
     const bSpecial = zb <= 2 || zb >= 20;
     if (aSpecial || bSpecial) return za - zb;
+
+    // Dentro de estantes/divisores, agrupar por lado para respetar el orden
+    // izquierda → divisor → derecha → corrida, manteniendo el apilamiento
+    // vertical dentro de cada grupo.
+    const sideA = getSideOrder(a);
+    const sideB = getSideOrder(b);
+    if (sideA != null && sideB != null && sideA !== sideB) {
+      return sideA - sideB;
+    }
 
     // Orden de armado de abajo hacia arriba (por Z base).
     // Si la diferencia es significativa (> espesor típico) usamos Z base;
@@ -273,6 +303,8 @@ export class IsometricRenderer {
 
     const baseMount = bottom ? classifyTopBottomMount(bottom, moduleW, moduleD, thickness) : 'external';
     const topMount = top ? classifyTopBottomMount(top, moduleW, moduleD, thickness) : 'external';
+    const baseAxes = bottom ? classifyTopBottomMountAxes(bottom, moduleW, moduleD, thickness) : { width: 'external', depth: 'external' };
+    const topAxes = top ? classifyTopBottomMountAxes(top, moduleW, moduleD, thickness) : { width: 'external', depth: 'external' };
 
     // Piezas interiores (estantes/divisores) deben detenerse en la cara interior del fondo
     // y en la cara interior del lateral frontal: no atraviesan ni el fondo ni los laterales.
@@ -311,14 +343,14 @@ export class IsometricRenderer {
       ? bottomPieceOverride
       : (Number.isFinite(bottomPanelOverride)
         ? bottomPanelOverride
-        : (baseMount === 'internal' ? effectiveZocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset));
+        : (baseAxes.width === 'internal' ? effectiveZocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset));
     const topPanelOverride = this.verticalPositionOverrides?.topPanelOffset;
     const topPanelOffset = Number.isFinite(topPanelOverride)
       ? topPanelOverride
-      : (topMount === 'internal' ? Math.max(0, moduleH - thickness - coronaHeight) : moduleH - thickness);
+      : (topAxes.width === 'internal' ? Math.max(0, moduleH - thickness - coronaHeight) : moduleH - thickness);
 
-    const sideStartZ = baseMount === 'internal' ? 0 : bottomPanelOffset + thickness;
-    const sideEndZ = topMount === 'internal' ? topPanelOffset + thickness : topPanelOffset;
+    const sideStartZ = baseAxes.width === 'internal' ? 0 : bottomPanelOffset + thickness;
+    const sideEndZ = topAxes.width === 'internal' ? topPanelOffset + thickness : topPanelOffset;
     const sideH = Math.max(0, sideEndZ - sideStartZ);
 
     // Zócalos frontales por módulo (plinth).
@@ -361,22 +393,29 @@ export class IsometricRenderer {
 
     if (bottom) {
       let bx, by, bw, bd;
-      if (baseMount === 'internal') {
+      if (baseAxes.width === 'internal') {
         bx = thickness;
-        by = thickness;
         bw = Math.max(0, moduleW - 2 * thickness);
-        bd = Math.max(0, moduleD - 2 * thickness);
-      } else if (baseMount === 'external') {
+      } else if (baseAxes.width === 'external') {
         bx = 0;
-        by = 0;
         bw = moduleW;
-        bd = moduleD;
       } else {
         // Custom: se respetan las medidas reales de la pieza y se centra en el módulo.
         bw = Number(bottom.ancho) || moduleW;
-        bd = Number(bottom.alto) || moduleD;
         bx = Math.max(0, (moduleW - bw) / 2);
-        by = Math.max(0, (moduleD - bd) / 2);
+      }
+
+      if (baseAxes.depth === 'internal') {
+        by = thickness;
+        bd = Math.max(0, moduleD - 2 * thickness);
+      } else if (baseAxes.depth === 'external') {
+        by = 0;
+        bd = moduleD;
+      } else {
+        // Profundidad intermedia: se alinea al fondo (y=0) para dejar el
+        // receso frontal libre (p. ej. para el zócalo).
+        bd = Number(bottom.alto) || moduleD;
+        by = 0;
       }
       geometries.push({
         x: bx, y: by, z: bottomPanelOffset,
@@ -388,22 +427,29 @@ export class IsometricRenderer {
 
     if (top) {
       let tx, ty, tw, td;
-      if (topMount === 'internal') {
+      if (topAxes.width === 'internal') {
         tx = thickness;
-        ty = thickness;
         tw = Math.max(0, moduleW - 2 * thickness);
-        td = Math.max(0, moduleD - 2 * thickness);
-      } else if (topMount === 'external') {
+      } else if (topAxes.width === 'external') {
         tx = 0;
-        ty = 0;
         tw = moduleW;
-        td = moduleD;
       } else {
         // Custom: se respetan las medidas reales de la pieza y se centra en el módulo.
         tw = Number(top.ancho) || moduleW;
-        td = Number(top.alto) || moduleD;
         tx = Math.max(0, (moduleW - tw) / 2);
-        ty = Math.max(0, (moduleD - td) / 2);
+      }
+
+      if (topAxes.depth === 'internal') {
+        ty = thickness;
+        td = Math.max(0, moduleD - 2 * thickness);
+      } else if (topAxes.depth === 'external') {
+        ty = 0;
+        td = moduleD;
+      } else {
+        // Profundidad intermedia: se alinea al fondo (y=0) para dejar el
+        // receso frontal libre si aplica.
+        td = Number(top.alto) || moduleD;
+        ty = 0;
       }
       geometries.push({
         x: tx, y: ty, z: topPanelOffset,
@@ -458,36 +504,103 @@ export class IsometricRenderer {
 
     // Estantes / repisas
     const shelves = roles.filter((p) => p.role === 'shelf');
-    const shelfPositions = shelves.length
-      ? calculateVerticalPositions(moduleH, thickness, shelves, {
-          overrides: this.verticalPositionOverrides,
-          pieceOffsets: this.verticalPositionOverrides?.pieceOffsets,
-          baseOffset: bottomPanelOffset,
-          topPanelOffset,
-        })
-      : [];
+
+    // Divisores verticales: se calculan antes de los estantes para recortar
+    // cada estante a los vanos (bays) que crean, y para poder apilar los
+    // estantes de cada lado de forma independiente.
+    const dividers = roles.filter((p) => p.role === 'divider');
+    const bays = computeBays(dividers, moduleW, thickness);
+
     const interiorWidth = Math.max(0, moduleW - 2 * thickness);
+    const maxBayWidth = Math.max(0, ...bays.map((b) => b.right - b.left));
+    const isSpanningShelf = (p) => {
+      const dims = getPieceDims(p, 'shelf', thickness, family);
+      const fullW = Math.min(dims.w || interiorWidth, interiorWidth);
+      const bayIndex = inferShelfBayIndex(p, bays);
+      return bayIndex === null && (Math.abs(fullW - interiorWidth) <= 2 || fullW > maxBayWidth + 2);
+    };
+
+    // Repisas inferiores corrida: se calculan primero y su cara superior pasa
+    // a ser la base para las piezas laterales, divisor y estantes posteriores.
+    const isBottomLikeShelf = (p) => {
+      const zone = determineVerticalZone(p);
+      return zone === 'bottom' || zone === 'fixed-bottom';
+    };
+    const bottomSpanningShelves = shelves.filter((p) => isBottomLikeShelf(p) && isSpanningShelf(p));
+    const sideShelves = shelves.filter((p) => !bottomSpanningShelves.includes(p));
+
+    const calcPositions = (list, baseOffset = bottomPanelOffset) =>
+      calculateVerticalPositions(moduleH, thickness, list, {
+        overrides: this.verticalPositionOverrides,
+        pieceOffsets: this.verticalPositionOverrides?.pieceOffsets,
+        baseOffset,
+        topPanelOffset,
+      });
+
+    const bottomPositions = calcPositions(bottomSpanningShelves);
+    const raisedBaseTop = bottomPositions.length
+      ? Math.max(...bottomPositions.map((sp) => sp.y + sp.h))
+      : bottomPanelOffset + thickness;
+    const raisedBaseOffset = raisedBaseTop - thickness;
+
+    // Calcular posiciones verticales por lado usando la base elevada.
+    const leftShelves = sideShelves.filter((p) => inferShelfBayIndex(p, bays) === 0);
+    const rightShelves = sideShelves.filter((p) => inferShelfBayIndex(p, bays) === bays.length - 1);
+    const centerShelves = sideShelves.filter((p) => {
+      const idx = inferShelfBayIndex(p, bays);
+      return idx !== null && idx > 0 && idx < bays.length - 1;
+    });
+    const otherShelves = sideShelves.filter((p) => inferShelfBayIndex(p, bays) === null);
+
+    const shelfPositions = [
+      ...bottomPositions,
+      ...calcPositions(leftShelves, raisedBaseOffset),
+      ...calcPositions(rightShelves, raisedBaseOffset),
+      ...calcPositions(centerShelves, raisedBaseOffset),
+      ...calcPositions(otherShelves, raisedBaseOffset),
+    ];
     shelfPositions.forEach((sp) => {
       const dims = getPieceDims(sp.piece, 'shelf', thickness, family);
       // Las piezas horizontales interiores van embutidas entre laterales;
       // nunca deben exceder el ancho interior, aunque el CSV traiga un ancho mayor.
-      const w = Math.min(dims.w || interiorWidth, interiorWidth);
-      const x = Math.max(thickness, (moduleW - w) / 2);
+      const fullW = Math.min(dims.w || interiorWidth, interiorWidth);
       // La profundidad de la repisa respeta el CSV (alto), pero no puede
       // pasar la cara interior del fondo. Si no viene, usa toda la profundidad interior.
       const shelfDepth = Math.min(Number(sp.piece.alto) || interiorDepth, interiorDepth);
       const y = depthOffset;
-      geometries.push({
-        x, y, z: sp.y, w, d: shelfDepth, h: dims.h,
-        color: sp.piece.color, role: 'shelf', name: sp.piece.nombre, id: sp.piece.id,
+      const h = dims.h;
+
+      const bayIndex = inferShelfBayIndex(sp.piece, bays);
+      // Si una repisa no tiene palabra clave lateral y su ancho cubre todo el
+      // interior del módulo o es mayor que un vano individual, se dibuja como
+      // una sola pieza atravesando todos los vanos (p. ej. una repisa superior
+      // corrida). De lo contrario se replica en cada vano.
+      const maxBayWidth = Math.max(0, ...bays.map((b) => b.right - b.left));
+      const isSpanning =
+        bayIndex === null &&
+        (Math.abs(fullW - interiorWidth) <= 2 || fullW > maxBayWidth + 2);
+      const targetBays = isSpanning
+        ? [{ left: thickness, right: moduleW - thickness }]
+        : bayIndex !== null
+          ? [bays[bayIndex]]
+          : bays;
+
+      targetBays.forEach((bay) => {
+        const bayInnerW = bay.right - bay.left;
+        const w = Math.min(fullW, bayInnerW);
+        const x = bay.left + Math.max(0, (bayInnerW - w) / 2);
+        geometries.push({
+          x, y, z: sp.y, w, d: shelfDepth, h,
+          color: sp.piece.color, role: 'shelf', name: sp.piece.nombre, id: sp.piece.id,
+          zone: sp.zone,
+        });
       });
     });
 
     // Divisores verticales
-    const dividers = roles.filter((p) => p.role === 'divider');
     if (dividers.length) {
       geometries.push(
-        ...this._buildDividerGeometries(dividers, moduleW, moduleD, moduleH, thickness, shelfPositions, top, bottom, backThickness, bottomPanelOffset, topPanelOffset)
+        ...this._buildDividerGeometries(dividers, moduleW, moduleD, moduleH, thickness, shelfPositions, top, bottom, backThickness, raisedBaseOffset, topPanelOffset)
       );
     }
 
@@ -733,25 +846,40 @@ export class IsometricRenderer {
     const baseTop = bottomPanelOffset + t;
     const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
 
-    // Divisores verticales (montantes) se dibujan de base a tapa en una sola pieza,
-    // sin recortar por zonas de estantes. Divisores horizontales se tratan como
-    // paneles intermedios y se colocan en la zona correspondiente.
+    // Divisores verticales (montantes) se dibujan desde la cara superior de la
+    // base hasta la cara inferior de la repisa superior (o tapa), respetando
+    // offset inferior e inset superior configurables por pieza.
+    // Divisores horizontales se tratan como paneles intermedios y se colocan
+    // en la zona correspondiente.
     const vertical = [];
     const horizontal = [];
     dividers.forEach((div) => {
       const dims = getPieceDims(div, 'divider', thickness, 'cabinet');
-      const isVertical = Number(div.alto) > Number(div.ancho) * 1.5;
-      if (isVertical) vertical.push({ div, dims });
+      if (isDividerVertical(div)) vertical.push({ div, dims });
       else horizontal.push({ div, dims });
     });
 
     vertical.forEach(({ div, dims }) => {
-      const divW = dims.w || thickness;
-      const x = Math.max(thickness, Math.min(inferDividerX(div, moduleW, thickness), moduleW - thickness - divW));
-      const z = baseTop;
-      const h = Math.min(dims.h || topLimit - baseTop, topLimit - baseTop);
+      const divW = dims.w || t;
+      const x = Math.max(t, Math.min(inferDividerX(div, moduleW, t), moduleW - t - divW));
+      const cfg = getPieceOffsetConfig(
+        div,
+        undefined,
+        { pieceOffsets: this.verticalPositionOverrides?.pieceOffsets },
+        {}
+      );
+      const bottomOffset = Number.isFinite(cfg.offset) ? cfg.offset : 0;
+      const topInset = Number.isFinite(cfg.gap) ? cfg.gap : 0;
+      const z = baseTop + bottomOffset;
+      // Se respeta el alto de la pieza, sin pasar por encima de la repisa
+      // superior (o tapa) que haya encima del divisor.
+      const dividerTopLimit = findTopShelfLimit(shelfPositions, topLimit) - topInset;
+      const availableH = Math.max(0, dividerTopLimit - z);
+      const requestedH = Number(div.alto) || availableH;
+      const h = Math.min(requestedH, availableH);
+      const d = Math.min(Number(div.ancho) || interiorDepth, interiorDepth);
       geometries.push({
-        x, y: depthOffset, z, w: divW, d: interiorDepth, h,
+        x, y: depthOffset, z, w: divW, d, h,
         color: div.color, role: 'divider', name: div.nombre, id: div.id,
       });
     });

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { inferRole, detectFamily } from '../../services/classifierService.js';
+import { inferRole, detectFamily, isDividerVertical } from '../../services/classifierService.js';
 
 const piece = (name, overrides = {}) => ({
   id: overrides.id ?? 'P-1',
@@ -90,5 +90,22 @@ describe('inferRole - dividers', () => {
   it('classifies side dividers as divider', () => {
     assert.equal(inferRole(piece('Divisor izquierdo', { ancho: 30, alto: 2200 })), 'divider');
     assert.equal(inferRole(piece('Divisor derecho', { ancho: 30, alto: 2200 })), 'divider');
+  });
+});
+
+describe('isDividerVertical', () => {
+  it('detects tall dividers as vertical', () => {
+    assert.equal(isDividerVertical(piece('Division vertical', { ancho: 550, alto: 2400 })), true);
+    assert.equal(isDividerVertical(piece('Divisor', { ancho: 18, alto: 1800 })), true);
+  });
+
+  it('detects wide dividers as horizontal', () => {
+    assert.equal(isDividerVertical(piece('Division horizontal', { ancho: 800, alto: 18 })), false);
+    assert.equal(isDividerVertical(piece('Divisor', { ancho: 600, alto: 200 })), false);
+  });
+
+  it('respects rotate flag', () => {
+    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 2400, alto: 550, rotate: 'si' }), true);
+    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 550, alto: 2400, rotate: 'si' }), false);
   });
 });

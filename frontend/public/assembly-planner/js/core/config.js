@@ -169,4 +169,8 @@ export const VERTICAL_POSITIONS = {
   // ── Offset horizontal de patas ─────────────────────────────────
   legOffsetX: 20,            // margen patas desde lateral (X)
   legOffsetY: 20,            // margen patas desde frente/fondo (Y)
+
+  // ── Divisor vertical ────────────────────────────────────────────
+  dividerBaseOffset: 0,      // distancia desde la cara superior de la base al borde inferior del divisor
+  dividerTopInset: 0,        // distancia desde la cara inferior de la tapa/repisa superior al borde superior del divisor
 };

@@ -47,7 +47,11 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
   }
 
   if (role === 'divider') {
-    return { w: ancho, h: Math.max(w, h) };
+    // Divisor vertical: se ve como un lateral (espesor × altura).
+    // Divisor horizontal: se ve como un entrepaño delgado (ancho × espesor visual).
+    const isVertical = h > w * 1.5;
+    if (isVertical) return { w: espesor, h };
+    return { w, h: useVisualThickness(h, espesor) };
   }
 
   if (role === 'back_panel') {
@@ -235,18 +239,29 @@ export function classifyBackPanelMount(back, moduleW, moduleH, thickness = DEFAU
  *  - 'internal': queda embutido entre laterales (ancho≈moduleW-2t, alto≈moduleD-2t).
  *  - 'custom': cualquier otra medida.
  */
-export function classifyTopBottomMount(panel, moduleW, moduleD, thickness = DEFAULT_THICKNESS) {
+export function classifyTopBottomMountAxes(panel, moduleW, moduleD, thickness = DEFAULT_THICKNESS) {
   const tol = 2;
   const w = Number(panel.ancho) || 0;
   const d = Number(panel.alto) || 0;
   const interiorW = Math.abs(moduleW - 2 * thickness);
   const interiorD = Math.abs(moduleD - 2 * thickness);
 
-  const external = Math.abs(w - moduleW) <= tol && Math.abs(d - moduleD) <= tol;
-  const internal = Math.abs(w - interiorW) <= tol && Math.abs(d - interiorD) <= tol;
+  const classifyAxis = (value, exterior, interior) => {
+    if (Math.abs(value - exterior) <= tol) return 'external';
+    if (Math.abs(value - interior) <= tol) return 'internal';
+    return 'custom';
+  };
 
-  if (external) return 'external';
-  if (internal) return 'internal';
+  return {
+    width: classifyAxis(w, moduleW, interiorW),
+    depth: classifyAxis(d, moduleD, interiorD),
+  };
+}
+
+export function classifyTopBottomMount(panel, moduleW, moduleD, thickness = DEFAULT_THICKNESS) {
+  const axes = classifyTopBottomMountAxes(panel, moduleW, moduleD, thickness);
+  if (axes.width === 'external' && axes.depth === 'external') return 'external';
+  if (axes.width === 'internal' && axes.depth === 'internal') return 'internal';
   return 'custom';
 }
 

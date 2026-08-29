@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   determineVerticalZone,
+  findTopShelfLimit,
   getDefaultVerticalPosition,
   calculateVerticalPositions,
 } from '../verticalPositionService.js';
@@ -107,6 +108,21 @@ describe('getDefaultVerticalPosition', () => {
 
   it('centers unknown horizontal pieces by default', () => {
     assert.equal(getDefaultVerticalPosition(piece('Misterio'), MODULE_H, THICKNESS), MODULE_H / 2);
+  });
+});
+
+describe('findTopShelfLimit', () => {
+  it('finds the highest top shelf as the divider top limit', () => {
+    const shelfPositions = [
+      { piece: { nombre: 'Repisa superior', id: 'rs' }, y: 2265, zone: 'top' },
+      { piece: { nombre: 'Estante 1', id: 'e1' }, y: 500, zone: 'middle' },
+    ];
+    assert.equal(findTopShelfLimit(shelfPositions, 2385), 2265);
+  });
+
+  it('falls back to top panel offset when no top shelf', () => {
+    assert.equal(findTopShelfLimit([], 2385), 2385);
+    assert.equal(findTopShelfLimit([{ piece: { nombre: 'Estante' }, y: 500, zone: 'middle' }], 2385), 2385);
   });
 });
 

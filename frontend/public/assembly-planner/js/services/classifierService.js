@@ -72,6 +72,19 @@ export function isShoeRack(piece) {
   return /\bzapat(?:ero|era|eros|eras)\b/.test(text);
 }
 
+/**
+ * Detecta si un divisor es de tipo vertical (como un lateral), es decir,
+ * su altura es considerablemente mayor que su anchura. Tiene en cuenta el
+ * campo rotate para usar las dimensiones físicas reales.
+ */
+export function isDividerVertical(piece) {
+  if (inferRole(piece) !== 'divider') return false;
+  let w = Number(piece.ancho) || 0;
+  let h = Number(piece.alto) || 0;
+  if (String(piece.rotate).toLowerCase() === 'si') [w, h] = [h, w];
+  return h > w * 1.5;
+}
+
 export function detectFamily(pieces, moduleId = null) {
   let list = pieces;
   if (moduleId !== null) {

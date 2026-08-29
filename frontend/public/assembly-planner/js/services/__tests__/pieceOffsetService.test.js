@@ -58,6 +58,10 @@ describe('pieceOffsetService', () => {
     it('returns side for legs', () => {
       assert.equal(getPieceOffsetType(piece('Pata'), 'middle'), 'side');
     });
+
+    it('returns base for divider', () => {
+      assert.equal(getPieceOffsetType(piece('Division vertical M3', { ancho: 550, alto: 2400 })), 'base');
+    });
   });
 
   describe('getDefaultOffset', () => {
@@ -77,6 +81,10 @@ describe('pieceOffsetService', () => {
     it('returns shelfMiddleBaseOffset for middle shelves', () => {
       assert.equal(getDefaultOffset(piece('Repisa'), 'middle'), VERTICAL_POSITIONS.shelfMiddleBaseOffset);
     });
+
+    it('returns dividerBaseOffset for dividers', () => {
+      assert.equal(getDefaultOffset(piece('Division vertical M3', { ancho: 550, alto: 2400 })), VERTICAL_POSITIONS.dividerBaseOffset);
+    });
   });
 
   describe('getDefaultGap', () => {
@@ -90,6 +98,10 @@ describe('pieceOffsetService', () => {
 
     it('returns drawerFaceGap for drawer faces', () => {
       assert.equal(getDefaultGap(piece('Frente cajón'), 'drawer'), VERTICAL_POSITIONS.drawerFaceGap);
+    });
+
+    it('returns dividerTopInset for dividers', () => {
+      assert.equal(getDefaultGap(piece('Division vertical M3', { ancho: 550, alto: 2400 })), VERTICAL_POSITIONS.dividerTopInset);
     });
   });
 
@@ -124,6 +136,11 @@ describe('pieceOffsetService', () => {
     it('returns false for a single piece of its role', () => {
       const pieces = [piece('Repisa 1', { id: 'r1' }), piece('Puerta', { id: 'd1' })];
       assert.equal(shouldShowGap(pieces[0], pieces), false);
+    });
+
+    it('always returns true for dividers to expose top inset', () => {
+      const pieces = [piece('Division vertical M3', { ancho: 550, alto: 2400, id: 'div' })];
+      assert.equal(shouldShowGap(pieces[0], pieces), true);
     });
   });
 

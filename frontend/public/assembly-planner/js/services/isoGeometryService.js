@@ -2,7 +2,7 @@
 // para el renderizador isométrico. Sin DOM, sin SVG.
 
 import { normalizeName } from '../utils/normalize.js';
-import { inferRole } from './classifierService.js';
+import { inferRole, isDividerVertical } from './classifierService.js';
 import { VERTICAL_POSITIONS } from '../core/config.js';
 
 export function getModuleDepth(pieces) {
@@ -129,20 +129,72 @@ export function distributeHorizontally(count, moduleW, sideWidth) {
 }
 
 export function inferDividerX(div, moduleW, thickness) {
+  const t = Number(thickness) || 15;
   const n = normalizeName(div.nombre);
   const id = normalizeName(div.id);
+  const vertical = isDividerVertical(div);
+  const divW = vertical ? t : Number(div.ancho || t);
+
   if (n.includes('central') || n.includes('centro') || id.includes('central') || id.includes('centro')) {
-    return (moduleW - Number(div.ancho || thickness)) / 2;
+    return (moduleW - divW) / 2;
   }
   if (n.includes('izquierdo') || n.includes('izq') || id.includes('izquierdo') || id.includes('izq')) {
-    return thickness;
+    return t;
   }
   if (n.includes('derecho') || n.includes('der') || id.includes('derecho') || id.includes('der')) {
-    return moduleW - Number(div.ancho || thickness) - thickness;
+    return moduleW - divW - t;
   }
+
+  // Los divisores verticales sin otra indicación se centran entre laterales.
+  if (vertical) return (moduleW - divW) / 2;
+
   const m = (id.match(/(\d+)/) || n.match(/(\d+)/) || [null, 1])[1];
   const idx = parseInt(m, 10);
   return (moduleW * idx) / 10;
+}
+
+/**
+ * Calcula los vanos (bays) interiores de un módulo a partir de los laterales
+ * y los divisores verticales. Cada bay es { left, right } usando las caras
+ * interiores de los elementos verticales.
+ */
+export function computeBays(dividers, moduleW, thickness) {
+  const t = Number(thickness) || 15;
+  const panels = [
+    { left: 0, right: t },
+    { left: moduleW - t, right: moduleW },
+  ];
+  (dividers || [])
+    .filter((d) => isDividerVertical(d))
+    .forEach((d) => {
+      const x = inferDividerX(d, moduleW, t);
+      panels.push({ left: x, right: x + t });
+    });
+  panels.sort((a, b) => a.left - b.left);
+
+  const bays = [];
+  for (let i = 0; i < panels.length - 1; i++) {
+    const left = panels[i].right;
+    const right = panels[i + 1].left;
+    if (right > left) bays.push({ left, right });
+  }
+  return bays;
+}
+
+/**
+ * Asigna una pieza horizontal a un vano según palabras clave en nombre/id.
+ * Devuelve el índice del bay (0 = izquierdo, último = derecho) o null si no
+ * tiene marca lateral, en cuyo caso se debe replicar en todos los vanos.
+ */
+export function inferShelfBayIndex(piece, bays) {
+  if (!bays || bays.length <= 1) return null;
+  const n = normalizeName(piece.nombre);
+  const id = normalizeName(piece.id);
+  const text = `${n} ${id}`;
+  if (text.includes('izquierdo') || text.includes('izq')) return 0;
+  if (text.includes('derecho') || text.includes('der')) return bays.length - 1;
+  if (text.includes('central') || text.includes('centro')) return Math.floor(bays.length / 2);
+  return null;
 }
 
 export function inferDoorX(door, moduleW, doorW, thickness) {

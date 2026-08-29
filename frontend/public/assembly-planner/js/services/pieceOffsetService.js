@@ -57,7 +57,9 @@ export function getPieceOffsetType(piece, zone) {
   if (role === 'hanger_rail' || role === 'seat_panel') return 'absolute';
   if (role === 'mirror' || zone === 'top') return 'top';
   if (role === 'leg') return 'side';
-  if (role === 'side_panel' || role === 'divider' || role === 'back_panel') return 'none';
+  if (role === 'side_panel' || role === 'back_panel') return 'none';
+  // Divisor vertical: offset desde la base e inset superior (reutilizado como gap).
+  if (role === 'divider') return 'base';
   return 'base';
 }
 
@@ -69,6 +71,7 @@ export function getOffsetPlaceholder(piece, zone) {
   const role = inferRole(piece);
   if (role === 'bottom_panel') return 'Altura desde suelo (mm)';
   if (role === 'top_panel') return 'Inset desde tapa (mm)';
+  if (role === 'divider') return 'Offset inferior (mm)';
   switch (type) {
     case 'top':
       return 'Inset superior (mm)';
@@ -82,6 +85,16 @@ export function getOffsetPlaceholder(piece, zone) {
     default:
       return 'Offset desde base (mm)';
   }
+}
+
+/**
+ * Placeholder adecuado para el input de gap.
+ * Para divisores verticales el gap representa el inset superior.
+ */
+export function getGapPlaceholder(piece, zone) {
+  const role = inferRole(piece);
+  if (role === 'divider') return 'Inset superior (mm)';
+  return 'Gap entre piezas (mm)';
 }
 
 function defaultValue(key, globalOverrides = {}) {
@@ -171,6 +184,7 @@ export function getDefaultOffset(piece, zone = getPieceZone(piece), globalOverri
   if (role === 'hanger_rail') return defaultValue('hangerRailHeight', globalOverrides);
   if (role === 'seat_panel') return defaultValue('seatHeight', globalOverrides);
   if (role === 'leg') return defaultValue('legOffsetX', globalOverrides);
+  if (role === 'divider') return defaultValue('dividerBaseOffset', globalOverrides);
 
   return 0;
 }
@@ -195,6 +209,7 @@ export function getDefaultGap(piece, zone = getPieceZone(piece), globalOverrides
   if (role === 'hanger_rail') return defaultValue('defaultGap', globalOverrides);
   if (role === 'seat_panel') return defaultValue('defaultGap', globalOverrides);
   if (role === 'leg') return defaultValue('legOffsetY', globalOverrides);
+  if (role === 'divider') return defaultValue('dividerTopInset', globalOverrides);
 
   return defaultValue('defaultGap', globalOverrides);
 }
@@ -225,6 +240,7 @@ export function getPieceOffsetConfig(
  */
 export function shouldShowGap(piece, pieces, useZone = true) {
   const role = inferRole(piece);
+  if (role === 'divider') return true;
   const zone = useZone ? getPieceZone(piece) : null;
   return pieces.filter((p) => {
     if (inferRole(p) !== role) return false;

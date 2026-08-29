@@ -54,6 +54,18 @@ describe('getPieceDims', () => {
     assert.deepEqual(getPieceDims(p, 'side_panel', 18, 'cabinet'), { w: 18, h: 400 });
   });
 
+  it('computes vertical divider dims as thickness x height', () => {
+    const p = piece('Division vertical', 550, 2400, 15);
+    assert.deepEqual(getPieceDims(p, 'divider', 15, 'cabinet'), { w: 15, h: 2400 });
+  });
+
+  it('computes horizontal divider dims as width x visual thickness', () => {
+    const p = piece('Division horizontal', 800, 18, 15);
+    const dims = getPieceDims(p, 'divider', 15, 'cabinet');
+    assert.equal(dims.w, 800);
+    assert.equal(dims.h, 18);
+  });
+
   it('rotates dims when rotate is si', () => {
     const p = piece('Pieza', 100, 500, 18, 'si');
     assert.deepEqual(getPieceDims(p, 'back_panel', 18, 'cabinet'), { w: 500, h: 100 });

@@ -2,6 +2,7 @@
 
 import { isGlobalPiece } from './utils.js';
 import { normalizeName } from './utils/normalize.js';
+import { getPieceZone } from './services/pieceOffsetService.js';
 
 export const DEPENDENCY_TYPES = {
   estructural: { label: 'Estructural', color: '#4ECDC4', width: 2, dash: 'none' },
@@ -25,6 +26,29 @@ function sameModule(a, b) {
   return a.modulo === b.modulo;
 }
 
+function inferPieceSide(p) {
+  const n = normalize(p.nombre);
+  const id = normalize(p.id);
+  const text = `${n} ${id}`;
+  if (text.includes('izquierdo') || text.includes('izq')) return 'left';
+  if (text.includes('derecho') || text.includes('der')) return 'right';
+  if (text.includes('central') || text.includes('centro')) return 'center';
+  return null;
+}
+
+const ZONE_ORDER = {
+  'fixed-bottom': 0,
+  bottom: 1,
+  middle: 2,
+  top: 3,
+  drawer: 4,
+  brace: 5,
+};
+
+function zoneRank(p) {
+  return ZONE_ORDER[getPieceZone(p)] ?? 99;
+}
+
 export function sugerirDependencias(piezas) {
   const deps = [];
 
@@ -43,7 +67,7 @@ export function sugerirDependencias(piezas) {
     (p) => (normalize(p.nombre).includes('fondo') || normalize(p.nombre).includes('trasera')) && !normalize(p.nombre).includes('cajon')
   );
   const interiores = piezas.filter((p) =>
-    ['repisa', 'estante', 'divisor', 'division', 'particion', 'partición'].some((k) =>
+    ['repisa', 'estante', 'divisor', 'division', 'particion', 'partición', 'zapatero', 'zapatera'].some((k) =>
       normalize(p.nombre).includes(k)
     ) && !normalize(p.nombre).includes('cajon')
   );
@@ -75,11 +99,11 @@ export function sugerirDependencias(piezas) {
       [...bases, ...tapas].filter((p) => sameModule(p, div)).forEach((p) => add(p.id, div.id, 'interior'));
     });
 
-  // Paso 4: Fondos dependen de estructura cerrada (base + laterales + divisores).
-  // No incluimos tapa para evitar ciclos con piezas globales y porque el fondo
-  // se instala antes de colocar la tapa.
+  // Paso 4: Fondos dependen de la estructura cerrada (base + laterales).
+  // No dependen del divisor para evitar ciclos cuando las repisas de cada lado
+  // del divisor deben ensamblarse antes y después de él.
   fondos.forEach((fondo) => {
-    [...bases, ...laterales, ...interiores.filter((i) => normalize(i.nombre).includes('divisor') || normalize(i.nombre).includes('division'))]
+    [...bases, ...laterales]
       .filter((p) => sameModule(p, fondo))
       .forEach((p) => add(p.id, fondo.id, 'fondo'));
   });
@@ -138,7 +162,9 @@ export function sugerirDependencias(piezas) {
       .forEach((l) => add(l.id, bar.id, 'accesorio'));
   });
 
-  // Paso 11: Secuencializar repisas, puertas, cajones y tiradores dentro de cada módulo
+  // Paso 11: Secuencializar repisas/estantes/zapateros y puertas/cajones/tiradores.
+  // Cuando hay un divisor vertical, el orden dentro del módulo debe ser:
+  // piezas horizontales izquierdas → divisor → piezas horizontales derechas.
   function chainByModule(list, type) {
     const byModule = {};
     list.forEach((p) => {
@@ -152,7 +178,55 @@ export function sugerirDependencias(piezas) {
       }
     });
   }
-  chainByModule(repisas, 'interior');
+
+  function chainHorizontalBySide(type) {
+    const horizontales = interiores.filter(
+      (p) =>
+        normalize(p.nombre).includes('repisa') ||
+        normalize(p.nombre).includes('estante') ||
+        normalize(p.nombre).includes('zapatero')
+    );
+    const byModule = {};
+    horizontales.forEach((p) => {
+      byModule[p.modulo] = byModule[p.modulo] || [];
+      byModule[p.modulo].push(p);
+    });
+    Object.entries(byModule).forEach(([mod, group]) => {
+      const dividers = interiores.filter(
+        (p) =>
+          sameModule(p, { modulo: mod }) &&
+          (normalize(p.nombre).includes('divisor') ||
+            normalize(p.nombre).includes('division') ||
+            normalize(p.nombre).includes('particion'))
+      );
+      const byZoneAndName = (a, b) => zoneRank(a) - zoneRank(b) || a.nombre.localeCompare(b.nombre);
+      const left = group.filter((p) => inferPieceSide(p) === 'left').sort(byZoneAndName);
+      const right = group.filter((p) => inferPieceSide(p) === 'right').sort(byZoneAndName);
+      const center = group.filter((p) => inferPieceSide(p) === 'center').sort(byZoneAndName);
+      const other = group.filter((p) => !inferPieceSide(p)).sort(byZoneAndName);
+
+      [left, center, right, other].forEach((sub) => {
+        for (let i = 1; i < sub.length; i++) {
+          add(sub[i - 1].id, sub[i].id, type);
+        }
+      });
+
+      if (left.length && dividers.length) {
+        add(left[left.length - 1].id, dividers[0].id, type);
+      }
+      if (dividers.length && right.length) {
+        add(dividers[0].id, right[0].id, type);
+      }
+      // Repisas/estantes sin palabra clave lateral (corrida, inferior, superior...)
+      // dependen del divisor cuando existe, para que el orden sea:
+      // izquierda → divisor → derecha → corrida.
+      if (dividers.length && other.length) {
+        add(dividers[0].id, other[0].id, type);
+      }
+    });
+  }
+
+  chainHorizontalBySide('interior');
   chainByModule(puertas, 'accesorio');
   chainByModule(cajones, 'interior');
   chainByModule(tiradores, 'accesorio');

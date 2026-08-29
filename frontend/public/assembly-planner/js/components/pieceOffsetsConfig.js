@@ -9,6 +9,7 @@ import {
   groupPiecesByOriginalId,
   getPieceOffsetConfig,
   getOffsetPlaceholder,
+  getGapPlaceholder,
   shouldShowGap,
   getPieceTypeLabel,
   isConfigurablePiece,
@@ -26,6 +27,7 @@ const CATEGORY_OPTIONS = [
   { value: 'shelf', label: 'Entrepaño' },
   { value: 'shelf-shoe', label: 'Zapatero' },
   { value: 'hanger_rail', label: 'Riel colgador' },
+  { value: 'divider', label: 'Divisor' },
 ];
 
 // Orden lógico de los grupos para que la base quede arriba y se reduzca el scroll.
@@ -296,6 +298,7 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig, categ
   const showGap = shouldShowGap(piece, activePieces);
   const typeLabel = getPieceTypeLabel(piece);
   const offsetPlaceholder = getOffsetPlaceholder(piece, cfg.zone);
+  const gapPlaceholder = getGapPlaceholder(piece, cfg.zone);
   const offsetValue = Number.isFinite(cfg.offset) ? cfg.offset : VERTICAL_POSITIONS[getDefaultKey(piece, cfg.zone)] || 0;
   const gapValue = Number.isFinite(cfg.gap) ? cfg.gap : 0;
   const qtyBadge = count > 1 ? `<span class="badge badge--secondary">×${count}</span>` : '';
@@ -330,10 +333,10 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig, categ
                 data-original-id="${escapeHtml(originalId)}"
                 data-field="gap"
                 value="${gapValue}"
-                placeholder="Gap entre piezas (mm)"
+                placeholder="${escapeHtml(gapPlaceholder)}"
                 step="any"
                 min="0"
-                aria-label="Gap entre piezas (mm) para ${escapeHtml(piece.nombre)}"
+                aria-label="${escapeHtml(gapPlaceholder)} para ${escapeHtml(piece.nombre)}"
               />`
             : '<span class="empty-state">—</span>'
         }
@@ -407,8 +410,9 @@ function setExpanded(button, tbody, role, expanded, persist = true) {
 
 function getDefaultKey(piece, zone) {
   // Fallback visual; el servicio real usa VERTICAL_POSITIONS directamente.
-  const role = piece.role || '';
+  const role = piece.role || inferRole(piece);
   if (zone === 'fixed-bottom') return 'shoeRackBaseOffset';
+  if (role === 'divider') return 'dividerBaseOffset';
   if (zone === 'top') {
     if (role === 'shelf') return 'shelfTopInset';
     if (role === 'door') return 'doorTopInset';

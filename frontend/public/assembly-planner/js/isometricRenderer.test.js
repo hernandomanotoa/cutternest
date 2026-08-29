@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { IsometricRenderer } from './isometricRenderer.js';
+import { IsometricRenderer, sortByDepth } from './isometricRenderer.js';
 
 function parsePolygons(svg) {
   const regex = /<polygon[^>]*>/g;
@@ -418,5 +418,201 @@ describe('IsometricRenderer rear offset/gap dimensions', () => {
     const svg = container.innerHTML;
     assert.ok(svg.includes('>80<'), 'shoe rack base offset dimension should be shown');
     assert.ok(svg.includes('>60<'), 'shoe rack gap dimension should be shown');
+  });
+});
+
+
+describe('IsometricRenderer vertical divider', () => {
+  const closetM3Base = [
+    { id: 'm3-zocalo', nombre: 'Zócalo módulo 3', ancho: 800, alto: 100, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    { id: 'm3-base', nombre: 'Base módulo 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    { id: 'm3-tapa', nombre: 'Tapa módulo 3', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    { id: 'm3-lateral-izq', nombre: 'Lateral izquierdo 3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L', modulo: '3' },
+    { id: 'm3-lateral-der', nombre: 'Lateral derecho 3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,R', modulo: '3' },
+    { id: 'm3-fondo', nombre: 'Fondo módulo 3', ancho: 770, alto: 2370, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, cantos: '', modulo: '3' },
+    { id: 'm3-repisa-sup', nombre: 'Repisa superior 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+  ];
+
+  it('places vertical divider centered, on base and below top shelf', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const div = geoms.find((g) => g.role === 'divider');
+    assert.ok(div, 'vertical divider geometry should exist');
+    assert.equal(div.w, 15, 'divider width should be thickness');
+    assert.equal(div.x, (800 - 15) / 2, 'divider should be centered');
+    assert.equal(div.z, 115, 'divider bottom should rest on top of base');
+    assert.equal(div.h, 2150, 'divider height should stop below top shelf');
+    assert.equal(div.y, 15, 'divider should be inset by back thickness');
+    assert.equal(div.d, 535, 'divider depth should be interior depth');
+  });
+
+  it('clips shelves to bays created by the divider', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-1', nombre: 'Estante regulable 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const shelves = geoms.filter((g) => g.role === 'shelf' && g.name.includes('Estante'));
+    assert.equal(shelves.length, 2, 'shelf should be duplicated into two bays');
+    const xs = shelves.map((g) => g.x).sort((a, b) => a - b);
+    assert.equal(xs[0], 15, 'left shelf should start at inner face of left side');
+    assert.equal(xs[1], 407.5, 'right shelf should start at inner face of divider');
+    shelves.forEach((s) => assert.equal(s.w, 377.5, 'each shelf should be clipped to bay width'));
+  });
+
+  it('spans a shelf wide enough to cover the full interior across all bays', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-repisa-corrida', nombre: 'Repisa superior corrida 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const shelves = geoms.filter((g) => g.name === 'Repisa superior corrida 3');
+    assert.equal(shelves.length, 1, 'wide shelf without side keyword should span all bays');
+    assert.equal(shelves[0].x, 15, 'spanning shelf starts at inner face of left side');
+    assert.equal(shelves[0].w, 770, 'spanning shelf keeps its full interior width');
+  });
+
+  it('places side-named shelves only in their corresponding bay', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const leftShelf = geoms.find((g) => g.role === 'shelf' && g.name.includes('izquierdo'));
+    const rightShelf = geoms.find((g) => g.role === 'shelf' && g.name.includes('derecho'));
+    assert.ok(leftShelf, 'left shelf should render');
+    assert.ok(rightShelf, 'right shelf should render');
+    assert.equal(leftShelf.x, 15, 'left shelf should be in the left bay');
+    assert.equal(rightShelf.x, 407.5, 'right shelf should be in the right bay');
+  });
+
+  it('applies per-piece offset and top inset to vertical divider', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {
+      verticalPositionOverrides: {
+        pieceOffsets: {
+          'm3-division-vertical': { offset: 50, gap: 30 },
+        },
+      },
+    });
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const div = geoms.find((g) => g.role === 'divider');
+    assert.equal(div.z, 165, 'divider bottom should include bottom offset');
+    assert.equal(div.h, 2070, 'divider height should include top inset');
+  });
+
+  it('stacks middle shelves independently per side', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-2', nombre: 'Estante regulable izquierdo 2 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const shelfZ = (name) => geoms.find((g) => g.role === 'shelf' && g.name.includes(name))?.z;
+
+    // baseTop = 115; shelfMiddleBaseOffset = 20; shelfMiddleGap = 20; positioning height = thickness = 15
+    assert.equal(shelfZ('izquierdo 1'), 135, 'first left shelf starts at base + middle offset');
+    assert.equal(shelfZ('izquierdo 2'), 170, 'second left shelf stacks above the first');
+    assert.equal(shelfZ('derecho 1'), 135, 'right shelf starts independently from the base, not above the left stack');
+  });
+
+  it('respects the piece alto and ancho for the vertical divider', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 377, alto: 1200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const div = geoms.find((g) => g.role === 'divider');
+    assert.equal(div.h, 1200, 'divider height should match piece alto when it is below the top shelf');
+    assert.equal(div.d, 377, 'divider depth should match piece ancho');
+  });
+
+  it('paints left shelves, divider, then right shelves in SVG order', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-2', nombre: 'Estante regulable izquierdo 2 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-zapatero-der-1', nombre: 'Zapatero inclinado derecho 1 3', ancho: 377.5, alto: 300, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const sorted = sortByDepth(geoms, 0.5);
+    const names = sorted.map((g) => g.name);
+
+    const firstLeft = names.findIndex((n, i) => sorted[i].role === 'shelf' && n.includes('izquierdo'));
+    const dividerIdx = names.findIndex((n, i) => sorted[i].role === 'divider' && n.includes('Division'));
+    const firstRight = names.findIndex((n, i) => sorted[i].role === 'shelf' && n.includes('derecho'));
+    const lastLeft = names.findLastIndex((n, i) => sorted[i].role === 'shelf' && n.includes('izquierdo'));
+    const lastRight = names.findLastIndex((n, i) => sorted[i].role === 'shelf' && n.includes('derecho'));
+    const spanningIdx = names.findIndex((n, i) => sorted[i].role === 'shelf' && n.includes('Repisa superior'));
+
+    assert.ok(firstLeft < dividerIdx, 'left shelves should be painted before divider');
+    assert.ok(dividerIdx < firstRight, 'divider should be painted before right shelves');
+    assert.ok(lastLeft < firstRight, 'all left shelves should come before any right shelf');
+    assert.ok(lastRight < spanningIdx, 'spanning top shelf should be painted after side shelves');
+  });
+
+  it('paints bottom spanning shelf before side shelves and divider when it acts as the raised base', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-repisa-inf', nombre: 'Repisa inferior M3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+    const sorted = sortByDepth(geoms, 0.5);
+    const names = sorted.map((g) => g.name);
+
+    const bottomIdx = names.findIndex((n, i) => sorted[i].role === 'shelf' && n.includes('Repisa inferior'));
+    const leftIdx = names.findIndex((n, i) => sorted[i].role === 'shelf' && n.includes('izquierdo'));
+    const dividerIdx = names.findIndex((n, i) => sorted[i].role === 'divider' && n.includes('Division'));
+
+    assert.ok(bottomIdx >= 0, 'bottom spanning shelf should be present');
+    assert.ok(bottomIdx < leftIdx, 'bottom spanning shelf should be painted before left shelf');
+    assert.ok(bottomIdx < dividerIdx, 'bottom spanning shelf should be painted before divider');
+  });
+
+  it('uses the lower spanning shelf as the base for side shelves and divider', () => {
+    const pieces = [
+      ...closetM3Base,
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-repisa-inf', nombre: 'Repisa inferior M3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-zapatero-der-1', nombre: 'Zapatero inclinado derecho 1 3', ancho: 377.5, alto: 300, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
+
+    const repInf = geoms.find((g) => g.name.includes('Repisa inferior'));
+    const leftShelf = geoms.find((g) => g.role === 'shelf' && g.name.includes('izquierdo'));
+    const rightShoe = geoms.find((g) => g.name.includes('Zapatero'));
+    const divider = geoms.find((g) => g.role === 'divider');
+
+    const raisedBaseTop = repInf.z + repInf.h;
+    assert.ok(leftShelf.z >= raisedBaseTop, 'left shelf should sit on top of the lower spanning shelf');
+    assert.ok(rightShoe.z >= raisedBaseTop, 'right shoe rack should sit on top of the lower spanning shelf');
+    assert.ok(divider.z >= raisedBaseTop, 'divider should start at the top of the lower spanning shelf');
   });
 });

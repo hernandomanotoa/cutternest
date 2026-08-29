@@ -3,7 +3,7 @@
 import { isHexColor, normalizeColor } from './utils.js';
 import { normalizeName, nameIncludes } from './utils/normalize.js';
 import { inferRole } from './services/classifierService.js';
-import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMount } from './services/geometryService.js';
+import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMount, classifyTopBottomMountAxes } from './services/geometryService.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
@@ -131,16 +131,24 @@ function validateDimensions(pieces, warnings) {
 
     if (base && top) {
       const thickness = Number(base.espesor) || Number(top.espesor) || sideThickness;
-      const baseMount = classifyTopBottomMount(base, moduleBox.width, moduleBox.depth, thickness);
-      const topMount = classifyTopBottomMount(top, moduleBox.width, moduleBox.depth, thickness);
-      const baseAncho = baseMount === 'internal' ? base.ancho + 2 * thickness : base.ancho;
-      const baseAlto = baseMount === 'internal' ? base.alto + 2 * thickness : base.alto;
-      const topAncho = topMount === 'internal' ? top.ancho + 2 * thickness : top.ancho;
-      const topAlto = topMount === 'internal' ? top.alto + 2 * thickness : top.alto;
-      if (Math.abs(baseAncho - topAncho) > 2) {
+      const baseAxes = classifyTopBottomMountAxes(base, moduleBox.width, moduleBox.depth, thickness);
+      const topAxes = classifyTopBottomMountAxes(top, moduleBox.width, moduleBox.depth, thickness);
+
+      const effective = (value, mount) => (mount === 'internal' ? value + 2 * thickness : value);
+      const baseAncho = effective(base.ancho, baseAxes.width);
+      const topAncho = effective(top.ancho, topAxes.width);
+      const baseAlto = effective(base.alto, baseAxes.depth);
+      const topAlto = effective(top.alto, topAxes.depth);
+
+      // Si algún eje es custom (p. ej. base con receso frontal para zócalo),
+      // se permite una holgura de un espesor; de lo contrario se mantiene ±2 mm.
+      const tolW = baseAxes.width === 'custom' || topAxes.width === 'custom' ? thickness : 2;
+      const tolD = baseAxes.depth === 'custom' || topAxes.depth === 'custom' ? thickness : 2;
+
+      if (Math.abs(baseAncho - topAncho) > tolW) {
         warnings.push(`Módulo ${modId}: base (${base.ancho} mm) y tapa (${top.ancho} mm) tienen anchos diferentes.`);
       }
-      if (Math.abs(baseAlto - topAlto) > 2) {
+      if (Math.abs(baseAlto - topAlto) > tolD) {
         warnings.push(`Módulo ${modId}: base (${base.alto} mm) y tapa (${top.alto} mm) tienen profundidades diferentes.`);
       }
     }

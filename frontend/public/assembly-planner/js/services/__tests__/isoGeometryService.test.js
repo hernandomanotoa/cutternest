@@ -4,6 +4,7 @@ import {
   applyDoorRotation,
   applyExplode,
   calculateVerticalZones,
+  computeBays,
   distributeHorizontally,
   drawerRank,
   getModuleDepth,
@@ -13,6 +14,7 @@ import {
   inferLegX,
   inferLegY,
   inferRailZ,
+  inferShelfBayIndex,
   shouldShowLabel,
 } from '../isoGeometryService.js';
 
@@ -113,6 +115,44 @@ describe('inferDividerX', () => {
   it('places right divider near right side', () => {
     assert.equal(inferDividerX({ nombre: 'Divisor derecho', ancho: 30 }, 1000, 18), 952);
   });
+
+  it('centers vertical divider without directional keyword', () => {
+    const div = { nombre: 'Division vertical M3', ancho: 550, alto: 2400, espesor: 15 };
+    assert.equal(inferDividerX(div, 800, 15), 392.5);
+  });
+
+  it('places left vertical divider at inner face of side panel', () => {
+    const div = { nombre: 'Division izquierda', ancho: 550, alto: 2400, espesor: 15 };
+    assert.equal(inferDividerX(div, 800, 15), 15);
+  });
+
+  it('places right vertical divider at inner face of right side', () => {
+    const div = { nombre: 'Division derecha', ancho: 550, alto: 2400, espesor: 15 };
+    assert.equal(inferDividerX(div, 800, 15), 770);
+  });
+});
+
+describe('computeBays', () => {
+  it('returns single bay when no vertical dividers', () => {
+    assert.deepEqual(computeBays([], 800, 15), [{ left: 15, right: 785 }]);
+  });
+
+  it('computes two bays around a centered vertical divider', () => {
+    const div = { nombre: 'Division vertical', ancho: 550, alto: 2400, espesor: 15 };
+    const bays = computeBays([div], 800, 15);
+    assert.equal(bays.length, 2);
+    assert.deepEqual(bays[0], { left: 15, right: 392.5 });
+    assert.deepEqual(bays[1], { left: 407.5, right: 785 });
+  });
+
+  it('computes bays around multiple vertical dividers', () => {
+    const left = { nombre: 'Division izquierda', ancho: 550, alto: 2400, espesor: 15 };
+    const central = { nombre: 'Division central', ancho: 550, alto: 2400, espesor: 15 };
+    const bays = computeBays([central, left], 1000, 15);
+    assert.equal(bays.length, 2);
+    assert.deepEqual(bays[0], { left: 30, right: 492.5 });
+    assert.deepEqual(bays[1], { left: 507.5, right: 985 });
+  });
 });
 
 describe('inferDoorX', () => {
@@ -169,6 +209,31 @@ describe('inferLegY', () => {
       inferLegY({ nombre: 'Pata delantera', id: 'PF' }, 500, 40, { legOffsetY: 30, legOffsetX: 10 }),
       430
     );
+  });
+});
+
+describe('inferShelfBayIndex', () => {
+  const bays = [{ left: 15, right: 200 }, { left: 215, right: 400 }];
+
+  it('assigns left keyword to first bay', () => {
+    assert.equal(inferShelfBayIndex({ nombre: 'Estante izquierdo', id: 'E1' }, bays), 0);
+  });
+
+  it('assigns right keyword to last bay', () => {
+    assert.equal(inferShelfBayIndex({ nombre: 'Estante derecho', id: 'E2' }, bays), 1);
+  });
+
+  it('assigns central keyword to middle bay', () => {
+    const threeBays = [{ left: 15, right: 130 }, { left: 145, right: 255 }, { left: 270, right: 400 }];
+    assert.equal(inferShelfBayIndex({ nombre: 'Estante central', id: 'E3' }, threeBays), 1);
+  });
+
+  it('returns null when no side keyword is present', () => {
+    assert.equal(inferShelfBayIndex({ nombre: 'Estante regulable', id: 'E4' }, bays), null);
+  });
+
+  it('returns null for a single bay', () => {
+    assert.equal(inferShelfBayIndex({ nombre: 'Estante izquierdo', id: 'E5' }, [{ left: 15, right: 400 }]), null);
   });
 });
 

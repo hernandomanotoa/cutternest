@@ -113,6 +113,21 @@ function getBraceDefaultPosition(piece, moduleH, t, cfg, baseTop, topLimit) {
   return (moduleH - h) / 2;
 }
 
+/**
+ * Devuelve el límite superior para un divisor vertical: la cara inferior de la
+ * repisa superior más alta, o el borde inferior de la tapa si no hay repisa superior.
+ */
+export function findTopShelfLimit(shelfPositions = [], topPanelOffset = null) {
+  const topShelves = (shelfPositions || []).filter((sp) => {
+    const text = `${normalizeName(sp.piece?.nombre || '')} ${normalizeName(sp.piece?.id || '')}`;
+    return text.includes('superior') || text.includes('sup') || sp.zone === 'top';
+  });
+  if (topShelves.length) {
+    return topShelves.slice().sort((a, b) => b.y - a.y)[0].y;
+  }
+  return topPanelOffset;
+}
+
 export function calculateVerticalPositions(moduleH, thickness, pieces, options = {}) {
   if (!pieces.length) return [];
 
