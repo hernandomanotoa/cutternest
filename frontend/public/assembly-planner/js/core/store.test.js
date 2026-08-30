@@ -11,9 +11,9 @@ describe('store', () => {
       called = true;
       payload = value;
     });
-    store.set({ userConfig: { defaultGap: 99 } });
+    store.set({ userConfig: { stackGap: 99 } });
     assert.equal(called, true);
-    assert.equal(payload?.defaultGap, 99);
+    assert.equal(payload?.stackGap, 99);
   });
 
   it('does not emit userConfig:changed when unrelated fields change', () => {

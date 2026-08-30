@@ -138,33 +138,28 @@ export const VERTICAL_POSITIONS = {
   // ── Offset: distancia desde un borde de referencia ───────────
   bottomPanelOffset: 0,      // distancia suelo → cara inferior de la base (bottom_panel)
 
-  // ── Gap: espacio libre entre dos piezas o entre una pieza y un borde ──
-  firstInnerGap: 20,         // gap base → primera pieza interior (middle)
+  // ── Gap base → primera pieza interior / entre piezas horizontales ──
+  baseTopGap: 20,            // gap mínimo desde la cara superior de la base a la primera pieza horizontal
+  stackGap: 20,              // gap entre piezas horizontales apiladas
+
+  // ── Inset: distancia hacia adentro desde la cara INFERIOR de la tapa ──
+  topInset: 120,             // inset desde la cara inferior de la tapa a la pieza superior
 
   // Offsets desde la cara SUPERIOR de la base (base top → pieza inferior).
-  shelfBaseOffset: 80,       // repisa inferior: distancia desde la cara superior de la base
+  lowerShelfBaseOffset: 80,  // repisa inferior: distancia desde la cara superior de la base
   drawerBaseOffset: 80,      // frente de cajón inferior: distancia desde la cara superior de la base
   braceBaseOffset: 80,       // travesaño inferior: distancia desde la cara superior de la base
   doorBaseOffset: 0,         // puerta inferior: distancia desde la cara superior de la base
-  shoeRackBaseOffset: 20,    // zapatero: distancia desde la cara superior de la base
 
-  // ── Gap entre piezas del mismo tipo (apilado) ────────────────
-  defaultGap: 20,            // gap genérico entre piezas
-  shelfMiddleBaseOffset: 20, // offset estantes regulables desde la cara superior de la base
-  shelfMiddleGap: 20,        // gap entre repisas/estantes regulables
-  shoeRackGap: 20,           // gap entre zapateros
-  drawerFaceGap: 20,         // gap entre frentes de cajón
+  // ── Gaps específicos (difieren del stackGap genérico) ─────────
   doorGap: 2,                // gap entre puertas
 
   // ── Alturas absolutas desde el suelo ──────────────────────────
   seatHeight: 450,           // altura del asiento
   hangerRailHeight: 1700,    // altura del riel/barra colgadora
 
-  // ── Inset: distancia hacia adentro desde la cara INFERIOR de la tapa ──
-  shelfTopInset: 120,        // repisa superior: inset desde la cara inferior de la tapa
-  braceTopInset: 120,        // travesaño superior: inset desde la cara inferior de la tapa
+  // ── Inset específicos por tipo de pieza ─────────────────────
   doorTopInset: 0,           // puerta superior: inset desde la cara inferior de la tapa
-  mirrorTopInset: 120,       // espejo: inset desde la cara inferior de la tapa
 
   // ── Offset horizontal de patas ─────────────────────────────────
   legOffsetX: 20,            // margen patas desde lateral (X)

@@ -769,9 +769,9 @@ export class IsometricRenderer {
       const zone = zones[zi];
       const zoneH = Math.max(0, zone.yEnd - zone.yStart);
       const totalH = group.reduce((s, d) => s + d.h, 0);
-      const drawerFaceGap = this.verticalPositionOverrides?.drawerFaceGap ?? VERTICAL_POSITIONS.drawerFaceGap;
+      const stackGap = this.verticalPositionOverrides?.stackGap ?? VERTICAL_POSITIONS.stackGap;
       const distributedGap = group.length > 0 ? (zoneH - totalH) / (group.length + 1) : 0;
-      const gap = totalH < zoneH ? Math.min(drawerFaceGap, distributedGap) : 0;
+      const gap = totalH < zoneH ? Math.min(stackGap, distributedGap) : 0;
       const scale = totalH > zoneH ? zoneH / totalH : 1;
       let currentZ = zone.yStart + gap;
 
@@ -1067,7 +1067,7 @@ export class IsometricRenderer {
         const h = Number(p.alto) || 600;
         const zPos = Number.isFinite(p.pos_z)
           ? Number(p.pos_z)
-          : Math.max(thickness, moduleH - thickness - h - (this.verticalPositionOverrides?.mirrorTopInset ?? VERTICAL_POSITIONS.mirrorTopInset));
+          : Math.max(thickness, moduleH - thickness - h - (this.verticalPositionOverrides?.topInset ?? VERTICAL_POSITIONS.topInset));
         geometries.push({
           x: Math.max(0, (moduleW - w) / 2),
           y: -thickness,
@@ -1503,16 +1503,16 @@ export class IsometricRenderer {
       if (braceBaseOffset > 0) {
         svg += drawSegment(baseTop, braces[0].z, braceBaseOffset, '#94a3b8', 'braceBaseOffset');
       }
-      const braceTopInset = v('braceTopInset');
-      if (braceTopInset > 0) {
-        svg += drawSegment(topBottom - braceTopInset, topBottom, braceTopInset, '#94a3b8', 'braceTopInset');
+      const topInsetValue = v('topInset');
+      if (topInsetValue > 0) {
+        svg += drawSegment(topBottom - topInsetValue, topBottom, topInsetValue, '#94a3b8', 'topInset');
       }
     }
 
     // Espejo: inset desde tapa.
     if (geometries.some((g) => g.role === 'mirror')) {
-      const mirrorTopInset = v('mirrorTopInset');
-      svg += drawSegment(topBottom - mirrorTopInset, topBottom, mirrorTopInset, '#DDA0DD', 'mirrorTopInset');
+      const topInsetValue = v('topInset');
+      svg += drawSegment(topBottom - topInsetValue, topBottom, topInsetValue, '#DDA0DD', 'topInset');
     }
 
     return svg;

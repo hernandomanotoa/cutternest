@@ -398,7 +398,7 @@ describe('IsometricRenderer rear offset/gap dimensions', () => {
     const renderer = new IsometricRenderer(container, {
       scale: 0.12,
       showDimensions: true,
-      verticalPositionOverrides: { shelfMiddleBaseOffset: 100, shelfMiddleGap: 45 },
+      verticalPositionOverrides: { baseTopGap: 100, stackGap: 45 },
     });
     renderer.render('1', pieces);
     const svg = container.innerHTML;
@@ -413,7 +413,7 @@ describe('IsometricRenderer rear offset/gap dimensions', () => {
       { id: 'm1-zapatero-sup', nombre: 'Zapatero superior M1', ancho: 800, alto: 300, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 18, modulo: '1' },
     ];
     const container = { innerHTML: '' };
-    const renderer = new IsometricRenderer(container, { scale: 0.12, showDimensions: true, verticalPositionOverrides: { shoeRackBaseOffset: 80, shoeRackGap: 60 } });
+    const renderer = new IsometricRenderer(container, { scale: 0.12, showDimensions: true, verticalPositionOverrides: { baseTopGap: 80, stackGap: 60 } });
     renderer.render('1', pieces);
     const svg = container.innerHTML;
     assert.ok(svg.includes('>80<'), 'shoe rack base offset dimension should be shown');
@@ -527,7 +527,7 @@ describe('IsometricRenderer vertical divider', () => {
     const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
     const shelfZ = (name) => geoms.find((g) => g.role === 'shelf' && g.name.includes(name))?.z;
 
-    // baseTop = 115; shelfMiddleBaseOffset = 20; shelfMiddleGap = 20; positioning height = thickness = 15
+    // baseTop = 115; baseTopGap = 20; stackGap = 20; positioning height = thickness = 15
     assert.equal(shelfZ('izquierdo 1'), 135, 'first left shelf starts at base + middle offset');
     assert.equal(shelfZ('izquierdo 2'), 170, 'second left shelf stacks above the first');
     assert.equal(shelfZ('derecho 1'), 135, 'right shelf starts independently from the base, not above the left stack');

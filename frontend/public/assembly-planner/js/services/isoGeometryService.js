@@ -257,7 +257,7 @@ export function inferBraceZ(
   const t = Number(thickness) || 15;
   const topLimit = Number.isFinite(topPanelOffset) ? topPanelOffset : moduleH - t;
   const baseTop = baseOffset + t;
-  if (n.includes('superior') || n.includes('sup')) return topLimit - braceH - v('braceTopInset');
+  if (n.includes('superior') || n.includes('sup')) return topLimit - braceH - v('topInset');
   if (n.includes('inferior') || n.includes('inf')) return baseTop + v('braceBaseOffset');
   return (moduleH - braceH) / 2;
 }

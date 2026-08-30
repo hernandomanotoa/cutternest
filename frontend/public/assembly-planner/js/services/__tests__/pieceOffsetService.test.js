@@ -65,21 +65,33 @@ describe('pieceOffsetService', () => {
   });
 
   describe('getDefaultOffset', () => {
-    it('returns shoeRackBaseOffset for shoe racks', () => {
-      assert.equal(getDefaultOffset(piece('Zapatero')), VERTICAL_POSITIONS.shoeRackBaseOffset);
-      assert.equal(getDefaultOffset(piece('Zapatera')), VERTICAL_POSITIONS.shoeRackBaseOffset);
+    it('returns baseTopGap for shoe racks', () => {
+      assert.equal(getDefaultOffset(piece('Zapatero')), VERTICAL_POSITIONS.baseTopGap);
+      assert.equal(getDefaultOffset(piece('Zapatera')), VERTICAL_POSITIONS.baseTopGap);
     });
 
-    it('returns shelfTopInset for top shelves', () => {
-      assert.equal(getDefaultOffset(piece('Repisa superior'), 'top'), VERTICAL_POSITIONS.shelfTopInset);
+    it('returns topInset for top shelves', () => {
+      assert.equal(getDefaultOffset(piece('Repisa superior'), 'top'), VERTICAL_POSITIONS.topInset);
     });
 
-    it('returns shelfBaseOffset for bottom shelves', () => {
-      assert.equal(getDefaultOffset(piece('Repisa inferior'), 'bottom'), VERTICAL_POSITIONS.shelfBaseOffset);
+    it('returns lowerShelfBaseOffset for bottom shelves', () => {
+      assert.equal(getDefaultOffset(piece('Repisa inferior'), 'bottom'), VERTICAL_POSITIONS.lowerShelfBaseOffset);
     });
 
-    it('returns shelfMiddleBaseOffset for middle shelves', () => {
-      assert.equal(getDefaultOffset(piece('Repisa'), 'middle'), VERTICAL_POSITIONS.shelfMiddleBaseOffset);
+    it('returns braceBaseOffset for bottom braces', () => {
+      assert.equal(getDefaultOffset(piece('Travesaño inferior'), 'bottom'), VERTICAL_POSITIONS.braceBaseOffset);
+    });
+
+    it('returns topInset for top braces', () => {
+      assert.equal(getDefaultOffset(piece('Travesaño superior'), 'top'), VERTICAL_POSITIONS.topInset);
+    });
+
+    it('returns topInset for mirrors', () => {
+      assert.equal(getDefaultOffset(piece('Espejo'), 'top'), VERTICAL_POSITIONS.topInset);
+    });
+
+    it('returns baseTopGap for middle shelves', () => {
+      assert.equal(getDefaultOffset(piece('Repisa'), 'middle'), VERTICAL_POSITIONS.baseTopGap);
     });
 
     it('returns dividerBaseOffset for dividers', () => {
@@ -88,16 +100,24 @@ describe('pieceOffsetService', () => {
   });
 
   describe('getDefaultGap', () => {
-    it('returns shoeRackGap for shoe racks', () => {
-      assert.equal(getDefaultGap(piece('Zapatero')), VERTICAL_POSITIONS.shoeRackGap);
+    it('returns stackGap for shoe racks', () => {
+      assert.equal(getDefaultGap(piece('Zapatero')), VERTICAL_POSITIONS.stackGap);
     });
 
-    it('returns shelfMiddleGap for middle shelves', () => {
-      assert.equal(getDefaultGap(piece('Repisa'), 'middle'), VERTICAL_POSITIONS.shelfMiddleGap);
+    it('returns stackGap for middle shelves', () => {
+      assert.equal(getDefaultGap(piece('Repisa'), 'middle'), VERTICAL_POSITIONS.stackGap);
     });
 
-    it('returns drawerFaceGap for drawer faces', () => {
-      assert.equal(getDefaultGap(piece('Frente cajón'), 'drawer'), VERTICAL_POSITIONS.drawerFaceGap);
+    it('returns stackGap for braces', () => {
+      assert.equal(getDefaultGap(piece('Travesaño'), 'middle'), VERTICAL_POSITIONS.stackGap);
+    });
+
+    it('returns stackGap for mirrors', () => {
+      assert.equal(getDefaultGap(piece('Espejo'), 'middle'), VERTICAL_POSITIONS.stackGap);
+    });
+
+    it('returns stackGap for drawer faces', () => {
+      assert.equal(getDefaultGap(piece('Frente cajón'), 'drawer'), VERTICAL_POSITIONS.stackGap);
     });
 
     it('returns dividerTopInset for dividers', () => {
@@ -116,12 +136,12 @@ describe('pieceOffsetService', () => {
 
     it('falls back to defaults when no override', () => {
       const cfg = getPieceOffsetConfig(piece('Repisa'), 'middle', {});
-      assert.equal(cfg.offset, VERTICAL_POSITIONS.shelfMiddleBaseOffset);
-      assert.equal(cfg.gap, VERTICAL_POSITIONS.shelfMiddleGap);
+      assert.equal(cfg.offset, VERTICAL_POSITIONS.baseTopGap);
+      assert.equal(cfg.gap, VERTICAL_POSITIONS.stackGap);
     });
 
     it('uses global overrides for defaults', () => {
-      const cfg = getPieceOffsetConfig(piece('Repisa'), 'middle', {}, { shelfMiddleBaseOffset: 99, shelfMiddleGap: 77 });
+      const cfg = getPieceOffsetConfig(piece('Repisa'), 'middle', {}, { baseTopGap: 99, stackGap: 77 });
       assert.equal(cfg.offset, 99);
       assert.equal(cfg.gap, 77);
     });

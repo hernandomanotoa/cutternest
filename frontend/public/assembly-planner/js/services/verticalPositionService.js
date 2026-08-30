@@ -176,7 +176,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.min(item.y, currentTop - item.h);
       }
-      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('defaultGap');
+      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('stackGap');
       currentTop = item.y - gap;
     });
 
@@ -193,7 +193,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
         if (!item.hasPosZ) {
           item.y = Math.max(item.y, cursor);
         }
-        const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('shoeRackGap');
+        const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('stackGap');
         cursor = item.y + item.h + gap;
       });
     return cursor;
@@ -202,7 +202,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   // Piezas 'fixed-bottom' (zapatero): offset y gap propios.
   const currentFixed = fixedItems.length
     ? stackFixedBottom(fixedItems)
-    : baseTop + (fixedItems[0]?.cfg.offset ?? v('shoeRackBaseOffset'));
+    : baseTop + (fixedItems[0]?.cfg.offset ?? v('baseTopGap'));
 
   // Piezas 'bottom': cerca de la base; si hay zapatero, se apilan encima de él.
   let currentBottom;
@@ -212,7 +212,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       ? currentFixed
       : baseTop + firstBottom.cfg.offset;
   } else {
-    currentBottom = fixedItems.length ? currentFixed : baseTop + v('firstInnerGap');
+    currentBottom = fixedItems.length ? currentFixed : baseTop + v('baseTopGap');
   }
   bottomItems
     .slice()
@@ -221,7 +221,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.max(item.y, currentBottom);
       }
-      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('defaultGap');
+      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('stackGap');
       currentBottom = item.y + item.h + gap;
     });
 
@@ -249,7 +249,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       if (!item.hasPosZ) {
         item.y = Math.max(item.y, currentDrawer);
       }
-      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('drawerFaceGap');
+      const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('stackGap');
       currentDrawer = item.y + item.h + gap;
     });
 
@@ -257,8 +257,8 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   // repisa inferior o frente de cajón hacia arriba.
   const distributeItems = middleItems.filter((i) => !i.hasPosZ);
   const topGap = topItems.length
-    ? (topItems[topItems.length - 1]?.cfg.gap ?? v('defaultGap'))
-    : v('defaultGap');
+    ? (topItems[topItems.length - 1]?.cfg.gap ?? v('stackGap'))
+    : v('stackGap');
   const middleTopEnd = topItems.length ? currentTop + topGap : topPanelOffset - topGap;
 
   let middleBottomStart;
@@ -269,7 +269,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
     } else if (drawerItems.length) {
       middleBottomStart = currentDrawer;
     } else if (fixedItems.length) {
-      const lastFixedGap = fixedItems[fixedItems.length - 1]?.cfg.gap ?? v('shoeRackGap');
+      const lastFixedGap = fixedItems[fixedItems.length - 1]?.cfg.gap ?? v('stackGap');
       middleBottomStart = currentFixed - lastFixedGap + firstMiddle.cfg.gap;
     } else {
       middleBottomStart = baseTop + firstMiddle.cfg.offset;
@@ -280,8 +280,8 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       : drawerItems.length
         ? currentDrawer
         : fixedItems.length
-          ? currentFixed - v('shoeRackGap') + v('shelfMiddleGap')
-          : baseTop + v('shelfMiddleBaseOffset');
+          ? currentFixed - v('stackGap') + v('stackGap')
+          : baseTop + v('baseTopGap');
   }
 
   // Ordenar de abajo hacia arriba para apilar de forma consecutiva.
@@ -291,7 +291,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
   let lastMiddleTop = currentMiddle;
   distributeItems.forEach((item) => {
     item.y = currentMiddle;
-    const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('shelfMiddleGap');
+    const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('stackGap');
     currentMiddle += item.h + gap;
     lastMiddleTop = item.y + item.h;
   });

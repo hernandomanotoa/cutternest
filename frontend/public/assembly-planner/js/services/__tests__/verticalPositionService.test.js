@@ -64,14 +64,14 @@ describe('getDefaultVerticalPosition', () => {
   it('places zapatero just above the base', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Zapatero'), MODULE_H, THICKNESS),
-      baseTop + VERTICAL_POSITIONS.shoeRackBaseOffset
+      baseTop + VERTICAL_POSITIONS.baseTopGap
     );
   });
 
   it('places zapatera just above the base', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Zapatera inferior'), MODULE_H, THICKNESS),
-      baseTop + VERTICAL_POSITIONS.shoeRackBaseOffset
+      baseTop + VERTICAL_POSITIONS.baseTopGap
     );
   });
 
@@ -86,14 +86,14 @@ describe('getDefaultVerticalPosition', () => {
   it('places top shelves near the top panel', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Repisa superior'), MODULE_H, THICKNESS),
-      MODULE_H - THICKNESS - VERTICAL_POSITIONS.shelfTopInset
+      MODULE_H - THICKNESS - VERTICAL_POSITIONS.topInset
     );
   });
 
   it('places bottom shelves above the bottom panel', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Repisa inferior'), MODULE_H, THICKNESS),
-      baseTop + VERTICAL_POSITIONS.shelfBaseOffset
+      baseTop + VERTICAL_POSITIONS.lowerShelfBaseOffset
     );
   });
 
@@ -131,7 +131,7 @@ describe('calculateVerticalPositions', () => {
     const positions = calculateVerticalPositions(600, 18, [piece('Zapatero', { alto: 150 })]);
     assert.equal(positions.length, 1);
     assert.equal(positions[0].zone, 'fixed-bottom');
-    assert.equal(positions[0].y, baseTop + VERTICAL_POSITIONS.shoeRackBaseOffset);
+    assert.equal(positions[0].y, baseTop + VERTICAL_POSITIONS.baseTopGap);
   });
 
   it('places top shelves near the top and bottom shelves near the bottom', () => {
@@ -149,7 +149,7 @@ describe('calculateVerticalPositions', () => {
     assert.ok(bottom.y >= baseTop);
   });
 
-  it('stacks middle shelves consecutively from base with shelfMiddleGap', () => {
+  it('stacks middle shelves consecutively from base with stackGap', () => {
     const shelves = [
       piece('Repisa 1'),
       piece('Repisa 2'),
@@ -160,13 +160,13 @@ describe('calculateVerticalPositions', () => {
     const ys = positions.map((p) => p.y);
     // Middle shelves are stacked from base upward.
     assert.ok(ys[0] < ys[1] && ys[1] < ys[2]);
-    // First shelf sits above the bottom panel with shelfMiddleBaseOffset.
-    assert.equal(ys[0], baseTop + VERTICAL_POSITIONS.shelfMiddleBaseOffset);
-    // Gaps between consecutive middle shelves use shelfMiddleGap.
+    // First shelf sits above the bottom panel with baseTopGap.
+    assert.equal(ys[0], baseTop + VERTICAL_POSITIONS.baseTopGap);
+    // Gaps between consecutive middle shelves use stackGap.
     const gap01 = ys[1] - (ys[0] + 18);
     const gap12 = ys[2] - (ys[1] + 18);
-    assert.equal(gap01, VERTICAL_POSITIONS.shelfMiddleGap);
-    assert.equal(gap12, VERTICAL_POSITIONS.shelfMiddleGap);
+    assert.equal(gap01, VERTICAL_POSITIONS.stackGap);
+    assert.equal(gap12, VERTICAL_POSITIONS.stackGap);
   });
 
   it('keeps bottom shelves above a fixed-bottom zapatero', () => {
@@ -195,11 +195,11 @@ describe('calculateVerticalPositions', () => {
       .filter((p) => p.zone === 'middle')
       .sort((a, b) => a.y - b.y);
     const lastRackTop = racks[racks.length - 1].y + racks[racks.length - 1].h;
-    // Gap from last shoe rack to first middle shelf uses shelfMiddleGap.
-    assert.equal(middle[0].y - lastRackTop, VERTICAL_POSITIONS.shelfMiddleGap);
-    // Middle shelves stack with shelfMiddleGap between them.
+    // Gap from last shoe rack to first middle shelf uses stackGap.
+    assert.equal(middle[0].y - lastRackTop, VERTICAL_POSITIONS.stackGap);
+    // Middle shelves stack with stackGap between them.
     const middleGap = middle[1].y - (middle[0].y + middle[0].h);
-    assert.equal(middleGap, VERTICAL_POSITIONS.shelfMiddleGap);
+    assert.equal(middleGap, VERTICAL_POSITIONS.stackGap);
   });
 
   it('respects an explicit pos_z override', () => {
@@ -212,17 +212,17 @@ describe('calculateVerticalPositions', () => {
     assert.equal(override.y, 250);
   });
 
-  it('stacks multiple shoe racks with shoeRackGap', () => {
+  it('stacks multiple shoe racks with stackGap', () => {
     const racks = [
       piece('Zapatero 1', { alto: 150 }),
       piece('Zapatero 2', { alto: 150 }),
     ];
     const positions = calculateVerticalPositions(600, 18, racks);
     const gap = positions[1].y - (positions[0].y + positions[0].h);
-    assert.equal(gap, VERTICAL_POSITIONS.shoeRackGap);
+    assert.equal(gap, VERTICAL_POSITIONS.stackGap);
   });
 
-  it('stacks feminine shoe racks with shoeRackGap', () => {
+  it('stacks feminine shoe racks with stackGap', () => {
     const racks = [
       piece('Zapatera 1', { alto: 150 }),
       piece('Zapatera 2', { alto: 150 }),
@@ -231,15 +231,15 @@ describe('calculateVerticalPositions', () => {
     assert.equal(positions.length, 2);
     positions.forEach((p) => assert.equal(p.zone, 'fixed-bottom'));
     const gap = positions[1].y - (positions[0].y + positions[0].h);
-    assert.equal(gap, VERTICAL_POSITIONS.shoeRackGap);
+    assert.equal(gap, VERTICAL_POSITIONS.stackGap);
   });
 
-  it('uses shelfMiddleGap for middle shelves', () => {
+  it('uses stackGap for middle shelves', () => {
     const shelves = [
       piece('Repisa 1'),
       piece('Repisa 2'),
     ];
-    const positions = calculateVerticalPositions(600, 18, shelves, { overrides: { shelfMiddleGap: 100 } });
+    const positions = calculateVerticalPositions(600, 18, shelves, { overrides: { stackGap: 100 } });
     // Stacked from base: positions[0] is lower, positions[1] is higher.
     const gap = positions[1].y - (positions[0].y + positions[0].h);
     assert.equal(gap, 100);
@@ -250,18 +250,18 @@ describe('calculateVerticalPositions', () => {
     const baseOffset = 80;
     const positions = calculateVerticalPositions(600, 18, shelves, { baseOffset });
     const expectedBaseTop = baseOffset + 18;
-    assert.equal(positions[0].y, expectedBaseTop + VERTICAL_POSITIONS.shelfMiddleBaseOffset);
+    assert.equal(positions[0].y, expectedBaseTop + VERTICAL_POSITIONS.baseTopGap);
     const gap = positions[1].y - (positions[0].y + positions[0].h);
-    assert.equal(gap, VERTICAL_POSITIONS.shelfMiddleGap);
+    assert.equal(gap, VERTICAL_POSITIONS.stackGap);
   });
 
-  it('uses shelfMiddleBaseOffset as the starting point for middle shelves', () => {
+  it('uses baseTopGap as the starting point for middle shelves', () => {
     const shelves = [
       piece('Repisa 1'),
       piece('Repisa 2'),
     ];
     const positions = calculateVerticalPositions(600, 18, shelves, {
-      overrides: { shelfMiddleBaseOffset: 120, shelfMiddleGap: 80 },
+      overrides: { baseTopGap: 120, stackGap: 80 },
     });
     assert.equal(positions[0].y, baseTop + 120);
     const gap = positions[1].y - (positions[0].y + positions[0].h);

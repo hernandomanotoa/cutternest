@@ -829,6 +829,14 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   font-size: 0.8rem;
 }
 
+.cn-default-hint {
+  display: block;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  margin-top: 0.15rem;
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
   .iso-config-panel {
     width: calc(100vw - 2rem);

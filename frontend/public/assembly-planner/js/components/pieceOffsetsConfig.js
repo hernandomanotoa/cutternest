@@ -13,6 +13,8 @@ import {
   shouldShowGap,
   getPieceTypeLabel,
   isConfigurablePiece,
+  getDefaultOffset,
+  getDefaultGap,
 } from '../services/pieceOffsetService.js';
 
 const COLLAPSE_KEY = 'cn-assembly-piece-offsets-collapsed';
@@ -301,6 +303,8 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig, categ
   const gapPlaceholder = getGapPlaceholder(piece, cfg.zone);
   const offsetValue = Number.isFinite(cfg.offset) ? cfg.offset : VERTICAL_POSITIONS[getDefaultKey(piece, cfg.zone)] || 0;
   const gapValue = Number.isFinite(cfg.gap) ? cfg.gap : 0;
+  const defaultOffset = getDefaultOffset(piece, cfg.zone, userConfig);
+  const defaultGap = showGap ? getDefaultGap(piece, cfg.zone, userConfig) : null;
   const qtyBadge = count > 1 ? `<span class="badge badge--secondary">×${count}</span>` : '';
   const searchText = escapeHtml(`${typeLabel} ${piece.nombre}`.toLowerCase());
 
@@ -324,6 +328,7 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig, categ
           min="0"
           aria-label="${escapeHtml(offsetPlaceholder)} para ${escapeHtml(piece.nombre)}"
         />
+        <span class="cn-default-hint">Por defecto: ${defaultOffset} mm</span>
       </td>
       <td>
         ${
@@ -337,7 +342,8 @@ function renderRow({ originalId, piece, count }, activePieces, userConfig, categ
                 step="any"
                 min="0"
                 aria-label="${escapeHtml(gapPlaceholder)} para ${escapeHtml(piece.nombre)}"
-              />`
+              />
+              <span class="cn-default-hint">Por defecto: ${defaultGap} mm</span>`
             : '<span class="empty-state">—</span>'
         }
       </td>
@@ -411,13 +417,19 @@ function setExpanded(button, tbody, role, expanded, persist = true) {
 function getDefaultKey(piece, zone) {
   // Fallback visual; el servicio real usa VERTICAL_POSITIONS directamente.
   const role = piece.role || inferRole(piece);
-  if (zone === 'fixed-bottom') return 'shoeRackBaseOffset';
+  if (zone === 'fixed-bottom') return 'baseTopGap';
   if (role === 'divider') return 'dividerBaseOffset';
   if (zone === 'top') {
-    if (role === 'shelf') return 'shelfTopInset';
+    if (role === 'shelf') return 'topInset';
     if (role === 'door') return 'doorTopInset';
-    if (role === 'brace') return 'braceTopInset';
-    if (role === 'mirror') return 'mirrorTopInset';
+    if (role === 'brace') return 'topInset';
+    if (role === 'mirror') return 'topInset';
   }
-  return 'defaultGap';
+  if (zone === 'bottom') {
+    if (role === 'shelf') return 'lowerShelfBaseOffset';
+  }
+  if (role === 'drawer_face') return 'drawerBaseOffset';
+  if (role === 'brace') return 'braceBaseOffset';
+  if (role === 'door') return 'doorGap';
+  return 'stackGap';
 }

@@ -159,11 +159,11 @@ export function getDefaultOffset(piece, zone = getPieceZone(piece), globalOverri
   if (role === 'bottom_panel') return defaultValue('bottomPanelOffset', globalOverrides);
 
   if (role === 'shelf') {
-    if (zone === 'fixed-bottom') return defaultValue('shoeRackBaseOffset', globalOverrides);
-    if (zone === 'bottom') return defaultValue('shelfBaseOffset', globalOverrides);
-    if (zone === 'top') return defaultValue('shelfTopInset', globalOverrides);
-    if (zone === 'middle') return defaultValue('shelfMiddleBaseOffset', globalOverrides);
-    return defaultValue('shelfMiddleBaseOffset', globalOverrides);
+    if (zone === 'fixed-bottom') return defaultValue('baseTopGap', globalOverrides);
+    if (zone === 'bottom') return defaultValue('lowerShelfBaseOffset', globalOverrides);
+    if (zone === 'top') return defaultValue('topInset', globalOverrides);
+    if (zone === 'middle') return defaultValue('baseTopGap', globalOverrides);
+    return defaultValue('baseTopGap', globalOverrides);
   }
 
   if (role === 'drawer_face') return defaultValue('drawerBaseOffset', globalOverrides);
@@ -176,11 +176,11 @@ export function getDefaultOffset(piece, zone = getPieceZone(piece), globalOverri
 
   if (role === 'brace') {
     return zone === 'top'
-      ? defaultValue('braceTopInset', globalOverrides)
+      ? defaultValue('topInset', globalOverrides)
       : defaultValue('braceBaseOffset', globalOverrides);
   }
 
-  if (role === 'mirror') return defaultValue('mirrorTopInset', globalOverrides);
+  if (role === 'mirror') return defaultValue('topInset', globalOverrides);
   if (role === 'hanger_rail') return defaultValue('hangerRailHeight', globalOverrides);
   if (role === 'seat_panel') return defaultValue('seatHeight', globalOverrides);
   if (role === 'leg') return defaultValue('legOffsetX', globalOverrides);
@@ -196,22 +196,22 @@ export function getDefaultGap(piece, zone = getPieceZone(piece), globalOverrides
   const role = inferRole(piece);
 
   if (role === 'shelf') {
-    if (zone === 'fixed-bottom') return defaultValue('shoeRackGap', globalOverrides);
-    if (zone === 'middle') return defaultValue('shelfMiddleGap', globalOverrides);
-    if (zone === 'bottom') return defaultValue('defaultGap', globalOverrides);
-    if (zone === 'top') return defaultValue('defaultGap', globalOverrides);
+    if (zone === 'fixed-bottom') return defaultValue('stackGap', globalOverrides);
+    if (zone === 'middle') return defaultValue('stackGap', globalOverrides);
+    if (zone === 'bottom') return defaultValue('stackGap', globalOverrides);
+    if (zone === 'top') return defaultValue('stackGap', globalOverrides);
   }
 
-  if (role === 'drawer_face') return defaultValue('drawerFaceGap', globalOverrides);
+  if (role === 'drawer_face') return defaultValue('stackGap', globalOverrides);
   if (role === 'door') return defaultValue('doorGap', globalOverrides);
-  if (role === 'brace') return defaultValue('defaultGap', globalOverrides);
-  if (role === 'mirror') return defaultValue('defaultGap', globalOverrides);
-  if (role === 'hanger_rail') return defaultValue('defaultGap', globalOverrides);
-  if (role === 'seat_panel') return defaultValue('defaultGap', globalOverrides);
+  if (role === 'brace') return defaultValue('stackGap', globalOverrides);
+  if (role === 'mirror') return defaultValue('stackGap', globalOverrides);
+  if (role === 'hanger_rail') return defaultValue('stackGap', globalOverrides);
+  if (role === 'seat_panel') return defaultValue('stackGap', globalOverrides);
   if (role === 'leg') return defaultValue('legOffsetY', globalOverrides);
   if (role === 'divider') return defaultValue('dividerTopInset', globalOverrides);
 
-  return defaultValue('defaultGap', globalOverrides);
+  return defaultValue('stackGap', globalOverrides);
 }
 
 /**

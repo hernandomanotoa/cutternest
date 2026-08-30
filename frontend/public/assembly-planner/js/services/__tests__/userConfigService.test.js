@@ -42,22 +42,22 @@ describe('userConfigService', () => {
     it('merges saved overrides with defaults', () => {
       storage.setItem(
         'cn-assembly-config',
-        JSON.stringify({ defaultGap: 40, seatHeight: 500 })
+        JSON.stringify({ stackGap: 40, seatHeight: 500 })
       );
       const config = loadUserConfig();
-      assert.equal(config.defaultGap, 40);
+      assert.equal(config.stackGap, 40);
       assert.equal(config.seatHeight, 500);
-      assert.equal(config.firstInnerGap, VERTICAL_POSITIONS.firstInnerGap);
+      assert.equal(config.baseTopGap, VERTICAL_POSITIONS.baseTopGap);
     });
 
     it('ignores invalid stored values', () => {
       storage.setItem(
         'cn-assembly-config',
-        JSON.stringify({ defaultGap: 'bad', shelfTopInset: 200 })
+        JSON.stringify({ stackGap: 'bad', topInset: 200 })
       );
       const config = loadUserConfig();
-      assert.equal(config.defaultGap, VERTICAL_POSITIONS.defaultGap);
-      assert.equal(config.shelfTopInset, 200);
+      assert.equal(config.stackGap, VERTICAL_POSITIONS.stackGap);
+      assert.equal(config.topInset, 200);
     });
 
     it('falls back to defaults when localStorage is unavailable', () => {
@@ -69,10 +69,10 @@ describe('userConfigService', () => {
 
   describe('saveUserConfig', () => {
     it('stores only keys that differ from defaults', () => {
-      saveUserConfig({ ...VERTICAL_POSITIONS, defaultGap: 35 });
+      saveUserConfig({ ...VERTICAL_POSITIONS, stackGap: 35 });
       const raw = storage.getItem('cn-assembly-config');
       const saved = JSON.parse(raw);
-      assert.deepEqual(saved, { defaultGap: 35 });
+      assert.deepEqual(saved, { stackGap: 35 });
     });
 
     it('stores pieceOffsets overrides', () => {
@@ -90,13 +90,13 @@ describe('userConfigService', () => {
 
     it('gracefully handles missing localStorage', () => {
       delete globalThis.localStorage;
-      assert.doesNotThrow(() => saveUserConfig({ defaultGap: 99 }));
+      assert.doesNotThrow(() => saveUserConfig({ stackGap: 99 }));
     });
   });
 
   describe('resetUserConfig', () => {
     it('removes the storage key', () => {
-      storage.setItem('cn-assembly-config', JSON.stringify({ defaultGap: 55 }));
+      storage.setItem('cn-assembly-config', JSON.stringify({ stackGap: 55 }));
       resetUserConfig();
       assert.equal(storage.getItem('cn-assembly-config'), null);
     });
