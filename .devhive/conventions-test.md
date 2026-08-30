@@ -1,6 +1,9 @@
 # Convenciones de tests — CutterNest
 
-Stack: pytest (backend), Vitest + React Testing Library (frontend).
+Stack:
+- **pytest** para el backend (`backend/tests/`).
+- **Vitest** + React Testing Library para el frontend React (`frontend/src/`).
+- **node --test** para el Assembly Planner vanilla JS (`frontend/public/assembly-planner/`).
 
 ## Cobertura
 
@@ -21,6 +24,9 @@ cd frontend && pnpm test
 
 # Frontend con cobertura
 pnpm test -- --coverage
+
+# Assembly Planner (vanilla JS, node --test)
+cd frontend/public/assembly-planner && node --test "js/**/*.test.js" "js/*.test.js"
 
 # Build backend/frontend deben pasar antes de cerrar una tarea
 cd backend && python -m compileall app/

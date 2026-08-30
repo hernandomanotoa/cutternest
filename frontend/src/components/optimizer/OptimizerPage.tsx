@@ -572,15 +572,16 @@ export function OptimizerPage() {
         </div>
       </div>
 
-      <div className='grid grid-cols-1 gap-6 xl:grid-cols-12'>
+      <div className='grid grid-cols-1 gap-6 lg:grid-cols-12'>
         {/* Panel izquierdo: tablero + agregar pieza */}
-        <div className='space-y-6 xl:col-span-3'>
-          <Card>
-            <CardHeader>
-              <CardTitle className='text-lg'>Tablero</CardTitle>
-              <CardDescription>Material y dimensiones de la placa base.</CardDescription>
+        <div className='space-y-6 lg:col-span-4 xl:col-span-3'>
+          <div className='lg:sticky lg:top-20 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:self-start pr-1 space-y-6'>
+            <Card>
+              <CardHeader className='pb-2'>
+                <CardTitle className='text-base'>Tablero</CardTitle>
+              <CardDescription className='text-xs'>Material y dimensiones de la placa base.</CardDescription>
             </CardHeader>
-            <CardContent className='space-y-4'>
+            <CardContent className='space-y-3'>
               <Select
                 label='Material'
                 value={materialType}
@@ -689,18 +690,19 @@ export function OptimizerPage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className='text-lg'>Agregar pieza</CardTitle>
+            <CardHeader className='pb-2'>
+              <CardTitle className='text-base'>Agregar pieza</CardTitle>
             </CardHeader>
-            <CardContent className='space-y-4'>
-              <Input
-                placeholder='Nombre'
-                value={currentPiece.nombre}
-                onChange={(e) =>
-                  setCurrentPiece((p) => ({ ...p, nombre: e.target.value }))
-                }
-              />
+            <CardContent className='space-y-3'>
               <div className='grid grid-cols-2 gap-3'>
+                <Input
+                  className='col-span-2'
+                  placeholder='Nombre'
+                  value={currentPiece.nombre}
+                  onChange={(e) =>
+                    setCurrentPiece((p) => ({ ...p, nombre: e.target.value }))
+                  }
+                />
                 <Input
                   type='number'
                   placeholder='Ancho (mm)'
@@ -723,8 +725,6 @@ export function OptimizerPage() {
                     }))
                   }
                 />
-              </div>
-              <div className='grid grid-cols-2 gap-3'>
                 <Input
                   type='number'
                   placeholder='Cantidad'
@@ -743,29 +743,29 @@ export function OptimizerPage() {
                     setCurrentPiece((p) => ({ ...p, cantos: e.target.value }))
                   }
                 />
-              </div>
-              <Input
-                type='number'
-                placeholder='Espesor (mm)'
-                value={currentPiece.espesor || ''}
-                onChange={(e) =>
-                  setCurrentPiece((p) => ({
-                    ...p,
-                    espesor: parseFloat(e.target.value) || tablero.espesor,
-                  }))
-                }
-              />
-              <label className='flex items-center gap-2 text-sm text-foreground'>
-                <input
-                  type='checkbox'
-                  checked={currentPiece.rotate}
+                <Input
+                  type='number'
+                  placeholder='Espesor (mm)'
+                  value={currentPiece.espesor || ''}
                   onChange={(e) =>
-                    setCurrentPiece((p) => ({ ...p, rotate: e.target.checked }))
+                    setCurrentPiece((p) => ({
+                      ...p,
+                      espesor: parseFloat(e.target.value) || tablero.espesor,
+                    }))
                   }
-                  className='h-4 w-4 rounded border-border text-primary focus:ring-ring'
                 />
-                Permitir rotación
-              </label>
+                <label className='flex items-center gap-2 text-sm text-foreground'>
+                  <input
+                    type='checkbox'
+                    checked={currentPiece.rotate}
+                    onChange={(e) =>
+                      setCurrentPiece((p) => ({ ...p, rotate: e.target.checked }))
+                    }
+                    className='h-4 w-4 rounded border-border text-primary focus:ring-ring'
+                  />
+                  Rotar
+                </label>
+              </div>
               {renderColorSwatches(
                 currentPiece.color,
                 setColorForCurrent,
@@ -896,16 +896,17 @@ export function OptimizerPage() {
               </CardContent>
             </Card>
           )}
+          </div>
         </div>
 
         {/* Panel central: editor + canvas */}
-        <div className='space-y-6 xl:col-span-9'>
+        <div className='space-y-6 lg:col-span-8 xl:col-span-9'>
           <Card>
-            <CardHeader>
+            <CardHeader className='pb-2'>
               <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
                 <div>
-                  <CardTitle className='text-lg'>Piezas</CardTitle>
-                  <CardDescription>
+                  <CardTitle className='text-base'>Piezas</CardTitle>
+                  <CardDescription className='text-xs'>
                     Edita inline, duplica filas o pega desde Excel/CSV.
                   </CardDescription>
                 </div>
@@ -917,7 +918,7 @@ export function OptimizerPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className='space-y-4'>
+            <CardContent className='space-y-3'>
               <div className='flex flex-wrap gap-2'>
                 <Button
                   variant='outline'
@@ -1012,9 +1013,9 @@ export function OptimizerPage() {
                   </div>
                 ) : (
                   <>
-                    <div className='overflow-x-auto rounded-md border'>
+                    <div className='overflow-x-auto overflow-y-auto rounded-md border max-h-[50vh] lg:max-h-[calc(100vh-22rem)]'>
                     <table className='w-full text-sm'>
-                      <thead className='bg-muted/50 text-muted-foreground'>
+                      <thead className='sticky top-0 z-10 bg-muted/95 text-muted-foreground backdrop-blur-sm'>
                         <tr>
                           <th className='p-2 text-left font-medium'>ID</th>
                           <th className='p-2 text-left font-medium'>Nombre</th>

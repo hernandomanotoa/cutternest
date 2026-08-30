@@ -1,18 +1,21 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Search, Command, Moon, Sun, User, LogOut, Box } from 'lucide-react';
+import { Menu, Search, Command, Moon, Sun, User, LogOut, Box, PanelLeft, PanelRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { useCommandStore } from '../../stores/commandStore';
 import { api } from '../../api/client';
 import { Button } from '../ui/Button';
 import { Separator } from '../ui/Separator';
+import { cn } from '../../utils/cn';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  sidebarCollapsed?: boolean;
+  onSidebarToggle?: () => void;
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, sidebarCollapsed = false, onSidebarToggle }: HeaderProps) {
   const { user, isGuest, clear } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { setOpen: setCommandOpen } = useCommandStore();
@@ -42,7 +45,12 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className='fixed left-0 right-0 top-0 z-20 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:left-64'>
+    <header
+      className={cn(
+        'fixed left-0 right-0 top-0 z-20 flex h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur',
+        sidebarCollapsed ? 'md:left-16' : 'md:left-64'
+      )}
+    >
       <div className='flex items-center gap-3'>
         <Button
           variant='ghost'
@@ -52,6 +60,15 @@ export function Header({ onMenuClick }: HeaderProps) {
           aria-label='Abrir menú'
         >
           <Menu className='h-5 w-5' />
+        </Button>
+        <Button
+          variant='ghost'
+          size='icon'
+          className='hidden md:inline-flex'
+          onClick={onSidebarToggle}
+          aria-label={sidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+        >
+          {sidebarCollapsed ? <PanelRight className='h-5 w-5' /> : <PanelLeft className='h-5 w-5' />}
         </Button>
         <Link
           to='/'

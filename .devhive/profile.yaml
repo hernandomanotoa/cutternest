@@ -95,6 +95,7 @@ commands:
   install_frontend: cd frontend && pnpm install
   test_backend: cd backend && pytest
   test_frontend: cd frontend && pnpm test
+  test_assembly_planner: cd frontend/public/assembly-planner && node --test "js/**/*.test.js" "js/*.test.js"
   test_docker: docker compose up -d --build && docker exec cutternest-backend pytest
   build_backend: cd backend && echo "no build step for Python backend"
   build_frontend: cd frontend && pnpm build
@@ -118,6 +119,7 @@ agents:
     - architect
     - backend-agent
     - frontend-agent
+    - assembly-planner-agent
     - db-agent
     - auth-agent
     - deploy-agent
