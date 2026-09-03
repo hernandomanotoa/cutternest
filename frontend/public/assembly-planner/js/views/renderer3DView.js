@@ -1,6 +1,6 @@
 // js/views/renderer3DView.js — Vista del renderizador 3D orbital SVG
 
-import { getModulePieces, getModuleLabel, getModules } from '../utils.js';
+import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
 
@@ -125,7 +125,20 @@ export function createRenderer3DView(store) {
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;padding:0;">
-          <div id="r3d-canvas" class="r3d-canvas" style="width:100%;height:100%;min-height:400px;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
+          <div style="display:flex;gap:0.75rem;height:100%;min-height:400px;padding:0.75rem;">
+            <div id="r3d-canvas" class="r3d-canvas" style="flex:1;min-width:0;height:100%;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
+            <aside id="r3d-bom" style="width:240px;flex-shrink:0;overflow-y:auto;background:var(--surface,#161b22);border:1px solid var(--border,#30363d);border-radius:6px;padding:0.5rem;">
+              <h3 style="margin:0 0 0.5rem;font-size:0.8rem;color:#8b949e;text-transform:uppercase;">Piezas (${pieces.length})</h3>
+              <ul style="list-style:none;margin:0;padding:0;">
+                ${pieces.map((p) => `
+                  <li data-piece-id="${escapeHtml(p.id)}" class="r3d-bom__row"
+                      style="padding:0.35rem 0.5rem;border-radius:4px;cursor:pointer;font-size:0.8rem;color:#c9d1d9;border-bottom:1px solid #21262d;">
+                    <div style="font-weight:600;">${escapeHtml(p.nombre || p.id)}</div>
+                    <div style="color:#8b949e;">${Number(p.ancho)}×${Number(p.alto)}×${Number(p.espesor)} mm · cantos: ${escapeHtml(p.cantos || '—')} · ×${Number(p.cantidad) || 1}</div>
+                  </li>`).join('')}
+              </ul>
+            </aside>
+          </div>
         </div>
       </div>`;
 
@@ -136,10 +149,29 @@ export function createRenderer3DView(store) {
       globalOpacity: 0.85,
       moduleGapMode,
       verticalPositionOverrides: state.userConfig,
+      onPieceSelect: (id) => syncBomSelection(id),
     });
     renderer.load(targetModule, state.pieces);
 
     startRenderLoop();
+
+    // BOM ↔ 3D bidireccional
+    const bomRows = () => Array.from(container.querySelectorAll('.r3d-bom__row'));
+    function syncBomSelection(id) {
+      bomRows().forEach((row) => {
+        row.style.background = row.dataset.pieceId === id ? '#2d333b' : 'transparent';
+        row.style.color = row.dataset.pieceId === id ? '#FFD700' : '#c9d1d9';
+      });
+    }
+    bomRows().forEach((row) => {
+      row.addEventListener('mouseenter', () => renderer.setHoveredId(row.dataset.pieceId));
+      row.addEventListener('mouseleave', () => renderer.setHoveredId(null));
+      row.addEventListener('click', () => {
+        const id = row.dataset.pieceId;
+        renderer.setSelectedId(renderer.selectedId === id ? null : id);
+        syncBomSelection(renderer.selectedId);
+      });
+    });
 
     const rotXInput = container.querySelector('#r3d-rot-x');
     const rotYInput = container.querySelector('#r3d-rot-y');

@@ -37,6 +37,7 @@ export class Renderer3D {
 
     this.selectedId = null;
     this.hoveredId = null;
+    this.onPieceSelect = options.onPieceSelect || null;
 
     this.needsRender = true;
 
@@ -68,6 +69,7 @@ export class Renderer3D {
       onSelect: (id) => {
         this.selectedId = this.selectedId === id ? null : id;
         this.needsRender = true;
+        if (this.onPieceSelect) this.onPieceSelect(this.selectedId);
       },
     });
   }
@@ -164,6 +166,16 @@ export class Renderer3D {
     this.controls.setState({ rotX: preset.rotX, rotY: preset.rotY });
     this._fitCameraToModule();
     return preset;
+  }
+
+  setSelectedId(id) {
+    this.selectedId = id;
+    this.needsRender = true;
+  }
+
+  setHoveredId(id) {
+    this.hoveredId = id;
+    this.needsRender = true;
   }
 
   setProjection(mode) {

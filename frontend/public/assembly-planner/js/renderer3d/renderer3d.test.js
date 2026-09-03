@@ -257,3 +257,78 @@ describe('renderer3d/transform — perspectiva', () => {
     assert.ok(Math.abs(extreme.x) < 100 * 0.1 * 6);
   });
 });
+
+
+describe('renderer3d/renderer3D — BOM API', () => {
+  if (typeof window === 'undefined') {
+    globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  }
+  if (typeof document === 'undefined') {
+    globalThis.document = { createElement: () => ({ style: {} }) };
+  }
+  if (typeof requestAnimationFrame === 'undefined') {
+    globalThis.requestAnimationFrame = () => 0;
+    globalThis.cancelAnimationFrame = () => {};
+  }
+
+  const container = () => ({
+    style: {}, innerHTML: '',
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
+    addEventListener() {}, removeEventListener() {},
+  });
+
+  const samplePieces = [
+    { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B', modulo: '1', pos_z: '' },
+    { id: 'p2', nombre: 'Estante', ancho: 570, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,L', modulo: '1', pos_z: '500' },
+  ];
+
+  it('setSelectedId/setHoveredId update state and mark for render', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    const r = new Renderer3D(container(), { width: 900, height: 600 });
+    r.load('1', samplePieces);
+    r.needsRender = false;
+    r.setSelectedId('p1');
+    assert.equal(r.selectedId, 'p1');
+    assert.equal(r.needsRender, true);
+    r.needsRender = false;
+    r.setHoveredId('p2');
+    assert.equal(r.hoveredId, 'p2');
+    assert.equal(r.needsRender, true);
+    r.destroy();
+  });
+
+  it('onPieceSelect callback fires when interaction selects a piece', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    let notified = null;
+    const listeners = {};
+    const cont = {
+      ...container(),
+      addEventListener(type, fn) { listeners[type] = fn; },
+    };
+    const r = new Renderer3D(cont, {
+      width: 900, height: 600,
+      onPieceSelect: (id) => { notified = id; },
+    });
+    r.load('1', samplePieces);
+    const target = {
+      getAttribute: (n) => (n === 'data-piece-id' ? 'p1' : null),
+      closest: () => target,
+    };
+    listeners.click({ target });
+    assert.equal(notified, 'p1');
+    assert.equal(r.selectedId, 'p1');
+    r.destroy();
+  });
+
+  it('buildSVG highlights hovered piece faces', () => {
+    const pieces = [
+      { id: 'p1', name: 'A', role: 'side_panel', tipo: 'vertical', x: 0, y: 0, z: 0, w: 15, h: 100, d: 50, cx: 7.5, cy: 25, cz: 50, color: '#8B5A2B', cantos: [], cantidad: 1, modulo: '1' },
+      { id: 'p2', name: 'B', role: 'shelf', tipo: 'horizontal_xy', x: 15, y: 10, z: 40, w: 50, h: 5, d: 40, cx: 40, cy: 30, cz: 42.5, color: '#C19A6B', cantos: [], cantidad: 1, modulo: '1' },
+    ];
+    const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150, projection: 'ortho' };
+    const svg = buildSVG(pieces, camera, { hoveredId: 'p2' });
+    const p2Polys = svg.split('<polygon').filter((s) => s.includes('data-piece-id="p2"'));
+    assert.ok(p2Polys.length > 0);
+    assert.ok(p2Polys.every((s) => s.includes('#FFD700')), 'all hovered faces highlighted');
+  });
+});
