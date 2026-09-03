@@ -397,3 +397,36 @@ describe('renderer3d/renderer3D — setSection', () => {
     r.destroy();
   });
 });
+
+
+describe('renderer3d/svgBuilder — hatch de corte', () => {
+  const mkPiece = (id, z, h = 10) => ({
+    id, name: id, role: 'shelf', tipo: 'horizontal_xy',
+    x: 50, y: 50, z, w: 100, h, d: 80,
+    cx: 100, cy: 90, cz: z + h / 2,
+    color: '#C19A6B', cantos: [], cantidad: 1, modulo: '1',
+  });
+  const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150, projection: 'ortho' };
+  const moduleSize = { w: 200, d: 200, h: 200 };
+
+  it('cut piece gets hatch fill, untouched piece does not', () => {
+    const pieces = [mkPiece('cut', 45, 10), mkPiece('whole', 150, 10)];
+    const svg = buildSVG(pieces, camera, {
+      section: { axis: 'z', value: 50 },
+      moduleSize,
+    });
+    assert.ok(svg.includes('r3d-hatch'), 'pattern defined');
+    assert.ok(svg.includes('fill="url(#r3d-hatch)"'), 'cut face hatched');
+    const hatchPolys = svg.split('<polygon').filter((s) => s.includes('url(#r3d-hatch)'));
+    assert.equal(hatchPolys.length, 1, 'exactly one cut face');
+  });
+
+  it('no cut faces when plane only touches piece boundary', () => {
+    const pieces = [mkPiece('whole', 50, 10)];
+    const svg = buildSVG(pieces, camera, {
+      section: { axis: 'z', value: 50 }, // igual al borde inferior: no atraviesa
+      moduleSize,
+    });
+    assert.ok(!svg.includes('url(#r3d-hatch)'));
+  });
+});

@@ -127,6 +127,29 @@ export function buildSVG(pieces, camera, options = {}) {
   // Painter's algorithm: ordenar de más lejano a más cercano (menor Y rotado primero)
   renderQueue.sort((a, b) => a.avgDepth - b.avgDepth);
 
+  // Caras de corte: piezas atravesadas por el plano de sección se rellenan
+  // con hatch en la intersección exacta del cuboide con el plano.
+  const cutFaces = [];
+  if (section) {
+    visiblePieces.forEach((p) => {
+      let corners = null;
+      if (section.axis === 'x' && p.x < section.value && section.value < p.x + p.w) {
+        const v = section.value;
+        corners = [{ x: v, y: p.y, z: p.z }, { x: v, y: p.y + p.d, z: p.z }, { x: v, y: p.y + p.d, z: p.z + p.h }, { x: v, y: p.y, z: p.z + p.h }];
+      } else if (section.axis === 'y' && p.y < section.value && section.value < p.y + p.d) {
+        const v = section.value;
+        corners = [{ x: p.x, y: v, z: p.z }, { x: p.x + p.w, y: v, z: p.z }, { x: p.x + p.w, y: v, z: p.z + p.h }, { x: p.x, y: v, z: p.z + p.h }];
+      } else if (section.axis === 'z' && p.z < section.value && section.value < p.z + p.h) {
+        const v = section.value;
+        corners = [{ x: p.x, y: p.y, z: v }, { x: p.x + p.w, y: p.y, z: v }, { x: p.x + p.w, y: p.y + p.d, z: v }, { x: p.x, y: p.y + p.d, z: v }];
+      }
+      if (corners) {
+        const pts = corners.map((c) => projectVertexCentered(c, moduleCenter, camera));
+        cutFaces.push(pts.map((pt) => `${pt.x.toFixed(2)},${pt.y.toFixed(2)}`).join(' '));
+      }
+    });
+  }
+
   const svgParts = [];
 
   // Líneas de ruta del explode (ensamblado -> despiezado), debajo de las caras.
@@ -229,7 +252,29 @@ export function buildSVG(pieces, camera, options = {}) {
     }
   });
 
-  const defsContent = metalGradients.join('\n    ');
+  // Caras de corte con hatch, encima de las caras visibles
+  cutFaces.forEach((pointsStr) => {
+    svgParts.push(voidTag('polygon', {
+      points: pointsStr,
+      fill: 'url(#r3d-hatch)',
+      stroke: '#58a6ff',
+      'stroke-width': '1',
+      'pointer-events': 'none',
+    }));
+  });
+
+  const defsContent = [
+    metalGradients.join('\n    '),
+    cutFaces.length
+      ? wrap('pattern', {
+          id: 'r3d-hatch',
+          patternUnits: 'userSpaceOnUse',
+          width: '8',
+          height: '8',
+          patternTransform: 'rotate(45)',
+        }, `${voidTag('rect', { width: '8', height: '8', fill: '#58a6ff', 'fill-opacity': '0.2' })}${voidTag('line', { x1: '0', y1: '0', x2: '0', y2: '8', stroke: '#58a6ff', 'stroke-width': '1.5' })}`)
+      : '',
+  ].filter(Boolean).join('\n    ');
   const defs = defsContent ? wrap('defs', {}, defsContent) : '';
 
   const titleEl = wrap('text', {
