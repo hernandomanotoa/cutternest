@@ -39,6 +39,9 @@ export class Renderer3D {
     this.hoveredId = null;
     this.onPieceSelect = options.onPieceSelect || null;
 
+    // Plano de sección: { axis: 'x'|'y'|'z', value: mm } | null
+    this.section = null;
+
     this.needsRender = true;
 
     // Instancia auxiliar de IsometricRenderer para reutilizar su lógica de
@@ -178,6 +181,23 @@ export class Renderer3D {
     this.needsRender = true;
   }
 
+  /**
+   * Activa/mueve un plano de sección.
+   * @param {'x'|'y'|'z'|null} axis eje del corte (null desactiva)
+   * @param {number} t fracción 0..1 del tamaño del módulo en ese eje
+   */
+  setSection(axis, t = 1) {
+    if (axis !== 'x' && axis !== 'y' && axis !== 'z') {
+      this.section = null;
+      this.needsRender = true;
+      return;
+    }
+    const size = axis === 'x' ? this.moduleW : axis === 'y' ? this.moduleD : this.moduleH;
+    const frac = Math.max(0, Math.min(1, Number(t)));
+    this.section = { axis, value: size * frac };
+    this.needsRender = true;
+  }
+
   setProjection(mode) {
     if (mode !== 'ortho' && mode !== 'persp') return;
     this.controls.setState({ projection: mode });
@@ -313,6 +333,8 @@ export class Renderer3D {
       dimsText,
       moduleCenter: this.moduleCenter,
       explodeLines,
+      section: this.section,
+      moduleSize: { w: this.moduleW, d: this.moduleD, h: this.moduleH },
     });
 
     this.container.innerHTML = svg;

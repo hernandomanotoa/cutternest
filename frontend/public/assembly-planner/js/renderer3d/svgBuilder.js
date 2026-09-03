@@ -69,12 +69,22 @@ export function buildSVG(pieces, camera, options = {}) {
     dimsText = '',
     moduleCenter = { x: 0, y: 0, z: 0 },
     explodeLines = [],
+    section = null,
+    moduleSize = { w: 0, d: 0, h: 0 },
   } = options;
+
+  const sectionCoord = section
+    ? (p) => (section.axis === 'x' ? p.cx : section.axis === 'y' ? p.cy : p.cz)
+    : null;
+  const visiblePieces = section
+    ? pieces.filter((p) => sectionCoord(p) <= section.value + 1e-6)
+    : pieces;
 
   const renderQueue = [];
   const metalGradients = [];
 
   pieces.forEach((piece) => {
+    if (section && sectionCoord(piece) > section.value + 1e-6) return;
     const type = classifyPiece(piece);
     const baseVerts = generateVertices(piece);
     const rotatedVerts = baseVerts.map((v) => rotateVertex({
@@ -133,6 +143,29 @@ export function buildSVG(pieces, camera, options = {}) {
       'pointer-events': 'none',
     })).join('\n    ');
     svgParts.push(wrap('g', { class: 'r3d-explode-lines' }, lineTags));
+  }
+
+  // Indicador del plano de sección (rectángulo del plano proyectado)
+  if (section && moduleSize.w > 0) {
+    const v = section.value;
+    const w = moduleSize.w;
+    const d = moduleSize.d;
+    const h = moduleSize.h;
+    let corners;
+    if (section.axis === 'x') corners = [{ x: v, y: 0, z: 0 }, { x: v, y: d, z: 0 }, { x: v, y: d, z: h }, { x: v, y: 0, z: h }];
+    else if (section.axis === 'y') corners = [{ x: 0, y: v, z: 0 }, { x: w, y: v, z: 0 }, { x: w, y: v, z: h }, { x: 0, y: v, z: h }];
+    else corners = [{ x: 0, y: 0, z: v }, { x: w, y: 0, z: v }, { x: w, y: d, z: v }, { x: 0, y: d, z: v }];
+    const pts = corners.map((c) => projectVertexCentered(c, moduleCenter, camera));
+    const pointsStr = pts.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+    svgParts.push(voidTag('polygon', {
+      points: pointsStr,
+      fill: '#58a6ff',
+      'fill-opacity': '0.08',
+      stroke: '#58a6ff',
+      'stroke-width': '1',
+      'stroke-dasharray': '6,4',
+      'pointer-events': 'none',
+    }));
   }
 
   renderQueue.forEach((item) => {

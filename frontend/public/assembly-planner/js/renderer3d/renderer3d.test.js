@@ -332,3 +332,68 @@ describe('renderer3d/renderer3D — BOM API', () => {
     assert.ok(p2Polys.every((s) => s.includes('#FFD700')), 'all hovered faces highlighted');
   });
 });
+
+
+describe('renderer3d/svgBuilder — section planes', () => {
+  const mkPiece = (id, cx, cy, cz) => ({
+    id, name: id, role: 'shelf', tipo: 'horizontal_xy',
+    x: cx - 25, y: cy - 20, z: cz - 2, w: 50, h: 5, d: 40,
+    cx, cy, cz, color: '#C19A6B', cantos: [], cantidad: 1, modulo: '1',
+  });
+  const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150, projection: 'ortho' };
+  const moduleSize = { w: 200, d: 200, h: 200 };
+
+  it('excludes pieces beyond the section plane on axis z', () => {
+    const pieces = [mkPiece('low', 100, 100, 50), mkPiece('high', 100, 100, 150)];
+    const svg = buildSVG(pieces, camera, {
+      section: { axis: 'z', value: 100 },
+      moduleSize,
+    });
+    assert.ok(svg.includes('data-piece-id="low"'));
+    assert.ok(!svg.includes('data-piece-id="high"'), 'piece above plane is clipped');
+  });
+
+  it('section at full size includes everything and renders the plane indicator', () => {
+    const pieces = [mkPiece('low', 100, 100, 50), mkPiece('high', 100, 100, 150)];
+    const svg = buildSVG(pieces, camera, {
+      section: { axis: 'z', value: 200 },
+      moduleSize,
+    });
+    assert.ok(svg.includes('data-piece-id="low"'));
+    assert.ok(svg.includes('data-piece-id="high"'));
+    assert.ok(svg.includes('#58a6ff'), 'plane indicator rendered');
+  });
+
+  it('no section renders all pieces', () => {
+    const pieces = [mkPiece('low', 100, 100, 50), mkPiece('high', 100, 100, 150)];
+    const svg = buildSVG(pieces, camera, { moduleSize });
+    assert.ok(svg.includes('data-piece-id="low"'));
+    assert.ok(svg.includes('data-piece-id="high"'));
+  });
+});
+
+describe('renderer3d/renderer3D — setSection', () => {
+  it('setSection stores axis/value and clamps t', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    if (typeof window === 'undefined') globalThis.window = { addEventListener() {}, removeEventListener() {} };
+    if (typeof document === 'undefined') globalThis.document = { createElement: () => ({ style: {} }) };
+    if (typeof requestAnimationFrame === 'undefined') { globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = () => {}; }
+    const cont = {
+      style: {}, innerHTML: '',
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
+      addEventListener() {}, removeEventListener() {},
+    };
+    const r = new Renderer3D(cont, { width: 900, height: 600 });
+    r.load('1', [
+      { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
+    ]);
+    r.setSection('z', 0.5);
+    assert.equal(r.section.axis, 'z');
+    assert.ok(Math.abs(r.section.value - r.moduleH * 0.5) < 1e-6);
+    r.setSection('z', 5);
+    assert.equal(r.section.value, r.moduleH, 't clamped to 1');
+    r.setSection(null);
+    assert.equal(r.section, null);
+    r.destroy();
+  });
+});

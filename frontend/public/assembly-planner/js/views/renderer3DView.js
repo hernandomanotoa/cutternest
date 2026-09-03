@@ -123,6 +123,19 @@ export function createRenderer3DView(store) {
             <label for="r3d-rot-y">Rotación Y</label>
             <input type="range" id="r3d-rot-y" min="-90" max="90" step="1" value="${DEFAULT_CAMERA.rotY}">
           </div>
+          <div class="r3d-slider-group">
+            <label for="r3d-section-axis">Sección</label>
+            <select id="r3d-section-axis" class="input" style="width:auto;">
+              <option value="">Ninguna</option>
+              <option value="x">Plano X</option>
+              <option value="y">Plano Y</option>
+              <option value="z">Plano Z</option>
+            </select>
+          </div>
+          <div class="r3d-slider-group">
+            <label for="r3d-section-t">Posición</label>
+            <input type="range" id="r3d-section-t" min="0" max="100" step="1" value="100" disabled>
+          </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;padding:0;">
           <div style="display:flex;gap:0.75rem;height:100%;min-height:400px;padding:0.75rem;">
@@ -216,6 +229,19 @@ export function createRenderer3DView(store) {
       gapCheckbox.addEventListener('change', () => {
         moduleGapMode = gapCheckbox.checked ? 'projected' : 'compact';
         renderer.setModuleGapMode?.(moduleGapMode);
+      });
+    }
+
+    const sectionAxisSel = container.querySelector('#r3d-section-axis');
+    const sectionTInput = container.querySelector('#r3d-section-t');
+    if (sectionAxisSel && sectionTInput) {
+      sectionAxisSel.addEventListener('change', () => {
+        const axis = sectionAxisSel.value || null;
+        sectionTInput.disabled = !axis;
+        renderer.setSection(axis, Number(sectionTInput.value) / 100);
+      });
+      sectionTInput.addEventListener('input', () => {
+        renderer.setSection(sectionAxisSel.value || null, Number(sectionTInput.value) / 100);
       });
     }
   }
