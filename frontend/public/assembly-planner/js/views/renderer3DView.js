@@ -2,6 +2,7 @@
 
 import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
+import { generarInstruccion, toolsForStep } from '../instructions.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
 
@@ -13,6 +14,14 @@ export function createRenderer3DView(store) {
   let renderer = null;
   let renderLoopId = null;
   let moduleGapMode = 'compact';
+  let playTimer = null;
+
+  function stopPlayTimer() {
+    if (playTimer !== null) {
+      clearInterval(playTimer);
+      playTimer = null;
+    }
+  }
 
   function startRenderLoop() {
     if (renderLoopId !== null) return;
@@ -39,6 +48,7 @@ export function createRenderer3DView(store) {
 
   function destroy() {
     stopRenderLoop();
+    stopPlayTimer();
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
@@ -104,6 +114,7 @@ export function createRenderer3DView(store) {
               <button id="r3d-step-prev" class="btn btn--secondary btn--sm">◀</button>
               <span id="r3d-step-label" style="font-size:0.8rem;color:#c9d1d9;white-space:nowrap;">Paso 1/1</span>
               <button id="r3d-step-next" class="btn btn--secondary btn--sm">▶</button>
+              <button id="r3d-step-play" class="btn btn--secondary btn--sm">▶ Play</button>
             </span>
             <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
@@ -159,6 +170,10 @@ export function createRenderer3DView(store) {
               </ul>
             </aside>
           </div>
+        </div>
+        <div id="r3d-step-panel" class="card__body" style="display:none;padding:0.6rem 1rem;border-top:1px solid var(--border,#30363d);">
+          <div id="r3d-step-instruction" style="font-size:0.85rem;color:#c9d1d9;margin:0 0 0.35rem;line-height:1.4;"></div>
+          <div id="r3d-step-tools" style="font-size:0.75rem;color:#8b949e;"></div>
         </div>
       </div>`;
 
@@ -251,32 +266,80 @@ export function createRenderer3DView(store) {
     const sequence = buildAssemblySequence(pieces, positions);
     const totalSteps = sequence.totalPasos;
     renderer.setAssemblyLevels(buildAssemblyLevels(pieces, positions));
+    const piezasData = Object.fromEntries(pieces.map((p) => [p.id, p]));
 
     const stepModeBtn = container.querySelector('#r3d-step-mode');
     const stepBar = container.querySelector('#r3d-step-bar');
     const stepLabel = container.querySelector('#r3d-step-label');
+    const stepPanel = container.querySelector('#r3d-step-panel');
+    const stepInstruction = container.querySelector('#r3d-step-instruction');
+    const stepTools = container.querySelector('#r3d-step-tools');
+    const playBtn = container.querySelector('#r3d-step-play');
     let stepMode = false;
     let currentStep = 1;
+
+    // Si quedó un play activo de un render anterior (cambio de módulo/piezas), se detiene.
+    stopPlayTimer();
+    if (playBtn) playBtn.textContent = '▶ Play';
+
+    function renderStepPanel() {
+      if (!stepMode) {
+        if (stepPanel) stepPanel.style.display = 'none';
+        return;
+      }
+      const step = sequence.steps[currentStep - 1];
+      if (stepInstruction) stepInstruction.textContent = generarInstruccion(step, piezasData);
+      if (stepTools) stepTools.textContent = `Herramientas: ${toolsForStep(step, piezasData).join(', ')}`;
+      if (stepPanel) stepPanel.style.display = 'block';
+    }
+
+    function stopPlay() {
+      stopPlayTimer();
+      if (playBtn) playBtn.textContent = '▶ Play';
+    }
 
     function updateStepUI() {
       if (stepLabel) stepLabel.textContent = `Paso ${currentStep}/${totalSteps}`;
       renderer.setAssemblyStep(stepMode ? currentStep : null);
+      renderStepPanel();
     }
     stepModeBtn?.addEventListener('click', () => {
       if (!totalSteps) return;
       stepMode = !stepMode;
       currentStep = Math.min(currentStep, totalSteps);
+      if (!stepMode) stopPlay();
       if (stepBar) stepBar.style.display = stepMode ? 'inline-flex' : 'none';
       stepModeBtn.classList.toggle('btn--active', stepMode);
       updateStepUI();
     });
     container.querySelector('#r3d-step-prev')?.addEventListener('click', () => {
+      stopPlay();
       currentStep = Math.max(1, currentStep - 1);
       updateStepUI();
     });
     container.querySelector('#r3d-step-next')?.addEventListener('click', () => {
+      stopPlay();
       currentStep = Math.min(totalSteps, currentStep + 1);
       updateStepUI();
+    });
+
+    // Play automático: avanza un paso cada 2.5 s hasta el final y se detiene.
+    playBtn?.addEventListener('click', () => {
+      if (playTimer !== null) {
+        stopPlay();
+        return;
+      }
+      if (currentStep >= totalSteps) currentStep = 1;
+      updateStepUI();
+      playBtn.textContent = '⏸ Pausa';
+      playTimer = setInterval(() => {
+        if (currentStep >= totalSteps) {
+          stopPlay();
+          return;
+        }
+        currentStep += 1;
+        updateStepUI();
+      }, 2500);
     });
   }
 
