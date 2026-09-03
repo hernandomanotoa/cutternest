@@ -430,3 +430,71 @@ describe('renderer3d/svgBuilder — hatch de corte', () => {
     assert.ok(!svg.includes('url(#r3d-hatch)'));
   });
 });
+
+
+describe('renderer3d — modo ensamblaje paso a paso', () => {
+  const mkPiece = (id, level) => ({
+    id, name: id, role: 'shelf', tipo: 'horizontal_xy',
+    x: 0, y: 0, z: 0, w: 50, h: 5, d: 40,
+    cx: 25, cy: 20, cz: 2.5,
+    color: '#C19A6B', cantos: [], cantidad: 1, modulo: '1',
+    assemblyLevel: level,
+  });
+  const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150, projection: 'ortho' };
+
+  it('buildSVG dims future pieces and highlights current step', () => {
+    const pieces = [mkPiece('p1', 1), mkPiece('p2', 2), mkPiece('p3', 3)];
+    const svg = buildSVG(pieces, camera, { assemblyStep: 2 });
+    const polyOf = (id) => svg.split('<polygon').find((s) => s.includes(`data-piece-id="${id}"`));
+    assert.ok(polyOf('p1').includes('fill-opacity="'), 'past piece rendered');
+    const p2Opacity = parseFloat(polyOf('p2').match(/fill-opacity="([\d.]+)"/)[1]);
+    const p3Opacity = parseFloat(polyOf('p3').match(/fill-opacity="([\d.]+)"/)[1]);
+    assert.ok(p3Opacity <= 0.08, `future piece dimmed (got ${p3Opacity})`);
+    assert.ok(p2Opacity > p3Opacity, 'current step brighter than future');
+    assert.ok(polyOf('p2').includes('#58a6ff'), 'current step highlighted');
+  });
+
+  it('Renderer3D setAssemblyStep validates input', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    if (typeof window === 'undefined') globalThis.window = { addEventListener() {}, removeEventListener() {} };
+    if (typeof document === 'undefined') globalThis.document = { createElement: () => ({ style: {} }) };
+    if (typeof requestAnimationFrame === 'undefined') { globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = () => {}; }
+    const cont = {
+      style: {}, innerHTML: '',
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
+      addEventListener() {}, removeEventListener() {},
+    };
+    const r = new Renderer3D(cont, { width: 900, height: 600 });
+    r.setAssemblyStep(1);
+    assert.equal(r.assemblyStep, 1);
+    r.setAssemblyStep(0);
+    assert.equal(r.assemblyStep, null, 'step < 1 is a no-op (exit mode)');
+    r.setAssemblyStep('abc');
+    assert.equal(r.assemblyStep, null);
+    r.setAssemblyStep(3);
+    assert.equal(r.assemblyStep, 3);
+    r.setAssemblyStep(null);
+    assert.equal(r.assemblyStep, null);
+    r.destroy();
+  });
+
+  it('setAssemblyLevels enriches loaded geometries', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    const cont = {
+      style: {}, innerHTML: '',
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
+      addEventListener() {}, removeEventListener() {},
+    };
+    const r = new Renderer3D(cont, { width: 900, height: 600 });
+    r.load('1', [
+      { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
+      { id: 'p2', nombre: 'Estante', ancho: 570, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: '', modulo: '1', pos_z: '500' },
+    ]);
+    r.setAssemblyLevels({ p1: 1, p2: 2 });
+    const g1 = r.geometries.find((g) => g.id === 'p1');
+    const g2 = r.geometries.find((g) => g.id === 'p2');
+    assert.equal(g1.assemblyLevel, 1);
+    assert.equal(g2.assemblyLevel, 2);
+    r.destroy();
+  });
+});

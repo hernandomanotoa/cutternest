@@ -42,6 +42,10 @@ export class Renderer3D {
     // Plano de sección: { axis: 'x'|'y'|'z', value: mm } | null
     this.section = null;
 
+    // Modo ensamblaje paso a paso: paso visible (1-based) o null
+    this.assemblyStep = null;
+    this.assemblyLevels = new Map(); // pieceId -> paso
+
     this.needsRender = true;
 
     // Instancia auxiliar de IsometricRenderer para reutilizar su lógica de
@@ -110,6 +114,7 @@ export class Renderer3D {
         cx: g.x + g.w / 2,
         cy: g.y + g.d / 2,
         cz: g.z + g.h / 2,
+        assemblyLevel: this.assemblyLevels.get(g.id) ?? null,
       };
     });
 
@@ -178,6 +183,35 @@ export class Renderer3D {
 
   setHoveredId(id) {
     this.hoveredId = id;
+    this.needsRender = true;
+  }
+
+  /**
+   * Configura el mapa pieza → paso de ensamblaje (desde niveles topológicos).
+   * @param {Map<string, number>|Object} levels pieceId -> paso (1-based)
+   */
+  setAssemblyLevels(levels) {
+    this.assemblyLevels = levels instanceof Map ? levels : new Map(Object.entries(levels || {}));
+    if (this.geometries.length) {
+      this.geometries = this.geometries.map((g) => ({
+        ...g,
+        assemblyLevel: this.assemblyLevels.get(g.id) ?? null,
+      }));
+    }
+    this.needsRender = true;
+  }
+
+  /**
+   * Activa/mueve el paso de ensamblaje visible.
+   * @param {number|null} step paso 1-based, o null para salir del modo
+   */
+  setAssemblyStep(step) {
+    if (step === null || step === undefined) {
+      this.assemblyStep = null;
+    } else {
+      const n = Math.floor(Number(step));
+      this.assemblyStep = Number.isFinite(n) && n >= 1 ? n : null;
+    }
     this.needsRender = true;
   }
 
@@ -335,6 +369,7 @@ export class Renderer3D {
       explodeLines,
       section: this.section,
       moduleSize: { w: this.moduleW, d: this.moduleD, h: this.moduleH },
+      assemblyStep: this.assemblyStep,
     });
 
     this.container.innerHTML = svg;

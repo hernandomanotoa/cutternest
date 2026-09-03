@@ -98,6 +98,12 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
               <span>Perspectiva</span>
             </label>
+            <button id="r3d-step-mode" class="btn btn--secondary btn--sm" ${(state.steps || []).length ? '' : 'disabled'}>Modo paso</button>
+            <span id="r3d-step-bar" style="display:none;align-items:center;gap:0.4rem;">
+              <button id="r3d-step-prev" class="btn btn--secondary btn--sm">◀</button>
+              <span id="r3d-step-label" style="font-size:0.8rem;color:#c9d1d9;white-space:nowrap;">Paso 1/1</span>
+              <button id="r3d-step-next" class="btn btn--secondary btn--sm">▶</button>
+            </span>
             <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="front">Frente</button>
@@ -244,6 +250,40 @@ export function createRenderer3DView(store) {
         renderer.setSection(sectionAxisSel.value || null, Number(sectionTInput.value) / 100);
       });
     }
+
+    // Modo ensamblaje paso a paso (niveles topológicos del store)
+    const steps = state.steps || [];
+    const totalSteps = steps.length;
+    const levels = new Map();
+    steps.forEach((s) => s.piezas.forEach((id) => levels.set(id, s.paso)));
+    renderer.setAssemblyLevels(levels);
+
+    const stepModeBtn = container.querySelector('#r3d-step-mode');
+    const stepBar = container.querySelector('#r3d-step-bar');
+    const stepLabel = container.querySelector('#r3d-step-label');
+    let stepMode = false;
+    let currentStep = 1;
+
+    function updateStepUI() {
+      if (stepLabel) stepLabel.textContent = `Paso ${currentStep}/${totalSteps}`;
+      renderer.setAssemblyStep(stepMode ? currentStep : null);
+    }
+    stepModeBtn?.addEventListener('click', () => {
+      if (!totalSteps) return;
+      stepMode = !stepMode;
+      currentStep = Math.min(currentStep, totalSteps);
+      if (stepBar) stepBar.style.display = stepMode ? 'inline-flex' : 'none';
+      stepModeBtn.classList.toggle('btn--active', stepMode);
+      updateStepUI();
+    });
+    container.querySelector('#r3d-step-prev')?.addEventListener('click', () => {
+      currentStep = Math.max(1, currentStep - 1);
+      updateStepUI();
+    });
+    container.querySelector('#r3d-step-next')?.addEventListener('click', () => {
+      currentStep = Math.min(totalSteps, currentStep + 1);
+      updateStepUI();
+    });
   }
 
   return { mount, destroy };

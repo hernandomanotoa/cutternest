@@ -71,6 +71,7 @@ export function buildSVG(pieces, camera, options = {}) {
     explodeLines = [],
     section = null,
     moduleSize = { w: 0, d: 0, h: 0 },
+    assemblyStep = null,
   } = options;
 
   const sectionCoord = section
@@ -202,11 +203,22 @@ export function buildSVG(pieces, camera, options = {}) {
     else if (isDimmed) opacity = baseOpacity * 0.3;
     else opacity = baseOpacity;
 
+    // Modo ensamblaje paso a paso: atenuar piezas de pasos futuros,
+    // resaltar (stroke azul) las piezas del paso actual.
+    let isCurrentStep = false;
+    if (assemblyStep !== null && piece.assemblyLevel != null) {
+      if (piece.assemblyLevel > assemblyStep) {
+        opacity = Math.min(opacity, 0.08);
+      } else if (piece.assemblyLevel === assemblyStep) {
+        isCurrentStep = true;
+      }
+    }
+
     svgParts.push(voidTag('polygon', {
       points: pointsStr,
       fill: getFillForFace(face.name, piece, faceColors, metalId),
-      stroke: isSelected || isHovered ? '#FFD700' : '#222',
-      'stroke-width': isSelected || isHovered ? '2' : '0.75',
+      stroke: isSelected || isHovered ? '#FFD700' : isCurrentStep ? '#58a6ff' : '#222',
+      'stroke-width': isSelected || isHovered ? '2' : isCurrentStep ? '1.75' : '0.75',
       'stroke-linejoin': 'round',
       'fill-opacity': Math.max(0.02, opacity).toFixed(3),
       'stroke-opacity': '0.9',
