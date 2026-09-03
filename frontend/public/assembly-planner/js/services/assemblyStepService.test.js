@@ -80,10 +80,11 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     assert.ok(pos('m2-est-sup') < pos('m2-div-sup'), 'repisa superior antes que divisores');
   });
 
-  it('fondo tras interiores y accesorios al cierre (barras → puertas)', () => {
+  it('REGLA 1: fondo cierra el casco (tras la tapa, antes de interiores); accesorios al cierre', () => {
     const { steps } = buildAssemblySequence(librero, positions);
     const pos = (id) => steps.find((s) => s.piezas[0] === id).paso;
-    assert.ok(pos('m2-est-sup') < pos('m2-fondo'), 'fondo tras interiores');
+    assert.ok(pos('m2-tapa') < pos('m2-fondo'), 'fondo tras la tapa');
+    assert.ok(pos('m2-fondo') < pos('m2-est-inf'), 'fondo antes que interiores (rigidez)');
     assert.ok(pos('m2-fondo') < pos('m2-barra'), 'barras tras fondo');
     assert.ok(pos('m2-barra') < pos('m2-puerta'), 'puertas tras barras');
   });
@@ -236,7 +237,7 @@ describe('assemblyStepService/buildAssemblySequence', () => {
   });
 });
 
-describe('assemblyStepService/fondo interno vs externo', () => {
+describe('assemblyStepService/fondo estructural (REGLA 1)', () => {
   // Módulo 800×550×2300, t=15. Fondo externo: 800×2300; interno: 770×2270.
   const mkDim = (id, nombre, ancho, alto, espesor = 15, modulo = '1') => ({
     id,
@@ -261,36 +262,36 @@ describe('assemblyStepService/fondo interno vs externo', () => {
     mkDim('c-puerta', 'Puerta módulo', 400, 800),
   ];
 
-  it('fondo EXTERNO: orden por defecto (tapa con el casco, fondo al final)', () => {
+  it('fondo EXTERNO: cierra el casco tras la tapa, antes de interiores', () => {
     const { steps } = buildAssemblySequence(carcass(800, 2300));
     const order = steps.map((s) => s.piezas[0]);
-    assert.deepEqual(order.slice(0, 4), ['c-base', 'c-lat-izq', 'c-lat-der', 'c-tapa']);
-    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-repisa'), 'tapa antes que interiores');
-    assert.ok(order.indexOf('c-divisor') < order.indexOf('c-fondo'), 'fondo tras interiores');
+    assert.deepEqual(order.slice(0, 5), ['c-base', 'c-lat-izq', 'c-lat-der', 'c-tapa', 'c-fondo']);
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-repisa'), 'fondo antes que interiores (rigidez)');
     assert.ok(order.indexOf('c-fondo') < order.indexOf('c-puerta'), 'accesorios al cierre');
   });
 
-  it('fondo INTERNO: interiores → fondo → tapa (la tapa captura el panel)', () => {
+  it('fondo INTERNO: misma posición estructural (tras tapa, antes de interiores)', () => {
     const { steps } = buildAssemblySequence(carcass(770, 2270));
     const order = steps.map((s) => s.piezas[0]);
     assert.deepEqual(order.slice(0, 3), ['c-base', 'c-lat-izq', 'c-lat-der']);
+    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-fondo'), 'fondo tras la tapa');
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-repisa'), 'fondo antes que interiores');
     assert.ok(order.indexOf('c-repisa') < order.indexOf('c-divisor'), 'divisor tras su repisa');
-    assert.ok(order.indexOf('c-divisor') < order.indexOf('c-fondo'), 'fondo tras interiores');
-    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-tapa'), 'tapa cierra después del fondo');
-    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-puerta'), 'accesorios tras la tapa');
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-puerta'), 'accesorios al cierre');
   });
 
-  it('fondo custom (medidas intermedias) también se inserta antes de la tapa', () => {
+  it('fondo custom (medidas intermedias): también estructural, tras la tapa', () => {
     const { steps } = buildAssemblySequence(carcass(790, 2200));
     const order = steps.map((s) => s.piezas[0]);
-    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-tapa'), 'custom: fondo antes de la tapa');
+    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-fondo'), 'custom: fondo tras la tapa');
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-repisa'), 'custom: fondo antes que interiores');
   });
 
-  it('fondo corrido entre laterales (interno en ancho, alto=H) va antes de la tapa', () => {
+  it('fondo corrido entre laterales (interno en ancho, alto=H): tras la tapa, antes de interiores', () => {
     // Caso real: caja 680×2000×600 (t=15), fondo 650×2000.
-    // ancho = W−2t (encajado entre laterales), alto = H completo → custom
-    // dimensional, pero físicamente se desliza desde arriba y la tapa
-    // externa lo captura. La base 650×585 es EMBUTIDA: va tras los laterales.
+    // ancho = W−2t (encajado entre laterales), alto = H completo. La base
+    // 650×585 es EMBUTIDA: va tras los laterales. REGLA 1: tapa y fondo
+    // cierran el casco antes de colgar la repisa.
     const mod = [
       mkDim('r-base', 'Base módulo 1', 650, 585),
       mkDim('r-tapa', 'Tapa módulo 1', 680, 600),
@@ -302,12 +303,12 @@ describe('assemblyStepService/fondo interno vs externo', () => {
     const { steps } = buildAssemblySequence(mod);
     const order = steps.map((s) => s.piezas[0]);
     assert.deepEqual(order.slice(0, 3), ['r-lat-izq', 'r-lat-der', 'r-base'], 'base embutida tras laterales');
-    assert.ok(order.indexOf('r-base') < order.indexOf('r-repisa'), 'base antes que sus repisas');
-    assert.ok(order.indexOf('r-repisa') < order.indexOf('r-fondo'), 'fondo tras interiores');
-    assert.ok(order.indexOf('r-fondo') < order.indexOf('r-tapa'), 'fondo corrido antes de la tapa externa');
+    assert.ok(order.indexOf('r-base') < order.indexOf('r-tapa'), 'base antes que la tapa');
+    assert.ok(order.indexOf('r-tapa') < order.indexOf('r-fondo'), 'tapa cierra el casco');
+    assert.ok(order.indexOf('r-fondo') < order.indexOf('r-repisa'), 'fondo da rigidez antes de la repisa');
   });
 
-  it('fondo sin medidas (fallback) mantiene el orden por defecto', () => {
+  it('fondo sin medidas (fallback) mantiene el orden estructural', () => {
     const mod = [
       mk('b', 'Base'),
       mk('l', 'Lateral izquierdo'),
@@ -318,16 +319,15 @@ describe('assemblyStepService/fondo interno vs externo', () => {
     assert.deepEqual(steps.map((s) => s.piezas[0]), ['b', 'l', 't', 'f']);
   });
 
-  it('detección por módulo: interno en m1 no afecta al m2', () => {
+  it('interno y externo comparten posición estructural en módulos distintos', () => {
     const m1 = carcass(770, 2270).map((p) => ({ ...p, modulo: '1' }));
     const m2 = carcass(800, 2300).map((p) => ({ ...p, id: `x-${p.id}`, modulo: '2' }));
     const { steps } = buildAssemblySequence([...m2, ...m1]);
     const order = steps.map((s) => s.piezas[0]);
     const idx = (id) => order.indexOf(id);
-    // m1 (fondo interno): fondo antes que tapa
-    assert.ok(idx('c-fondo') < idx('c-tapa'), 'm1 fondo interno antes de tapa');
-    // m2 (fondo externo): tapa antes que fondo
-    assert.ok(idx('x-c-tapa') < idx('x-c-fondo'), 'm2 fondo externo tras tapa');
+    // Ambos módulos: tapa → fondo → interiores
+    assert.ok(idx('c-tapa') < idx('c-fondo') && idx('c-fondo') < idx('c-repisa'), 'm1 fondo interno estructural');
+    assert.ok(idx('x-c-tapa') < idx('x-c-fondo') && idx('x-c-fondo') < idx('x-c-repisa'), 'm2 fondo externo estructural');
   });
 });
 
@@ -365,7 +365,7 @@ describe('assemblyStepService/base interna vs externa', () => {
     assert.ok(order.indexOf('i-base') < order.indexOf('i-tapa'), 'base embutida antes que la tapa');
   });
 
-  it('base embutida con fondo pre-tapa: base antes que interiores, fondo y tapa', () => {
+  it('módulo completo (caso usuario): base embutida → tapa → fondo → repisas', () => {
     const mod = [
       mkDim('p-base', 'Base módulo 1', 650, 585),
       mkDim('p-lat-izq', 'Lateral izquierdo 1', 600, 2000),
@@ -378,9 +378,9 @@ describe('assemblyStepService/base interna vs externa', () => {
     const order = steps.map((s) => s.piezas[0]);
     const idx = (id) => order.indexOf(id);
     assert.ok(idx('p-lat-der') < idx('p-base'), 'base embutida tras laterales');
-    assert.ok(idx('p-base') < idx('p-repisa'), 'base antes de las repisas que apoyan en ella');
-    assert.ok(idx('p-repisa') < idx('p-fondo'), 'fondo pre-tapa tras interiores');
-    assert.ok(idx('p-fondo') < idx('p-tapa'), 'tapa cierra después del fondo');
+    assert.ok(idx('p-base') < idx('p-tapa'), 'base antes que la tapa');
+    assert.ok(idx('p-tapa') < idx('p-fondo'), 'REGLA 1: tapa cierra el casco');
+    assert.ok(idx('p-fondo') < idx('p-repisa'), 'REGLA 1: fondo da rigidez antes de interiores');
   });
 
   it('pieza sin medidas (fallback) mantiene la base como primera pieza', () => {

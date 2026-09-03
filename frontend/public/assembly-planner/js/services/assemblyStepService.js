@@ -1,16 +1,24 @@
 // js/services/assemblyStepService.js — Secuencia de ensamblaje para el modo paso a paso 3D
 // Lógica pura, sin DOM. Independiente del grafo de dependencias (heuristics.js):
 // ese grafo alimenta el manual/grafo con orden izq→divisor→der; aquí la secuencia
-// sigue el armado físico real (fuentes: manuales PAX/Furnica/CabinetNow):
+// sigue el armado físico real (fuentes: manuales PAX/Furnica/CabinetNow).
 //
-//   1. Casco exterior:
-//      - Base EXTERNA (+zócalo): cubre los laterales → plataforma de
-//        referencia que se arma primero (consenso PAX/Furnica/CabinetNow).
-//      - Laterales: sobre la base externa (o sobre el zócalo si la base es
-//        embutida) y se meten en escuadra.
-//      - Base EMBUTIDA (ancho ≈ W−2t, encaja entre laterales): se ensambla
-//        una vez el casco en escuadra, antes de la tapa.
-//      - Tapa: siempre tras los laterales (cierra el casco).
+// REGLA 1 (prioridad): las piezas ESTRUCTURALES se agregan primero, en orden
+// de prioridad. Tapa y fondo cierran el casco y dan rigidez para ensamblar
+// lo restante del módulo: ningún interior se cuelga hasta que el casco está
+// cerrado.
+//
+//   1. Casco estructural, en orden:
+//      a. Base EXTERNA (+zócalo): cubre los laterales → plataforma de
+//         referencia que se arma primero (consenso PAX/Furnica/CabinetNow).
+//      b. Laterales: sobre la base externa (o sobre el zócalo si la base es
+//         embutida) y se meten en escuadra.
+//      c. Base EMBUTIDA (ancho ≈ W−2t, encaja entre laterales): se ensambla
+//         una vez el casco está en escuadra.
+//      d. Tapa: cierra el casco por arriba y lo mete en escuadra.
+//      e. Fondo: da rigidez al conjunto (clavado/atornillado por detrás o
+//         encajado en dados; externo, interno, corrido o custom — siempre
+//         estructural). Va tras la tapa y antes de cualquier interior.
 //   2. Interiores, en tres grupos:
 //      a. Horizontales de lateral a lateral (repisas corridas/zapateros;
 //         ancho ≈ interior): unen y escuadran el casco; clave z.
@@ -20,45 +28,27 @@
 //      c. Repisas de vano (estantes regulables entre lateral y divisor):
 //         tras las divisiones que las atraviesan; si SOPORTAN una división,
 //         van antes que ella (el apoyo físico manda).
-//   3. Fondo → accesorios (barras → puertas → cajones → tiradores)
-//
-// Excepción: fondo que NO cubre la caja completa (interno en ranura o con
-// cualquier medida reducida, p. ej. corrido entre laterales). No puede
-// clavarse por detrás: se inserta en la caja abierta y la tapa lo captura,
-// así que la secuencia es: base → laterales → interiores → fondo → tapa →
-// accesorios (fuentes: WOODWEB, Fine Woodworking, The Handyman's Daughter).
-// Solo el fondo EXTERNO (cubre ancho≈W y alto≈H completo) va al final:
-// clavado/atornillado por detrás, mete en escuadra la caja.
+//   3. Accesorios (barras → puertas → cajones → tiradores)
 
 import { normalizeName } from '../utils/normalize.js';
 import { isGlobalPiece } from './moduleService.js';
-import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
+import { getModuleDimensions, classifyTopBottomMountAxes } from './geometryService.js';
 
 const CATEGORY_ORDER = {
   inferior: 1,
   lateral: 2,
   inferiorInterno: 2.5, // base embutida entre laterales (ancho ≈ W−2t): tras el casco
   tapa: 3,
-  interior: 4,
-  fondo: 5,
+  fondo: 4, // estructural: cierra el casco con la tapa, antes de interiores
+  interior: 5,
   accesorio: 6,
   otro: 7,
 };
 
-// Orden alternativo cuando el fondo se inserta antes de la tapa (interno,
-// corrido o custom): la tapa captura el panel, así que cierra el casco
-// después de él.
-const PRE_TOP_BACK_CATEGORY = {
-  interior: 3,
-  fondo: 4,
-  tapa: 5,
-};
-
 /**
- * Analiza cada módulo una sola vez: espesor de lateral, caja (W×H),
- * ancho interior y montaje del fondo. Reutilizado por la posición del
- * fondo (pre-tapa) y por la clasificación de interiores (lateral a
- * lateral vs vano).
+ * Analiza cada módulo una sola vez: espesor de lateral, caja (W×D) y ancho
+ * interior. Reutilizado por la clasificación de la base embutida y por la
+ * de interiores (lateral a lateral vs vano).
  */
 function analyzeModules(pieces) {
   const byModule = new Map();
@@ -75,46 +65,14 @@ function analyzeModules(pieces) {
     const base = modPieces.find((p) => classifySequenceRole(p) === 'inferior');
     const sideThickness = Number(laterals[0]?.espesor) || Number(base?.espesor) || 15;
     const box = getModuleDimensions(modPieces, sideThickness);
-    const back = modPieces.find((p) => classifySequenceRole(p) === 'fondo');
-    let backMount = null;
-    if (
-      back &&
-      Number.isFinite(Number(back.ancho)) &&
-      Number.isFinite(Number(back.alto)) &&
-      Number.isFinite(box.width) &&
-      Number.isFinite(box.height)
-    ) {
-      backMount = classifyBackPanelMount(back, box.width, box.height, sideThickness);
-    }
     info.set(modId, {
       sideThickness,
       width: Number.isFinite(box.width) ? box.width : null,
       depth: Number.isFinite(box.depth) ? box.depth : null,
       interiorW: Number.isFinite(box.width) ? Math.max(0, box.width - 2 * sideThickness) : null,
-      backMount,
     });
   }
   return info;
-}
-
-/**
- * Módulos cuyo fondo se inserta ANTES de la tapa. Criterio físico: solo
- * el fondo que cubre la caja completa ('external': ancho≈W y alto≈H) se
- * clava por detrás al final; cualquier otro (interno en ranura, corrido
- * entre laterales o custom) se inserta en la caja abierta y la tapa lo
- * captura. Sin medidas válidas se mantiene el orden por defecto.
- */
-function detectPreTopBackModules(moduleInfo) {
-  const preTop = new Set();
-  for (const [modId, mi] of moduleInfo) {
-    if (mi.backMount && mi.backMount !== 'external') preTop.add(modId);
-  }
-  return preTop;
-}
-
-function categoryFor(role, hasPreTopBack) {
-  if (hasPreTopBack && PRE_TOP_BACK_CATEGORY[role] !== undefined) return PRE_TOP_BACK_CATEGORY[role];
-  return CATEGORY_ORDER[role];
 }
 
 /**
@@ -279,14 +237,13 @@ function buildInteriorKeys(pieces, positions, moduleInfo) {
 }
 
 /**
- * Construye la secuencia de ensamblaje: un paso por pieza, ordenada
- * casco exterior (base externa → laterales → base embutida → tapa) →
- * interiores (lateral a lateral → divisiones verticales → repisas de vano)
- * → fondo → accesorios. Las piezas globales van al final.
- *
- * Si el fondo del módulo NO cubre la caja completa (interno, corrido o
- * custom), se inserta antes de cerrar: base → laterales → interiores →
- * fondo → tapa → accesorios.
+ * Construye la secuencia de ensamblaje: un paso por pieza, ordenada por la
+ * REGLA 1 (estructurales primero): base externa (+zócalo) → laterales →
+ * base embutida → tapa → fondo → interiores (lateral a lateral → divisiones
+ * verticales → repisas de vano) → accesorios. Las piezas globales van al
+ * final. El fondo es estructural sin importar su montaje (externo, interno,
+ * corrido o custom): cierra el casco con la tapa y da rigidez antes de
+ * colgar interiores.
  *
  * @param {Array} pieces piezas CSV del módulo activo (o 'all')
  * @param {Map<string, number>} [positions] posición z real por pieza (mm),
@@ -295,7 +252,6 @@ function buildInteriorKeys(pieces, positions, moduleInfo) {
  */
 export function buildAssemblySequence(pieces, positions = null) {
   const moduleInfo = analyzeModules(pieces);
-  const preTopBackModules = detectPreTopBackModules(moduleInfo);
   const interiorKeys = buildInteriorKeys(pieces, positions, moduleInfo);
   const sorted = [...pieces].sort((a, b) => {
     const ga = isGlobalPiece(a) ? 1 : 0;
@@ -308,8 +264,8 @@ export function buildAssemblySequence(pieces, positions = null) {
 
     const roleA = classifySequenceRole(a);
     const roleB = classifySequenceRole(b);
-    let ca = categoryFor(roleA, preTopBackModules.has(ma));
-    let cb = categoryFor(roleB, preTopBackModules.has(mb));
+    let ca = CATEGORY_ORDER[roleA] ?? CATEGORY_ORDER.otro;
+    let cb = CATEGORY_ORDER[roleB] ?? CATEGORY_ORDER.otro;
     if (roleA === 'inferior' && isInsetPanel(a, moduleInfo)) ca = CATEGORY_ORDER.inferiorInterno;
     if (roleB === 'inferior' && isInsetPanel(b, moduleInfo)) cb = CATEGORY_ORDER.inferiorInterno;
     if (ca !== cb) return ca - cb;
