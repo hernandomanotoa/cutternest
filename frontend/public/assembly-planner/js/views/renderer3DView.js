@@ -6,10 +6,12 @@ import { COLORS } from '../core/config.js';
 
 export function createRenderer3DView(store) {
   let unsubscribe = null;
+  let unsubscribeConfig = null;
   let container = null;
   let canvas = null;
   let renderer = null;
   let renderLoopId = null;
+  let moduleGapMode = 'compact';
 
   function startRenderLoop() {
     if (renderLoopId !== null) return;
@@ -30,6 +32,7 @@ export function createRenderer3DView(store) {
   function mount(parent) {
     container = parent;
     unsubscribe = store.subscribe('state:changed', () => renderView(container, store.get()));
+    unsubscribeConfig = store.subscribe('userConfig:changed', () => renderView(container, store.get()));
     renderView(container, store.get());
   }
 
@@ -38,6 +41,10 @@ export function createRenderer3DView(store) {
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
+    }
+    if (unsubscribeConfig) {
+      unsubscribeConfig();
+      unsubscribeConfig = null;
     }
     if (renderer) {
       renderer.destroy();
@@ -80,6 +87,10 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-xray" style="cursor:pointer;">
               <span>X-ray</span>
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
+              <input type="checkbox" id="r3d-gap-mode" ${moduleGapMode === 'projected' ? 'checked' : ''} style="cursor:pointer;">
+              <span>Gap profundidad</span>
+            </label>
           </div>
         </div>
         <div class="r3d-sliders card__body" style="padding:0.5rem 1rem;">
@@ -102,6 +113,8 @@ export function createRenderer3DView(store) {
       width: 900,
       height: 600,
       globalOpacity: 0.85,
+      moduleGapMode,
+      verticalPositionOverrides: state.userConfig,
     });
     renderer.load(targetModule, state.pieces);
 
@@ -112,6 +125,14 @@ export function createRenderer3DView(store) {
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
+
+    const gapCheckbox = container.querySelector('#r3d-gap-mode');
+    if (gapCheckbox) {
+      gapCheckbox.addEventListener('change', () => {
+        moduleGapMode = gapCheckbox.checked ? 'projected' : 'compact';
+        renderer.setModuleGapMode?.(moduleGapMode);
+      });
+    }
   }
 
   return { mount, destroy };

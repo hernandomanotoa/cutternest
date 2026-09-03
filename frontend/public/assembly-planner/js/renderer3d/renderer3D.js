@@ -2,8 +2,7 @@
 // Reutiliza el posicionamiento de IsometricRenderer y aplica proyección
 // orbital, explode, transparencia selectiva e interacción.
 
-import { generateVertices, CUBOID_FACES } from './geometry.js';
-import { applyExplode, lerp, projectVertexCentered, faceAverageZ } from './transform.js';
+import { applyExplode, lerp } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
@@ -26,6 +25,9 @@ export class Renderer3D {
     this.animationStartExplode = 0;
     this.animationFromExplode = 0;
 
+    this.moduleGapMode = options.moduleGapMode ?? 'compact';
+    this.verticalPositionOverrides = options.verticalPositionOverrides || {};
+
     this.geometries = [];
     this.moduleW = 0;
     this.moduleD = 0;
@@ -43,9 +45,9 @@ export class Renderer3D {
       scale: 0.12,
       showDimensions: false,
       showAxes: false,
-      moduleGapMode: 'projected',
+      moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
-      verticalPositionOverrides: options.verticalPositionOverrides || {},
+      verticalPositionOverrides: this.verticalPositionOverrides,
     });
 
     this.controls = new OrbitControls(container, {
@@ -71,6 +73,7 @@ export class Renderer3D {
 
   load(moduleId, pieces) {
     this.moduleId = moduleId;
+    this._lastPieces = pieces;
     const filtered = getModulePieces(pieces, moduleId);
     const { geometries, moduleW, moduleD, moduleH, thickness, moduleLabel } =
       this.isoRenderer.computeGeometries(moduleId, pieces);
@@ -108,6 +111,36 @@ export class Renderer3D {
   setGlobalOpacity(value) {
     this.globalOpacity = value;
     this.needsRender = true;
+  }
+
+  setModuleGapMode(mode) {
+    if (this.moduleGapMode === mode) return;
+    this.moduleGapMode = mode;
+    this.isoRenderer = new IsometricRenderer(document.createElement('div'), {
+      scale: 0.12,
+      showDimensions: false,
+      showAxes: false,
+      moduleGapMode: this.moduleGapMode,
+      labelMode: 'none',
+      verticalPositionOverrides: this.verticalPositionOverrides,
+    });
+    this.needsRender = true;
+    this.load(this.moduleId, this._lastPieces || []);
+  }
+
+  setVerticalPositionOverrides(overrides) {
+    if (this.verticalPositionOverrides === overrides) return;
+    this.verticalPositionOverrides = overrides || {};
+    this.isoRenderer = new IsometricRenderer(document.createElement('div'), {
+      scale: 0.12,
+      showDimensions: false,
+      showAxes: false,
+      moduleGapMode: this.moduleGapMode,
+      labelMode: 'none',
+      verticalPositionOverrides: this.verticalPositionOverrides,
+    });
+    this.needsRender = true;
+    this.load(this.moduleId, this._lastPieces || []);
   }
 
   setXrayMode(value) {

@@ -146,6 +146,26 @@ describe('Renderer3D integration', () => {
     assert.ok(highlighted >= 6, 'hover should highlight at least the 6 faces of the shelf');
   });
 
+  it('uses compact module gap mode by default', () => {
+    const container = createContainer();
+    const renderer = new Renderer3D(container, { width: 900, height: 600 });
+    assert.equal(renderer.moduleGapMode, 'compact', 'default module gap mode should be compact');
+  });
+
+  it('applies verticalPositionOverrides when positioning pieces', () => {
+    const container = createContainer();
+    const renderer = new Renderer3D(container, {
+      width: 900,
+      height: 600,
+      verticalPositionOverrides: { bottomPanelOffset: 200 },
+    });
+    renderer.load('1', basePieces);
+
+    const base = renderer.geometries.find((g) => g.role === 'bottom_panel');
+    assert.ok(base, 'base panel geometry should exist');
+    assert.equal(base.z, 200, 'base panel z should respect bottomPanelOffset override');
+  });
+
   it('xray mode makes envelope faces very transparent', () => {
     const container = createContainer();
     const renderer = new Renderer3D(container, { width: 900, height: 600 });
