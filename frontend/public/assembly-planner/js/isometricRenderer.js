@@ -402,6 +402,11 @@ export class IsometricRenderer {
       if (baseAxes.depth === 'internal') {
         by = thickness;
         bd = Math.max(0, moduleD - 2 * thickness);
+      } else if (baseAxes.depth === 'front_flush') {
+        // Ras al frente, trasero contra la cara interior del fondo
+        // (profundidad = moduleD − espesor del fondo).
+        by = 0;
+        bd = Math.max(0, moduleD - backThickness);
       } else if (baseAxes.depth === 'external') {
         by = 0;
         bd = moduleD;
@@ -436,6 +441,11 @@ export class IsometricRenderer {
       if (topAxes.depth === 'internal') {
         ty = thickness;
         td = Math.max(0, moduleD - 2 * thickness);
+      } else if (topAxes.depth === 'front_flush') {
+        // Ras al frente, trasero contra la cara interior del fondo
+        // (profundidad = moduleD − espesor del fondo).
+        ty = 0;
+        td = Math.max(0, moduleD - backThickness);
       } else if (topAxes.depth === 'external') {
         ty = 0;
         td = moduleD;

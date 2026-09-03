@@ -3,7 +3,14 @@
 // ese grafo alimenta el manual/grafo con orden izq→divisor→der; aquí la secuencia
 // sigue el armado físico real (fuentes: manuales PAX/Furnica/CabinetNow):
 //
-//   1. Casco exterior: base (+zócalo) → laterales → tapa
+//   1. Casco exterior:
+//      - Base EXTERNA (+zócalo): cubre los laterales → plataforma de
+//        referencia que se arma primero (consenso PAX/Furnica/CabinetNow).
+//      - Laterales: sobre la base externa (o sobre el zócalo si la base es
+//        embutida) y se meten en escuadra.
+//      - Base EMBUTIDA (ancho ≈ W−2t, encaja entre laterales): se ensambla
+//        una vez el casco en escuadra, antes de la tapa.
+//      - Tapa: siempre tras los laterales (cierra el casco).
 //   2. Interiores, en tres grupos:
 //      a. Horizontales de lateral a lateral (repisas corridas/zapateros;
 //         ancho ≈ interior): unen y escuadran el casco; clave z.
@@ -25,11 +32,12 @@
 
 import { normalizeName } from '../utils/normalize.js';
 import { isGlobalPiece } from './moduleService.js';
-import { getModuleDimensions, classifyBackPanelMount } from './geometryService.js';
+import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
 
 const CATEGORY_ORDER = {
   inferior: 1,
   lateral: 2,
+  inferiorInterno: 2.5, // base embutida entre laterales (ancho ≈ W−2t): tras el casco
   tapa: 3,
   interior: 4,
   fondo: 5,
@@ -80,6 +88,8 @@ function analyzeModules(pieces) {
     }
     info.set(modId, {
       sideThickness,
+      width: Number.isFinite(box.width) ? box.width : null,
+      depth: Number.isFinite(box.depth) ? box.depth : null,
       interiorW: Number.isFinite(box.width) ? Math.max(0, box.width - 2 * sideThickness) : null,
       backMount,
     });
@@ -105,6 +115,20 @@ function detectPreTopBackModules(moduleInfo) {
 function categoryFor(role, hasPreTopBack) {
   if (hasPreTopBack && PRE_TOP_BACK_CATEGORY[role] !== undefined) return PRE_TOP_BACK_CATEGORY[role];
   return CATEGORY_ORDER[role];
+}
+
+/**
+ * Base/zócalo EMBUTIDO: ancho ≈ W−2t, encaja ENTRE los laterales. A diferencia
+ * de la base externa (cubre los laterales y es la plataforma de referencia que
+ * se arma primero), la embutida se ensambla cuando el casco ya está en
+ * escuadra. Criterio por eje ancho (raw, como en isometricRenderer/csvParser).
+ */
+function isInsetPanel(piece, moduleInfo) {
+  const mi = moduleInfo.get(String(piece.modulo || '').trim());
+  if (!mi || !Number.isFinite(mi.width) || !Number.isFinite(mi.depth)) return false;
+  if (!Number.isFinite(Number(piece.ancho))) return false;
+  const axes = classifyTopBottomMountAxes(piece, mi.width, mi.depth, mi.sideThickness);
+  return axes.width === 'internal';
 }
 
 const HEIGHT_KEYWORD_RANK = [
@@ -256,9 +280,9 @@ function buildInteriorKeys(pieces, positions, moduleInfo) {
 
 /**
  * Construye la secuencia de ensamblaje: un paso por pieza, ordenada
- * casco exterior (base → laterales → tapa) → interiores (lateral a
- * lateral → divisiones verticales → repisas de vano) → fondo →
- * accesorios. Las piezas globales van al final.
+ * casco exterior (base externa → laterales → base embutida → tapa) →
+ * interiores (lateral a lateral → divisiones verticales → repisas de vano)
+ * → fondo → accesorios. Las piezas globales van al final.
  *
  * Si el fondo del módulo NO cubre la caja completa (interno, corrido o
  * custom), se inserta antes de cerrar: base → laterales → interiores →
@@ -284,8 +308,10 @@ export function buildAssemblySequence(pieces, positions = null) {
 
     const roleA = classifySequenceRole(a);
     const roleB = classifySequenceRole(b);
-    const ca = categoryFor(roleA, preTopBackModules.has(ma));
-    const cb = categoryFor(roleB, preTopBackModules.has(mb));
+    let ca = categoryFor(roleA, preTopBackModules.has(ma));
+    let cb = categoryFor(roleB, preTopBackModules.has(mb));
+    if (roleA === 'inferior' && isInsetPanel(a, moduleInfo)) ca = CATEGORY_ORDER.inferiorInterno;
+    if (roleB === 'inferior' && isInsetPanel(b, moduleInfo)) cb = CATEGORY_ORDER.inferiorInterno;
     if (ca !== cb) return ca - cb;
 
     if (roleA === 'lateral') {

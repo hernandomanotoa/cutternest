@@ -123,12 +123,18 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
   // exterior correcto.
   function externalSize(piece, role) {
     if (role === 'bottom_panel' || role === 'top_panel') {
-      const mount = classifyTopBottomMount(piece, rawW, rawD, inferredThickness);
-      if (mount === 'internal') {
-        return {
-          w: piece.ancho + 2 * inferredThickness,
-          h: piece.alto + 2 * inferredThickness,
-        };
+      const axes = classifyTopBottomMountAxes(piece, rawW, rawD, inferredThickness);
+      // Eje ancho: interno ⇒ +2t (encajado entre ambos laterales).
+      // Eje profundidad: interno ⇒ +2t (inset doble); front_flush ⇒ +t
+      // (solo el lado del fondo; el frente queda al ras).
+      const w = axes.width === 'internal' ? piece.ancho + 2 * inferredThickness : piece.ancho;
+      const h = axes.depth === 'internal'
+        ? piece.alto + 2 * inferredThickness
+        : axes.depth === 'front_flush'
+          ? piece.alto + inferredThickness
+          : piece.alto;
+      if (axes.width === 'internal' || axes.depth === 'internal' || axes.depth === 'front_flush') {
+        return { w, h };
       }
     }
     if (role === 'back_panel') {
@@ -235,9 +241,13 @@ export function classifyBackPanelMount(back, moduleW, moduleH, thickness = DEFAU
 /**
  * Clasifica el montaje de base/tapa (top/bottom panel) comparando sus medidas
  * contra la caja del módulo:
- *  - 'external': cubre todo el ancho y la profundidad del módulo.
- *  - 'internal': queda embutido entre laterales (ancho≈moduleW-2t, alto≈moduleD-2t).
- *  - 'custom': cualquier otra medida.
+ *  - 'external':    cubre todo el ancho y la profundidad del módulo.
+ *  - 'internal':    queda embutido entre laterales (ancho≈moduleW-2t,
+ *                   profundidad≈moduleD-2t, inset en ambos lados).
+ *  - 'front_flush': ancho≈moduleW-2t y profundidad≈moduleD-t (ras al frente,
+ *                   contra la cara interior del fondo). Convención habitual
+ *                   de bases/tapas embutidas.
+ *  - 'custom':      cualquier otra medida.
  */
 export function classifyTopBottomMountAxes(panel, moduleW, moduleD, thickness = DEFAULT_THICKNESS) {
   const tol = 2;
@@ -245,6 +255,7 @@ export function classifyTopBottomMountAxes(panel, moduleW, moduleD, thickness = 
   const d = Number(panel.alto) || 0;
   const interiorW = Math.abs(moduleW - 2 * thickness);
   const interiorD = Math.abs(moduleD - 2 * thickness);
+  const flushD = Math.abs(moduleD - thickness);
 
   const classifyAxis = (value, exterior, interior) => {
     if (Math.abs(value - exterior) <= tol) return 'external';
@@ -252,16 +263,25 @@ export function classifyTopBottomMountAxes(panel, moduleW, moduleD, thickness = 
     return 'custom';
   };
 
+  // Eje profundidad: además del inset doble ('internal') se acepta el ras al
+  // frente ('front_flush', moduleD − t), que es la convención más común en
+  // bases/tapas embutidas (frente al ras, trasero contra el fondo).
+  let depth;
+  if (Math.abs(d - moduleD) <= tol) depth = 'external';
+  else if (Math.abs(d - interiorD) <= tol) depth = 'internal';
+  else if (Math.abs(d - flushD) <= tol) depth = 'front_flush';
+  else depth = 'custom';
+
   return {
     width: classifyAxis(w, moduleW, interiorW),
-    depth: classifyAxis(d, moduleD, interiorD),
+    depth,
   };
 }
 
 export function classifyTopBottomMount(panel, moduleW, moduleD, thickness = DEFAULT_THICKNESS) {
   const axes = classifyTopBottomMountAxes(panel, moduleW, moduleD, thickness);
   if (axes.width === 'external' && axes.depth === 'external') return 'external';
-  if (axes.width === 'internal' && axes.depth === 'internal') return 'internal';
+  if (axes.width === 'internal' && (axes.depth === 'internal' || axes.depth === 'front_flush')) return 'internal';
   return 'custom';
 }
 

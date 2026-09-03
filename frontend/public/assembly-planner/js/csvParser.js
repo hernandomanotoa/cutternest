@@ -3,7 +3,7 @@
 import { isHexColor, normalizeColor } from './utils.js';
 import { normalizeName, nameIncludes } from './utils/normalize.js';
 import { inferRole } from './services/classifierService.js';
-import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMount, classifyTopBottomMountAxes } from './services/geometryService.js';
+import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './services/geometryService.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
@@ -134,16 +134,24 @@ function validateDimensions(pieces, warnings) {
       const baseAxes = classifyTopBottomMountAxes(base, moduleBox.width, moduleBox.depth, thickness);
       const topAxes = classifyTopBottomMountAxes(top, moduleBox.width, moduleBox.depth, thickness);
 
-      const effective = (value, mount) => (mount === 'internal' ? value + 2 * thickness : value);
+      const effective = (value, mount, isDepth = false) => {
+        if (mount === 'internal') return value + 2 * thickness;
+        // front_flush: el exterior equivale a la pieza + el espesor del fondo.
+        if (isDepth && mount === 'front_flush') return value + backThickness;
+        return value;
+      };
       const baseAncho = effective(base.ancho, baseAxes.width);
       const topAncho = effective(top.ancho, topAxes.width);
-      const baseAlto = effective(base.alto, baseAxes.depth);
-      const topAlto = effective(top.alto, topAxes.depth);
+      const baseAlto = effective(base.alto, baseAxes.depth, true);
+      const topAlto = effective(top.alto, topAxes.depth, true);
 
-      // Si algún eje es custom (p. ej. base con receso frontal para zócalo),
-      // se permite una holgura de un espesor; de lo contrario se mantiene ±2 mm.
+      // Si algún eje es custom (p. ej. base con receso frontal para zócalo)
+      // o front_flush (convención distinta de inset), se permite una holgura
+      // de un espesor; de lo contrario se mantiene ±2 mm.
       const tolW = baseAxes.width === 'custom' || topAxes.width === 'custom' ? thickness : 2;
-      const tolD = baseAxes.depth === 'custom' || topAxes.depth === 'custom' ? thickness : 2;
+      const tolD = [baseAxes.depth, topAxes.depth].some((m) => m === 'custom' || m === 'front_flush')
+        ? thickness
+        : 2;
 
       if (Math.abs(baseAncho - topAncho) > tolW) {
         warnings.push(`Módulo ${modId}: base (${base.ancho} mm) y tapa (${top.ancho} mm) tienen anchos diferentes.`);

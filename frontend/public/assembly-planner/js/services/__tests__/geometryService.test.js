@@ -6,6 +6,7 @@ import {
   getModuleDimensions,
   classifyBackPanelMount,
   classifyTopBottomMount,
+  classifyTopBottomMountAxes,
   classifyPlinthMount,
   shelfRank,
   calculateShelfPositions,
@@ -143,6 +144,21 @@ describe('classifyTopBottomMount', () => {
   it('allows ±2 mm tolerance for internal panels', () => {
     const bottom = piece('Base', 772, 522, 15);
     assert.equal(classifyTopBottomMount(bottom, 800, 550, 15), 'internal');
+  });
+
+  it('detects front-flush inset depth (moduleD − t), the common inset base', () => {
+    // Caso real: caja 680×600 (t=15); base 650×585 = (W−2t) × (D−t).
+    const bottom = piece('Base', 650, 585, 15);
+    assert.equal(classifyTopBottomMount(bottom, 680, 600, 15), 'internal');
+  });
+
+  it('classifyTopBottomMountAxes depth: external / internal / front_flush / custom', () => {
+    const axes = (d) => classifyTopBottomMountAxes({ ancho: 650, alto: d }, 680, 600, 15);
+    assert.equal(axes(600).depth, 'external');
+    assert.equal(axes(570).depth, 'internal');
+    assert.equal(axes(585).depth, 'front_flush');
+    assert.equal(axes(555).depth, 'custom');
+    assert.equal(axes(600).width, 'internal', 'ancho 650 = W−2t sigue interno');
   });
 });
 
