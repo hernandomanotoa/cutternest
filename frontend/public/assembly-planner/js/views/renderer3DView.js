@@ -244,12 +244,13 @@ export function createRenderer3DView(store) {
       });
     }
 
-    // Modo ensamblaje paso a paso: secuencia bottom-up dedicada (inferior →
-    // verticales → repisas → cierre → accesorios), un paso por pieza.
-    // No usa el grafo Kahn, cuyo orden izq→divisor→der se conserva para manual/grafo.
-    const sequence = buildAssemblySequence(pieces);
+    // Modo ensamblaje paso a paso: secuencia de armado físico (casco exterior
+    // primero, interiores intercalados por altura real). No usa el grafo Kahn,
+    // cuyo orden izq→divisor→der se conserva para manual/grafo.
+    const positions = new Map(renderer.geometries.map((g) => [g.id, g.z]));
+    const sequence = buildAssemblySequence(pieces, positions);
     const totalSteps = sequence.totalPasos;
-    renderer.setAssemblyLevels(buildAssemblyLevels(pieces));
+    renderer.setAssemblyLevels(buildAssemblyLevels(pieces, positions));
 
     const stepModeBtn = container.querySelector('#r3d-step-mode');
     const stepBar = container.querySelector('#r3d-step-bar');
