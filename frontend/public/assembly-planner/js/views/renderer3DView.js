@@ -1,6 +1,7 @@
 // js/views/renderer3DView.js — Vista del renderizador 3D orbital SVG
 
 import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
+import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
 
@@ -98,7 +99,7 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
               <span>Perspectiva</span>
             </label>
-            <button id="r3d-step-mode" class="btn btn--secondary btn--sm" ${(state.steps || []).length ? '' : 'disabled'}>Modo paso</button>
+            <button id="r3d-step-mode" class="btn btn--secondary btn--sm" ${pieces.length ? '' : 'disabled'}>Modo paso</button>
             <span id="r3d-step-bar" style="display:none;align-items:center;gap:0.4rem;">
               <button id="r3d-step-prev" class="btn btn--secondary btn--sm">◀</button>
               <span id="r3d-step-label" style="font-size:0.8rem;color:#c9d1d9;white-space:nowrap;">Paso 1/1</span>
@@ -220,15 +221,7 @@ export function createRenderer3DView(store) {
       });
     });
 
-    container.querySelectorAll('.r3d-preset').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const preset = renderer.applyViewPreset(btn.dataset.preset);
-        if (preset) updateSlidersFromCamera();
-      });
-    });
-
     renderer.controls.addChangeListener(updateSlidersFromCamera);
-    renderer.controls._onChange = () => updateSlidersFromCamera();
 
     const gapCheckbox = container.querySelector('#r3d-gap-mode');
     if (gapCheckbox) {
@@ -251,12 +244,12 @@ export function createRenderer3DView(store) {
       });
     }
 
-    // Modo ensamblaje paso a paso (niveles topológicos del store)
-    const steps = state.steps || [];
-    const totalSteps = steps.length;
-    const levels = new Map();
-    steps.forEach((s) => s.piezas.forEach((id) => levels.set(id, s.paso)));
-    renderer.setAssemblyLevels(levels);
+    // Modo ensamblaje paso a paso: secuencia bottom-up dedicada (inferior →
+    // verticales → repisas → cierre → accesorios), un paso por pieza.
+    // No usa el grafo Kahn, cuyo orden izq→divisor→der se conserva para manual/grafo.
+    const sequence = buildAssemblySequence(pieces);
+    const totalSteps = sequence.totalPasos;
+    renderer.setAssemblyLevels(buildAssemblyLevels(pieces));
 
     const stepModeBtn = container.querySelector('#r3d-step-mode');
     const stepBar = container.querySelector('#r3d-step-bar');
