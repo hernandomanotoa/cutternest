@@ -19,6 +19,7 @@ import { topologicalLevels, buildSteps } from './topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
 import { createStructuralView } from './views/structuralView.js';
 import { createIsometricView } from './views/isometricView.js';
+import { createRenderer3DView } from './views/renderer3DView.js';
 import { calculateHardware } from './hardware.js';
 import { getStore, setStore, createStore } from './core/store.js';
 import { VERTICAL_POSITIONS } from './core/config.js';
@@ -33,6 +34,7 @@ const viewFactories = {
   csv: createCSVView,
   estructural: createStructuralView,
   isometric: createIsometricView,
+  renderer3d: createRenderer3DView,
 };
 
 let currentViewInstance = null;

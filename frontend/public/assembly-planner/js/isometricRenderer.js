@@ -146,7 +146,12 @@ export class IsometricRenderer {
     this.verticalPositionOverrides = options.verticalPositionOverrides || {};
   }
 
-  render(moduleId, pieces, _dependencies) {
+  /**
+   * Calcula las geometrías posicionadas del módulo sin aplicar proyección ni
+   * renderizar. Útil para vistas 3D externas que reutilizan el mismo
+   * posicionamiento.
+   */
+  computeGeometries(moduleId, pieces) {
     const family = detectFamily(pieces, moduleId);
     const globalPieces = pieces.filter((p) => isGlobalPiece(p));
     const globalBottoms = globalPieces.filter((p) => inferRole(p) === 'bottom_panel');
@@ -162,9 +167,6 @@ export class IsometricRenderer {
           (p) => !isGlobalPiece(p) && String(p.modulo || '').trim() === target
         );
 
-    // Submódulos "insertos" (cajones, puertas interiores) que no tienen carcasa propia:
-    // se renderizan junto al módulo padre. Los submódulos de cajón SIEMPRE se
-    // renderizan como insertos, aunque tengan base/laterales/fondo propios.
     const hasCarcass = (pts) =>
       pts.some((p) => ['bottom_panel', 'top_panel', 'side_panel', 'back_panel'].includes(inferRole(p)));
     const isDrawerSubModule = (pts) =>
@@ -191,16 +193,12 @@ export class IsometricRenderer {
         : [...exactPieces, ...subInsertPieces];
 
     if (!allPieces.length) {
-      this.container.innerHTML =
-        '<p class="empty-state">No hay piezas para renderizar en vista isométrica.</p>';
-      return;
+      return { geometries: [], moduleW: 0, moduleD: 0, moduleH: 0, thickness: 0, moduleLabel: '' };
     }
 
     const dims = getModuleDimensions(allPieces, inferThickness(allPieces), family);
     const moduleW = dims.width;
     const moduleH = dims.height;
-    // La profundidad debe reflejar la del mueble completo, no solo la pieza global
-    // (por ejemplo un zócalo/corona de 100 mm no debe achatar la vista global).
     const moduleD = getModuleDepth(pieces);
     const thickness = dims.thickness;
 
@@ -209,11 +207,8 @@ export class IsometricRenderer {
     let geometries = [];
 
     if (isGlobalModule) {
-      // Vista global: renderizar todas las piezas globales con su geometría propia
-      // (zócalo, tapa corrida, panel trasero, espejo, puertas, etc.)
       geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, true));
     } else if (target === ALL_MODULE_ID) {
-      // Vista de todos los módulos: alinearlos horizontalmente de M1 a Mn.
       const nonGlobalPieces = allPieces.filter((p) => !isGlobalPiece(p));
       const moduleGroups = this._groupByModule(nonGlobalPieces);
       const sortedIds = this._sortModuleIds(Object.keys(moduleGroups));
@@ -224,37 +219,37 @@ export class IsometricRenderer {
         const subGeometries = this._buildModuleGeometries(
           group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight
         );
-        // 'compact' pega los módulos lateral con lateral (compartiendo
-        // laterales, como un mueble ya ensamblado). 'projected' añade la
-        // proyección de la profundidad + un gap de espesor para verlos como
-        // módulos separados.
         const useProjection = this.moduleGapMode === 'projected';
         const bounds = this._computeModuleBounds(subGeometries, useProjection);
         const moduleVisualWidth = bounds.max - bounds.min;
         subGeometries.forEach((g) => { g.x += offsetX; });
-        // Etiqueta para pintar módulo a módulo (M1 completo, luego M2, ...).
         subGeometries.forEach((g) => { g.moduleSeq = idx; });
         geometries.push(...subGeometries);
-        // 'projected' deja un gap visible (espesor) entre módulos; 'compact'
-        // los pega lateral con lateral (sin gap extra).
         const extraGap = useProjection ? dims.thickness : 0;
         offsetX += moduleVisualWidth + extraGap;
       });
-      // Superponer piezas globales (zócalo/tapa corrida) sobre el ancho total.
-      // Se pintan después de todos los módulos (moduleSeq mayor).
       if (globalPieces.length) {
         const globalGeoms = this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true);
         globalGeoms.forEach((g) => { g.moduleSeq = sortedIds.length; });
         geometries.push(...globalGeoms);
       }
     } else {
-      // Piezas del módulo principal + submódulos insertos
       geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight));
-      // Superponer piezas de estructura global (zócalo, tapa corrida, espejo...)
-      // Las puertas globales solo se dibujan en vista completa o estructura global.
       if (globalPieces.length) {
         geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, false));
       }
+    }
+
+    return { geometries, moduleW, moduleD, moduleH, thickness, moduleLabel };
+  }
+
+  render(moduleId, pieces, _dependencies) {
+    let { geometries, moduleW, moduleD, moduleH, thickness, moduleLabel } = this.computeGeometries(moduleId, pieces);
+
+    if (!geometries.length) {
+      this.container.innerHTML =
+        '<p class="empty-state">No hay piezas para renderizar en vista isométrica.</p>';
+      return;
     }
 
     if (this.explodeFactor > 0) {
@@ -263,7 +258,7 @@ export class IsometricRenderer {
 
     const xFactor = this.isoFlip ? -this.isoDepth : this.isoDepth;
     const sorted = sortByDepth(geometries, xFactor);
-    const isAllView = target === ALL_MODULE_ID;
+    const isAllView = String(moduleId).trim() === ALL_MODULE_ID;
     const { viewBox, originX, originY, axesSpace } = this._calculateViewport(geometries, isAllView);
 
     const svg = this._buildSVG(sorted, viewBox, originX, originY, axesSpace, moduleLabel, moduleW, moduleD, moduleH, isAllView, thickness);
