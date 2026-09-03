@@ -108,6 +108,14 @@ export class Renderer3D {
     this.needsRender = true;
   }
 
+  setRotX(value) {
+    this.controls.setState({ rotX: Number(value) });
+  }
+
+  setRotY(value) {
+    this.controls.setState({ rotY: Number(value) });
+  }
+
   setGlobalOpacity(value) {
     this.globalOpacity = value;
     this.needsRender = true;

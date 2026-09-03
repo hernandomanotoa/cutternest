@@ -1,7 +1,7 @@
 // js/views/renderer3DView.js — Vista del renderizador 3D orbital SVG
 
 import { getModulePieces, getModuleLabel, getModules } from '../utils.js';
-import { Renderer3D } from '../renderer3d/index.js';
+import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
 
 export function createRenderer3DView(store) {
@@ -102,6 +102,14 @@ export function createRenderer3DView(store) {
             <label for="r3d-explode">Explode</label>
             <input type="range" id="r3d-explode" min="0" max="1" step="0.05" value="0">
           </div>
+          <div class="r3d-slider-group">
+            <label for="r3d-rot-x">Rotación X</label>
+            <input type="range" id="r3d-rot-x" min="-60" max="60" step="1" value="${DEFAULT_CAMERA.rotX}">
+          </div>
+          <div class="r3d-slider-group">
+            <label for="r3d-rot-y">Rotación Y</label>
+            <input type="range" id="r3d-rot-y" min="-90" max="90" step="1" value="${DEFAULT_CAMERA.rotY}">
+          </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;padding:0;">
           <div id="r3d-canvas" class="r3d-canvas" style="width:100%;height:100%;min-height:400px;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
@@ -120,11 +128,20 @@ export function createRenderer3DView(store) {
 
     startRenderLoop();
 
-    container.querySelector('#r3d-reset')?.addEventListener('click', () => renderer.controls.reset());
+    const rotXInput = container.querySelector('#r3d-rot-x');
+    const rotYInput = container.querySelector('#r3d-rot-y');
+
+    container.querySelector('#r3d-reset')?.addEventListener('click', () => {
+      renderer.controls.reset();
+      if (rotXInput) rotXInput.value = DEFAULT_CAMERA.rotX;
+      if (rotYInput) rotYInput.value = DEFAULT_CAMERA.rotY;
+    });
     container.querySelector('#r3d-dims')?.addEventListener('click', () => renderer.toggleDimensions());
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
+    rotXInput?.addEventListener('input', (e) => renderer.setRotX(e.target.value));
+    rotYInput?.addEventListener('input', (e) => renderer.setRotY(e.target.value));
 
     const gapCheckbox = container.querySelector('#r3d-gap-mode');
     if (gapCheckbox) {

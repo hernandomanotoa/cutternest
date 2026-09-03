@@ -166,6 +166,16 @@ describe('Renderer3D integration', () => {
     assert.equal(base.z, 200, 'base panel z should respect bottomPanelOffset override');
   });
 
+  it('setRotX and setRotY update camera state', () => {
+    const container = createContainer();
+    const renderer = new Renderer3D(container, { width: 900, height: 600 });
+    renderer.setRotX(40);
+    renderer.setRotY(-70);
+    const state = renderer.controls.getState();
+    assert.equal(state.rotX, 40, 'rotX should be updated');
+    assert.equal(state.rotY, -70, 'rotY should be updated');
+  });
+
   it('xray mode makes envelope faces very transparent', () => {
     const container = createContainer();
     const renderer = new Renderer3D(container, { width: 900, height: 600 });
