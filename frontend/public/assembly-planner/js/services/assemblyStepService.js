@@ -4,11 +4,15 @@
 // sigue el armado físico real (fuentes: manuales PAX/Furnica/CabinetNow):
 //
 //   1. Casco exterior: base (+zócalo) → laterales → tapa
-//   2. Interiores: repisas de abajo hacia arriba (clave z). Los divisores
-//      verticales van DESPUÉS de todas las repisas superiores (z mayor que
-//      su base), porque se deslizan desde arriba encajando en sus dados;
-//      solo un divisor de base a techo (z=0) va antes de la primera repisa,
-//      y sin repisas superiores cae tras la repisa que lo soporta (z−0.5)
+//   2. Interiores, en tres grupos:
+//      a. Horizontales de lateral a lateral (repisas corridas/zapateros;
+//         ancho ≈ interior): unen y escuadran el casco; clave z.
+//      b. Divisiones verticales: se deslizan desde arriba encajando en los
+//         dados de las corridas superiores (z≤1 base a techo → antes de la
+//         primera repisa; sin superiores → tras la que la soporta).
+//      c. Repisas de vano (estantes regulables entre lateral y divisor):
+//         tras las divisiones que las atraviesan; si SOPORTAN una división,
+//         van antes que ella (el apoyo físico manda).
 //   3. Fondo → accesorios (barras → puertas → cajones → tiradores)
 //
 // Excepción: fondo que NO cubre la caja completa (interno en ranura o con
@@ -43,14 +47,12 @@ const PRE_TOP_BACK_CATEGORY = {
 };
 
 /**
- * Detecta, por módulo, si su fondo debe colocarse ANTES de la tapa.
- * Criterio físico: solo el fondo que cubre la caja completa (montaje
- * 'external': ancho≈W y alto≈H) se clava por detrás al final; cualquier
- * otro fondo (interno en ranura, corrido entre laterales o custom) se
- * inserta en la caja abierta y la tapa lo captura. Sin medidas válidas
- * no se puede decidir y se mantiene el orden por defecto (fondo al final).
+ * Analiza cada módulo una sola vez: espesor de lateral, caja (W×H),
+ * ancho interior y montaje del fondo. Reutilizado por la posición del
+ * fondo (pre-tapa) y por la clasificación de interiores (lateral a
+ * lateral vs vano).
  */
-function detectPreTopBackModules(pieces) {
+function analyzeModules(pieces) {
   const byModule = new Map();
   for (const p of pieces) {
     if (isGlobalPiece(p)) continue;
@@ -59,18 +61,43 @@ function detectPreTopBackModules(pieces) {
     byModule.get(m).push(p);
   }
 
-  const preTop = new Set();
+  const info = new Map();
   for (const [modId, modPieces] of byModule) {
-    const back = modPieces.find((p) => classifySequenceRole(p) === 'fondo');
-    if (!back || !Number.isFinite(Number(back.ancho)) || !Number.isFinite(Number(back.alto))) continue;
     const laterals = modPieces.filter((p) => classifySequenceRole(p) === 'lateral');
     const base = modPieces.find((p) => classifySequenceRole(p) === 'inferior');
     const sideThickness = Number(laterals[0]?.espesor) || Number(base?.espesor) || 15;
     const box = getModuleDimensions(modPieces, sideThickness);
-    if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) continue;
-    if (classifyBackPanelMount(back, box.width, box.height, sideThickness) !== 'external') {
-      preTop.add(modId);
+    const back = modPieces.find((p) => classifySequenceRole(p) === 'fondo');
+    let backMount = null;
+    if (
+      back &&
+      Number.isFinite(Number(back.ancho)) &&
+      Number.isFinite(Number(back.alto)) &&
+      Number.isFinite(box.width) &&
+      Number.isFinite(box.height)
+    ) {
+      backMount = classifyBackPanelMount(back, box.width, box.height, sideThickness);
     }
+    info.set(modId, {
+      sideThickness,
+      interiorW: Number.isFinite(box.width) ? Math.max(0, box.width - 2 * sideThickness) : null,
+      backMount,
+    });
+  }
+  return info;
+}
+
+/**
+ * Módulos cuyo fondo se inserta ANTES de la tapa. Criterio físico: solo
+ * el fondo que cubre la caja completa ('external': ancho≈W y alto≈H) se
+ * clava por detrás al final; cualquier otro (interno en ranura, corrido
+ * entre laterales o custom) se inserta en la caja abierta y la tapa lo
+ * captura. Sin medidas válidas se mantiene el orden por defecto.
+ */
+function detectPreTopBackModules(moduleInfo) {
+  const preTop = new Set();
+  for (const [modId, mi] of moduleInfo) {
+    if (mi.backMount && mi.backMount !== 'external') preTop.add(modId);
   }
   return preTop;
 }
@@ -141,32 +168,97 @@ function accessoryRank(piece) {
 }
 
 /**
- * Clave de orden dentro de la categoría 'interior'.
- * - horizontales (repisa/estante/zapatero): z (de abajo hacia arriba).
- * - verticales (divisor/montante/...): DESPUÉS de todas las repisas con
- *   z mayor que su base (se deslizan desde arriba encajando en sus dados);
- *   excepciones: divisor de base a techo (z≤1) → antes de la primera
- *   repisa, y sin repisas superiores → justo tras la repisa que lo soporta.
- * Sin posición conocida, los verticales caen tras todas las repisas
- * rankeadas por palabra clave (base+25).
+ * Ancho físico de la pieza en plano (rotate=si intercambia ancho/alto,
+ * como en buildPiece3D). Null si no hay medidas válidas.
  */
-function interiorKey(piece, positions, shelfZs = []) {
-  const z = positions?.get(piece.id);
-  if (Number.isFinite(z)) {
-    if (!isInteriorVertical(piece)) return z;
-    if (z <= 1) return z - 0.5;
-    const above = shelfZs.filter((sz) => sz > z + 1);
-    if (above.length) return Math.max(...above) + 0.5;
-    return z - 0.5;
+function pieceWidth(piece) {
+  const a = Number(piece.ancho);
+  const b = Number(piece.alto);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return String(piece.rotate).toLowerCase() === 'si' ? b : a;
+}
+
+/**
+ * Claves de orden dentro de la categoría 'interior', por módulo:
+ *   1. Horizontales de LATERAL A LATERAL (repisas corridas, zapateros;
+ *      ancho ≈ interior): clave z. Unen y escuadran el casco; en ellas van
+ *      los dados de las divisiones.
+ *   2. Divisiones VERTICALES: se deslizan desde arriba encajando en los
+ *      dados de las repisas corridas superiores → clave = max(z repisas
+ *      corridas superiores) + 0.5; sin superiores, tras la que lo soporta
+ *      (z−0.5); base a techo (z≤1) antes de la primera repisa.
+ *   3. Repisas de VANO (estantes regulables entre lateral y divisor;
+ *      ancho < interior): tras las divisiones que las atraviesan (dados) →
+ *      clave = max(z, clave división + 0.75). Excepción: la repisa que
+ *      SOPORTA una división va antes que ella (su z ya lo garantiza).
+ * Sin posiciones, el orden se estima por palabra clave: corridas base,
+ * verticales base+25, vano base+50.
+ */
+function buildInteriorKeys(pieces, positions, moduleInfo) {
+  const keys = new Map();
+  const byModule = new Map();
+  for (const p of pieces) {
+    if (classifySequenceRole(p) !== 'interior') continue;
+    const m = String(p.modulo || '').trim();
+    if (!byModule.has(m)) byModule.set(m, []);
+    byModule.get(m).push(p);
   }
-  const base = heightRank(piece) * 10;
-  return isInteriorVertical(piece) ? base + 25 : base;
+
+  for (const [modId, interiors] of byModule) {
+    const interiorW = moduleInfo.get(modId)?.interiorW ?? null;
+    const horizontals = interiors.filter((p) => !isInteriorVertical(p));
+    const verticals = interiors.filter((p) => isInteriorVertical(p));
+    const zOf = (p) => positions?.get(p.id);
+
+    // Grupo 1: horizontales de lateral a lateral vs repisas de vano.
+    const fulls = [];
+    const bays = [];
+    for (const h of horizontals) {
+      const w = pieceWidth(h);
+      if (interiorW != null && w != null && w < interiorW - 2) bays.push(h);
+      else fulls.push(h);
+    }
+    const fullZs = fulls.map(zOf).filter(Number.isFinite);
+
+    // Grupo 2: divisiones verticales.
+    const vertEntries = verticals.map((v) => {
+      const z = zOf(v);
+      if (!Number.isFinite(z)) return { id: v.id, z, key: heightRank(v) * 10 + 25 };
+      if (z <= 1) return { id: v.id, z, key: z - 0.5 };
+      let key = z - 0.5;
+      const above = fullZs.filter((fz) => fz > z + 1);
+      if (above.length) key = Math.max(key, Math.max(...above) + 0.5);
+      return { id: v.id, z, key };
+    });
+    for (const ve of vertEntries) keys.set(ve.id, ve.key);
+
+    for (const f of fulls) {
+      const z = zOf(f);
+      keys.set(f.id, Number.isFinite(z) ? z : heightRank(f) * 10);
+    }
+
+    // Grupo 3: repisas de vano, tras las divisiones que las atraviesan.
+    for (const b of bays) {
+      const z = zOf(b);
+      if (!Number.isFinite(z)) {
+        keys.set(b.id, heightRank(b) * 10 + 50);
+        continue;
+      }
+      let key = z;
+      for (const ve of vertEntries) {
+        if (Number.isFinite(ve.z) && ve.z < z - 1) key = Math.max(key, ve.key + 0.75);
+      }
+      keys.set(b.id, key);
+    }
+  }
+  return keys;
 }
 
 /**
  * Construye la secuencia de ensamblaje: un paso por pieza, ordenada
- * casco exterior (base → laterales → tapa) → interiores intercalados por
- * altura → fondo → accesorios. Las piezas globales van al final.
+ * casco exterior (base → laterales → tapa) → interiores (lateral a
+ * lateral → divisiones verticales → repisas de vano) → fondo →
+ * accesorios. Las piezas globales van al final.
  *
  * Si el fondo del módulo NO cubre la caja completa (interno, corrido o
  * custom), se inserta antes de cerrar: base → laterales → interiores →
@@ -178,18 +270,9 @@ function interiorKey(piece, positions, shelfZs = []) {
  * @returns {{ steps: Array<{paso:number, piezas:string[]}>, totalPasos: number, totalPiezas: number }}
  */
 export function buildAssemblySequence(pieces, positions = null) {
-  const preTopBackModules = detectPreTopBackModules(pieces);
-  // Alturas reales (z) de las repisas/estantes por módulo: determinan
-  // cuántas repisas superiores existen sobre cada divisor.
-  const shelfZsByModule = new Map();
-  for (const p of pieces) {
-    if (classifySequenceRole(p) !== 'interior' || isInteriorVertical(p)) continue;
-    const z = positions?.get(p.id);
-    if (!Number.isFinite(z)) continue;
-    const m = String(p.modulo || '').trim();
-    if (!shelfZsByModule.has(m)) shelfZsByModule.set(m, []);
-    shelfZsByModule.get(m).push(z);
-  }
+  const moduleInfo = analyzeModules(pieces);
+  const preTopBackModules = detectPreTopBackModules(moduleInfo);
+  const interiorKeys = buildInteriorKeys(pieces, positions, moduleInfo);
   const sorted = [...pieces].sort((a, b) => {
     const ga = isGlobalPiece(a) ? 1 : 0;
     const gb = isGlobalPiece(b) ? 1 : 0;
@@ -210,8 +293,8 @@ export function buildAssemblySequence(pieces, positions = null) {
       const sb = sideRank(b);
       if (sa !== sb) return sa - sb;
     } else if (roleA === 'interior') {
-      const ka = interiorKey(a, positions, shelfZsByModule.get(ma) || []);
-      const kb = interiorKey(b, positions, shelfZsByModule.get(mb) || []);
+      const ka = interiorKeys.get(a.id) ?? 0;
+      const kb = interiorKeys.get(b.id) ?? 0;
       if (ka !== kb) return ka - kb;
       // misma clave: verticales (soporte) antes que el horizontal que apoyan
       const va = isInteriorVertical(a) ? 0 : 1;

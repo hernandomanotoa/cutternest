@@ -133,6 +133,78 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     assert.deepEqual(order, ['r1', 'r2', 'd1'], 'repisa sup antes que divisor; divisor tras la sup');
   });
 
+  it('orden de interiores: lateral a lateral → división → repisa de vano', () => {
+    // Caja 680×2000×600 (t=15) → interior 650. Repisa corrida 650 (lateral a
+    // lateral), estante regulable 317.5 (vano), división vertical entre ambas.
+    const mkDim = (id, nombre, ancho, alto, rotate = 'no') => ({
+      id, nombre, ancho, alto, rotate, espesor: 15, cantidad: 1, modulo: '1',
+    });
+    const mod = [
+      mkDim('c-base', 'Base módulo 1', 650, 585, 'si'),
+      mkDim('c-tapa', 'Tapa módulo 1', 680, 600, 'si'),
+      mkDim('c-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('c-lat-der', 'Lateral derecho 1', 600, 2000),
+      mkDim('c-fondo', 'Fondo módulo 1', 650, 2000),
+      mkDim('c-corrida', 'Repisa corrida', 650, 585),
+      mkDim('c-division', 'División vertical', 585, 1900),
+      mkDim('c-vano', 'Estante regulable vano', 317.5, 585),
+    ];
+    const posMap = new Map([
+      ['c-corrida', 115], ['c-division', 130], ['c-vano', 700],
+      ['c-base', 0], ['c-tapa', 1985], ['c-fondo', 0],
+      ['c-lat-izq', 0], ['c-lat-der', 0],
+    ]);
+    const { steps } = buildAssemblySequence(mod, posMap);
+    const order = steps.map((s) => s.piezas[0]);
+    const idx = (id) => order.indexOf(id);
+    assert.ok(idx('c-corrida') < idx('c-division'), 'corrida (lateral a lateral) antes que división');
+    assert.ok(idx('c-division') < idx('c-vano'), 'división antes que repisa de vano');
+  });
+
+  it('repisa de vano que SOPORTA una división va antes que ella', () => {
+    const mkDim = (id, nombre, ancho, alto, rotate = 'no') => ({
+      id, nombre, ancho, alto, rotate, espesor: 15, cantidad: 1, modulo: '1',
+    });
+    const mod = [
+      mkDim('s-base', 'Base módulo 1', 650, 585, 'si'),
+      mkDim('s-tapa', 'Tapa módulo 1', 680, 600, 'si'),
+      mkDim('s-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('s-lat-der', 'Lateral derecho 1', 600, 2000),
+      mkDim('s-fondo', 'Fondo módulo 1', 650, 2000),
+      mkDim('s-vano', 'Repisa vano soporte', 317.5, 585),
+      mkDim('s-division', 'División vertical', 585, 1585),
+    ];
+    // La división apoya sobre la repisa de vano: base división (415) = top repisa (400+15).
+    const posMap = new Map([
+      ['s-vano', 400], ['s-division', 415],
+      ['s-base', 0], ['s-tapa', 1985], ['s-fondo', 0],
+      ['s-lat-izq', 0], ['s-lat-der', 0],
+    ]);
+    const { steps } = buildAssemblySequence(mod, posMap);
+    const order = steps.map((s) => s.piezas[0]);
+    assert.ok(order.indexOf('s-vano') < order.indexOf('s-division'), 'soporte antes que la división apoyada');
+  });
+
+  it('fallback sin posiciones con medidas: corrida → división → vano', () => {
+    const mkDim = (id, nombre, ancho, alto, rotate = 'no') => ({
+      id, nombre, ancho, alto, rotate, espesor: 15, cantidad: 1, modulo: '1',
+    });
+    const mod = [
+      mkDim('f-base', 'Base módulo 1', 650, 585, 'si'),
+      mkDim('f-tapa', 'Tapa módulo 1', 680, 600, 'si'),
+      mkDim('f-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('f-lat-der', 'Lateral derecho 1', 600, 2000),
+      mkDim('f-corrida', 'Repisa corrida', 650, 585),
+      mkDim('f-division', 'División vertical', 585, 1900),
+      mkDim('f-vano', 'Estante regulable vano', 317.5, 585),
+    ];
+    const { steps } = buildAssemblySequence(mod);
+    const order = steps.map((s) => s.piezas[0]);
+    const idx = (id) => order.indexOf(id);
+    assert.ok(idx('f-corrida') < idx('f-division'), 'corrida antes que división (fallback)');
+    assert.ok(idx('f-division') < idx('f-vano'), 'división antes que vano (fallback)');
+  });
+
   it('piezas globales van al final', () => {
     const withGlobal = [
       ...librero,
