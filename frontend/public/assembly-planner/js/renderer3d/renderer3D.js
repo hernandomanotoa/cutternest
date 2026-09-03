@@ -3,7 +3,7 @@
 // orbital, explode, transparencia selectiva e interacción.
 
 import { generateVertices } from './geometry.js';
-import { applyExplode, lerp, rotateVertex } from './transform.js';
+import { applyExplode, lerp, rotateVertex, projectVertexCentered } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
@@ -272,9 +272,23 @@ export class Renderer3D {
 
     const pieces = applyExplode(this.geometries, this.explodeFactor, this.moduleCenter, classifyPiece);
 
+    // Líneas de ruta: centroide ensamblado -> despiezado
+    const cameraState = this.controls.getState();
+    let explodeLines = [];
+    if (this.explodeFactor > 0.001) {
+      const originals = new Map(this.geometries.map((g) => [g.id, { x: g.cx, y: g.cy, z: g.cz }]));
+      explodeLines = pieces.map((p) => {
+        const orig = originals.get(p.id);
+        if (!orig) return null;
+        const from = projectVertexCentered(orig, this.moduleCenter, cameraState);
+        const to = projectVertexCentered({ x: p.cx, y: p.cy, z: p.cz }, this.moduleCenter, cameraState);
+        return { id: p.id, from, to };
+      }).filter(Boolean);
+    }
+
     const dimsText = `${Math.round(this.moduleW)} × ${Math.round(this.moduleD)} × ${Math.round(this.moduleH)} mm`;
 
-    const svg = buildSVG(pieces, this.controls.getState(), {
+    const svg = buildSVG(pieces, cameraState, {
       globalOpacity: this.globalOpacity,
       xrayMode: this.xrayMode,
       showDimensions: this.showDimensions,
@@ -285,6 +299,7 @@ export class Renderer3D {
       title: this.moduleLabel,
       dimsText,
       moduleCenter: this.moduleCenter,
+      explodeLines,
     });
 
     this.container.innerHTML = svg;

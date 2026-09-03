@@ -68,6 +68,7 @@ export function buildSVG(pieces, camera, options = {}) {
     title = '',
     dimsText = '',
     moduleCenter = { x: 0, y: 0, z: 0 },
+    explodeLines = [],
   } = options;
 
   const renderQueue = [];
@@ -120,6 +121,22 @@ export function buildSVG(pieces, camera, options = {}) {
   renderQueue.sort((a, b) => a.avgDepth - b.avgDepth);
 
   const svgParts = [];
+
+  // Líneas de ruta del explode (ensamblado -> despiezado), debajo de las caras.
+  if (explodeLines.length) {
+    const lineTags = explodeLines.map((l) => voidTag('line', {
+      x1: l.from.x.toFixed(2),
+      y1: l.from.y.toFixed(2),
+      x2: l.to.x.toFixed(2),
+      y2: l.to.y.toFixed(2),
+      stroke: '#8b949e',
+      'stroke-width': '1',
+      'stroke-dasharray': '4,3',
+      opacity: '0.7',
+      'pointer-events': 'none',
+    })).join('\n    ');
+    svgParts.push(wrap('g', { class: 'r3d-explode-lines' }, lineTags));
+  }
 
   renderQueue.forEach((item) => {
     const { piece, face, pts, type, faceColors, metalId, isSelected, isHovered, isDimmed } = item;

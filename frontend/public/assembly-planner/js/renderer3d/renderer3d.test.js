@@ -5,6 +5,7 @@ import { rotateVertex, projectVertex, applyExplode, lerp } from './transform.js'
 import { classifyPiece } from './classifier3d.js';
 import { makeDimensionLines } from './materials.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
+import { buildSVG } from './svgBuilder.js';
 
 describe('renderer3d/geometry', () => {
   it('buildPiece3D creates a vertical piece from a side panel CSV row', () => {
@@ -152,6 +153,29 @@ describe('renderer3d/classifier3d', () => {
 
   it('classifies hanger rail as interior', () => {
     assert.equal(classifyPiece({ role: 'hanger_rail' }), 'interior');
+  });
+});
+
+describe('renderer3d/svgBuilder — explode lines', () => {
+  const piece = {
+    id: 'p1', name: 'Pieza 1', role: 'shelf', tipo: 'horizontal_xy',
+    x: 0, y: 0, z: 0, w: 100, h: 10, d: 50, cx: 50, cy: 25, cz: 5,
+    color: '#C19A6B', cantos: [], cantidad: 1, modulo: '1',
+  };
+  const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150 };
+
+  it('renders explode guide lines when provided', () => {
+    const svg = buildSVG([piece], camera, {
+      explodeLines: [{ id: 'p1', from: { x: 100, y: 100 }, to: { x: 130, y: 100 } }],
+    });
+    assert.ok(svg.includes('r3d-explode-lines'), 'has explode lines group');
+    assert.ok((svg.match(/<line /g) || []).length >= 1, 'has at least one line');
+    assert.ok(svg.includes('stroke-dasharray'), 'lines are dashed');
+  });
+
+  it('does not render explode lines group when empty', () => {
+    const svg = buildSVG([piece], camera, { explodeLines: [] });
+    assert.ok(!svg.includes('r3d-explode-lines'));
   });
 });
 
