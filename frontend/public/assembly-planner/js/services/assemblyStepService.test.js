@@ -150,3 +150,77 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     assert.equal(levels.get('m2-puerta'), librero.length);
   });
 });
+
+describe('assemblyStepService/fondo interno vs externo', () => {
+  // Módulo 800×550×2300, t=15. Fondo externo: 800×2300; interno: 770×2270.
+  const mkDim = (id, nombre, ancho, alto, espesor = 15, modulo = '1') => ({
+    id,
+    nombre,
+    ancho,
+    alto,
+    espesor,
+    modulo,
+    cantidad: 1,
+    rotate: 'no',
+    pos_z: '',
+  });
+
+  const carcass = (fondoW, fondoH) => [
+    mkDim('c-base', 'Base módulo', 800, 550),
+    mkDim('c-lat-izq', 'Lateral izquierdo', 550, 2300),
+    mkDim('c-lat-der', 'Lateral derecho', 550, 2300),
+    mkDim('c-tapa', 'Tapa módulo', 800, 550),
+    mkDim('c-fondo', 'Fondo módulo', fondoW, fondoH),
+    mkDim('c-repisa', 'Repisa inferior', 770, 520),
+    mkDim('c-divisor', 'Divisor inferior', 520, 400),
+    mkDim('c-puerta', 'Puerta módulo', 400, 800),
+  ];
+
+  it('fondo EXTERNO: orden por defecto (tapa con el casco, fondo al final)', () => {
+    const { steps } = buildAssemblySequence(carcass(800, 2300));
+    const order = steps.map((s) => s.piezas[0]);
+    assert.deepEqual(order.slice(0, 4), ['c-base', 'c-lat-izq', 'c-lat-der', 'c-tapa']);
+    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-repisa'), 'tapa antes que interiores');
+    assert.ok(order.indexOf('c-divisor') < order.indexOf('c-fondo'), 'fondo tras interiores');
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-puerta'), 'accesorios al cierre');
+  });
+
+  it('fondo INTERNO: interiores → fondo → tapa (la tapa captura el panel)', () => {
+    const { steps } = buildAssemblySequence(carcass(770, 2270));
+    const order = steps.map((s) => s.piezas[0]);
+    assert.deepEqual(order.slice(0, 3), ['c-base', 'c-lat-izq', 'c-lat-der']);
+    assert.ok(order.indexOf('c-repisa') < order.indexOf('c-divisor'), 'divisor tras su repisa');
+    assert.ok(order.indexOf('c-divisor') < order.indexOf('c-fondo'), 'fondo tras interiores');
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-tapa'), 'tapa cierra después del fondo');
+    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-puerta'), 'accesorios tras la tapa');
+  });
+
+  it('fondo custom (medidas intermedias) mantiene el orden por defecto', () => {
+    const { steps } = buildAssemblySequence(carcass(790, 2200));
+    const order = steps.map((s) => s.piezas[0]);
+    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-fondo'), 'custom: fondo al final');
+  });
+
+  it('fondo sin medidas (fallback) mantiene el orden por defecto', () => {
+    const mod = [
+      mk('b', 'Base'),
+      mk('l', 'Lateral izquierdo'),
+      mk('t', 'Tapa'),
+      mk('f', 'Fondo'),
+    ];
+    const { steps } = buildAssemblySequence(mod);
+    assert.deepEqual(steps.map((s) => s.piezas[0]), ['b', 'l', 't', 'f']);
+  });
+
+  it('detección por módulo: interno en m1 no afecta al m2', () => {
+    const m1 = carcass(770, 2270).map((p) => ({ ...p, modulo: '1' }));
+    const m2 = carcass(800, 2300).map((p) => ({ ...p, id: `x-${p.id}`, modulo: '2' }));
+    const { steps } = buildAssemblySequence([...m2, ...m1]);
+    const order = steps.map((s) => s.piezas[0]);
+    const idx = (id) => order.indexOf(id);
+    // m1 (fondo interno): fondo antes que tapa
+    assert.ok(idx('c-fondo') < idx('c-tapa'), 'm1 fondo interno antes de tapa');
+    // m2 (fondo externo): tapa antes que fondo
+    assert.ok(idx('x-c-tapa') < idx('x-c-fondo'), 'm2 fondo externo tras tapa');
+  });
+});

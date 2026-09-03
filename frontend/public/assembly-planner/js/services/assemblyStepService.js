@@ -7,10 +7,18 @@
 //   2. Interiores intercalados por altura real (de abajo hacia arriba):
 //      repisa (clave z) → divisor (clave z−0.5, cae tras la repisa que lo soporta;
 //      si va de base a techo, z=0 → antes de la primera repisa)
-//   3. Fondo (escuadra) → accesorios (barras → puertas → cajones → tiradores)
+//   3. Fondo → accesorios (barras → puertas → cajones → tiradores)
+//
+// Excepción: fondo INTERNO (embutido en ranura, detectado por geometría con
+// classifyBackPanelMount). Se desliza desde arriba y la tapa lo captura, así
+// que la secuencia es: base → laterales → interiores → fondo → tapa →
+// accesorios (fuentes: WOODWEB, Fine Woodworking, The Handyman's Daughter).
+// Fondo externo o custom mantiene el orden por defecto (fondo al final: mete
+// en escuadra la caja).
 
 import { normalizeName } from '../utils/normalize.js';
 import { isGlobalPiece } from './moduleService.js';
+import { getModuleDimensions, classifyBackPanelMount } from './geometryService.js';
 
 const CATEGORY_ORDER = {
   inferior: 1,
@@ -21,6 +29,49 @@ const CATEGORY_ORDER = {
   accesorio: 6,
   otro: 7,
 };
+
+// Orden alternativo cuando el fondo es interno (embutido en ranura):
+// la tapa captura el panel deslizado, así que cierra el casco después de él.
+const INTERNAL_BACK_CATEGORY = {
+  interior: 3,
+  fondo: 4,
+  tapa: 5,
+};
+
+/**
+ * Detecta, por módulo, si su fondo es interno (embutido entre casco:
+ * ancho≈moduleW−2t y alto≈moduleH−2t). Reutiliza classifyBackPanelMount;
+ * sin medidas válidas o con montaje custom/externo, no entra en el set.
+ */
+function detectInternalBackModules(pieces) {
+  const byModule = new Map();
+  for (const p of pieces) {
+    if (isGlobalPiece(p)) continue;
+    const m = String(p.modulo || '').trim();
+    if (!byModule.has(m)) byModule.set(m, []);
+    byModule.get(m).push(p);
+  }
+
+  const internal = new Set();
+  for (const [modId, modPieces] of byModule) {
+    const back = modPieces.find((p) => classifySequenceRole(p) === 'fondo');
+    if (!back || !Number.isFinite(Number(back.ancho)) || !Number.isFinite(Number(back.alto))) continue;
+    const laterals = modPieces.filter((p) => classifySequenceRole(p) === 'lateral');
+    const base = modPieces.find((p) => classifySequenceRole(p) === 'inferior');
+    const sideThickness = Number(laterals[0]?.espesor) || Number(base?.espesor) || 15;
+    const box = getModuleDimensions(modPieces, sideThickness);
+    if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) continue;
+    if (classifyBackPanelMount(back, box.width, box.height, sideThickness) === 'internal') {
+      internal.add(modId);
+    }
+  }
+  return internal;
+}
+
+function categoryFor(role, hasInternalBack) {
+  if (hasInternalBack && INTERNAL_BACK_CATEGORY[role] !== undefined) return INTERNAL_BACK_CATEGORY[role];
+  return CATEGORY_ORDER[role];
+}
 
 const HEIGHT_KEYWORD_RANK = [
   ['inferior', 1],
@@ -104,12 +155,16 @@ function interiorKey(piece, positions) {
  * casco exterior (base → laterales → tapa) → interiores intercalados por
  * altura → fondo → accesorios. Las piezas globales van al final.
  *
+ * Si el módulo tiene fondo INTERNO (embutido en ranura, por geometría), la
+ * tapa pasa al cierre: base → laterales → interiores → fondo → tapa.
+ *
  * @param {Array} pieces piezas CSV del módulo activo (o 'all')
  * @param {Map<string, number>} [positions] posición z real por pieza (mm),
  *   típicamente desde las geometrías 3D; mejora el intercalado repisa/divisor
  * @returns {{ steps: Array<{paso:number, piezas:string[]}>, totalPasos: number, totalPiezas: number }}
  */
 export function buildAssemblySequence(pieces, positions = null) {
+  const internalBackModules = detectInternalBackModules(pieces);
   const sorted = [...pieces].sort((a, b) => {
     const ga = isGlobalPiece(a) ? 1 : 0;
     const gb = isGlobalPiece(b) ? 1 : 0;
@@ -121,8 +176,8 @@ export function buildAssemblySequence(pieces, positions = null) {
 
     const roleA = classifySequenceRole(a);
     const roleB = classifySequenceRole(b);
-    const ca = CATEGORY_ORDER[roleA];
-    const cb = CATEGORY_ORDER[roleB];
+    const ca = categoryFor(roleA, internalBackModules.has(ma));
+    const cb = categoryFor(roleB, internalBackModules.has(mb));
     if (ca !== cb) return ca - cb;
 
     if (roleA === 'lateral') {
