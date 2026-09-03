@@ -40,6 +40,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A27 | Desactivar cache del Assembly Planner en nginx | Guardian | ✅ Completado | Location `/assembly-planner/` con `Cache-Control: no-cache`. 118 tests OK. |
 | A28 | Offsets verticales por tipo de pieza | Guardian | ✅ Completado | `shelfMiddleGap`, `shoeRackBottomOffset`, `shoeRackGap` en config, lógica y UI. 120 tests OK. |
 | A29 | Renderizador 3D SVG orbital | assembly-planner-agent | ✅ Completado | `js/renderer3d/`, `views/renderer3DView.js`, pestaña 3D en `index.html`. 240 tests OK. Validación visual en navegador pendiente por falta de headless browser. |
+| A30 | Mejoras 3D: explode lines, orto↔perspectiva, BOM↔3D, section planes + hatch, modo paso (secuencia física: repisa→divisor, fondo pre-tapa, fondo corrido por eje), instrucción por paso + play, ghosting | Guardian | ✅ Completado | T1–T13 en `docs/PLAN_MEJORAS_3D_2026-09-02.md`. 290 tests OK. El ciclo del grafo Kahn del módulo 6 (zapatero universal) ya no se reproduce: `detectCycle = null`. |
 
 ## Leyenda estados
 
@@ -51,10 +52,8 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Bloqueadores activos
 
-1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Para reproducibilidad offline hay que generarlo en host con `pnpm install`.
+1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Intento 2026-09-02 en el entorno de desarrollo falló: sin acceso a `registry.npmjs.org` (offline). Debe generarse en un host con red: `cd frontend && pnpm install` y commitear el lockfile.
 2. **Validación visual del renderizador 3D orbital**: implementación y tests unitarios listos, pero falta validación manual en navegador por no disponer de headless browser en el entorno actual.
-
-1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Para reproducibilidad offline hay que generarlo en host con `pnpm install`.
 
 ## Decisiones recientes del sprint
 
@@ -66,7 +65,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 - Tests backend: 23 passed.
 - Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
-- Tests Assembly Planner: 240 passed (incluye 14 tests del renderizador 3D orbital).
+- Tests Assembly Planner: 290 passed (T1–T13 del plan 3D incluidos).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
@@ -87,15 +86,9 @@ Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
 
 ## Next actions
 
-1. Validar el nuevo renderizador 3D orbital en navegador con ejemplos CSV (Chrome/Firefox/edge).
-2. Instalar dependencias frontend (`pnpm install`) para generar `pnpm-lock.yaml` y validar build.
-3. Hacer commits agrupados por bloque funcional.
-4. Coordinar re-indexación MCP tras cerrar el swarm.
-
-1. Instalar dependencias frontend (`pnpm install`) para generar `pnpm-lock.yaml` y validar build.
-2. Validar Assembly Planner en navegador con ejemplos CSV.
-3. Hacer commits agrupados por bloque funcional.
-4. Coordinar re-indexación MCP tras cerrar el swarm.
+1. Generar `pnpm-lock.yaml` en un host con acceso a npm (`cd frontend && pnpm install`) y commitearlo.
+2. Validar el Assembly Planner y el modo paso 3D en navegador con ejemplos CSV (Chrome/Firefox/Edge).
+3. Coordinar re-indexación MCP tras cerrar el swarm.
 
 ## Criterios de éxito del MVP actualizado
 
