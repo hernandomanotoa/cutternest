@@ -39,6 +39,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A26 | Clasificar zapateros como estantes | Guardian | ✅ Completado | `classifierService.js` detecta 'zapatero' como `shelf`; 118 tests OK. |
 | A27 | Desactivar cache del Assembly Planner en nginx | Guardian | ✅ Completado | Location `/assembly-planner/` con `Cache-Control: no-cache`. 118 tests OK. |
 | A28 | Offsets verticales por tipo de pieza | Guardian | ✅ Completado | `shelfMiddleGap`, `shoeRackBottomOffset`, `shoeRackGap` en config, lógica y UI. 120 tests OK. |
+| A29 | Renderizador 3D SVG orbital | assembly-planner-agent | ✅ Completado | `js/renderer3d/`, `views/renderer3DView.js`, pestaña 3D en `index.html`. 240 tests OK. Validación visual en navegador pendiente por falta de headless browser. |
 
 ## Leyenda estados
 
@@ -49,6 +50,9 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 - ⏸️ Pausado
 
 ## Bloqueadores activos
+
+1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Para reproducibilidad offline hay que generarlo en host con `pnpm install`.
+2. **Validación visual del renderizador 3D orbital**: implementación y tests unitarios listos, pero falta validación manual en navegador por no disponer de headless browser en el entorno actual.
 
 1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Para reproducibilidad offline hay que generarlo en host con `pnpm install`.
 
@@ -62,7 +66,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 - Tests backend: 23 passed.
 - Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
-- Tests Assembly Planner: 103 passed.
+- Tests Assembly Planner: 240 passed (incluye 14 tests del renderizador 3D orbital).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
@@ -82,6 +86,11 @@ Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
 - **Eliminados por obsoletos/redundantes**: renders SVG de `test/renders/` y directorio `docs/temp-svg/`.
 
 ## Next actions
+
+1. Validar el nuevo renderizador 3D orbital en navegador con ejemplos CSV (Chrome/Firefox/edge).
+2. Instalar dependencias frontend (`pnpm install`) para generar `pnpm-lock.yaml` y validar build.
+3. Hacer commits agrupados por bloque funcional.
+4. Coordinar re-indexación MCP tras cerrar el swarm.
 
 1. Instalar dependencias frontend (`pnpm install`) para generar `pnpm-lock.yaml` y validar build.
 2. Validar Assembly Planner en navegador con ejemplos CSV.
