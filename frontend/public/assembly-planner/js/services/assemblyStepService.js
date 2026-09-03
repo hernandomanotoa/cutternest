@@ -4,9 +4,11 @@
 // sigue el armado físico real (fuentes: manuales PAX/Furnica/CabinetNow):
 //
 //   1. Casco exterior: base (+zócalo) → laterales → tapa
-//   2. Interiores intercalados por altura real (de abajo hacia arriba):
-//      repisa (clave z) → divisor (clave z−0.5, cae tras la repisa que lo soporta;
-//      si va de base a techo, z=0 → antes de la primera repisa)
+//   2. Interiores: repisas de abajo hacia arriba (clave z). Los divisores
+//      verticales van DESPUÉS de todas las repisas superiores (z mayor que
+//      su base), porque se deslizan desde arriba encajando en sus dados;
+//      solo un divisor de base a techo (z=0) va antes de la primera repisa,
+//      y sin repisas superiores cae tras la repisa que lo soporta (z−0.5)
 //   3. Fondo → accesorios (barras → puertas → cajones → tiradores)
 //
 // Excepción: fondo que NO cubre la caja completa (interno en ranura o con
@@ -139,20 +141,26 @@ function accessoryRank(piece) {
 }
 
 /**
- * Clave de orden dentro de la categoría 'interior' (intercalado por altura).
- * - verticales interiores (divisor/montante/...): z − 0.5, para colocarse
- *   justo DESPUÉS de la repisa sobre la que se apoyan; si van de base a
- *   techo (z=0), caen antes de la primera repisa.
- * - horizontales (repisa/estante/zapatero): z.
- * Sin posición conocida, se estima por palabra clave del nombre.
+ * Clave de orden dentro de la categoría 'interior'.
+ * - horizontales (repisa/estante/zapatero): z (de abajo hacia arriba).
+ * - verticales (divisor/montante/...): DESPUÉS de todas las repisas con
+ *   z mayor que su base (se deslizan desde arriba encajando en sus dados);
+ *   excepciones: divisor de base a techo (z≤1) → antes de la primera
+ *   repisa, y sin repisas superiores → justo tras la repisa que lo soporta.
+ * Sin posición conocida, los verticales caen tras todas las repisas
+ * rankeadas por palabra clave (base+25).
  */
-function interiorKey(piece, positions) {
+function interiorKey(piece, positions, shelfZs = []) {
   const z = positions?.get(piece.id);
   if (Number.isFinite(z)) {
-    return isInteriorVertical(piece) ? z - 0.5 : z;
+    if (!isInteriorVertical(piece)) return z;
+    if (z <= 1) return z - 0.5;
+    const above = shelfZs.filter((sz) => sz > z + 1);
+    if (above.length) return Math.max(...above) + 0.5;
+    return z - 0.5;
   }
   const base = heightRank(piece) * 10;
-  return isInteriorVertical(piece) ? base + 5 : base;
+  return isInteriorVertical(piece) ? base + 25 : base;
 }
 
 /**
@@ -171,6 +179,17 @@ function interiorKey(piece, positions) {
  */
 export function buildAssemblySequence(pieces, positions = null) {
   const preTopBackModules = detectPreTopBackModules(pieces);
+  // Alturas reales (z) de las repisas/estantes por módulo: determinan
+  // cuántas repisas superiores existen sobre cada divisor.
+  const shelfZsByModule = new Map();
+  for (const p of pieces) {
+    if (classifySequenceRole(p) !== 'interior' || isInteriorVertical(p)) continue;
+    const z = positions?.get(p.id);
+    if (!Number.isFinite(z)) continue;
+    const m = String(p.modulo || '').trim();
+    if (!shelfZsByModule.has(m)) shelfZsByModule.set(m, []);
+    shelfZsByModule.get(m).push(z);
+  }
   const sorted = [...pieces].sort((a, b) => {
     const ga = isGlobalPiece(a) ? 1 : 0;
     const gb = isGlobalPiece(b) ? 1 : 0;
@@ -191,10 +210,10 @@ export function buildAssemblySequence(pieces, positions = null) {
       const sb = sideRank(b);
       if (sa !== sb) return sa - sb;
     } else if (roleA === 'interior') {
-      const ka = interiorKey(a, positions);
-      const kb = interiorKey(b, positions);
+      const ka = interiorKey(a, positions, shelfZsByModule.get(ma) || []);
+      const kb = interiorKey(b, positions, shelfZsByModule.get(mb) || []);
       if (ka !== kb) return ka - kb;
-      // mismo apoyo: verticales (soporte) antes que el horizontal que apoyan
+      // misma clave: verticales (soporte) antes que el horizontal que apoyan
       const va = isInteriorVertical(a) ? 0 : 1;
       const vb = isInteriorVertical(b) ? 0 : 1;
       if (va !== vb) return va - vb;

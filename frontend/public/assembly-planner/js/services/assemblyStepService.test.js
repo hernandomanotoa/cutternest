@@ -71,12 +71,13 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     assert.ok(pos('m2-est-med') < pos('m2-div-sup'), 'estante medio antes que divisor sup');
   });
 
-  it('interiores de abajo hacia arriba con repisa superior al final', () => {
+  it('interiores de abajo hacia arriba; divisores tras las repisas superiores', () => {
     const { steps } = buildAssemblySequence(librero, positions);
     const pos = (id) => steps.find((s) => s.piezas[0] === id).paso;
     assert.ok(pos('m2-est-inf') < pos('m2-est-med'));
     assert.ok(pos('m2-est-med') < pos('m2-est-sup'));
-    assert.ok(pos('m2-div-sup') < pos('m2-est-sup'), 'repisa superior tras sus divisores');
+    assert.ok(pos('m2-est-sup') < pos('m2-div-inf'), 'repisa superior antes que divisores');
+    assert.ok(pos('m2-est-sup') < pos('m2-div-sup'), 'repisa superior antes que divisores');
   });
 
   it('fondo tras interiores y accesorios al cierre (barras → puertas)', () => {
@@ -108,7 +109,7 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     assert.equal(order[2], 'l', 'laterales después del grupo inferior');
   });
 
-  it('fallback sin posiciones: estima por palabra clave de altura', () => {
+  it('fallback sin posiciones: repisas antes que divisores', () => {
     const mod = [
       mk('d', 'Divisor inferior'),
       mk('r1', 'Repisa inferior'),
@@ -116,8 +117,20 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     ];
     const { steps } = buildAssemblySequence(mod);
     const pos = (id) => steps.find((s) => s.piezas[0] === id).paso;
-    assert.ok(pos('r1') < pos('d'), 'repisa inferior antes que divisor (fallback)');
-    assert.ok(pos('d') < pos('r2'), 'divisor antes que repisa superior (fallback)');
+    assert.ok(pos('r1') < pos('r2'), 'repisas de abajo hacia arriba (fallback)');
+    assert.ok(pos('r2') < pos('d'), 'divisor tras las repisas superiores (fallback)');
+  });
+
+  it('repisas superiores antes que divisores: divisor con repisas arriba y abajo', () => {
+    const mod = [
+      mk('r1', 'Repisa inferior'),
+      mk('d1', 'Divisor vertical'),
+      mk('r2', 'Repisa superior'),
+    ];
+    const posMap = new Map([['r1', 100], ['d1', 115], ['r2', 1900]]);
+    const { steps } = buildAssemblySequence(mod, posMap);
+    const order = steps.map((s) => s.piezas[0]);
+    assert.deepEqual(order, ['r1', 'r2', 'd1'], 'repisa sup antes que divisor; divisor tras la sup');
   });
 
   it('piezas globales van al final', () => {
