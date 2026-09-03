@@ -6,7 +6,6 @@
 import {
   getPieceDims,
   getModuleDimensions,
-  classifyBackPanelMount,
   classifyTopBottomMount,
   classifyTopBottomMountAxes,
   classifyPlinthMount,
@@ -469,14 +468,25 @@ export class IsometricRenderer {
     });
 
     if (back) {
-      const mount = classifyBackPanelMount(back, moduleW, moduleH, thickness);
       const backDims = getPieceDims(back, 'back_panel', thickness, family);
       const backThickness = Number(back.espesor) || thickness;
-      const isInternal = mount === 'internal';
+      // Offset por eje según el encaje real del panel (corrido, embutido o
+      // custom), no una clasificación binaria: un fondo puede ser interno en
+      // un eje y corrido en el otro (p. ej. 650×2000 en caja 680×2000):
+      //   tamaño ≈ total      → alineado al borde del módulo (0)
+      //   tamaño ≈ total − 2t → embutido entre casco (t)
+      //   custom menor        → contra el lateral/base (total − tamaño, máx 2t)
+      const tol = 2;
+      const fitOffset = (size, total) => {
+        if (Math.abs(size - total) <= tol) return 0;
+        if (Math.abs(size - (total - 2 * thickness)) <= tol) return thickness;
+        if (size < total) return Math.min(total - size, 2 * thickness);
+        return 0;
+      };
       geometries.push({
-        x: isInternal ? thickness : 0,
+        x: fitOffset(backDims.w, moduleW),
         y: 0,
-        z: isInternal ? thickness : 0,
+        z: fitOffset(backDims.h, moduleH),
         w: backDims.w,
         d: backThickness,
         h: backDims.h,

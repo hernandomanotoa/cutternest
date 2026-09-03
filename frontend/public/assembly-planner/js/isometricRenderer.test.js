@@ -286,6 +286,29 @@ describe('IsometricRenderer back panel mounting', () => {
     assert.equal(back.x, 15);
     assert.equal(back.z, 15);
   });
+
+  it('renders corrido back panel (internal width, full height) flush between sides', () => {
+    // Caso real: fondo 650×2000 en caja 680×2000 — interno en ancho
+    // (encajado entre laterales), corrido en alto. El offset se infiere
+    // por eje: x=thickness, z=0.
+    const corridoBack = {
+      ...basePieces.find((p) => p.id === 'm1-fondo'),
+      ancho: 770,
+      alto: 2300,
+    };
+    const pieces = [
+      ...basePieces.filter((p) => p.id !== 'm1-fondo'),
+      corridoBack,
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2300, 15, 'cabinet');
+    const back = geoms.find((g) => g.role === 'back_panel');
+    assert.ok(back, 'back panel geometry should exist');
+    assert.equal(back.w, 770);
+    assert.equal(back.h, 2300);
+    assert.equal(back.x, 15, 'encajado entre laterales');
+    assert.equal(back.z, 0, 'corrido: alineado a la base');
+  });
 });
 
 describe('IsometricRenderer top/bottom mounting', () => {
