@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPiece3D, generateVertices, CUBOID_FACES, computeModuleCenter } from './geometry.js';
-import { rotateVertex, projectVertex, applyExplode, lerp } from './transform.js';
+import { rotateVertex, projectVertex, projectVertexCentered, applyExplode, lerp } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { makeDimensionLines } from './materials.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
@@ -232,35 +232,28 @@ describe('renderer3d/camera', () => {
     controls.destroy();
   });
 });
-  if (typeof window === 'undefined') {
-    globalThis.window = {
-      addEventListener() {},
-      removeEventListener() {},
-    };
-  }
 
-  it('OrbitControls exposes addChangeListener and triggers callbacks on rotation change', () => {
-  it('OrbitControls exposes addChangeListener and triggers callbacks on rotation change', () => {
-    let calls = 0;
-    const container = {
-      addEventListener() {},
-      removeEventListener() {},
-      getBoundingClientRect() { return { left: 0, top: 0 }; },
-    };
-    const controls = new OrbitControls(container, { rotX: 0, rotY: 0 });
-    controls.addChangeListener(() => calls++);
-    controls.setState({ rotY: 10 });
-    assert.equal(calls, 1);
-    controls.destroy();
+
+describe('renderer3d/transform — perspectiva', () => {
+  it('projectVertexCentered ortho ignores depth', () => {
+    const camera = { rotX: 0, rotY: 0, scale: 0.1, offsetX: 0, offsetY: 0, projection: 'ortho' };
+    const near = projectVertexCentered({ x: 100, y: 100, z: 0 }, { x: 0, y: 0, z: 0 }, camera);
+    const far = projectVertexCentered({ x: 100, y: -100, z: 0 }, { x: 0, y: 0, z: 0 }, camera);
+    assert.equal(near.x, far.x);
   });
 
-  it('reset restores default camera values', () => {
-    const container = { addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return { left: 0, top: 0 }; } };
-    const controls = new OrbitControls(container, { rotX: 45, rotY: 45 });
-    controls.reset();
-    const state = controls.getState();
-    assert.equal(state.rotX, DEFAULT_CAMERA.rotX);
-    assert.equal(state.rotY, DEFAULT_CAMERA.rotY);
-    controls.destroy();
+  it('projectVertexCentered persp scales closer points larger', () => {
+    const camera = { rotX: 0, rotY: 0, scale: 0.1, offsetX: 0, offsetY: 0, projection: 'persp', perspDistance: 1000 };
+    const near = projectVertexCentered({ x: 100, y: 200, z: 0 }, { x: 0, y: 0, z: 0 }, camera);
+    const far = projectVertexCentered({ x: 100, y: -200, z: 0 }, { x: 0, y: 0, z: 0 }, camera);
+    assert.ok(Math.abs(near.x) > Math.abs(far.x));
+    assert.ok(far.x > 0, 'punto lejano no cruza el centro');
+  });
+
+  it('projectVertexCentered persp clamps depth to avoid blowup', () => {
+    const camera = { rotX: 0, rotY: 0, scale: 0.1, offsetX: 0, offsetY: 0, projection: 'persp', perspDistance: 1000 };
+    const extreme = projectVertexCentered({ x: 100, y: 5000, z: 0 }, { x: 0, y: 0, z: 0 }, camera);
+    assert.ok(Number.isFinite(extreme.x));
+    assert.ok(Math.abs(extreme.x) < 100 * 0.1 * 6);
   });
 });

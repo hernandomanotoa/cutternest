@@ -32,10 +32,14 @@ export function rotateVertex(v, rotXDeg, rotYDeg) {
 }
 
 /**
- * Proyección ortográfica centrada en el módulo.
+ * Proyección centrada en el módulo.
+ * - projection 'ortho' (default): ortográfica (paralela).
+ * - projection 'persp': perspectiva con distancia focal d0 (en mm); la cámara
+ *   se sitúa en +Y mirando al origen. Se usa depth = d0 - rotated.y como
+ *   distancia al punto; se clampa para evitar división por ~0.
  * @param {Object} v vértice en mm {x,y,z}
  * @param {Object} moduleCenter centro del módulo en mm {x,y,z}
- * @param {Object} camera {rotX, rotY, scale, offsetX, offsetY}
+ * @param {Object} camera {rotX, rotY, scale, offsetX, offsetY, projection, perspDistance}
  */
 export function projectVertexCentered(v, moduleCenter, camera) {
   const centered = {
@@ -44,9 +48,17 @@ export function projectVertexCentered(v, moduleCenter, camera) {
     z: v.z - moduleCenter.z,
   };
   const rotated = rotateVertex(centered, camera.rotX, camera.rotY);
+
+  let k = 1;
+  if (camera.projection === 'persp') {
+    const d0 = camera.perspDistance ?? 6000;
+    const depth = Math.max(d0 * 0.2, d0 - rotated.y);
+    k = d0 / depth;
+  }
+
   return {
-    x: camera.offsetX + rotated.x * camera.scale,
-    y: camera.offsetY - rotated.z * camera.scale, // usamos Z como altura visual
+    x: camera.offsetX + rotated.x * camera.scale * k,
+    y: camera.offsetY - rotated.z * camera.scale * k, // usamos Z como altura visual
   };
 }
 

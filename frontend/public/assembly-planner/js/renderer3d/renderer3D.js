@@ -89,6 +89,8 @@ export class Renderer3D {
       y: moduleD / 2,
       z: moduleH / 2,
     };
+    // Distancia focal para proyección en perspectiva (~2.5× la dimensión mayor)
+    this.perspDistance = Math.max(moduleW, moduleD, moduleH, 1) * 2.5;
 
     // Enriquecer geometrías con datos de las piezas originales para tooltip/cantos
     const piecesById = new Map(filtered.map((p) => [p.id, p]));
@@ -116,7 +118,7 @@ export class Renderer3D {
     if (!this.geometries.length) return;
 
     const pieces = applyExplode(this.geometries, 0, this.moduleCenter, classifyPiece);
-    const camera = this.controls.getState();
+    const camera = { ...this.controls.getState(), perspDistance: this.perspDistance };
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -125,18 +127,11 @@ export class Renderer3D {
     pieces.forEach((piece) => {
       const baseVerts = generateVertices(piece);
       baseVerts.forEach((v) => {
-        const centered = {
-          x: v.x - this.moduleCenter.x,
-          y: v.y - this.moduleCenter.y,
-          z: v.z - this.moduleCenter.z,
-        };
-        const rotated = rotateVertex(centered, camera.rotX, camera.rotY);
-        const px = rotated.x * DEFAULT_CAMERA.scale;
-        const py = -rotated.z * DEFAULT_CAMERA.scale;
-        minX = Math.min(minX, px);
-        maxX = Math.max(maxX, px);
-        minY = Math.min(minY, py);
-        maxY = Math.max(maxY, py);
+        const p = projectVertexCentered(v, this.moduleCenter, camera);
+        minX = Math.min(minX, p.x - camera.offsetX);
+        maxX = Math.max(maxX, p.x - camera.offsetX);
+        minY = Math.min(minY, p.y - camera.offsetY);
+        maxY = Math.max(maxY, p.y - camera.offsetY);
       });
     });
 
@@ -169,6 +164,12 @@ export class Renderer3D {
     this.controls.setState({ rotX: preset.rotX, rotY: preset.rotY });
     this._fitCameraToModule();
     return preset;
+  }
+
+  setProjection(mode) {
+    if (mode !== 'ortho' && mode !== 'persp') return;
+    this.controls.setState({ projection: mode });
+    this._fitCameraToModule();
   }
 
   setRotX(value) {
@@ -273,7 +274,7 @@ export class Renderer3D {
     const pieces = applyExplode(this.geometries, this.explodeFactor, this.moduleCenter, classifyPiece);
 
     // Líneas de ruta: centroide ensamblado -> despiezado
-    const cameraState = this.controls.getState();
+    const cameraState = { ...this.controls.getState(), perspDistance: this.perspDistance };
     let explodeLines = [];
     if (this.explodeFactor > 0.001) {
       const originals = new Map(this.geometries.map((g) => [g.id, { x: g.cx, y: g.cy, z: g.cz }]));

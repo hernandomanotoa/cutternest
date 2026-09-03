@@ -3,7 +3,7 @@
 // tanto en el navegador como en tests de Node.
 
 import { generateVertices, CUBOID_FACES } from './geometry.js';
-import { rotateVertex } from './transform.js';
+import { rotateVertex, projectVertexCentered } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import {
   getFaceColors,
@@ -82,10 +82,7 @@ export function buildSVG(pieces, camera, options = {}) {
       y: v.y - moduleCenter.y,
       z: v.z - moduleCenter.z,
     }, camera.rotX, camera.rotY));
-    const projectedVerts = rotatedVerts.map((v) => ({
-      x: camera.offsetX + v.x * camera.scale,
-      y: camera.offsetY - v.z * camera.scale,
-    }));
+    const projectedVerts = baseVerts.map((v) => projectVertexCentered(v, moduleCenter, camera));
 
     const faceColors = getFaceColors(piece.color);
     let metalId = null;

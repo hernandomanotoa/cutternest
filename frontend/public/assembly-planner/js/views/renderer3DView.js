@@ -94,6 +94,10 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-gap-mode" ${moduleGapMode === 'projected' ? 'checked' : ''} style="cursor:pointer;">
               <span>Gap profundidad</span>
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
+              <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
+              <span>Perspectiva</span>
+            </label>
             <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="front">Frente</button>
@@ -152,6 +156,7 @@ export function createRenderer3DView(store) {
     });
     container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
+    container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
     rotXInput?.addEventListener('input', (e) => renderer.setRotX(e.target.value));

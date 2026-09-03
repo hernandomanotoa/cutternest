@@ -13,6 +13,7 @@ export const DEFAULT_CAMERA = {
   scale: 0.14,
   offsetX: 450,
   offsetY: 350,
+  projection: 'ortho', // 'ortho' | 'persp'
 };
 
 export class OrbitControls {
@@ -23,6 +24,7 @@ export class OrbitControls {
     this.scale = options.scale ?? DEFAULT_CAMERA.scale;
     this.offsetX = options.offsetX ?? DEFAULT_CAMERA.offsetX;
     this.offsetY = options.offsetY ?? DEFAULT_CAMERA.offsetY;
+    this.projection = options.projection ?? DEFAULT_CAMERA.projection;
 
     this.rotSensitivity = options.rotSensitivity ?? DEFAULT_ROT_SENSITIVITY;
     this.panSensitivity = options.panSensitivity ?? DEFAULT_PAN_SENSITIVITY;
@@ -74,6 +76,7 @@ export class OrbitControls {
       scale: this.scale,
       offsetX: this.offsetX,
       offsetY: this.offsetY,
+      projection: this.projection,
     };
   }
 
@@ -83,6 +86,9 @@ export class OrbitControls {
     this.scale = state.scale ?? this.scale;
     this.offsetX = state.offsetX ?? this.offsetX;
     this.offsetY = state.offsetY ?? this.offsetY;
+    if (state.projection === 'ortho' || state.projection === 'persp') {
+      this.projection = state.projection;
+    }
     this._clamp();
     this._needsUpdate = true;
     this.onChange();
