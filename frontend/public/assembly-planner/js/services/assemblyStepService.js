@@ -9,12 +9,13 @@
 //      si va de base a techo, z=0 → antes de la primera repisa)
 //   3. Fondo → accesorios (barras → puertas → cajones → tiradores)
 //
-// Excepción: fondo INTERNO (embutido en ranura, detectado por geometría con
-// classifyBackPanelMount). Se desliza desde arriba y la tapa lo captura, así
-// que la secuencia es: base → laterales → interiores → fondo → tapa →
+// Excepción: fondo que NO cubre la caja completa (interno en ranura o con
+// cualquier medida reducida, p. ej. corrido entre laterales). No puede
+// clavarse por detrás: se inserta en la caja abierta y la tapa lo captura,
+// así que la secuencia es: base → laterales → interiores → fondo → tapa →
 // accesorios (fuentes: WOODWEB, Fine Woodworking, The Handyman's Daughter).
-// Fondo externo o custom mantiene el orden por defecto (fondo al final: mete
-// en escuadra la caja).
+// Solo el fondo EXTERNO (cubre ancho≈W y alto≈H completo) va al final:
+// clavado/atornillado por detrás, mete en escuadra la caja.
 
 import { normalizeName } from '../utils/normalize.js';
 import { isGlobalPiece } from './moduleService.js';
@@ -30,20 +31,24 @@ const CATEGORY_ORDER = {
   otro: 7,
 };
 
-// Orden alternativo cuando el fondo es interno (embutido en ranura):
-// la tapa captura el panel deslizado, así que cierra el casco después de él.
-const INTERNAL_BACK_CATEGORY = {
+// Orden alternativo cuando el fondo se inserta antes de la tapa (interno,
+// corrido o custom): la tapa captura el panel, así que cierra el casco
+// después de él.
+const PRE_TOP_BACK_CATEGORY = {
   interior: 3,
   fondo: 4,
   tapa: 5,
 };
 
 /**
- * Detecta, por módulo, si su fondo es interno (embutido entre casco:
- * ancho≈moduleW−2t y alto≈moduleH−2t). Reutiliza classifyBackPanelMount;
- * sin medidas válidas o con montaje custom/externo, no entra en el set.
+ * Detecta, por módulo, si su fondo debe colocarse ANTES de la tapa.
+ * Criterio físico: solo el fondo que cubre la caja completa (montaje
+ * 'external': ancho≈W y alto≈H) se clava por detrás al final; cualquier
+ * otro fondo (interno en ranura, corrido entre laterales o custom) se
+ * inserta en la caja abierta y la tapa lo captura. Sin medidas válidas
+ * no se puede decidir y se mantiene el orden por defecto (fondo al final).
  */
-function detectInternalBackModules(pieces) {
+function detectPreTopBackModules(pieces) {
   const byModule = new Map();
   for (const p of pieces) {
     if (isGlobalPiece(p)) continue;
@@ -52,7 +57,7 @@ function detectInternalBackModules(pieces) {
     byModule.get(m).push(p);
   }
 
-  const internal = new Set();
+  const preTop = new Set();
   for (const [modId, modPieces] of byModule) {
     const back = modPieces.find((p) => classifySequenceRole(p) === 'fondo');
     if (!back || !Number.isFinite(Number(back.ancho)) || !Number.isFinite(Number(back.alto))) continue;
@@ -61,15 +66,15 @@ function detectInternalBackModules(pieces) {
     const sideThickness = Number(laterals[0]?.espesor) || Number(base?.espesor) || 15;
     const box = getModuleDimensions(modPieces, sideThickness);
     if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) continue;
-    if (classifyBackPanelMount(back, box.width, box.height, sideThickness) === 'internal') {
-      internal.add(modId);
+    if (classifyBackPanelMount(back, box.width, box.height, sideThickness) !== 'external') {
+      preTop.add(modId);
     }
   }
-  return internal;
+  return preTop;
 }
 
-function categoryFor(role, hasInternalBack) {
-  if (hasInternalBack && INTERNAL_BACK_CATEGORY[role] !== undefined) return INTERNAL_BACK_CATEGORY[role];
+function categoryFor(role, hasPreTopBack) {
+  if (hasPreTopBack && PRE_TOP_BACK_CATEGORY[role] !== undefined) return PRE_TOP_BACK_CATEGORY[role];
   return CATEGORY_ORDER[role];
 }
 
@@ -155,8 +160,9 @@ function interiorKey(piece, positions) {
  * casco exterior (base → laterales → tapa) → interiores intercalados por
  * altura → fondo → accesorios. Las piezas globales van al final.
  *
- * Si el módulo tiene fondo INTERNO (embutido en ranura, por geometría), la
- * tapa pasa al cierre: base → laterales → interiores → fondo → tapa.
+ * Si el fondo del módulo NO cubre la caja completa (interno, corrido o
+ * custom), se inserta antes de cerrar: base → laterales → interiores →
+ * fondo → tapa → accesorios.
  *
  * @param {Array} pieces piezas CSV del módulo activo (o 'all')
  * @param {Map<string, number>} [positions] posición z real por pieza (mm),
@@ -164,7 +170,7 @@ function interiorKey(piece, positions) {
  * @returns {{ steps: Array<{paso:number, piezas:string[]}>, totalPasos: number, totalPiezas: number }}
  */
 export function buildAssemblySequence(pieces, positions = null) {
-  const internalBackModules = detectInternalBackModules(pieces);
+  const preTopBackModules = detectPreTopBackModules(pieces);
   const sorted = [...pieces].sort((a, b) => {
     const ga = isGlobalPiece(a) ? 1 : 0;
     const gb = isGlobalPiece(b) ? 1 : 0;
@@ -176,8 +182,8 @@ export function buildAssemblySequence(pieces, positions = null) {
 
     const roleA = classifySequenceRole(a);
     const roleB = classifySequenceRole(b);
-    const ca = categoryFor(roleA, internalBackModules.has(ma));
-    const cb = categoryFor(roleB, internalBackModules.has(mb));
+    const ca = categoryFor(roleA, preTopBackModules.has(ma));
+    const cb = categoryFor(roleB, preTopBackModules.has(mb));
     if (ca !== cb) return ca - cb;
 
     if (roleA === 'lateral') {

@@ -195,10 +195,30 @@ describe('assemblyStepService/fondo interno vs externo', () => {
     assert.ok(order.indexOf('c-tapa') < order.indexOf('c-puerta'), 'accesorios tras la tapa');
   });
 
-  it('fondo custom (medidas intermedias) mantiene el orden por defecto', () => {
+  it('fondo custom (medidas intermedias) también se inserta antes de la tapa', () => {
     const { steps } = buildAssemblySequence(carcass(790, 2200));
     const order = steps.map((s) => s.piezas[0]);
-    assert.ok(order.indexOf('c-tapa') < order.indexOf('c-fondo'), 'custom: fondo al final');
+    assert.ok(order.indexOf('c-fondo') < order.indexOf('c-tapa'), 'custom: fondo antes de la tapa');
+  });
+
+  it('fondo corrido entre laterales (interno en ancho, alto=H) va antes de la tapa', () => {
+    // Caso real: caja 680×2000×600 (t=15), fondo 650×2000.
+    // ancho = W−2t (encajado entre laterales), alto = H completo → custom
+    // dimensional, pero físicamente se desliza desde arriba y la tapa
+    // externa lo captura.
+    const mod = [
+      mkDim('r-base', 'Base módulo 1', 650, 585),
+      mkDim('r-tapa', 'Tapa módulo 1', 680, 600),
+      mkDim('r-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('r-lat-der', 'Lateral derecho 1', 600, 2000),
+      mkDim('r-fondo', 'Fondo módulo 1', 650, 2000),
+      mkDim('r-repisa', 'Repisa inferior 1', 650, 585),
+    ];
+    const { steps } = buildAssemblySequence(mod);
+    const order = steps.map((s) => s.piezas[0]);
+    assert.deepEqual(order.slice(0, 3), ['r-base', 'r-lat-izq', 'r-lat-der']);
+    assert.ok(order.indexOf('r-repisa') < order.indexOf('r-fondo'), 'fondo tras interiores');
+    assert.ok(order.indexOf('r-fondo') < order.indexOf('r-tapa'), 'fondo corrido antes de la tapa externa');
   });
 
   it('fondo sin medidas (fallback) mantiene el orden por defecto', () => {
