@@ -333,6 +333,36 @@ describe('renderer3d/renderer3D — BOM API', () => {
   });
 });
 
+describe('renderer3d/svgBuilder — ghosting por selección', () => {
+  const mkPiece = (id, x = 0) => ({
+    id, name: id, role: 'shelf', tipo: 'horizontal_xy',
+    x, y: 0, z: 0, w: 50, h: 5, d: 40,
+    cx: x + 25, cy: 20, cz: 2.5,
+    color: '#C19A6B', cantos: [], cantidad: 1, modulo: '1',
+  });
+  const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150, projection: 'ortho' };
+
+  const maxOpacityOf = (svg, id) => {
+    const polys = svg.split('<polygon').filter((s) => s.includes(`data-piece-id="${id}"`));
+    assert.ok(polys.length > 0, `piece ${id} should render faces`);
+    return Math.max(...polys.map((s) => Number(s.match(/fill-opacity="([\d.]+)"/)?.[1] ?? 0)));
+  };
+
+  it('piezas no seleccionadas se atenúan (~30%) cuando hay selección activa', () => {
+    const pieces = [mkPiece('p1'), mkPiece('p2', 100)];
+    const svg = buildSVG(pieces, camera, { selectedId: 'p1' });
+    assert.equal(maxOpacityOf(svg, 'p1'), 1, 'seleccionada a opacidad plena');
+    assert.ok(maxOpacityOf(svg, 'p2') <= 0.3 + 1e-6, 'no seleccionada con ghosting');
+  });
+
+  it('sin selección no hay ghosting', () => {
+    const pieces = [mkPiece('p1'), mkPiece('p2', 100)];
+    const svg = buildSVG(pieces, camera, {});
+    assert.equal(maxOpacityOf(svg, 'p1'), 1);
+    assert.equal(maxOpacityOf(svg, 'p2'), 1);
+  });
+});
+
 
 describe('renderer3d/svgBuilder — section planes', () => {
   const mkPiece = (id, cx, cy, cz) => ({
