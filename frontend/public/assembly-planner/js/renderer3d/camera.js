@@ -39,12 +39,15 @@ export class OrbitControls {
     this.velocityX = 0;
     this.velocityY = 0;
 
+    this._callbacks = [];
+    if (options.onChange) this._callbacks.push(options.onChange);
+    this.onChange = () => this._callbacks.forEach((cb) => cb());
+
     this.isDragging = false;
     this.isPanning = false;
     this.lastX = 0;
     this.lastY = 0;
 
-    this.onChange = options.onChange || (() => {});
     this._needsUpdate = true;
 
     this._boundMouseDown = this._onMouseDown.bind(this);
@@ -54,6 +57,14 @@ export class OrbitControls {
     this._boundContextMenu = this._onContextMenu.bind(this);
 
     this._attach();
+  }
+
+  addChangeListener(cb) {
+    if (typeof cb === 'function') this._callbacks.push(cb);
+  }
+
+  removeChangeListener(cb) {
+    this._callbacks = this._callbacks.filter((fn) => fn !== cb);
   }
 
   getState() {

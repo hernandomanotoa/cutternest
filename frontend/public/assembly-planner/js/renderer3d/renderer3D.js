@@ -2,7 +2,8 @@
 // Reutiliza el posicionamiento de IsometricRenderer y aplica proyección
 // orbital, explode, transparencia selectiva e interacción.
 
-import { applyExplode, lerp } from './transform.js';
+import { generateVertices } from './geometry.js';
+import { applyExplode, lerp, rotateVertex } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
@@ -106,6 +107,68 @@ export class Renderer3D {
     });
 
     this.needsRender = true;
+    this._fitCameraToModule();
+  }
+
+  _fitCameraToModule() {
+    // Ajustar el offset y escala de la cámara para que la unión de todos los
+    // módulos/piezas quede centrada en el viewport SVG.
+    if (!this.geometries.length) return;
+
+    const pieces = applyExplode(this.geometries, 0, this.moduleCenter, classifyPiece);
+    const camera = this.controls.getState();
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    pieces.forEach((piece) => {
+      const baseVerts = generateVertices(piece);
+      baseVerts.forEach((v) => {
+        const centered = {
+          x: v.x - this.moduleCenter.x,
+          y: v.y - this.moduleCenter.y,
+          z: v.z - this.moduleCenter.z,
+        };
+        const rotated = rotateVertex(centered, camera.rotX, camera.rotY);
+        const px = rotated.x * DEFAULT_CAMERA.scale;
+        const py = -rotated.z * DEFAULT_CAMERA.scale;
+        minX = Math.min(minX, px);
+        maxX = Math.max(maxX, px);
+        minY = Math.min(minY, py);
+        maxY = Math.max(maxY, py);
+      });
+    });
+
+    if (!isFinite(minX)) return;
+
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const targetScale = Math.min(
+      (this.width * 0.75) / Math.max(contentW, 1),
+      (this.height * 0.75) / Math.max(contentH, 1)
+    );
+    const scale = Math.min(DEFAULT_CAMERA.scale * 1.5, Math.max(0.03, targetScale));
+
+    this.controls.setState({
+      offsetX: this.width / 2 - (minX + maxX) / 2,
+      offsetY: this.height / 2 - (minY + maxY) / 2,
+      scale,
+    });
+  }
+
+  applyViewPreset(name) {
+    const presets = {
+      iso: { rotX: 30, rotY: 45, label: 'Isométrica' },
+      front: { rotX: 0, rotY: 0, label: 'Frontal' },
+      side: { rotX: 0, rotY: 90, label: 'Lateral' },
+      top: { rotX: -60, rotY: 0, label: 'Superior' },
+    };
+    const preset = presets[name];
+    if (!preset) return;
+    this.controls.setState({ rotX: preset.rotX, rotY: preset.rotY });
+    this._fitCameraToModule();
+    return preset;
   }
 
   setRotX(value) {
@@ -186,6 +249,11 @@ export class Renderer3D {
     if (t < 1) {
       this._scheduleAnimation();
     }
+  }
+
+  setShowDimensions(value) {
+    this.showDimensions = value;
+    this.needsRender = true;
   }
 
   toggleDimensions() {

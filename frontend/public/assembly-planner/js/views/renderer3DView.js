@@ -82,7 +82,10 @@ export function createRenderer3DView(store) {
           <h2 class="card__title">Vista 3D — ${getModuleLabel(targetModule, state.pieces)}</h2>
           <div class="r3d-controls flex gap-1 flex-wrap">
             <button id="r3d-reset" class="btn btn--secondary btn--sm">↺ Reset</button>
-            <button id="r3d-dims" class="btn btn--secondary btn--sm">Cotas</button>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
+              <input type="checkbox" id="r3d-dims" style="cursor:pointer;">
+              <span>Cotas</span>
+            </label>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-xray" style="cursor:pointer;">
               <span>X-ray</span>
@@ -91,6 +94,12 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-gap-mode" ${moduleGapMode === 'projected' ? 'checked' : ''} style="cursor:pointer;">
               <span>Gap profundidad</span>
             </label>
+            <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="front">Frente</button>
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="side">Lado</button>
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="top">Arriba</button>
+            </span>
           </div>
         </div>
         <div class="r3d-sliders card__body" style="padding:0.5rem 1rem;">
@@ -131,17 +140,39 @@ export function createRenderer3DView(store) {
     const rotXInput = container.querySelector('#r3d-rot-x');
     const rotYInput = container.querySelector('#r3d-rot-y');
 
+    function updateSlidersFromCamera() {
+      const cam = renderer.controls.getState();
+      if (rotXInput) rotXInput.value = String(Math.round(cam.rotX));
+      if (rotYInput) rotYInput.value = String(Math.round(cam.rotY));
+    }
+
     container.querySelector('#r3d-reset')?.addEventListener('click', () => {
       renderer.controls.reset();
-      if (rotXInput) rotXInput.value = DEFAULT_CAMERA.rotX;
-      if (rotYInput) rotYInput.value = DEFAULT_CAMERA.rotY;
+      updateSlidersFromCamera();
     });
-    container.querySelector('#r3d-dims')?.addEventListener('click', () => renderer.toggleDimensions());
+    container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
     rotXInput?.addEventListener('input', (e) => renderer.setRotX(e.target.value));
     rotYInput?.addEventListener('input', (e) => renderer.setRotY(e.target.value));
+
+    container.querySelectorAll('.r3d-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const preset = renderer.applyViewPreset(btn.dataset.preset);
+        if (preset) updateSlidersFromCamera();
+      });
+    });
+
+    container.querySelectorAll('.r3d-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const preset = renderer.applyViewPreset(btn.dataset.preset);
+        if (preset) updateSlidersFromCamera();
+      });
+    });
+
+    renderer.controls.addChangeListener(updateSlidersFromCamera);
+    renderer.controls._onChange = () => updateSlidersFromCamera();
 
     const gapCheckbox = container.querySelector('#r3d-gap-mode');
     if (gapCheckbox) {

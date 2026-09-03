@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { buildPiece3D, generateVertices, CUBOID_FACES, computeModuleCenter } from './geometry.js';
 import { rotateVertex, projectVertex, applyExplode, lerp } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
+import { makeDimensionLines } from './materials.js';
+import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
 
 describe('renderer3d/geometry', () => {
   it('buildPiece3D creates a vertical piece from a side panel CSV row', () => {
@@ -150,5 +152,91 @@ describe('renderer3d/classifier3d', () => {
 
   it('classifies hanger rail as interior', () => {
     assert.equal(classifyPiece({ role: 'hanger_rail' }), 'interior');
+  });
+});
+
+describe('renderer3d/materials', () => {
+  it('makeDimensionLines renders width, height and central depth label', () => {
+    const frontPolygon = [
+      { x: 0, y: 100 },
+      { x: 100, y: 100 },
+      { x: 100, y: 0 },
+      { x: 0, y: 0 },
+    ];
+    const piece = { w: 100, d: 50, h: 100 };
+    const svg = makeDimensionLines(frontPolygon, piece);
+    assert.ok(svg.includes('100'), 'shows width label');
+    assert.ok(svg.includes('50'), 'shows depth label');
+    assert.ok(svg.includes('×'), 'shows dimension separator');
+  });
+
+  it('makeDimensionLines returns empty string for invalid polygon', () => {
+    assert.equal(makeDimensionLines(null, { w: 1, d: 1, h: 1 }), '');
+    assert.equal(makeDimensionLines([], { w: 1, d: 1, h: 1 }), '');
+  });
+});
+
+describe('renderer3d/camera', () => {
+  if (typeof window === 'undefined') {
+    globalThis.window = {
+      addEventListener() {},
+      removeEventListener() {},
+    };
+  }
+
+  it('OrbitControls exposes addChangeListener and triggers callbacks on rotation change', () => {
+    let calls = 0;
+    const container = {
+      addEventListener() {},
+      removeEventListener() {},
+      getBoundingClientRect() { return { left: 0, top: 0 }; },
+    };
+    const controls = new OrbitControls(container, { rotX: 0, rotY: 0 });
+    controls.addChangeListener(() => calls++);
+    controls.setState({ rotY: 10 });
+    assert.equal(calls, 1);
+    controls.destroy();
+  });
+
+  it('reset restores default camera values', () => {
+    const container = { addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return { left: 0, top: 0 }; } };
+    const controls = new OrbitControls(container, { rotX: 45, rotY: 45 });
+    controls.reset();
+    const state = controls.getState();
+    assert.equal(state.rotX, DEFAULT_CAMERA.rotX);
+    assert.equal(state.rotY, DEFAULT_CAMERA.rotY);
+    controls.destroy();
+  });
+});
+  if (typeof window === 'undefined') {
+    globalThis.window = {
+      addEventListener() {},
+      removeEventListener() {},
+    };
+  }
+
+  it('OrbitControls exposes addChangeListener and triggers callbacks on rotation change', () => {
+  it('OrbitControls exposes addChangeListener and triggers callbacks on rotation change', () => {
+    let calls = 0;
+    const container = {
+      addEventListener() {},
+      removeEventListener() {},
+      getBoundingClientRect() { return { left: 0, top: 0 }; },
+    };
+    const controls = new OrbitControls(container, { rotX: 0, rotY: 0 });
+    controls.addChangeListener(() => calls++);
+    controls.setState({ rotY: 10 });
+    assert.equal(calls, 1);
+    controls.destroy();
+  });
+
+  it('reset restores default camera values', () => {
+    const container = { addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return { left: 0, top: 0 }; } };
+    const controls = new OrbitControls(container, { rotX: 45, rotY: 45 });
+    controls.reset();
+    const state = controls.getState();
+    assert.equal(state.rotX, DEFAULT_CAMERA.rotX);
+    assert.equal(state.rotY, DEFAULT_CAMERA.rotY);
+    controls.destroy();
   });
 });

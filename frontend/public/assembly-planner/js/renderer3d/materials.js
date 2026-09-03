@@ -112,6 +112,12 @@ export function makeDimensionLines(frontPolygon, piece) {
   svg += drawCota(bl, br, `${piece.w.toFixed(0)}`, 0, offset, '#00ff88');
   // Alto (borde izquierdo)
   svg += drawCota(bl, tl, `${piece.h.toFixed(0)}`, -offset, 0, '#00ff88');
+  // Profundidad: se representa como texto central con las 3 dimensiones,
+  // ya que la profundidad no es visible en la proyección 2D de la cara frontal.
+  const cx = (bl.x + br.x + tr.x + tl.x) / 4;
+  const cy = (bl.y + br.y + tr.y + tl.y) / 4;
+  svg += `
+    <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#00ff88" font-size="9" font-family="monospace" font-weight="600" pointer-events="none">${escapeHtml(`${piece.w.toFixed(0)} × ${piece.d.toFixed(0)} × ${piece.h.toFixed(0)}`)}</text>`;
 
   return svg;
 }
