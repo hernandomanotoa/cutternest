@@ -1,0 +1,58 @@
+name: Assembly Planner
+
+on:
+  push:
+    paths:
+      - 'frontend/public/assembly-planner/**'
+      - 'scripts/generar-ejemplos-*.mjs'
+      - 'scripts/generar-ejemplos-*.py'
+      - 'docs/Ejemplo_CSV_*.csv'
+  pull_request:
+    paths:
+      - 'frontend/public/assembly-planner/**'
+      - 'scripts/generar-ejemplos-*.mjs'
+      - 'scripts/generar-ejemplos-*.py'
+      - 'docs/Ejemplo_CSV_*.csv'
+
+jobs:
+  validate-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate all example CSVs (0 errors / 0 warnings / 0 generic roles)
+        run: node frontend/public/assembly-planner/test/validate-examples.mjs
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assembly Planner unit tests (node --test)
+        run: cd frontend/public/assembly-planner && node --test 'js/**/*.test.js'
+
+  render-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Isometric/SVG render smoke tests
+        run: cd frontend/public/assembly-planner && node --test test/test_isometric_examples.mjs test/test_svg_engine.mjs
+
+  backend-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+      - name: Backend tests (incl. template contract)
+        run: cd backend && pytest -q
