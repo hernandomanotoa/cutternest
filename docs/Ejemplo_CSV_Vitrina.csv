@@ -11,5 +11,5 @@ m1-lateral-der,Lateral derecho vitrina,400,2000,1,no,#C19A6B,15,"T,B,R",m1
 m1-fondo,Fondo vitrina,800,2000,1,no,#F2F2F2,15,,m1
 m1-puerta,Puerta superior vitrina,360,900,1,no,#FFFFFF,18,"T,B,L,R",m1
 m1-vidrio,Cristal puerta vitrina,300,700,1,no,#E8F4F8,4,,m1
-m1-repisa-superior,Repisa superior vitrina,740,250,1,si,#D9C2A3,15,"T,B,L,R",m1
-m1-repisa-inferior,Repisa inferior vitrina,740,250,1,si,#D9C2A3,15,"T,B,L,R",m1
+m1-repisa-superior,Repisa superior vitrina,740,250,1,si,#D9C2A3,18,"T,B,L,R",m1
+m1-repisa-inferior,Repisa inferior vitrina,740,250,1,si,#D9C2A3,18,"T,B,L,R",m1

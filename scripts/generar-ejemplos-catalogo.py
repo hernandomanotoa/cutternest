@@ -42,13 +42,27 @@ class M:
         self.base_top(mod, suffix)
         self.laterales(mod, suffix)
         self.fondo(mod, suffix)
-    def cajon(self, mod, sub, w, h, color=C_DRAW):
-        d = self.d - 30
-        self.add(f'{mod}{sub}-frente', f'Frente cajon {sub}', w, h, 1, 'si', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', h-30, d, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', h-30, d, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', w-40, d, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-base', f'Base cajon {sub}', w-40, d, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
+    def cajon(self, mod, sub, n_por_fila=1, alto_vano=180, tipo='corredera', ancho=None, prof=None, color=C_DRAW):
+        # Cajón coherente con el vano del módulo (mismas reglas que valida js/csvParser.js):
+        # W = ancho − 2E · D = profundidad − E − E · frente ≤ W−2
+        # profCajon = D − 25 (corredera) o D − 15 (volquete/abatible)
+        E = TH_BODY
+        W = (ancho or self.w) - 2 * E
+        D = (prof or self.d) - E - E
+        if n_por_fila == 1:
+            frente_w = W - 2
+        else:
+            frente_w = (W - (n_por_fila - 1) * 3) // n_por_fila - 1
+        frente_h = alto_vano - 3
+        prof_caj = D - (15 if tipo == 'volquete' else 25)
+        lat_h = frente_h - 2 * TH_BODY
+        fondo_w = frente_w - 2 * TH_BODY
+        nombre_tipo = ' abatible' if tipo == 'volquete' else ''
+        self.add(f'{mod}{sub}-frente', f'Frente cajon{nombre_tipo} {sub}', frente_w, frente_h, 1, 'si', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', fondo_w, lat_h, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-base', f'Base cajon {sub}', fondo_w, prof_caj, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-tirador', f'Tirador cajon {sub}', 2, 20, 1, 'no', C_TIR, TH_TIR, '', f'{mod}{sub}')
 
 def write(title, desc, pieces, filename):
@@ -72,13 +86,13 @@ def write(title, desc, pieces, filename):
 
 # Aparador
 m = M('aparador', 1600, 500, 800)
-m.add('glb-zocalo', 'Zocalo aparador', 1600, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.add('glb-zocalo', 'Zocalo aparador', 4800, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-tapa', 'Tapa aparador', 1600, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior aparador', 1600, 800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
-# Modulo 1: cajonera
+# Modulo 1: cajonera (2 cajones por fila)
 m.box('m1', 'cajonera')
-m.cajon('m1', '1', 460, 180)
-m.cajon('m1', '2', 460, 180)
+m.cajon('m1', '1', n_por_fila=2)
+m.cajon('m1', '2', n_por_fila=2)
 # Modulo 2: puertas
 m.box('m2', 'puertas')
 m.add('m2-puerta', 'Puerta aparador', 460, 760, 1, 'no', C_DOOR, TH_DOOR, 'T,B,L,R', 'm2')
@@ -97,7 +111,7 @@ m.add('glb-tapa', 'Tapa estanteria', 900, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R'
 m.add('glb-trasera', 'Panel posterior estanteria', 900, 1800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 for i in range(1, 5):
-    m.add(f'm1-repisa-{i}', f'Repisa {i} estanteria', 840, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
+    m.add(f'm1-repisa-{i}', f'Repisa {i} estanteria', 840, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 write('Estantería', 'Estantería alta abierta para salón o estudio con 4 repisas ajustables.', m.pieces, 'ejemplo-estanteria.csv')
 
 # === COMEDOR ===
@@ -110,8 +124,8 @@ m.add('glb-trasera', 'Panel posterior vitrina', 800, 2000, 1, 'no', C_FONDO, TH_
 m.box('m1')
 m.add('m1-puerta', 'Puerta superior vitrina', 360, 900, 1, 'no', C_DOOR, TH_DOOR, 'T,B,L,R', 'm1')
 m.add('m1-vidrio', 'Cristal puerta vitrina', 300, 700, 1, 'no', C_CRIS, 4, '', 'm1')
-m.add('m1-repisa-superior', 'Repisa superior vitrina', 740, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-repisa-inferior', 'Repisa inferior vitrina', 740, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
+m.add('m1-repisa-superior', 'Repisa superior vitrina', 740, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+m.add('m1-repisa-inferior', 'Repisa inferior vitrina', 740, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 write('Vitrina', 'Vitrina alta para salón o comedor con puerta de cristal.', m.pieces, 'ejemplo-vitrina.csv')
 
 # Mesa extensible (solo estructura/soporte)
@@ -120,42 +134,34 @@ m.add('glb-tablero', 'Tablero mesa extensible', 1800, 900, 1, 'si', C_FRONT, TH_
 m.add('glb-pata-izq', 'Pata izquierda mesa', 100, 720, 1, 'no', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-pata-der', 'Pata derecha mesa', 100, 720, 1, 'no', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-travesano', 'Travesano mesa', 1600, 80, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
-m.add('glb-extension', 'Soporte extensión mesa', 400, 450, 2, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'estructura')
+m.add('glb-extension', 'Travesano soporte extensión mesa', 400, 450, 2, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'estructura')
 write('Mesa extensible', 'Estructura de mesa extensible para comedor (soporte sin mecanismo extensible).', m.pieces, 'ejemplo-mesa-extensible.csv')
 
 # === DORMITORIO ===
 
 # Cabecero con mesitas
 m = M('cabecero', 2000, 300, 1200)
-m.add('glb-panel', 'Panel cabecero', 2000, 1200, 1, 'si', C_FRONT, TH_TOP, 'T,B,L,R', 'estructura')
-# Mesita izquierda
-m.box('m1', 'mesita noche')
-m.add('m1-cajon-frente', 'Frente cajon mesita', 360, 150, 1, 'si', C_DRAW, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-cajon-lateral-izq', 'Lateral cajon mesita', 120, 350, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', 'm1')
-m.add('m1-cajon-lateral-der', 'Lateral cajon mesita', 120, 350, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', 'm1')
-m.add('m1-cajon-fondo', 'Fondo cajon mesita', 320, 350, 1, 'no', C_FONDO, TH_BODY, '', 'm1')
-m.add('m1-cajon-base', 'Base cajon mesita', 320, 350, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-cajon-tirador', 'Tirador cajon mesita', 2, 20, 1, 'no', C_TIR, TH_TIR, '', 'm1')
-# Mesita derecha
-m.box('m2', 'mesita noche')
-m.add('m2-cajon-frente', 'Frente cajon mesita', 360, 150, 1, 'si', C_DRAW, TH_BODY, 'T,B,L,R', 'm2')
-m.add('m2-cajon-lateral-izq', 'Lateral cajon mesita', 120, 350, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', 'm2')
-m.add('m2-cajon-lateral-der', 'Lateral cajon mesita', 120, 350, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', 'm2')
-m.add('m2-cajon-fondo', 'Fondo cajon mesita', 320, 350, 1, 'no', C_FONDO, TH_BODY, '', 'm2')
-m.add('m2-cajon-base', 'Base cajon mesita', 320, 350, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm2')
-m.add('m2-cajon-tirador', 'Tirador cajon mesita', 2, 20, 1, 'no', C_TIR, TH_TIR, '', 'm2')
+m.add('glb-panel', 'Respaldo cabecero', 2000, 1200, 1, 'si', C_FRONT, TH_TOP, 'T,B,L,R', 'estructura')
+# Mesita de noche integrada (módulo 400×350×500 con cajón en submódulo)
+for mod, cuerpo in (('m1', C_BODY), ('m2', C_FRONT)):
+    m.add(f'{mod}-base', f'Base mesita noche', 400, 350, 1, 'si', cuerpo, TH_BODY, 'T,B,L,R', mod)
+    m.add(f'{mod}-tapa', f'Tapa mesita noche', 400, 350, 1, 'si', cuerpo, TH_BODY, 'T,B,L,R', mod)
+    m.add(f'{mod}-lateral-izq', f'Lateral izquierdo mesita noche', 350, 500, 1, 'no', cuerpo, TH_BODY, 'T,B,L', mod)
+    m.add(f'{mod}-lateral-der', f'Lateral derecho mesita noche', 350, 500, 1, 'no', cuerpo, TH_BODY, 'T,B,R', mod)
+    m.add(f'{mod}-fondo', f'Fondo mesita noche', 400, 500, 1, 'no', C_FONDO, TH_BODY, '', mod)
+    m.cajon(mod, '1', alto_vano=150, ancho=400, prof=350)
 write('Cabecero', 'Cabecero de cama con dos mesitas de noche integradas.', m.pieces, 'ejemplo-cabecero.csv')
 
 # === RECIBIDOR ===
 
 # Recibidor lineal
 m = M('recibidor', 1200, 350, 900)
-m.add('glb-zocalo', 'Zocalo recibidor', 1200, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.add('glb-zocalo', 'Zocalo recibidor', 2400, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-tapa', 'Tapa recibidor', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior recibidor', 1200, 900, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 # Modulo 1: cajonera
 m.box('m1')
-m.cajon('m1', '1', 460, 180)
+m.cajon('m1', '1')
 # Modulo 2: abierto con repisa
 m.box('m2')
 m.add('m2-repisa-superior', 'Repisa superior recibidor', 500, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm2')
@@ -170,12 +176,7 @@ m.add('glb-zocalo', 'Zocalo consola', 1000, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,
 m.add('glb-tapa', 'Tapa consola', 1000, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior consola', 1000, 850, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
-m.add('m1-cajon-frente', 'Frente cajon consola', 840, 150, 1, 'si', C_DRAW, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-cajon-lateral-izq', 'Lateral cajon consola', 120, 600, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', 'm1')
-m.add('m1-cajon-lateral-der', 'Lateral cajon consola', 120, 600, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', 'm1')
-m.add('m1-cajon-fondo', 'Fondo cajon consola', 800, 600, 1, 'no', C_FONDO, TH_BODY, '', 'm1')
-m.add('m1-cajon-base', 'Base cajon consola', 800, 600, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-cajon-tirador', 'Tirador cajon consola', 2, 20, 1, 'no', C_TIR, TH_TIR, '', 'm1')
+m.cajon('m1', '1', alto_vano=150)
 write('Consola', 'Consola de recibidor con cajón amplio.', m.pieces, 'ejemplo-consola.csv')
 
 # Separador de ambientes
@@ -184,10 +185,10 @@ m.add('glb-zocalo', 'Zocalo separador', 1200, 80, 1, 'si', C_BODY, TH_BODY, 'T,B
 m.add('glb-tapa', 'Tapa separador', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior separador', 1200, 1600, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
-m.add('m1-repisa-1', 'Repisa 1 separador', 1140, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-repisa-2', 'Repisa 2 separador', 1140, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-repisa-3', 'Repisa 3 separador', 1140, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-repisa-4', 'Repisa 4 separador', 1140, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
+m.add('m1-repisa-1', 'Repisa 1 separador', 1140, 170, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+m.add('m1-repisa-2', 'Repisa 2 separador', 1140, 170, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+m.add('m1-repisa-3', 'Repisa 3 separador', 1140, 170, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+m.add('m1-repisa-4', 'Repisa 4 separador', 1140, 170, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 write('Separador', 'Separador de ambientes tipo estantería abierta.', m.pieces, 'ejemplo-separador-ambientes.csv')
 
 # === COCINA ===
@@ -207,8 +208,8 @@ m = M('isla', 1200, 900, 900)
 m.add('glb-zocalo', 'Zocalo isla', 1200, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-tapa', 'Tapa isla', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.box('m1')
-m.cajon('m1', '1', 460, 180)
-m.cajon('m1', '2', 460, 180)
+m.cajon('m1', '1', n_por_fila=2)
+m.cajon('m1', '2', n_por_fila=2)
 # Contraste isla
 m.add('m1-panel', 'Panel lateral isla', 900, 860, 1, 'no', C_DOOR, TH_DOOR, 'T,B,L,R', 'm1')
 write('Isla cocina', 'Isla central de cocina con cajones y panel lateral.', m.pieces, 'ejemplo-isla-cocina.csv')
@@ -231,12 +232,7 @@ m.add('glb-zocalo', 'Zocalo columna auxiliar', 300, 100, 1, 'si', C_BODY, TH_BOD
 m.add('glb-tapa', 'Tapa columna auxiliar', 300, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior columna auxiliar', 300, 1600, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
-m.add('m1-cajon-frente', 'Frente cajon columna auxiliar', 260, 150, 1, 'si', C_DRAW, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-cajon-lateral-izq', 'Lateral cajon columna auxiliar', 120, 450, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', 'm1')
-m.add('m1-cajon-lateral-der', 'Lateral cajon columna auxiliar', 120, 450, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', 'm1')
-m.add('m1-cajon-fondo', 'Fondo cajon columna auxiliar', 220, 450, 1, 'no', C_FONDO, TH_BODY, '', 'm1')
-m.add('m1-cajon-base', 'Base cajon columna auxiliar', 220, 450, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
-m.add('m1-cajon-tirador', 'Tirador cajon columna auxiliar', 2, 20, 1, 'no', C_TIR, TH_TIR, '', 'm1')
+m.cajon('m1', '1', alto_vano=150)
 write('Columna auxiliar baño', 'Columna auxiliar estrecha para baño con cajón.', m.pieces, 'ejemplo-columna-auxiliar-bano.csv')
 
 # Espejo con módulo
@@ -257,9 +253,9 @@ m.add('glb-zocalo', 'Zocalo archivador', 500, 100, 1, 'si', C_BODY, TH_BODY, 'T,
 m.add('glb-tapa', 'Tapa archivador', 500, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior archivador', 500, 1300, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
-m.cajon('m1', '1', 420, 280)
-m.cajon('m1', '2', 420, 280)
-m.cajon('m1', '3', 420, 280)
+m.cajon('m1', '1', alto_vano=280)
+m.cajon('m1', '2', alto_vano=280)
+m.cajon('m1', '3', alto_vano=280)
 write('Archivador', 'Archivador de oficina con tres cajones grandes.', m.pieces, 'ejemplo-archivador.csv')
 
 print('Hecho. Archivos generados en', OUT, 'y', OUT_DOCS)

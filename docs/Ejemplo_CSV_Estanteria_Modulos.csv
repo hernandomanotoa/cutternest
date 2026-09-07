@@ -1,52 +1,72 @@
+# CutterNest Piezas v1
+# Estantería demo reorganizada (2026-09): 4 módulos autocontenidos de
+# 100×240×95 mm (E=18, fondo 15), interior útil 64×204×62 mm.
+# - Antes la estructura vivía en un módulo global y los módulos 1-4 quedaban
+#   "huecos" (sin base/tapa/laterales/fondo), lo que el validador marcaba como
+#   estructura incompleta. Ahora cada módulo es una caja real y las piezas
+#   interiores se recortaron al interior útil.
+# - Módulo 1: 2 puertas + 2 estantes. Módulo 2: 3 estantes + cajón (m21).
+# - Módulo 3: 3 puertas + 2 cajones apilados (m31, m32). Módulo 4: barra.
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
-glb-base,Base General,300,60,1,si,#96CEB4,18,"T,B,L,R",estructura
-glb-tapa,Tapa General,300,60,1,si,#4ECDC4,18,"T,B,L,R",estructura
-glb-fondo,Fondo General,300,240,1,no,#F8F9FA,3,,estructura
-glb-lateral-izq,Lateral Ext Izq,60,240,1,no,#FF6B6B,18,"T,B,L",estructura
-glb-lateral-der,Lateral Ext Der,60,240,1,no,#FF6B6B,18,"T,B,R",estructura
-glb-particion-1,Particion Central 1,60,240,1,no,#45B7D1,18,"T,B",estructura
-glb-particion-2,Particion Central 2,60,240,1,no,#45B7D1,18,"T,B",estructura
-glb-divisor,Divisor Vertical Cajonera,60,100,1,no,#B2DFDB,18,"T,B",estructura
+# --- Modulo 1: puertas y estantes ---
+m1-base,Base Modulo 1,100,95,1,si,#96CEB4,18,"T,B,L,R",1
+m1-tapa,Tapa Modulo 1,100,95,1,si,#4ECDC4,18,"T,B,L,R",1
+m1-lateral-izq,Lateral Izq Modulo 1,95,240,1,no,#FF6B6B,18,"T,B,L",1
+m1-lateral-der,Lateral Der Modulo 1,95,240,1,no,#FF6B6B,18,"T,B,R",1
+m1-fondo,Fondo Modulo 1,100,240,1,no,#F8F9FA,15,,1
 m1-zocalo,Zocalo Modulo 1,100,10,1,si,#FFEAA7,18,"T,B,L,R",1
-m1-estante-1,Estante Modulo 1,98,58,1,si,#DDA0DD,18,"T,B,L,R",1
-m1-estante-2,Estante Modulo 1,98,58,1,si,#DDA0DD,18,"T,B,L,R",1
-m1-puerta-izq,Puerta Abatible Izq 1,50,236,1,no,#FFD93D,18,"T,B,L,R",1
-m1-puerta-der,Puerta Abatible Der 1,50,236,1,no,#FFD93D,18,"T,B,L,R",1
-m1-cajon-frente,Frente Cajon 1,96,20,1,si,#A8E6CF,18,"T,B,L,R",1
-m1-cajon-lateral-izq,Lateral Cajon Izq 1,50,18,1,no,#DCEDC1,18,"T,B,L",1
-m1-cajon-lateral-der,Lateral Cajon Der 1,50,18,1,no,#DCEDC1,18,"T,B,R",1
-m1-cajon-fondo,Fondo Cajon 1,90,50,1,si,#FFF3E0,3,,1
-m1-cajon-base,Base Cajon 1,90,50,1,si,#FFCCBC,18,"T,B,L,R",1
+m1-estante-1,Estante Modulo 1,64,56,1,si,#DDA0DD,18,"T,B,L,R",1
+m1-estante-2,Estante Modulo 1,64,56,1,si,#DDA0DD,18,"T,B,L,R",1
+m1-puerta-izq,Puerta Abatible Izq 1,50,204,1,no,#FFD93D,18,"T,B,L,R",1
+m1-puerta-der,Puerta Abatible Der 1,50,204,1,no,#FFD93D,18,"T,B,R",1
 m1-tirador-puerta-izq,Tirador Puerta Izq 1,2,30,1,no,#B0BEC5,5,,1
 m1-tirador-puerta-der,Tirador Puerta Der 1,2,30,1,no,#B0BEC5,5,,1
-m1-tirador-cajon,Tirador Cajon 1,2,20,1,no,#B0BEC5,5,,1
+# --- Modulo 2: estantes y cajon (submodulo m21) ---
+m2-base,Base Modulo 2,100,95,1,si,#96CEB4,18,"T,B,L,R",2
+m2-tapa,Tapa Modulo 2,100,95,1,si,#4ECDC4,18,"T,B,L,R",2
+m2-lateral-izq,Lateral Izq Modulo 2,95,240,1,no,#FF6B6B,18,"T,B,L",2
+m2-lateral-der,Lateral Der Modulo 2,95,240,1,no,#FF6B6B,18,"T,B,R",2
+m2-fondo,Fondo Modulo 2,100,240,1,no,#F8F9FA,15,,2
 m2-zocalo,Zocalo Modulo 2,100,10,1,si,#FFEAA7,18,"T,B,L,R",2
-m2-estante-1,Estante Modulo 2,98,58,1,si,#DDA0DD,18,"T,B,L,R",2
-m2-estante-2,Estante Modulo 2,98,58,1,si,#DDA0DD,18,"T,B,L,R",2
-m2-estante-3,Estante Modulo 2,98,58,1,si,#DDA0DD,18,"T,B,L,R",2
-m2-puerta-izq,Puerta Abatible Izq 2,50,236,1,no,#FFD93D,18,"T,B,L,R",2
-m2-puerta-der,Puerta Abatible Der 2,50,236,1,no,#FFD93D,18,"T,B,L,R",2
-m2-cajon-frente,Frente Cajon 2,96,20,1,si,#A8E6CF,18,"T,B,L,R",2
-m2-cajon-lateral-izq,Lateral Cajon Izq 2,50,18,1,no,#DCEDC1,18,"T,B,L",2
-m2-cajon-lateral-der,Lateral Cajon Der 2,50,18,1,no,#DCEDC1,18,"T,B,R",1
-m2-cajon-fondo,Fondo Cajon 2,90,50,1,si,#FFF3E0,3,,2
-m2-cajon-base,Base Cajon 2,90,50,1,si,#FFCCBC,18,"T,B,L,R",2
-m2-tirador-puerta-izq,Tirador Puerta Izq 2,2,30,1,no,#B0BEC5,5,,2
-m2-tirador-puerta-der,Tirador Puerta Der 2,2,30,1,no,#B0BEC5,5,,2
-m2-tirador-cajon,Tirador Cajon 2,2,20,1,no,#B0BEC5,5,,2
+m2-estante-1,Estante Modulo 2,64,56,1,si,#DDA0DD,18,"T,B,L,R",2
+m2-estante-2,Estante Modulo 2,64,56,1,si,#DDA0DD,18,"T,B,L,R",2
+m2-estante-3,Estante Modulo 2,64,56,1,si,#DDA0DD,18,"T,B,L,R",2
+m21-frente,Frente cajon 1 M2,62,57,1,si,#A8E6CF,18,"T,B,L,R",21
+m21-lateral-izq,Lateral cajon izq M2,37,27,1,no,#DCEDC1,18,"T,B,L",21
+m21-lateral-der,Lateral cajon der M2,37,27,1,no,#DCEDC1,18,"T,B,R",21
+21-fondo,Fondo cajon M2,26,27,1,no,#FFF3E0,15,,21
+21-base,Base cajon M2,26,37,1,si,#FFCCBC,18,"T,B,L,R",21
+m21-tirador,Tirador cajon M2,2,20,1,no,#B0BEC5,5,,21
+# --- Modulo 3: tres puertas y dos cajones (submodulos m31, m32) ---
+m3-base,Base Modulo 3,100,95,1,si,#96CEB4,18,"T,B,L,R",3
+m3-tapa,Tapa Modulo 3,100,95,1,si,#4ECDC4,18,"T,B,L,R",3
+m3-lateral-izq,Lateral Izq Modulo 3,95,240,1,no,#FF6B6B,18,"T,B,L",3
+m3-lateral-der,Lateral Der Modulo 3,95,240,1,no,#FF6B6B,18,"T,B,R",3
+m3-fondo,Fondo Modulo 3,100,240,1,no,#F8F9FA,15,,3
 m3-zocalo,Zocalo Modulo 3,100,10,1,si,#FFEAA7,18,"T,B,L,R",3
-m3-estante-1,Estante Modulo 3,98,58,1,si,#DDA0DD,18,"T,B,L,R",3
-m3-estante-2,Estante Modulo 3,98,58,1,si,#DDA0DD,18,"T,B,L,R",3
-m3-estante-3,Estante Modulo 3,98,58,1,si,#DDA0DD,18,"T,B,L,R",3
-m3-puerta-1,Puerta Abatible 1 M3,50,236,1,no,#FFD93D,18,"T,B,L,R",3
-m3-puerta-2,Puerta Abatible 2 M3,50,236,1,no,#FFD93D,18,"T,B,L,R",3
-m3-puerta-3,Puerta Abatible 3 M3,50,236,1,no,#FFD93D,18,"T,B,L,R",3
-m3-cajon-frente-1,Frente Cajon 3,96,20,1,si,#A8E6CF,18,"T,B,L,R",3
-m3-cajon-frente-2,Frente Cajon 4,96,20,1,si,#A8E6CF,18,"T,B,L,R",3
+m3-puerta-1,Puerta Abatible 1 M3,32,204,1,no,#FFD93D,18,"T,B,L,R",3
+m3-puerta-2,Puerta Abatible 2 M3,32,204,1,no,#FFD93D,18,"T,B,L,R",3
+m3-puerta-3,Puerta Abatible 3 M3,32,204,1,no,#FFD93D,18,"T,B,R",3
+m31-frente,Frente cajon 1 M3,62,57,1,si,#A8E6CF,18,"T,B,L,R",31
+m31-lateral-izq,Lateral cajon izq M3,37,27,1,no,#DCEDC1,18,"T,B,L",31
+m31-lateral-der,Lateral cajon der M3,37,27,1,no,#DCEDC1,18,"T,B,R",31
+31-fondo,Fondo cajon 1 M3,26,27,1,no,#FFF3E0,15,,31
+31-base,Base cajon 1 M3,26,37,1,si,#FFCCBC,18,"T,B,L,R",31
+m31-tirador,Tirador cajon 1 M3,2,20,1,no,#B0BEC5,5,,31
+m32-frente,Frente cajon 2 M3,62,57,1,si,#A8E6CF,18,"T,B,L,R",32
+m32-lateral-izq,Lateral cajon izq M3,37,27,1,no,#DCEDC1,18,"T,B,L",32
+m32-lateral-der,Lateral cajon der M3,37,27,1,no,#DCEDC1,18,"T,B,R",32
+32-fondo,Fondo cajon 2 M3,26,27,1,no,#FFF3E0,15,,32
+32-base,Base cajon 2 M3,26,37,1,si,#FFCCBC,18,"T,B,L,R",32
+m32-tirador,Tirador cajon 2 M3,2,20,1,no,#B0BEC5,5,,32
 m3-tirador-puerta-1,Tirador Puerta 1 M3,2,30,1,no,#B0BEC5,5,,3
 m3-tirador-puerta-2,Tirador Puerta 2 M3,2,30,1,no,#B0BEC5,5,,3
 m3-tirador-puerta-3,Tirador Puerta 3 M3,2,30,1,no,#B0BEC5,5,,3
-m3-tirador-cajon-1,Tirador Cajon 3,2,20,1,no,#B0BEC5,5,,3
-m3-tirador-cajon-2,Tirador Cajon 4,2,20,1,no,#B0BEC5,5,,3
-m4-barra,Barra Colgante,200,25,1,si,#9CA3AF,25,"T,B,L,R",4
+# --- Modulo 4: barra colgante ---
+m4-base,Base Modulo 4,100,95,1,si,#96CEB4,18,"T,B,L,R",4
+m4-tapa,Tapa Modulo 4,100,95,1,si,#4ECDC4,18,"T,B,L,R",4
+m4-lateral-izq,Lateral Izq Modulo 4,95,240,1,no,#FF6B6B,18,"T,B,L",4
+m4-lateral-der,Lateral Der Modulo 4,95,240,1,no,#FF6B6B,18,"T,B,R",4
+m4-fondo,Fondo Modulo 4,100,240,1,no,#F8F9FA,15,,4
 m4-zocalo,Zocalo Modulo 4,100,10,1,si,#FFEAA7,18,"T,B,L,R",4
+m4-barra,Barra Colgante,64,25,1,si,#9CA3AF,25,"T,B,L,R",4

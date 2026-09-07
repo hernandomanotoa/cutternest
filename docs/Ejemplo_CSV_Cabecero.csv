@@ -1,26 +1,26 @@
 # CutterNest Piezas v1
 # Cabecero de cama con dos mesitas de noche integradas.
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
-glb-panel,Panel cabecero,2000,1200,1,si,#D9C2A3,30,"T,B,L,R",estructura
-m1-base,Base cabecero mesita noche,2000,300,1,si,#C19A6B,30,"T,B,L,R",m1
-m1-tapa,Tapa cabecero mesita noche,2000,300,1,si,#C19A6B,30,"T,B,L,R",m1
-m1-lateral-izq,Lateral izquierdo cabecero mesita noche,300,1200,1,no,#C19A6B,15,"T,B,L",m1
-m1-lateral-der,Lateral derecho cabecero mesita noche,300,1200,1,no,#C19A6B,15,"T,B,R",m1
-m1-fondo,Fondo cabecero mesita noche,2000,1200,1,no,#F2F2F2,15,,m1
-m1-cajon-frente,Frente cajon mesita,360,150,1,si,#8B5A2B,15,"T,B,L,R",m1
-m1-cajon-lateral-izq,Lateral cajon mesita,120,350,1,no,#D9C2A3,15,"T,B,L",m1
-m1-cajon-lateral-der,Lateral cajon mesita,120,350,1,no,#D9C2A3,15,"T,B,R",m1
-m1-cajon-fondo,Fondo cajon mesita,320,350,1,no,#F2F2F2,15,,m1
-m1-cajon-base,Base cajon mesita,320,350,1,si,#D9C2A3,15,"T,B,L,R",m1
-m1-cajon-tirador,Tirador cajon mesita,2,20,1,no,#A0A0A0,5,,m1
-m2-base,Base cabecero mesita noche,2000,300,1,si,#C19A6B,30,"T,B,L,R",m2
-m2-tapa,Tapa cabecero mesita noche,2000,300,1,si,#C19A6B,30,"T,B,L,R",m2
-m2-lateral-izq,Lateral izquierdo cabecero mesita noche,300,1200,1,no,#C19A6B,15,"T,B,L",m2
-m2-lateral-der,Lateral derecho cabecero mesita noche,300,1200,1,no,#C19A6B,15,"T,B,R",m2
-m2-fondo,Fondo cabecero mesita noche,2000,1200,1,no,#F2F2F2,15,,m2
-m2-cajon-frente,Frente cajon mesita,360,150,1,si,#8B5A2B,15,"T,B,L,R",m2
-m2-cajon-lateral-izq,Lateral cajon mesita,120,350,1,no,#D9C2A3,15,"T,B,L",m2
-m2-cajon-lateral-der,Lateral cajon mesita,120,350,1,no,#D9C2A3,15,"T,B,R",m2
-m2-cajon-fondo,Fondo cajon mesita,320,350,1,no,#F2F2F2,15,,m2
-m2-cajon-base,Base cajon mesita,320,350,1,si,#D9C2A3,15,"T,B,L,R",m2
-m2-cajon-tirador,Tirador cajon mesita,2,20,1,no,#A0A0A0,5,,m2
+glb-panel,Respaldo cabecero,2000,1200,1,si,#D9C2A3,30,"T,B,L,R",estructura
+m1-base,Base mesita noche,400,350,1,si,#C19A6B,15,"T,B,L,R",m1
+m1-tapa,Tapa mesita noche,400,350,1,si,#C19A6B,15,"T,B,L,R",m1
+m1-lateral-izq,Lateral izquierdo mesita noche,350,500,1,no,#C19A6B,15,"T,B,L",m1
+m1-lateral-der,Lateral derecho mesita noche,350,500,1,no,#C19A6B,15,"T,B,R",m1
+m1-fondo,Fondo mesita noche,400,500,1,no,#F2F2F2,15,,m1
+m11-frente,Frente cajon 1,368,147,1,si,#8B5A2B,15,"T,B,L,R",m11
+m11-lateral-izq,Lateral cajon 1,295,117,1,no,#D9C2A3,15,"T,B,L",m11
+m11-lateral-der,Lateral cajon 1,295,117,1,no,#D9C2A3,15,"T,B,R",m11
+m11-fondo,Fondo cajon 1,338,117,1,no,#F2F2F2,15,,m11
+m11-base,Base cajon 1,338,295,1,si,#D9C2A3,15,"T,B,L,R",m11
+m11-tirador,Tirador cajon 1,2,20,1,no,#A0A0A0,5,,m11
+m2-base,Base mesita noche,400,350,1,si,#D9C2A3,15,"T,B,L,R",m2
+m2-tapa,Tapa mesita noche,400,350,1,si,#D9C2A3,15,"T,B,L,R",m2
+m2-lateral-izq,Lateral izquierdo mesita noche,350,500,1,no,#D9C2A3,15,"T,B,L",m2
+m2-lateral-der,Lateral derecho mesita noche,350,500,1,no,#D9C2A3,15,"T,B,R",m2
+m2-fondo,Fondo mesita noche,400,500,1,no,#F2F2F2,15,,m2
+m21-frente,Frente cajon 1,368,147,1,si,#8B5A2B,15,"T,B,L,R",m21
+m21-lateral-izq,Lateral cajon 1,295,117,1,no,#D9C2A3,15,"T,B,L",m21
+m21-lateral-der,Lateral cajon 1,295,117,1,no,#D9C2A3,15,"T,B,R",m21
+m21-fondo,Fondo cajon 1,338,117,1,no,#F2F2F2,15,,m21
+m21-base,Base cajon 1,338,295,1,si,#D9C2A3,15,"T,B,L,R",m21
+m21-tirador,Tirador cajon 1,2,20,1,no,#A0A0A0,5,,m21
