@@ -2,28 +2,28 @@
 FROM python:3.11-bookworm
 
 # Proxy Tor SOLO en build para descargar dependencias pip
-ARG HTTP_PROXY=socks5h://172.31.0.1:9150
-ARG HTTPS_PROXY=socks5h://172.31.0.1:9150
-ARG ALL_PROXY=socks5h://172.31.0.1:9150
-ENV HTTP_PROXY=${HTTP_PROXY}
-ENV HTTPS_PROXY=${HTTPS_PROXY}
-ENV ALL_PROXY=${ALL_PROXY}
-ENV NO_PROXY=localhost,127.0.0.1
+# ARG HTTP_PROXY=socks5h://172.31.0.1:9150
+# ARG HTTPS_PROXY=socks5h://172.31.0.1:9150
+# ARG ALL_PROXY=socks5h://172.31.0.1:9150
+# ENV HTTP_PROXY=${HTTP_PROXY}
+# ENV HTTPS_PROXY=${HTTPS_PROXY}
+#ENV ALL_PROXY=${ALL_PROXY}
+# ENV NO_PROXY=localhost,127.0.0.1
 
 WORKDIR /app
 
 # Certificados corporativos (opcional: copiados en build si existen)
-COPY certs/ /tmp/certs/
-COPY scripts/install-certs.sh /tmp/install-certs.sh
-RUN bash /tmp/install-certs.sh
+# COPY certs/ /tmp/certs/
+# COPY scripts/install-certs.sh /tmp/install-certs.sh
+# RUN bash /tmp/install-certs.sh
 
 # Configurar certificados para herramientas Python (solo si se instalaron)
-ENV SSL_CERT_FILE=${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
-ENV REQUESTS_CA_BUNDLE=${REQUESTS_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}
-ENV CURL_CA_BUNDLE=${CURL_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}
+# ENV SSL_CERT_FILE=${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
+# ENV REQUESTS_CA_BUNDLE=${REQUESTS_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}
+# ENV CURL_CA_BUNDLE=${CURL_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}
 
 # Descargar e instalar PySocks localmente (via Tor) antes de activar proxy en pip
-RUN curl -fsS --max-time 60 --socks5-hostname 172.31.0.1:9150 \
+RUN curl -fsS --max-time 60 \
     -L -o /tmp/pysocks.tar.gz \
     https://files.pythonhosted.org/packages/source/P/PySocks/PySocks-1.7.1.tar.gz \
     && pip install --no-cache-dir /tmp/pysocks.tar.gz \
