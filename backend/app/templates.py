@@ -12,6 +12,7 @@ def _piece(
     espesor: float = 18.0,
     cantos: str = "",
     rotate: bool = True,
+    modulo: str = "1",
 ) -> Dict[str, Any]:
     return {
         "id": pid,
@@ -23,7 +24,14 @@ def _piece(
         "espesor": espesor,
         "cantos": cantos,
         "rotate": rotate,
+        "modulo": modulo,
     }
+
+
+# Espesor estándar de tablero en las plantillas
+ESP = 18
+# Espesor de fondo de cajón y frente de cajón (contrato ADR-0021)
+ESP_CAJON = 15
 
 
 def generate_estanteria(
@@ -31,59 +39,79 @@ def generate_estanteria(
 ) -> List[Dict[str, Any]]:
     pieces = []
     # Laterales
-    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#45B7D1", 18, "T,B,L", False))
-    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#45B7D1", 18, "T,B,R", False))
+    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#45B7D1", ESP, "T,B,L", False))
+    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#45B7D1", ESP, "T,B,R", False))
     # Base y tapa
-    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#FF6B6B", 18, "T,B,L,R", True))
-    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#4ECDC4", 18, "T,B,L,R", True))
-    # Estantes
+    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#FF6B6B", ESP, "T,B,L,R", True))
+    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#4ECDC4", ESP, "T,B,L,R", True))
+    # Estantes: encajados entre laterales y contra el fondo (interior real)
     for i in range(n_estantes):
-        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho, profundidad, 1, "#96CEB4", 18, "T,B,L,R", True))
-    # Fondo
-    pieces.append(_piece("fondo", "Fondo", ancho - 20, alto - 20, 1, "#DDA0DD", 3, "", False))
+        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho - 2 * ESP, profundidad - 3 - ESP, 1, "#96CEB4", ESP, "T,B,L,R", True))
+    # Fondo interno (encolado, decorativo)
+    pieces.append(_piece("fondo", "Fondo", ancho - 2 * ESP, alto - 2 * ESP, 1, "#DDA0DD", 3, "", False))
     return pieces
 
 
 def generate_closet(ancho: float, alto: float, profundidad: float, n_estantes: int = 3) -> List[Dict[str, Any]]:
     pieces = []
-    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#8E44AD", 18, "T,B,L", False))
-    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#8E44AD", 18, "T,B,R", False))
-    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#3498DB", 18, "T,B,L,R", True))
-    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#3498DB", 18, "T,B,L,R", True))
-    pieces.append(_piece("puerta-izq", "Puerta Izquierda", ancho / 2 - 2, alto - 20, 1, "#F1C40F", 18, "T,B,L,R", True))
-    pieces.append(_piece("puerta-der", "Puerta Derecha", ancho / 2 - 2, alto - 20, 1, "#F1C40F", 18, "T,B,L,R", True))
+    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#8E44AD", ESP, "T,B,L", False))
+    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#8E44AD", ESP, "T,B,R", False))
+    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#3498DB", ESP, "T,B,L,R", True))
+    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#3498DB", ESP, "T,B,L,R", True))
+    pieces.append(_piece("fondo", "Fondo", ancho - 2 * ESP, alto - 2 * ESP, 1, "#F2F2F2", ESP_CAJON, "", False))
+    pieces.append(_piece("puerta-izq", "Puerta Izquierda", ancho / 2 - 2, alto - 20, 1, "#F1C40F", ESP, "T,B,L,R", True))
+    pieces.append(_piece("puerta-der", "Puerta Derecha", ancho / 2 - 2, alto - 20, 1, "#F1C40F", ESP, "T,B,L,R", True))
     for i in range(n_estantes):
-        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho - 10, profundidad - 10, 1, "#2ECC71", 18, "T,B,L,R", True))
+        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho - 2 * ESP, profundidad - ESP_CAJON - ESP, 1, "#2ECC71", ESP, "T,B,L,R", True))
     return pieces
 
 
 def generate_mesa(ancho: float, alto: float, profundidad: float) -> List[Dict[str, Any]]:
     pieces = []
-    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#E67E22", 18, "T,B,L,R", True))
+    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#E67E22", ESP, "T,B,L,R", True))
     for i in range(4):
-        pieces.append(_piece(f"pata-{i+1}", f"Pata {i+1}", 70, alto - 30, 1, "#95A5A6", 18, "T,B,L,R", True))
+        # La pata queda bajo la tapa: alto total = (alto − ESP) + ESP = alto
+        pieces.append(_piece(f"pata-{i+1}", f"Pata {i+1}", 70, alto - ESP, 1, "#95A5A6", ESP, "T,B,L,R", True))
     return pieces
 
 
 def generate_cajonera(ancho: float, alto: float, profundidad: float, n_cajones: int = 3) -> List[Dict[str, Any]]:
     pieces = []
-    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#1ABC9C", 18, "T,B,L", False))
-    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#1ABC9C", 18, "T,B,R", False))
-    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#1ABC9C", 18, "T,B,L,R", True))
-    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#1ABC9C", 18, "T,B,L,R", True))
+    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#1ABC9C", ESP, "T,B,L", False))
+    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#1ABC9C", ESP, "T,B,R", False))
+    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#1ABC9C", ESP, "T,B,L,R", True))
+    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#1ABC9C", ESP, "T,B,L,R", True))
+    pieces.append(_piece("fondo", "Fondo", ancho - 2 * ESP, alto - 2 * ESP, 1, "#F2F2F2", ESP_CAJON, "", False))
+    # Cajones completos como submódulos (contrato ADR-0021)
+    interior_ancho = ancho - 2 * ESP
+    interior_prof = profundidad - ESP_CAJON - ESP
+    frente_ancho = interior_ancho - 2
+    vano_alto = (alto - 2 * ESP) / n_cajones
+    frente_alto = vano_alto - 3
+    prof_cajon = interior_prof - 25
+    caja_alto = frente_alto - 2 * ESP_CAJON
+    caja_ancho = frente_ancho - 2 * ESP_CAJON
     for i in range(n_cajones):
-        pieces.append(_piece(f"frente-{i+1}", f"Frente Cajon {i+1}", ancho - 20, alto / n_cajones - 20, 1, "#E74C3C", 18, "T,B,L,R", True))
+        sm = f"1.{i+1}"
+        frente = "superior" if i == 0 else "inferior" if i == n_cajones - 1 else f"nivel {i+1}"
+        pieces.append(_piece(f"cajon-{i+1}-frente", f"Frente cajon {frente}", frente_ancho, frente_alto, 1, "#E74C3C", ESP_CAJON, "T,B,L,R", True, sm))
+        pieces.append(_piece(f"cajon-{i+1}-lateral-izq", f"Lateral cajon {i+1} izq", prof_cajon, caja_alto, 1, "#1ABC9C", ESP_CAJON, "T,B,L", False, sm))
+        pieces.append(_piece(f"cajon-{i+1}-lateral-der", f"Lateral cajon {i+1} der", prof_cajon, caja_alto, 1, "#1ABC9C", ESP_CAJON, "T,B,R", False, sm))
+        pieces.append(_piece(f"cajon-{i+1}-fondo", f"Fondo cajon {i+1}", caja_ancho, caja_alto, 1, "#F2F2F2", ESP_CAJON, "", False, sm))
+        pieces.append(_piece(f"cajon-{i+1}-base", f"Base cajon {i+1}", caja_ancho, prof_cajon, 1, "#1ABC9C", ESP_CAJON, "T,B,L,R", True, sm))
+        pieces.append(_piece(f"cajon-{i+1}-tirador", f"Tirador cajon {i+1}", 2, 20, 1, "#A0A0A0", 5, "", False, sm))
     return pieces
 
 
 def generate_mueble_tv(ancho: float, alto: float, profundidad: float, n_estantes: int = 2) -> List[Dict[str, Any]]:
     pieces = []
-    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#34495E", 18, "T,B,L", False))
-    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#34495E", 18, "T,B,R", False))
-    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#34495E", 18, "T,B,L,R", True))
-    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#34495E", 18, "T,B,L,R", True))
+    pieces.append(_piece("lateral-izq", "Lateral Izquierdo", profundidad, alto, 1, "#34495E", ESP, "T,B,L", False))
+    pieces.append(_piece("lateral-der", "Lateral Derecho", profundidad, alto, 1, "#34495E", ESP, "T,B,R", False))
+    pieces.append(_piece("base", "Base", ancho, profundidad, 1, "#34495E", ESP, "T,B,L,R", True))
+    pieces.append(_piece("tapa", "Tapa", ancho, profundidad, 1, "#34495E", ESP, "T,B,L,R", True))
+    pieces.append(_piece("fondo", "Fondo", ancho - 2 * ESP, alto - 2 * ESP, 1, "#F2F2F2", ESP_CAJON, "", False))
     for i in range(n_estantes):
-        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho, profundidad, 1, "#7F8C8D", 18, "T,B,L,R", True))
+        pieces.append(_piece(f"estante-{i+1}", f"Estante {i+1}", ancho - 2 * ESP, profundidad - ESP_CAJON - ESP, 1, "#7F8C8D", ESP, "T,B,L,R", True))
     return pieces
 
 

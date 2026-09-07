@@ -37,3 +37,4 @@ Los ejemplos de muebles (CSVs en `docs/` y `frontend/public/assembly-planner/dat
 - Los 75 CSV de ejemplos validan en 0 errores / 0 warnings; cualquier ejemplo futuro debe pasar el mismo gate.
 - Los generadores son la fuente canónica de los CSV regenerables; los pares homónimos manuales distintos (p. ej. `ejemplo-cajonera` vs `Cajoneras_4_Modulos`) quedaron consistentes pero no unificados.
 - Ruedas, guías ocultas y bisagras de cazoleta siguen sin modelarse; si se necesitan, requieren nuevo rol en el clasificador y heurística en `hardware.js`.
+- Las 5 plantillas precargadas del backend (`backend/app/templates.py`, botón "Cargar ejemplo" del optimizador) siguen este mismo contrato desde 2026-09-07: cajones completos como submódulos (`modulo = "1.n"`), estantes ajustados al interior del módulo y fondo obligatorio; ver `backend/tests/test_templates.py`.
