@@ -87,8 +87,6 @@ def write(title, desc, pieces, filename):
 # Aparador
 m = M('aparador', 1600, 500, 800)
 m.add('glb-zocalo', 'Zocalo aparador', 4800, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
-m.add('glb-tapa', 'Tapa aparador', 1600, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
-m.add('glb-trasera', 'Panel posterior aparador', 1600, 800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 # Modulo 1: cajonera (2 cajones por fila)
 m.box('m1', 'cajonera')
 m.cajon('m1', '1', n_por_fila=2)
@@ -157,8 +155,6 @@ write('Cabecero', 'Cabecero de cama con dos mesitas de noche integradas.', m.pie
 # Recibidor lineal
 m = M('recibidor', 1200, 350, 900)
 m.add('glb-zocalo', 'Zocalo recibidor', 2400, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
-m.add('glb-tapa', 'Tapa recibidor', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
-m.add('glb-trasera', 'Panel posterior recibidor', 1200, 900, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 # Modulo 1: cajonera
 m.box('m1')
 m.cajon('m1', '1')
