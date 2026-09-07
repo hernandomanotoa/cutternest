@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPiece3D, generateVertices, CUBOID_FACES, computeModuleCenter } from './geometry.js';
+import { buildPiece3D, generateVertices, CUBOID_FACES, computeModuleCenter, computeBoundingBox } from './geometry.js';
 import { rotateVertex, projectVertex, projectVertexCentered, applyExplode, lerp } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { makeDimensionLines } from './materials.js';
@@ -85,6 +85,40 @@ describe('renderer3d/geometry', () => {
     ];
     const center = computeModuleCenter(pieces);
     assert.deepEqual(center, { x: 5, y: 10, z: 15 });
+  });
+
+  it('computeBoundingBox centers on the real scene extents (multi-module)', () => {
+    // Simula la disposición de vista completa: módulo 1 en x:[0, 800] y
+    // módulo 2 desplazado con offsetX acumulado en x:[830, 1630].
+    const geoms = [
+      { x: 0, y: 0, z: 0, w: 800, d: 550, h: 15 },
+      { x: 0, y: 0, z: 15, w: 15, d: 550, h: 2300 },
+      { x: 830, y: 0, z: 0, w: 800, d: 550, h: 15 },
+      { x: 830, y: 0, z: 15, w: 15, d: 550, h: 2300 },
+    ];
+    const bbox = computeBoundingBox(geoms);
+    assert.equal(bbox.center.x, (0 + 1630) / 2, 'center X should span all modules, not the first one');
+    assert.equal(bbox.center.y, 275);
+    assert.equal(bbox.center.z, (0 + 2315) / 2);
+    assert.equal(bbox.size.w, 1630);
+    assert.equal(bbox.size.h, 2315);
+  });
+
+  it('computeBoundingBox matches module dims for a single module starting at origin', () => {
+    const geoms = [
+      { x: 0, y: 0, z: 0, w: 800, d: 550, h: 15 },
+      { x: 785, y: 0, z: 0, w: 15, d: 550, h: 2300 },
+    ];
+    const bbox = computeBoundingBox(geoms);
+    assert.equal(bbox.center.x, 400);
+    assert.equal(bbox.center.y, 275);
+    assert.equal(bbox.center.z, 1150);
+  });
+
+  it('computeBoundingBox returns zeroed box for empty input', () => {
+    const bbox = computeBoundingBox([]);
+    assert.deepEqual(bbox.center, { x: 0, y: 0, z: 0 });
+    assert.deepEqual(bbox.size, { w: 0, d: 0, h: 0 });
   });
 });
 

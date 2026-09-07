@@ -2,7 +2,7 @@
 // Reutiliza el posicionamiento de IsometricRenderer y aplica proyección
 // orbital, explode, transparencia selectiva e interacción.
 
-import { generateVertices } from './geometry.js';
+import { generateVertices, computeBoundingBox } from './geometry.js';
 import { applyExplode, lerp, rotateVertex, projectVertexCentered } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
@@ -93,11 +93,6 @@ export class Renderer3D {
     this.moduleH = moduleH;
     this.thickness = thickness;
     this.moduleLabel = moduleLabel;
-    this.moduleCenter = {
-      x: moduleW / 2,
-      y: moduleD / 2,
-      z: moduleH / 2,
-    };
     // Distancia focal para proyección en perspectiva (~2.5× la dimensión mayor)
     this.perspDistance = Math.max(moduleW, moduleD, moduleH, 1) * 2.5;
 
@@ -117,6 +112,12 @@ export class Renderer3D {
         assemblyLevel: this.assemblyLevels.get(g.id) ?? null,
       };
     });
+
+    // Centro de rotación/explode = centro de la caja envolvente real de todas
+    // las geometrías visibles. En vista completa ('all') los módulos se
+    // desplazan en X (offsetX acumulado en computeGeometries) y moduleW/2
+    // quedaría sobre el primer módulo en vez del centro global de la escena.
+    this.moduleCenter = computeBoundingBox(this.geometries).center;
 
     this.needsRender = true;
     this._fitCameraToModule();

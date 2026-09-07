@@ -117,6 +117,37 @@ describe('Renderer3D integration', () => {
     assert.equal(renderer.moduleCenter.z, renderer.moduleH / 2, 'center Z should be half module height');
   });
 
+  it('centers rotation on the bounding box of ALL modules in full view (all)', () => {
+    const module2Pieces = basePieces.map((p) => ({
+      ...p,
+      id: p.id.replace('m1', 'm2'),
+      nombre: p.nombre.replace('M1', 'M2'),
+      modulo: '2',
+    }));
+    const allPieces = [...basePieces, ...module2Pieces];
+
+    const container = createContainer();
+    const renderer = new Renderer3D(container, { width: 900, height: 600 });
+    renderer.load('all', allPieces);
+
+    // Las geometrías deben estar desplazadas lado a lado (offsetX acumulado).
+    let minX = Infinity;
+    let maxX = -Infinity;
+    renderer.geometries.forEach((g) => {
+      minX = Math.min(minX, g.x);
+      maxX = Math.max(maxX, g.x + g.w);
+    });
+    assert.ok(maxX > 800, 'second module should be offset beyond the first module width');
+
+    // El pivot de rotación debe ser el centro de la caja envolvente global,
+    // no el centro del primer módulo (moduleW/2).
+    assert.equal(renderer.moduleCenter.x, (minX + maxX) / 2, 'center X should be the bbox center of all modules');
+    assert.ok(
+      renderer.moduleCenter.x > renderer.moduleW / 2,
+      'rotation center must not sit on the first module'
+    );
+  });
+
   it('applies explode centered around module center', () => {
     rafCallbacks = [];
     const container = createContainer();
