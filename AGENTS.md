@@ -75,6 +75,8 @@ El Assembly Planner se organiza por capas con responsabilidades definidas. Cuand
 
 **Regla de oro**: si una función no necesita DOM, no debe vivir en una vista; si una función no necesita SVG, no debe vivir en un renderizador; si una función no necesita conocer el estado global, no debe vivir en `app.js`.
 
+**Validación de ejemplos**: todo CSV de ejemplo (`data/ejemplo-*.csv` o `docs/Ejemplo_CSV_*.csv`) debe pasar `node frontend/public/assembly-planner/test/validate-examples.mjs` con 0 errores, 0 warnings y 0 piezas con rol genérico `panel`. Los CSVs regenerables se editan en `scripts/generar-ejemplos-catalogo.py` y `scripts/generar-ejemplos-assembly.mjs` (su helper `cajon()` calcula la geometría coherente con el vano del módulo padre); ver ADR-0021 para el contrato completo.
+
 ## 3. Convenciones de código
 
 ### General
@@ -150,7 +152,7 @@ docker compose -f docker-compose.yml -f docker-compose.fase2.yml -f docker-compo
 - Base de datos MVP: SQLite `./data/cutternest.db` (dentro del contenedor `/app/data/cutternest.db`).
 - Usuario administrador: se crea en el primer registro si no existe otro, o vía variable `ADMIN_USERNAME` en `.env` (default `admin`).
 - Idioma: Español. Todos los labels, mensajes de error y PDFs en español.
-- Ejemplo pre-cargado: botón "Cargar ejemplo: Estantería Modular" con 11 piezas en tablero 2440×1220 mm.
+- Ejemplo pre-cargado: botón "Cargar ejemplo: Estantería Modular" con 9 piezas por defecto (2 laterales + base + tapa + 4 estantes + fondo) en tablero 2440×1220 mm.
 
 ## 7. Modos de trabajo, subagentes y ahorro de tokens
 
