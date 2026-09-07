@@ -45,7 +45,7 @@ export function inferRole(piece) {
 
   if (n.includes('montante') || n.includes('poste')) return 'side_panel';
 
-  if (n.includes('estante') || n.includes('repisa') || n.includes('zapatero') || n.includes('zapatera')) return 'shelf';
+  if (n.includes('estante') || n.includes('repisa') || n.includes('entrepano') || n.includes('zapatero') || n.includes('zapatera')) return 'shelf';
 
   if (n.includes('tablero') || n.includes('superficie')) return 'top_panel';
   if (n.includes('respald') || n.includes('respaldo')) return 'back_panel';

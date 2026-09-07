@@ -342,25 +342,28 @@ function classifyPiece(piece, allPieces, warnings) {
   }
 
   // Pandeo en repisas/estantes: la luz es el vano entre apoyos (ancho de la pieza).
+  // Se usa el rol clasificado (inferRole) en lugar de substrings del nombre para
+  // evitar falsos positivos con nombres como "Fondo estanteria" o "Zocalo estanteria".
   const luz = piece.ancho;
   const conSoporte = hasSoporteEnModulo();
-  if ((name.includes('repisa') || name.includes('estante')) && luz > 800 && piece.espesor <= 15) {
+  const esShelf = inferRole(piece) === 'shelf';
+  if (esShelf && luz > 800 && piece.espesor <= 15) {
     if (conSoporte) {
       piece.riesgo = 'medio';
     } else {
       piece.riesgo = 'critico';
       warnings.push(`CRÍTICO: "${piece.nombre}" (luz ${luz} mm, espesor ${piece.espesor} mm) requiere soporte central o divisor.`);
     }
-  } else if ((name.includes('repisa') || name.includes('estante')) && luz >= 600 && luz <= 800 && piece.espesor <= 15) {
+  } else if (esShelf && luz >= 600 && luz <= 800 && piece.espesor <= 15) {
     if (conSoporte) {
       piece.riesgo = 'medio';
     } else {
       piece.riesgo = 'alto';
       warnings.push(`ALTO: "${piece.nombre}" (luz ${luz} mm) recomienda soporte intermedio.`);
     }
-  } else if ((name.includes('repisa') || name.includes('estante')) && luz >= 400 && luz < 600 && piece.espesor === 15) {
+  } else if (esShelf && luz >= 400 && luz < 600 && piece.espesor === 15) {
     piece.riesgo = 'medio';
-  } else if ((name.includes('repisa') || name.includes('estante')) && luz < 400) {
+  } else if (esShelf && luz < 400) {
     piece.riesgo = 'bajo';
   }
 }

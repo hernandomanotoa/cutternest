@@ -15,8 +15,27 @@ export function calculateHardware(piezas, dependencies) {
   const herrajes = [];
   const structural = dependencies.filter((d) => d.type === 'estructural').length;
   const fondos = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('fondo'));
-  const repisas = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('repisa') || p.nombre.toLowerCase().includes('estante'));
+  const repisas = uniquePieces(piezas, (p) => {
+    const n = p.nombre.toLowerCase();
+    return n.includes('repisa') || n.includes('estante') || n.includes('entrepano') || n.includes('entrepaño');
+  });
   const cajones = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('cajon'));
+  // Frentes identificables: permiten contar cajones reales (1 frente = 1 cajón)
+  // y detectar mecanismos especiales (volquete/abatible) por nombre.
+  const frentesCajon = cajones.filter((p) => {
+    const n = p.nombre.toLowerCase();
+    return n.includes('frente') || n.includes('frontal');
+  });
+  const esVolquete = (p) => {
+    const n = p.nombre.toLowerCase();
+    return n.includes('abatible') || n.includes('volquete');
+  };
+  const cajonesCorredera = (frentesCajon.length > 0 ? frentesCajon : cajones).filter((p) => !esVolquete(p));
+  const cajonesVolquete = (frentesCajon.length > 0 ? frentesCajon : []).filter(esVolquete);
+  const tiradoresCajon = uniquePieces(
+    piezas,
+    (p) => p.nombre.toLowerCase().includes('tirador') && p.nombre.toLowerCase().includes('cajon'),
+  );
   const barras = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('barra'));
   const modulos = new Set(piezas.map((p) => p.modulo)).size || 1;
   const puertas = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('puerta'));
@@ -54,15 +73,36 @@ export function calculateHardware(piezas, dependencies) {
     });
   }
 
-  // Correderas
-  if (cajones.length > 0) {
-    const pares = Math.ceil(cajones.length / 2);
+  // Correderas (1 par por cajón estándar; los volquetes usan bisagras abatibles)
+  if (cajonesCorredera.length > 0) {
     herrajes.push({
       nombre: 'Correderas telescópicas',
-      cantidad: pares,
-      especificacion: '450 mm, cierre suave (CONFIRMAR ANTES DE CORTAR)',
+      cantidad: cajonesCorredera.length,
+      especificacion: 'Par por cajón, 450 mm, cierre suave (CONFIRMAR ANTES DE CORTAR)',
       prioridad: 'Media',
       bloqueante: true,
+    });
+  }
+
+  // Zapateras volquete: cajones abatibles que pivotan hacia adelante
+  if (cajonesVolquete.length > 0) {
+    herrajes.push({
+      nombre: 'Bisagras abatibles para zapatera volquete',
+      cantidad: cajonesVolquete.length * 2,
+      especificacion: 'Juego con soporte abatible, verificar radio de giro (CONFIRMAR ANTES DE CORTAR)',
+      prioridad: 'Alta',
+      bloqueante: true,
+    });
+  }
+
+  // Tiradores de cajón (piezas explícitas "Tirador cajon")
+  if (tiradoresCajon.length > 0) {
+    herrajes.push({
+      nombre: 'Tiradores',
+      cantidad: tiradoresCajon.length,
+      especificacion: 'A elección estética (cajones)',
+      prioridad: 'Media',
+      bloqueante: false,
     });
   }
 

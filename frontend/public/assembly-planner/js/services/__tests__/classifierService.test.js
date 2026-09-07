@@ -40,6 +40,11 @@ describe('inferRole', () => {
     assert.equal(inferRole(piece('Estante regulable', { ancho: 829, alto: 550 })), 'shelf');
   });
 
+  it('detects entrepaños as shelves', () => {
+    assert.equal(inferRole(piece('Entrepaño botellero 1', { ancho: 350, alto: 300 })), 'shelf');
+    assert.equal(inferRole(piece('Entrepano botellero 2', { ancho: 350, alto: 300 })), 'shelf');
+  });
+
   it('falls back to shape heuristics', () => {
     assert.equal(inferRole(piece('Tabla', { ancho: 1200, alto: 100 })), 'shelf');
     assert.equal(inferRole(piece('Tabla', { ancho: 100, alto: 1200 })), 'side_panel');
