@@ -59,7 +59,7 @@ Guía orientativa para agentes que trabajan en `/workspace/cutternest-kit`. Ante
 - **Histórico de sprints**: `.devhive/sprints/archive/` es cold; no se carga por defecto.
 - **Skills y memoria por agente**: `.agents/` contiene subdirectorios por rol (`backend-agent`, `frontend-agent`, `db-agent`, `test-agent`, etc.), cada uno con `SKILL.md` y carpeta `memory/`.
 - **Auditoría de tokens**: usa `scripts/audit-context-tokens.mjs` si existe para verificar presupuestos; en CutterNest el script puede no existir aún en MVP.
-- **Reindexar MCP**: si un agente toca archivos fuente en un componente, el Guardian debe coordinar la re-indexación del proyecto en `codebase-memory-mcp` antes de cerrar el swarm.
+- **Reindexar MCP**: si un agente toca archivos fuente en un componente, el Guardian debe coordinar la re-indexación del proyecto en `codebase-memory-mcp` antes de cerrar el swarm. Si el MCP no responde, revisar primero la salud del contenedor Docker `codebase-memory-mcp` (recuperación: `.agents/skills/mcp-query.md`); Kimi Code conecta los MCP stdio solo al iniciar sesión, así que tras recuperar el contenedor hace falta una sesión nueva para verlo conectado (`/mcp`).
 - Antes de realizar cambios amplios, consulta estos archivos para entender decisiones previas y contexto activo.
 
 ### Componentes del Assembly Planner (`frontend/public/assembly-planner/`)

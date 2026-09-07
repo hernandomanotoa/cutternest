@@ -4,6 +4,7 @@
 
 - Leer `.devhive/project-brief.md`, `.devhive/conventions.md` (índice), y el archivo L1b correspondiente antes de actuar.
 - Antes de modificar un servicio, consultar al `knowledge-graph-agent` vía MCP para entender impacto en dependencias y flujos de datos (`.agents/knowledge-graph-agent/memory/queries.md` contiene recetas MCP hot; `.agents/knowledge-graph-agent/memory/queries.cold.md` se usa bajo demanda).
+- **Salud del MCP** (ajuste 2026-09-06): si el MCP no responde, verificar primero el contenedor `codebase-memory-mcp` (crash-loop = "CBM daemon could not start within 30000 ms" → reconectar red `kimi-code_sipe-net` + restart; procedimiento en `.agents/skills/mcp-query.md` y `.kimi-memory.md`). Kimi Code conecta los MCP stdio solo al iniciar sesión: una sesión abierta mientras el contenedor estaba caído no lo verá conectado hasta abrir una sesión nueva (comprobar con `/mcp`).
 
 ## Registro de nodos y cambios
 

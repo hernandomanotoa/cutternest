@@ -54,6 +54,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 1. **Lockfile frontend**: el build de producción funciona en Docker con `pnpm install --no-lockfile`, pero no existe `pnpm-lock.yaml`. Intento 2026-09-02 en el entorno de desarrollo falló: sin acceso a `registry.npmjs.org` (offline). Debe generarse en un host con red: `cd frontend && pnpm install` y commitear el lockfile.
 2. **Validación visual del renderizador 3D orbital**: implementación y tests unitarios listos, pero falta validación manual en navegador por no disponer de headless browser en el entorno actual.
+3. **MCP codebase-memory — RESUELTO 2026-09-06**: el contenedor quedó en crash-loop por endpoint de red huérfano; se reconectó a `kimi-code_sipe-net` y se endureció el wrapper (`mcp-codebase-memory.sh`, espera de daemon hasta 120 s). Procedimiento de recuperación en `.kimi-memory.md` (sección Infra / MCP). `mcp.json` es read-only desde el agente; el re-apuntado al wrapper requiere edición en el host.
 
 ## Decisiones recientes del sprint
 
