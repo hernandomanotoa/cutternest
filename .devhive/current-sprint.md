@@ -41,6 +41,10 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A28 | Offsets verticales por tipo de pieza | Guardian | ✅ Completado | `shelfMiddleGap`, `shoeRackBottomOffset`, `shoeRackGap` en config, lógica y UI. 120 tests OK. |
 | A29 | Renderizador 3D SVG orbital | assembly-planner-agent | ✅ Completado | `js/renderer3d/`, `views/renderer3DView.js`, pestaña 3D en `index.html`. 240 tests OK. Validación visual en navegador pendiente por falta de headless browser. |
 | A30 | Mejoras 3D: explode lines, orto↔perspectiva, BOM↔3D, section planes + hatch, modo paso (secuencia física: repisa→divisor, fondo pre-tapa, fondo corrido por eje), instrucción por paso + play, ghosting | Guardian | ✅ Completado | T1–T13 en `docs/PLAN_MEJORAS_3D_2026-09-02.md`. 290 tests OK. El ciclo del grafo Kahn del módulo 6 (zapatero universal) ya no se reproduce: `detectCycle = null`. |
+| A31 | Apertura interactiva de puertas (bisagra/corrediza), cajones y zapateras (riel) | Guardian | ✅ Completado | Servicio puro `motionService.js` (hinge/slide/rail), integración en isométrico y 3D, slider 0–100% global y por pieza, doble-click toggle. ADR-0022. 372 tests OK. |
+| A32 | Volquete pivotante + apertura completa | Guardian | ✅ Completado | Zapatera volquete como hinge side `inf` (trampilla −105°); extracción total de cajones (factor riel 1.0, Δy = apertura·(prof+20)). 372 tests OK. |
+| A33 | Ejemplo Zapatera Repisa Riel | Guardian | ✅ Completado | Ejemplo 19: 6 bandejas extraíbles con frentes/laterales/bases bajas; CSV en `docs/` y `data/`; opción en selector. 377 tests OK. |
+| A34 | Geometría real de piezas de cajón | Guardian | ✅ Completado | Servicio puro `drawerGeometryService.js` empareja laterales/base/fondo con su frente; caja real anclada al frente con medidas del CSV; fallback sintético si faltan piezas. 382 tests OK. |
 
 ## Leyenda estados
 
