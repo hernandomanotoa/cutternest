@@ -953,15 +953,28 @@ export class IsometricRenderer {
         const x = (moduleW - w) / 2;
         const drawerDepth = Math.max(0, moduleD - 2 * thickness - 10);
         const yFace = moduleD - thickness + this.drawerGap;
-        // Apertura del cajón: se toma del frente (override por pieza o global)
-        // y aplica a TODO el grupo (frente, laterales, base, fondo y tirador)
-        // como traslación en +y (rail), para que la caja salga coordinada con
-        // el mismo Δy (movimiento rígido, derivado del frente).
+        // Apertura del cajón: se toma del frente (override por pieza o global).
+        // - Rail (cajón/zapatera): traslación +y con el MISMO Δy para todo el
+        //   grupo (movimiento rígido derivado del frente).
+        // - Hinge inf (volquete/abatible): rotación rígida del grupo entero
+        //   alrededor de la bisagra inferior-frontal del frente (pivot
+        //   absoluto en coords de mundo; pivot.y = cara frontal).
         const drawerOpen = opennessFor(d.face.id, this.aperturas, this._aperturaEfectivaGlobal());
-        const railCfg = { kind: 'rail', side: null };
-        const railBase = { x: 0, y: yFace, z: currentZ, w, d: thickness, h };
-        const railDy = applyApertureToGeo(railBase, railCfg, drawerOpen).y - railBase.y;
-        const rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
+        const faceCfg = motionConfigFor(d.face);
+        let rail;
+        if (faceCfg && faceCfg.kind === 'hinge') {
+          const faceBase = { x, y: yFace, z: currentZ, w, d: thickness, h };
+          const moved = applyApertureToGeo(faceBase, faceCfg, drawerOpen);
+          const rotation = moved.rotation
+            ? { ...moved.rotation, pivot: { ...moved.rotation.pivot, y: yFace + thickness } }
+            : null;
+          rail = (geo) => (rotation ? { ...geo, rotation } : geo);
+        } else {
+          const railCfg = { kind: 'rail', side: null };
+          const railBase = { x: 0, y: yFace, z: currentZ, w, d: thickness, h };
+          const railDy = applyApertureToGeo(railBase, railCfg, drawerOpen).y - railBase.y;
+          rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
+        }
 
         // Frente del cajón
         geometries.push(rail({

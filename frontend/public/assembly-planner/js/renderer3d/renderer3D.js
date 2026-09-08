@@ -40,6 +40,7 @@ export class Renderer3D {
     this.selectedId = null;
     this.hoveredId = null;
     this.onPieceSelect = options.onPieceSelect || null;
+    this.onPieceDoubleClick = options.onPieceDoubleClick || null;
 
     // Plano de sección: { axis: 'x'|'y'|'z', value: mm } | null
     this.section = null;
@@ -79,6 +80,9 @@ export class Renderer3D {
         this.selectedId = this.selectedId === id ? null : id;
         this.needsRender = true;
         if (this.onPieceSelect) this.onPieceSelect(this.selectedId);
+      },
+      onDoubleClick: (id) => {
+        if (this.onPieceDoubleClick) this.onPieceDoubleClick(id);
       },
     });
   }

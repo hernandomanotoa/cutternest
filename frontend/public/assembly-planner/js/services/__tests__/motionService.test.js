@@ -8,6 +8,7 @@ import {
   boxCorners,
   rotateCorners,
   opennessFor,
+  decideAperturaToggle,
 } from '../../services/motionService.js';
 
 const piece = (id, nombre, overrides = {}) => ({
@@ -97,16 +98,36 @@ describe('applyApertureToGeo', () => {
     assert.deepEqual(der.rotation.pivot, { x: GEO.x + GEO.w });
   });
 
-  it('hinge trampilla: pivot en z y ángulo según sup/inf', () => {
+  it('hinge trampilla: pivot en z y ángulo según sup/inf (apertura hacia +y)', () => {
     const sup = applyApertureToGeo(GEO, { kind: 'hinge', side: 'sup' }, 1);
     assert.equal(sup.rotation.axis, 'x');
-    assert.equal(sup.rotation.angleDeg, -105);
+    assert.equal(sup.rotation.angleDeg, 105);
     assert.deepEqual(sup.rotation.pivot, { z: GEO.z + GEO.h });
 
     const inf = applyApertureToGeo(GEO, { kind: 'hinge', side: 'inf' }, 1);
     assert.equal(inf.rotation.axis, 'x');
-    assert.equal(inf.rotation.angleDeg, 105);
+    assert.equal(inf.rotation.angleDeg, -105);
     assert.deepEqual(inf.rotation.pivot, { z: GEO.z });
+  });
+
+  it('hinge inferior (volquete): el lado libre bascula hacia +y y baja de z', () => {
+    const out = applyApertureToGeo(GEO, { kind: 'hinge', side: 'inf' }, 1);
+    // Esquina superior-frontal (x, y+d, z+h): debe avanzar en +y y quedar
+    // por debajo del pivote (bascular hacia adelante-abajo).
+    const rotated = rotateCorners(boxCorners(GEO), out.rotation);
+    const topFront = rotated[7]; // (x, y+d, z+h)
+    assert.ok(topFront.y > GEO.y + GEO.d, `top edge should swing +y, got ${topFront.y}`);
+    assert.ok(topFront.z < GEO.z, `top edge should drop below pivot z, got ${topFront.z}`);
+  });
+
+  it('volquete/abatible: config hinge inf para toda la familia del cajón', () => {
+    assert.deepEqual(motionConfigFor(piece('v1', 'Frente cajon abatible 1')), { kind: 'hinge', side: 'inf' });
+    assert.deepEqual(motionConfigFor(piece('v2', 'Lateral cajon abatible 1')), { kind: 'hinge', side: 'inf' });
+    assert.deepEqual(motionConfigFor(piece('v3', 'Fondo cajon abatible 1')), { kind: 'hinge', side: 'inf' });
+    assert.deepEqual(motionConfigFor(piece('v4', 'Tirador cajon abatible 1')), { kind: 'hinge', side: 'inf' });
+    // cajón corriente sigue en rail
+    assert.deepEqual(motionConfigFor(piece('c1', 'Frente cajon 1')), { kind: 'rail', side: null });
+    assert.deepEqual(motionConfigFor(piece('t1', 'Tirador cajon 1')), { kind: 'rail', side: null });
   });
 
   it('no muta el geo original y openness 0 devuelve copia sin rotation', () => {
@@ -193,5 +214,18 @@ describe('opennessFor', () => {
     assert.equal(opennessFor('p1', undefined, undefined), 0);
     assert.equal(opennessFor('p1', null, null), 0);
     assert.equal(opennessFor('p1', {}, 0), 0);
+  });
+});
+
+describe('decideAperturaToggle (doble-click)', () => {
+  it('cualquier valor no abierto va a 1 (0, intermedio o sin override)', () => {
+    assert.equal(decideAperturaToggle(undefined), 1);
+    assert.equal(decideAperturaToggle(null), 1);
+    assert.equal(decideAperturaToggle(0), 1);
+    assert.equal(decideAperturaToggle(0.4), 1);
+  });
+
+  it('override ya en 1 cierra (0)', () => {
+    assert.equal(decideAperturaToggle(1), 0);
   });
 });

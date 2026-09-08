@@ -1,11 +1,12 @@
 // js/renderer3d/interaction.js — Hover, click, tooltip y selección
 
 import { escapeHtml } from '../utils.js';
+import { motionConfigFor } from '../services/motionService.js';
 
 /**
  * Crea un sistema de interacción sobre el contenedor SVG.
  * @param {HTMLElement} container
- * @param {Object} callbacks { onHover(id), onSelect(id) }
+ * @param {Object} callbacks { onHover(id), onSelect(id), onDoubleClick(id) }
  */
 export function createInteraction(container, callbacks = {}) {
   let tooltip = null;
@@ -37,12 +38,17 @@ export function createInteraction(container, callbacks = {}) {
   function showTooltip(piece, event) {
     const el = ensureTooltip();
     const cantos = piece.cantos?.length ? piece.cantos.join(',') : 'Sin canto';
+    const movable = motionConfigFor({ id: piece.id || '', nombre: piece.name || '' });
+    const hint = movable
+      ? '<div class="r3d-tooltip__meta">Doble-click: abrir/cerrar</div>'
+      : '';
     el.innerHTML = `
       <div class="r3d-tooltip__name">${escapeHtml(piece.name || piece.id)}</div>
       <div class="r3d-tooltip__dims">${Number(piece.w).toFixed(0)} × ${Number(piece.d).toFixed(0)} × ${Number(piece.h).toFixed(0)} mm</div>
       <div class="r3d-tooltip__meta">Cantos: ${escapeHtml(cantos)}</div>
       <div class="r3d-tooltip__meta">Módulo: ${escapeHtml(piece.modulo)} · Cantidad: ${piece.cantidad}</div>
       <div class="r3d-tooltip__meta">Color: ${escapeHtml(piece.color)} · Material: ${escapeHtml(piece.role)}</div>
+      ${hint}
     `;
     el.style.display = 'block';
     positionTooltip(event.clientX, event.clientY);
@@ -106,6 +112,14 @@ export function createInteraction(container, callbacks = {}) {
     }
   }
 
+  function handleDoubleClick(e) {
+    const target = e.target.closest('polygon[data-piece-id]');
+    const data = getPieceData(target);
+    if (data) {
+      callbacks.onDoubleClick?.(data.id);
+    }
+  }
+
   function handleMouseLeave() {
     currentHoverId = null;
     callbacks.onHover?.(null);
@@ -114,12 +128,14 @@ export function createInteraction(container, callbacks = {}) {
 
   container.addEventListener('mousemove', handleMouseMove);
   container.addEventListener('click', handleClick);
+  container.addEventListener('dblclick', handleDoubleClick);
   container.addEventListener('mouseleave', handleMouseLeave);
 
   return {
     destroy() {
       container.removeEventListener('mousemove', handleMouseMove);
       container.removeEventListener('click', handleClick);
+      container.removeEventListener('dblclick', handleDoubleClick);
       container.removeEventListener('mouseleave', handleMouseLeave);
       if (tooltip && tooltip.parentNode) tooltip.parentNode.removeChild(tooltip);
     },

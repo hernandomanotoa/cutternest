@@ -36,6 +36,9 @@ export function motionConfigFor(piece) {
   // mueve. Se evalúa antes que 'door' porque inferRole clasifica "Tirador
   // puerta" como puerta por contener la palabra 'puerta'.
   if (role === 'handle' || n.includes('tirador')) {
+    if (n.includes('abatible') || n.includes('volquete')) {
+      return { kind: 'hinge', side: 'inf' };
+    }
     if (n.includes('cajon') || n.includes('zapatera') || n.includes('zapatero')) {
       return { kind: 'rail', side: null };
     }
@@ -53,6 +56,12 @@ export function motionConfigFor(piece) {
 
   if (role === 'drawer_face' || role === 'drawer_side' || role === 'drawer_bottom' ||
       role === 'drawer_back' || role === 'drawer_part') {
+    // Volquete/abatible: pivota hacia adelante sobre bisagras inferiores,
+    // no se desliza. Toda la familia (frente, lados, fondo, tirador) hereda
+    // la misma config para rotar en conjunto.
+    if (text.includes('abatible') || text.includes('volquete')) {
+      return { kind: 'hinge', side: 'inf' };
+    }
     return { kind: 'rail', side: null };
   }
 
@@ -87,9 +96,12 @@ export function applyApertureToGeo(geo, config, openness) {
         pivot: { x: config.side === 'izq' ? geo.x : geo.x + geo.w },
       };
     } else {
+      // Trampilla (eje x): el lado libre bascula hacia +y (frente del
+      // mueble) en ambos casos: 'inf' (bisagra abajo, libre arriba) abre con
+      // ángulo negativo; 'sup' (bisagra arriba, libre abajo) con positivo.
       rotation = {
         axis: 'x',
-        angleDeg: (config.side === 'sup' ? -1 : 1) * t * APERTURE_DEG,
+        angleDeg: (config.side === 'sup' ? 1 : -1) * t * APERTURE_DEG,
         pivot: { z: config.side === 'sup' ? geo.z + geo.h : geo.z },
       };
     }
@@ -122,8 +134,9 @@ export function boxCorners(geo) {
  * - axis 'z': rotación en plano x-y alrededor de la vertical que pasa por
  *   pivot.x (y pivot.y si se da; por defecto 0).
  * - axis 'x': rotación en plano y-z alrededor de la línea a lo ancho que pasa
- *   por pivot.z (y pivot.y si se da; por defecto 0).
- * Ángulo positivo: hacia +y en ambos ejes.
+ *   por pivot.z (y pivot.y si se da; por defecto 0). Un punto por encima del
+ *   pivote (dz>0) se mueve hacia −y con ángulo positivo y hacia +y con
+ *   ángulo negativo; por debajo del pivote ocurre lo contrario.
  */
 export function rotateCorners(corners, rotation) {
   if (!rotation) return corners.map((c) => ({ ...c }));
@@ -158,4 +171,13 @@ export function rotateCorners(corners, rotation) {
  */
 export function opennessFor(pieceId, aperturas, aperturaGlobal) {
   return aperturas?.[pieceId] ?? aperturaGlobal ?? 0;
+}
+
+/**
+ * Decide el toggle de apertura por pieza (doble-click): cualquier valor que
+ * no sea "abierto" (override intermedio, 0 o sin override) va a 1; solo un
+ * override ya en 1 cierra (0).
+ */
+export function decideAperturaToggle(valorActual) {
+  return Number(valorActual) >= 1 ? 0 : 1;
 }

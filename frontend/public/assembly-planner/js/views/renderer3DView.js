@@ -2,7 +2,7 @@
 
 import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
-import { motionConfigFor } from '../services/motionService.js';
+import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
@@ -246,6 +246,17 @@ export function createRenderer3DView(store) {
         selectedPieceId = id;
         syncBomSelection(id);
         updatePieceAperturaUI(id);
+      },
+      onPieceDoubleClick: (id) => {
+        const piece = lastPieces ? lastPieces.find((p) => p.id === id) : null;
+        if (!piece || !motionConfigFor(piece)) return;
+        // Seleccionar y alternar override 0↔1 (intermedio → 1).
+        renderer.setSelectedId(id);
+        selectedPieceId = id;
+        syncBomSelection(id);
+        updatePieceAperturaUI(id);
+        const actual = store.get().aperturas?.[id];
+        setAperturaPieza(id, decideAperturaToggle(actual));
       },
     });
     renderer.load(targetModule, state.pieces);

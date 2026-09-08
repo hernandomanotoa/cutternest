@@ -851,3 +851,60 @@ describe('IsometricRenderer orden de pintado con rotation', () => {
     assert.deepEqual(sorted.map((g) => g.id), ['a', 'b']);
   });
 });
+
+describe('IsometricRenderer volquete (apertura pivotante)', () => {
+  const cabinetBase = [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  ];
+  const volquetePieces = [
+    ...cabinetBase,
+    { id: 'm1-volq-1', nombre: 'Frente cajon abatible 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-volq-1-tir', nombre: 'Tirador cajon abatible 1', ancho: 30, alto: 20, cantidad: 1, rotate: 'no', color: '#E2E8F0', espesor: 10, modulo: '1' },
+  ];
+  const GROUP_IDS = ['m1-volq-1', 'm1-volq-1-side', 'm1-volq-1-side2', 'm1-volq-1-bottom', 'm1-volq-1-back', 'm1-volq-1-tir'];
+
+  it('frente volquete apertura 1: rotation eje x, pivot inferior, ángulo ~105°', async () => {
+    const { motionConfigFor } = await import('./services/motionService.js');
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const { geometries } = renderer.computeGeometries('1', volquetePieces);
+    const face = geometries.find((g) => g.id === 'm1-volq-1');
+    assert.ok(face, 'volquete front should exist');
+    assert.equal(motionConfigFor(volquetePieces.find((p) => p.id === 'm1-volq-1')).kind, 'hinge');
+    assert.ok(face.rotation, 'volquete front should rotate, not slide');
+    assert.equal(face.rotation.axis, 'x');
+    assert.ok(Math.abs(face.rotation.angleDeg - -105) < 1e-9, `angle -105°, got ${face.rotation.angleDeg}`);
+    assert.equal(face.rotation.pivot.z, face.z, 'pivot.z at bottom edge of the front');
+    assert.ok(Math.abs(face.rotation.pivot.y - (face.y + face.d)) < 1e-9, 'pivot.y at front face');
+  });
+
+  it('todo el grupo comparte la misma rotation (rígida) y NO traslada en y', () => {
+    const closed = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const closedGeos = closed.computeGeometries('1', volquetePieces).geometries;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const geos = renderer.computeGeometries('1', volquetePieces).geometries;
+    const face = geos.find((g) => g.id === 'm1-volq-1');
+    GROUP_IDS.forEach((id) => {
+      const open = geos.find((g) => g.id === id);
+      const shut = closedGeos.find((g) => g.id === id);
+      assert.ok(open && shut, `geometry ${id} should exist`);
+      assert.deepEqual(open.rotation, face.rotation, `${id} should share the front rotation`);
+      // Rotación rígida: la caja x/y/z no se traslada (rail sí lo haría)
+      assert.equal(open.y, shut.y, `${id} should not translate in y`);
+      assert.equal(open.x, shut.x, `${id} should not translate in x`);
+    });
+  });
+
+  it('las esquinas rotadas del frente basculan hacia +y/−z (apertura real)', async () => {
+    const { boxCorners, rotateCorners } = await import('./services/motionService.js');
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const { geometries } = renderer.computeGeometries('1', volquetePieces);
+    const face = geometries.find((g) => g.id === 'm1-volq-1');
+    const rotated = rotateCorners(boxCorners(face), face.rotation);
+    const topFront = rotated[7]; // (x, y+d, z+h)
+    assert.ok(topFront.y > face.y + face.d, `top edge should swing +y, got ${topFront.y}`);
+    assert.ok(topFront.z < face.z, `top edge should drop below pivot, got ${topFront.z}`);
+  });
+});
