@@ -337,6 +337,24 @@ export function setAperturaPieza(pieceId, valor) {
   store.setField('aperturas', aperturas);
 }
 
+export function setAnguloPieza(pieceId, grados) {
+  const store = getStore();
+  const state = store.get();
+  const n = Number(grados);
+  if (!Number.isFinite(n)) return;
+  const angulos = { ...state.angulos, [pieceId]: Math.min(120, Math.max(0, Math.abs(n))) };
+  store.setField('angulos', angulos);
+}
+
+export function clearAnguloPieza(pieceId) {
+  const store = getStore();
+  const state = store.get();
+  if (!(pieceId in (state.angulos || {}))) return;
+  const angulos = { ...state.angulos };
+  delete angulos[pieceId];
+  store.setField('angulos', angulos);
+}
+
 export function updatePieceOffset(originalId, field, value) {
   const store = getStore();
   const state = store.get();

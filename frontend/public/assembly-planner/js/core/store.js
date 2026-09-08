@@ -21,6 +21,8 @@ export const EVENTS = {
   // emiten el evento dedicado APERTURA_CHANGED.
   APERTURAGLOBAL_CHANGED: 'apertura:changed',
   APERTURAS_CHANGED: 'apertura:changed',
+  // Override de ángulo de bisagra por pieza (grados, clamp 0–120 en el uso).
+  ANGULOS_CHANGED: 'angulo:changed',
 };
 
 const DEFAULT_STATE = {
@@ -42,6 +44,7 @@ const DEFAULT_STATE = {
   userConfig: loadUserConfig(),
   aperturaGlobal: 0,
   aperturas: {},
+  angulos: {},
 };
 
 export function createStore(initialState = {}) {

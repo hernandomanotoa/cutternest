@@ -193,6 +193,7 @@ export class IsometricRenderer {
     // conserva el legacy doorAngle como apertura global = doorAngle/105).
     this.aperturaGlobal = options.aperturaGlobal ?? null;
     this.aperturas = options.aperturas || {};
+    this.angulos = options.angulos || {};
     this._lastComputeArgs = null;
     this.explodeFactor = options.explodeFactor || 0;
     this.moduleGapMode = options.moduleGapMode || 'projected';
@@ -314,9 +315,10 @@ export class IsometricRenderer {
    * calculadas, las recalcula con los últimos argumentos de computeGeometries.
    * Devuelve el nuevo resultado de computeGeometries o null si no había nada.
    */
-  setApertura(aperturaGlobal, aperturas) {
+  setApertura(aperturaGlobal, aperturas, angulos) {
     this.aperturaGlobal = aperturaGlobal == null ? null : Math.min(1, Math.max(0, Number(aperturaGlobal) || 0));
     this.aperturas = aperturas || {};
+    this.angulos = angulos || {};
     if (this._lastComputeArgs) {
       return this.computeGeometries(this._lastComputeArgs[0], this._lastComputeArgs[1]);
     }
@@ -346,7 +348,7 @@ export class IsometricRenderer {
       const cfg = motionConfigFor({ id: geo.id, nombre: geo.name });
       if (!cfg) return geo;
       const open = opennessFor(geo.id, this.aperturas, this._aperturaEfectivaGlobal());
-      const next = applyApertureToGeo(geo, cfg, open);
+      const next = applyApertureToGeo(geo, cfg, open, this.angulos?.[geo.id]);
       if (!next.rotation) {
         if (next.x !== geo.x) doorMoves.push({ geo, next });
         return next;
@@ -968,7 +970,7 @@ export class IsometricRenderer {
         let rail;
         if (faceCfg && faceCfg.kind === 'hinge') {
           const faceBase = { x, y: yFace, z: currentZ, w, d: thickness, h };
-          const moved = applyApertureToGeo(faceBase, faceCfg, drawerOpen);
+          const moved = applyApertureToGeo(faceBase, faceCfg, drawerOpen, this.angulos?.[d.face.id]);
           const rotation = moved.rotation
             ? { ...moved.rotation, pivot: { ...moved.rotation.pivot, y: yFace + thickness } }
             : null;
@@ -1412,7 +1414,7 @@ export class IsometricRenderer {
         if (this._polygonArea(projected, face.indices) < 0.5) return;
         const pts = face.indices.map((i) => `${projected[i].x},${projected[i].y}`).join(' ');
         polygons.push(
-          `<polygon points="${pts}" fill="${colors[face.name]}" stroke="${stroke.color}" stroke-width="${stroke.width}" opacity="${opacity}" />`
+          `<polygon points="${pts}" fill="${colors[face.name]}" stroke="${stroke.color}" stroke-width="${stroke.width}" opacity="${opacity}" data-piece-id="${escapeHtml(geo.id || '')}" />`
         );
       });
 

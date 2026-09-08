@@ -16,6 +16,7 @@ import {
   getFillForFace,
 } from './materials.js';
 import { escapeHtml } from '../utils.js';
+import { COLORS } from '../core/config.js';
 
 /**
  * Escapa caracteres XML para atributos y contenido de texto.
@@ -72,6 +73,7 @@ export function buildSVG(pieces, camera, options = {}) {
     section = null,
     moduleSize = { w: 0, d: 0, h: 0 },
     assemblyStep = null,
+    collisionIds = null,
   } = options;
 
   const sectionCoord = section
@@ -105,6 +107,7 @@ export function buildSVG(pieces, camera, options = {}) {
     const isSelected = selectedId === piece.id;
     const isHovered = hoveredId === piece.id;
     const isDimmed = selectedId && !isSelected;
+    const isCollision = collisionIds ? collisionIds.has(piece.id) : false;
 
     CUBOID_FACES.forEach((face) => {
       const pts = face.indices.map((i) => projectedVerts[i]);
@@ -121,6 +124,7 @@ export function buildSVG(pieces, camera, options = {}) {
         isSelected,
         isHovered,
         isDimmed,
+        isCollision,
       });
     });
   });
@@ -193,7 +197,7 @@ export function buildSVG(pieces, camera, options = {}) {
   }
 
   renderQueue.forEach((item) => {
-    const { piece, face, pts, type, faceColors, metalId, isSelected, isHovered, isDimmed } = item;
+    const { piece, face, pts, type, faceColors, metalId, isSelected, isHovered, isDimmed, isCollision } = item;
     const pointsStr = pts.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
 
     const baseOpacity = calculateOpacity(type, face.name, globalOpacity, xrayMode);
@@ -217,8 +221,8 @@ export function buildSVG(pieces, camera, options = {}) {
     svgParts.push(voidTag('polygon', {
       points: pointsStr,
       fill: getFillForFace(face.name, piece, faceColors, metalId),
-      stroke: isSelected || isHovered ? '#FFD700' : isCurrentStep ? '#58a6ff' : '#222',
-      'stroke-width': isSelected || isHovered ? '2' : isCurrentStep ? '1.75' : '0.75',
+      stroke: isCollision ? COLORS.strokeDanger : isSelected || isHovered ? '#FFD700' : isCurrentStep ? '#58a6ff' : '#222',
+      'stroke-width': isCollision ? '2.5' : isSelected || isHovered ? '2' : isCurrentStep ? '1.75' : '0.75',
       'stroke-linejoin': 'round',
       'fill-opacity': Math.max(0.02, opacity).toFixed(3),
       'stroke-opacity': '0.9',

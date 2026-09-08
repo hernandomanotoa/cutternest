@@ -9,6 +9,8 @@ import {
   rotateCorners,
   opennessFor,
   decideAperturaToggle,
+  targetAngleDeg,
+  HINGE_ANGLE_MAX_DEG,
 } from '../../services/motionService.js';
 
 const piece = (id, nombre, overrides = {}) => ({
@@ -136,6 +138,61 @@ describe('applyApertureToGeo', () => {
     assert.deepEqual(GEO, copy);
     assert.equal(out.rotation, undefined);
     assert.notEqual(out, GEO);
+  });
+});
+
+describe('targetAngleDeg (override de ángulo por pieza)', () => {
+  const HINGE = { kind: 'hinge', side: 'izq' };
+
+  it('hinge: acepta override y lo clamp a 0–120° por magnitud', () => {
+    assert.equal(targetAngleDeg(HINGE, 45), 45);
+    assert.equal(targetAngleDeg(HINGE, 120), 120);
+    assert.equal(targetAngleDeg(HINGE, 150), HINGE_ANGLE_MAX_DEG, 'clamp superior 120°');
+    assert.equal(targetAngleDeg(HINGE, -30), 30, 'el signo lo pone el lado de la bisagra');
+    assert.equal(targetAngleDeg(HINGE, -150), HINGE_ANGLE_MAX_DEG);
+    assert.equal(targetAngleDeg(HINGE, 0), 0);
+  });
+
+  it('hinge: sin override o inválido queda el default 105°', () => {
+    assert.equal(targetAngleDeg(HINGE, undefined), 105);
+    assert.equal(targetAngleDeg(HINGE, null), 105);
+    assert.equal(targetAngleDeg(HINGE, NaN), 105);
+    assert.equal(targetAngleDeg(HINGE, 'abc'), 105);
+  });
+
+  it('slide y rail ignoran el ángulo (apertura por recorrido)', () => {
+    assert.equal(targetAngleDeg({ kind: 'slide', side: 'izq' }, 45), null);
+    assert.equal(targetAngleDeg({ kind: 'rail', side: null }, 45), null);
+    assert.equal(targetAngleDeg(null, 45), null);
+  });
+
+  it('applyApertureToGeo aplica el override proporcional a la apertura', () => {
+    const izq = applyApertureToGeo(GEO, { kind: 'hinge', side: 'izq' }, 1, 45);
+    assert.equal(izq.rotation.angleDeg, 45);
+    const der = applyApertureToGeo(GEO, { kind: 'hinge', side: 'der' }, 1, 45);
+    assert.equal(der.rotation.angleDeg, -45, 'el lado fija el signo del override');
+    const half = applyApertureToGeo(GEO, { kind: 'hinge', side: 'izq' }, 0.5, 90);
+    assert.equal(half.rotation.angleDeg, 45);
+    const volquete = applyApertureToGeo(GEO, { kind: 'hinge', side: 'inf' }, 1, 90);
+    assert.equal(volquete.rotation.angleDeg, -90);
+    const clamped = applyApertureToGeo(GEO, { kind: 'hinge', side: 'inf' }, 1, -150);
+    assert.equal(clamped.rotation.angleDeg, -HINGE_ANGLE_MAX_DEG, 'volquete clamp −120°');
+  });
+
+  it('applyApertureToGeo ignora el override en slide/rail', () => {
+    const slide = applyApertureToGeo(GEO, { kind: 'slide', side: 'izq' }, 1, 45);
+    assert.equal(slide.x, GEO.x - GEO.w * 0.95);
+    assert.equal(slide.rotation, undefined);
+    const rail = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 1, 45);
+    assert.equal(rail.y, GEO.y + GEO.d);
+    assert.equal(rail.rotation, undefined);
+  });
+
+  it('regresión: sin 4º argumento el comportamiento no cambia (105°)', () => {
+    const izq = applyApertureToGeo(GEO, { kind: 'hinge', side: 'izq' }, 1);
+    assert.equal(izq.rotation.angleDeg, 105);
+    const inf = applyApertureToGeo(GEO, { kind: 'hinge', side: 'inf' }, 1);
+    assert.equal(inf.rotation.angleDeg, -105);
   });
 });
 

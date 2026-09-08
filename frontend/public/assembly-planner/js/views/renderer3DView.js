@@ -3,15 +3,17 @@
 import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
+import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
-import { setAperturaGlobal, setAperturaPieza } from '../app.js';
+import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
 export function createRenderer3DView(store) {
   let unsubscribe = null;
   let unsubscribeConfig = null;
   let unsubscribeApertura = null;
+  let unsubscribeAngulo = null;
   let container = null;
   let canvas = null;
   let renderer = null;
@@ -36,6 +38,7 @@ export function createRenderer3DView(store) {
     if (renderLoopId !== null) return;
     const loop = () => {
       renderer?.render();
+      updateCollisions();
       renderLoopId = requestAnimationFrame(loop);
     };
     renderLoopId = requestAnimationFrame(loop);
@@ -56,19 +59,64 @@ export function createRenderer3DView(store) {
     if (!group || !input) return;
     const state = store.get();
     const piece = pieceId && lastPieces ? lastPieces.find((p) => p.id === pieceId) : null;
-    if (!piece || !motionConfigFor(piece)) {
+    const cfg = piece ? motionConfigFor(piece) : null;
+    if (!piece || !cfg) {
       group.style.display = 'none';
+      updatePieceAnguloUI(null);
       return;
     }
     group.style.display = '';
     const override = state.aperturas?.[pieceId];
     input.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
+    updatePieceAnguloUI(pieceId, cfg);
+  }
+
+  // Control de ángulo de bisagra (hinge): visible solo para puertas/volquetes.
+  function updatePieceAnguloUI(pieceId, cfg = null) {
+    if (!container) return;
+    const group = container.querySelector('#r3d-piece-angulo-group');
+    if (!group) return;
+    const state = store.get();
+    const piece = pieceId && lastPieces ? lastPieces.find((p) => p.id === pieceId) : null;
+    const kind = cfg?.kind ?? (piece ? motionConfigFor(piece)?.kind : null);
+    if (!piece || kind !== 'hinge') {
+      group.style.display = 'none';
+      return;
+    }
+    group.style.display = '';
+    const input = container.querySelector('#r3d-piece-angulo');
+    const override = state.angulos?.[pieceId];
+    if (input) input.value = override != null ? String(Math.round(override)) : '';
+  }
+
+  // Guía de colisión: resalta piezas móviles que se solapan al abrirse.
+  let lastCollisionKey = '';
+  function updateCollisions() {
+    if (!renderer || !container) return;
+    const msg = container.querySelector('#r3d-collision-msg');
+    const state = store.get();
+    const pieces = lastPieces || [];
+    const movers = movingPieceIds(pieces, state.aperturas, state.aperturaGlobal);
+    const pairs = detectCollisions(renderer.geometries, movers);
+    renderer.setCollisionIds(pairs.length ? pairs.flatMap((p) => [p.aId, p.bId]) : null);
+    const key = pairs.map((p) => `${p.aId}|${p.bId}`).join(',');
+    if (key === lastCollisionKey) return;
+    lastCollisionKey = key;
+    if (!msg) return;
+    if (!pairs.length) {
+      msg.style.display = 'none';
+      msg.textContent = '';
+      return;
+    }
+    const lines = pairs.slice(0, 3).map((p) => `La pieza '${p.aName}' colisiona con '${p.bName}' al abrir`);
+    msg.innerHTML = lines.map((l) => `<div>⚠ ${escapeHtml(l)}</div>`).join('');
+    msg.style.display = '';
   }
 
   function applyAperturaFromStore() {
     if (!renderer || !container) return;
     const state = store.get();
-    renderer.setApertura(state.aperturaGlobal ?? 0, state.aperturas || {});
+    renderer.setApertura(state.aperturaGlobal ?? 0, state.aperturas || {}, state.angulos || {});
     const globalInput = container.querySelector('#r3d-apertura');
     if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
     updatePieceAperturaUI(selectedPieceId);
@@ -86,6 +134,7 @@ export function createRenderer3DView(store) {
     });
     unsubscribeConfig = store.subscribe('userConfig:changed', () => renderView(container, store.get()));
     unsubscribeApertura = store.subscribe('apertura:changed', () => applyAperturaFromStore());
+    unsubscribeAngulo = store.subscribe('angulo:changed', () => applyAperturaFromStore());
     renderView(container, store.get());
   }
 
@@ -103,6 +152,10 @@ export function createRenderer3DView(store) {
     if (unsubscribeApertura) {
       unsubscribeApertura();
       unsubscribeApertura = null;
+    }
+    if (unsubscribeAngulo) {
+      unsubscribeAngulo();
+      unsubscribeAngulo = null;
     }
     if (renderer) {
       renderer.destroy();
@@ -191,6 +244,15 @@ export function createRenderer3DView(store) {
             <label for="r3d-piece-apertura">Apertura pieza</label>
             <input type="range" id="r3d-piece-apertura" min="0" max="100" step="1" value="0">
           </div>
+          <div class="r3d-slider-group" id="r3d-piece-angulo-group" style="display:none;align-items:center;gap:0.35rem;">
+            <label for="r3d-piece-angulo">Ángulo</label>
+            <input type="number" id="r3d-piece-angulo" min="0" max="120" step="5" placeholder="105" style="width:58px;">
+            <span style="font-size:0.75rem;color:#8b949e;">°</span>
+            <span class="r3d-angulo-presets" style="display:inline-flex;gap:0.2rem;">
+              ${[45, 70, 90, 110].map((a) => `<button type="button" class="btn btn--secondary btn--sm r3d-angulo-preset" data-angulo="${a}" style="padding:0.1rem 0.35rem;">${a}°</button>`).join('')}
+              <button type="button" class="btn btn--secondary btn--sm" id="r3d-angulo-auto" style="padding:0.1rem 0.35rem;">Auto</button>
+            </span>
+          </div>
           <div class="r3d-slider-group">
             <label for="r3d-rot-x">Rotación X</label>
             <input type="range" id="r3d-rot-x" min="-60" max="60" step="1" value="${DEFAULT_CAMERA.rotX}">
@@ -214,6 +276,7 @@ export function createRenderer3DView(store) {
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;padding:0;">
+          <div id="r3d-collision-msg" style="display:none;position:absolute;top:0.9rem;left:0.9rem;z-index:5;background:${COLORS.strokeDanger}1a;border:1px solid ${COLORS.strokeDanger};border-radius:6px;padding:0.4rem 0.7rem;font-size:0.78rem;color:${COLORS.strokeDanger};max-width:70%;"></div>
           <div style="display:flex;gap:0.75rem;height:100%;min-height:400px;padding:0.75rem;">
             <div id="r3d-canvas" class="r3d-canvas" style="flex:1;min-width:0;height:100%;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
             <aside id="r3d-bom" style="width:240px;flex-shrink:0;overflow-y:auto;background:var(--surface,#161b22);border:1px solid var(--border,#30363d);border-radius:6px;padding:0.5rem;">
@@ -305,6 +368,20 @@ export function createRenderer3DView(store) {
     container.querySelector('#r3d-apertura')?.addEventListener('input', (e) => setAperturaGlobal(Number(e.target.value) / 100));
     container.querySelector('#r3d-piece-apertura')?.addEventListener('input', (e) => {
       if (selectedPieceId) setAperturaPieza(selectedPieceId, Number(e.target.value) / 100);
+    });
+    container.querySelector('#r3d-piece-angulo')?.addEventListener('change', (e) => {
+      if (!selectedPieceId) return;
+      const v = e.target.value;
+      if (v === '' || v == null) clearAnguloPieza(selectedPieceId);
+      else setAnguloPieza(selectedPieceId, Number(v));
+    });
+    container.querySelectorAll('.r3d-angulo-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (selectedPieceId) setAnguloPieza(selectedPieceId, Number(btn.dataset.angulo));
+      });
+    });
+    container.querySelector('#r3d-angulo-auto')?.addEventListener('click', () => {
+      if (selectedPieceId) clearAnguloPieza(selectedPieceId);
     });
     rotXInput?.addEventListener('input', (e) => renderer.setRotX(e.target.value));
     rotYInput?.addEventListener('input', (e) => renderer.setRotY(e.target.value));

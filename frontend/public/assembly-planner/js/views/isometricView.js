@@ -1,17 +1,21 @@
 // js/views/isometricView.js — Vista isométrica 3D SVG
 
-import { getModulePieces, getModuleLabel, getModules } from '../utils.js';
+import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
-import { setAperturaGlobal } from '../app.js';
+import { motionConfigFor } from '../services/motionService.js';
+import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
+import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
 export function createIsometricView(store) {
   let unsubscribe = null;
   let unsubscribeConfig = null;
   let unsubscribeApertura = null;
+  let unsubscribeAngulo = null;
   let container = null;
   let canvas = null;
+  let selectedPieceId = null;
   let scale = 0.12;
   let explodeFactor = 0;
   let drawerGap = 15;
@@ -37,7 +41,11 @@ export function createIsometricView(store) {
     });
     unsubscribeConfig = store.subscribe('userConfig:changed', () => render());
     unsubscribeApertura = store.subscribe('apertura:changed', () => {
-      syncAperturaSlider();
+      syncAperturaUI();
+      render();
+    });
+    unsubscribeAngulo = store.subscribe('angulo:changed', () => {
+      syncAperturaUI();
       render();
     });
     renderView(container, store.get());
@@ -55,6 +63,10 @@ export function createIsometricView(store) {
     if (unsubscribeApertura) {
       unsubscribeApertura();
       unsubscribeApertura = null;
+    }
+    if (unsubscribeAngulo) {
+      unsubscribeAngulo();
+      unsubscribeAngulo = null;
     }
     if (fullscreenChangeHandler) {
       document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
@@ -108,6 +120,24 @@ export function createIsometricView(store) {
               <span>Apertura</span>
               <input type="range" id="iso-apertura" min="0" max="100" step="1" value="${Math.round((state.aperturaGlobal ?? 0) * 100)}" style="cursor:pointer;width:110px;">
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.35rem;">
+              <span>Pieza</span>
+              <select id="iso-piece-select" class="input" style="width:auto;max-width:180px;">
+                <option value="">—</option>
+                ${pieces.filter((p) => motionConfigFor(p)).map((p) => `<option value="${escapeHtml(p.id)}" ${p.id === selectedPieceId ? 'selected' : ''}>${escapeHtml(p.nombre || p.id)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="btn btn--secondary btn--sm" id="iso-piece-apertura-group" style="cursor:pointer;align-items:center;display:none;gap:0.4rem;">
+              <span>Apertura pieza</span>
+              <input type="range" id="iso-piece-apertura" min="0" max="100" step="1" value="0" style="cursor:pointer;width:90px;">
+            </label>
+            <label class="btn btn--secondary btn--sm" id="iso-piece-angulo-group" style="cursor:pointer;align-items:center;display:none;gap:0.35rem;">
+              <span>Ángulo</span>
+              <input type="number" id="iso-piece-angulo" min="0" max="120" step="5" placeholder="105" style="width:56px;">
+              <span style="font-size:0.75rem;">°</span>
+              ${[45, 70, 90, 110].map((a) => `<button type="button" class="btn btn--secondary btn--sm iso-angulo-preset" data-angulo="${a}" style="padding:0.05rem 0.3rem;">${a}°</button>`).join('')}
+              <button type="button" class="btn btn--secondary btn--sm" id="iso-angulo-auto" style="padding:0.05rem 0.3rem;">Auto</button>
+            </label>
             <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
             <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
@@ -117,6 +147,7 @@ export function createIsometricView(store) {
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;">
+          <div id="iso-collision-msg" style="display:none;position:absolute;top:0.9rem;left:0.9rem;z-index:5;background:${COLORS.strokeDanger}1a;border:1px solid ${COLORS.strokeDanger};border-radius:6px;padding:0.4rem 0.7rem;font-size:0.78rem;color:${COLORS.strokeDanger};max-width:70%;"></div>
           <div id="iso-canvas" class="iso-canvas" style="width:100%;height:100%;min-height:400px;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
           <div id="iso-config-host" class="iso-config-host"></div>
         </div>
@@ -156,10 +187,62 @@ export function createIsometricView(store) {
     container.querySelector('#iso-apertura')?.addEventListener('input', (e) => {
       setAperturaGlobal(Number(e.target.value) / 100);
     });
-    function syncAperturaSlider() {
-      const input = container?.querySelector('#iso-apertura');
-      if (input) input.value = String(Math.round((store.get().aperturaGlobal ?? 0) * 100));
+    container.querySelector('#iso-piece-select')?.addEventListener('change', (e) => {
+      selectedPieceId = e.target.value || null;
+      syncAperturaUI();
+    });
+    container.querySelector('#iso-piece-apertura')?.addEventListener('input', (e) => {
+      if (selectedPieceId) setAperturaPieza(selectedPieceId, Number(e.target.value) / 100);
+    });
+    container.querySelector('#iso-piece-angulo')?.addEventListener('change', (e) => {
+      if (!selectedPieceId) return;
+      const v = e.target.value;
+      if (v === '' || v == null) clearAnguloPieza(selectedPieceId);
+      else setAnguloPieza(selectedPieceId, Number(v));
+    });
+    container.querySelectorAll('.iso-angulo-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (selectedPieceId) setAnguloPieza(selectedPieceId, Number(btn.dataset.angulo));
+      });
+    });
+    container.querySelector('#iso-angulo-auto')?.addEventListener('click', () => {
+      if (selectedPieceId) clearAnguloPieza(selectedPieceId);
+    });
+  }
+
+  // Sincroniza slider global y controles de la pieza seleccionada.
+  function syncAperturaUI() {
+    if (!container) return;
+    const state = store.get();
+    const globalInput = container.querySelector('#iso-apertura');
+    if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
+    const pieces = lastPieces ? getModulePieces(lastPieces, lastModule) : [];
+    const piece = selectedPieceId ? pieces.find((p) => p.id === selectedPieceId) : null;
+    const cfg = piece ? motionConfigFor(piece) : null;
+
+    const apGroup = container.querySelector('#iso-piece-apertura-group');
+    const apInput = container.querySelector('#iso-piece-apertura');
+    if (apGroup && apInput) {
+      if (piece && cfg) {
+        apGroup.style.display = '';
+        const override = state.aperturas?.[selectedPieceId];
+        apInput.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
+      } else {
+        apGroup.style.display = 'none';
+      }
     }
+    const anGroup = container.querySelector('#iso-piece-angulo-group');
+    const anInput = container.querySelector('#iso-piece-angulo');
+    if (anGroup && anInput) {
+      if (piece && cfg?.kind === 'hinge') {
+        anGroup.style.display = '';
+        const override = state.angulos?.[selectedPieceId];
+        anInput.value = override != null ? String(Math.round(override)) : '';
+      } else {
+        anGroup.style.display = 'none';
+      }
+    }
+  }
     container.querySelector('#btn-iso-export')?.addEventListener('click', () => {
       const svg = canvas.querySelector('svg');
       if (!svg) return;
@@ -204,6 +287,7 @@ export function createIsometricView(store) {
       moduleGapMode = gapCheckbox.checked ? 'projected' : 'compact';
       render();
     });
+    syncAperturaUI();
   }
 
   function render() {
@@ -218,6 +302,7 @@ export function createIsometricView(store) {
       drawerGap,
       aperturaGlobal: state.aperturaGlobal ?? 0,
       aperturas: state.aperturas || {},
+      angulos: state.angulos || {},
       explodeFactor,
       moduleGapMode,
       isoFlip,
@@ -232,6 +317,34 @@ export function createIsometricView(store) {
       svg.style.maxHeight = 'none';
       svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     }
+    updateCollisions(renderer, pieces, state);
+  }
+
+  // Guía de colisión: resalta piezas móviles que se solapan al abrirse y
+  // muestra un mensaje breve por cada par colisionante.
+  function updateCollisions(renderer, pieces, state) {
+    const msg = container?.querySelector('#iso-collision-msg');
+    if (!renderer || !container) return;
+    const movers = movingPieceIds(pieces, state.aperturas, state.aperturaGlobal);
+    const { geometries } = renderer.computeGeometries(state.currentModule, pieces);
+    const pairs = detectCollisions(geometries, movers);
+    const colliding = new Set(pairs.flatMap((p) => [p.aId, p.bId]));
+    container.querySelectorAll('polygon[data-piece-id]').forEach((poly) => {
+      if (colliding.has(poly.dataset.pieceId)) {
+        poly.setAttribute('stroke', COLORS.strokeDanger);
+        poly.setAttribute('stroke-width', '2.5');
+      }
+    });
+    if (!msg) return;
+    if (!pairs.length) {
+      msg.style.display = 'none';
+      msg.textContent = '';
+      return;
+    }
+    msg.innerHTML = pairs.slice(0, 3)
+      .map((p) => `<div>⚠ ${escapeHtml(`La pieza '${p.aName}' colisiona con '${p.bName}' al abrir`)}</div>`)
+      .join('');
+    msg.style.display = '';
   }
 
   return { mount, destroy };

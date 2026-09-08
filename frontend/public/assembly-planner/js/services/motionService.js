@@ -11,6 +11,21 @@ import { normalizeName } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
 
 const APERTURE_DEG = 105;
+export const HINGE_ANGLE_MAX_DEG = 120;
+
+/**
+ * Ángulo objetivo de una bisagra con override por pieza. Devuelve null para
+ * slide/rail (ignoran el ángulo: su apertura es recorrido 0–100%). El override
+ * se toma por magnitud (el signo lo fija el lado de la bisagra) y se clamp a
+ * 0–120°; sin override válido queda el default (105°).
+ */
+export function targetAngleDeg(config, anguloOverride) {
+  if (!config || config.kind !== 'hinge') return null;
+  if (anguloOverride == null || anguloOverride === '') return APERTURE_DEG;
+  const n = Number(anguloOverride);
+  if (!Number.isFinite(n)) return APERTURE_DEG;
+  return Math.min(HINGE_ANGLE_MAX_DEG, Math.max(0, Math.abs(n)));
+}
 
 function sideFromText(text, fallback) {
   if (text.includes('izquierda') || text.includes('izq')) return 'izq';
@@ -72,9 +87,11 @@ export function motionConfigFor(piece) {
  * Aplica una apertura (0..1) a una geometría de caja y devuelve un NUEVO objeto.
  * - slide: traslada en x (±0.95·w, signo según side).
  * - rail: traslada en +y (t·d, extracción completa), hacia el frente del mueble.
- * - hinge: no traslada; adjunta rotation { axis, angleDeg, pivot }.
+ * - hinge: no traslada; adjunta rotation { axis, angleDeg, pivot }. El ángulo
+ *   objetivo es el default por kind o el override por pieza (grados, clamp
+ *   0–120° por targetAngleDeg).
  */
-export function applyApertureToGeo(geo, config, openness) {
+export function applyApertureToGeo(geo, config, openness, anguloOverride) {
   const t = Math.min(1, Math.max(0, Number(openness) || 0));
   if (!config || t === 0) return { ...geo };
 
@@ -88,11 +105,12 @@ export function applyApertureToGeo(geo, config, openness) {
   }
 
   if (config.kind === 'hinge') {
+    const target = targetAngleDeg(config, anguloOverride) ?? APERTURE_DEG;
     let rotation;
     if (config.side === 'izq' || config.side === 'der') {
       rotation = {
         axis: 'z',
-        angleDeg: (config.side === 'izq' ? 1 : -1) * t * APERTURE_DEG,
+        angleDeg: (config.side === 'izq' ? 1 : -1) * t * target,
         pivot: { x: config.side === 'izq' ? geo.x : geo.x + geo.w },
       };
     } else {
@@ -101,7 +119,7 @@ export function applyApertureToGeo(geo, config, openness) {
       // ángulo negativo; 'sup' (bisagra arriba, libre abajo) con positivo.
       rotation = {
         axis: 'x',
-        angleDeg: (config.side === 'sup' ? 1 : -1) * t * APERTURE_DEG,
+        angleDeg: (config.side === 'sup' ? 1 : -1) * t * target,
         pivot: { z: config.side === 'sup' ? geo.z + geo.h : geo.z },
       };
     }

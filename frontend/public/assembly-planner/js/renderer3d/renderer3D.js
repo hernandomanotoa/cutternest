@@ -39,6 +39,7 @@ export class Renderer3D {
 
     this.selectedId = null;
     this.hoveredId = null;
+    this.collisionIds = null;
     this.onPieceSelect = options.onPieceSelect || null;
     this.onPieceDoubleClick = options.onPieceDoubleClick || null;
 
@@ -292,13 +293,15 @@ export class Renderer3D {
     this.load(this.moduleId, this._lastPieces || []);
   }
 
-  setApertura(aperturaGlobal, aperturas) {
+  setApertura(aperturaGlobal, aperturas, angulos) {
     const to = {
       global: Math.min(1, Math.max(0, Number(aperturaGlobal) || 0)),
       overrides: { ...(aperturas || {}) },
+      angulos: { ...(angulos || {}) },
     };
     const from = this._currentAperturaState();
-    if (from.global === to.global && JSON.stringify(from.overrides) === JSON.stringify(to.overrides)) {
+    if (from.global === to.global && JSON.stringify(from.overrides) === JSON.stringify(to.overrides) &&
+        JSON.stringify(from.angulos) === JSON.stringify(to.angulos)) {
       this._applyAperturaState(to);
       return;
     }
@@ -313,15 +316,25 @@ export class Renderer3D {
     return {
       global: this.isoRenderer.aperturaGlobal ?? 0,
       overrides: { ...(this.isoRenderer.aperturas || {}) },
+      angulos: { ...(this.isoRenderer.angulos || {}) },
     };
   }
 
   _applyAperturaState(state) {
-    this.isoRenderer.setApertura(state.global, state.overrides);
+    this.isoRenderer.setApertura(state.global, state.overrides, state.angulos);
     if (this.moduleId !== undefined && this._lastPieces) {
       // keepCamera: la apertura no debe re-encuadrar la cámara en cada frame.
       this.load(this.moduleId, this._lastPieces, { keepCamera: true });
     }
+  }
+
+  /**
+   * Resalta las piezas en colisión (ids) con el color de alerta.
+   * @param {Set<string>|string[]|null} ids null limpia el resaltado
+   */
+  setCollisionIds(ids) {
+    this.collisionIds = ids ? new Set(ids) : null;
+    this.needsRender = true;
   }
 
   _scheduleAperturaAnimation() {
@@ -340,7 +353,9 @@ export class Renderer3D {
     const anim = this.aperturaAnim;
     if (!anim) return;
     const t = Math.min(1, (performance.now() - anim.start) / anim.duration);
-    this._applyAperturaState(lerpAperturaState(anim.from, anim.to, t));
+    // Los ángulos son discretos (no se interpolan): se conservan del destino
+    // durante la animación para no perder el override a mitad de vuelo.
+    this._applyAperturaState({ ...lerpAperturaState(anim.from, anim.to, t), angulos: anim.to.angulos });
     if (t < 1) {
       this._scheduleAperturaAnimation();
     } else {
@@ -439,6 +454,7 @@ export class Renderer3D {
       section: this.section,
       moduleSize: { w: this.moduleW, d: this.moduleD, h: this.moduleH },
       assemblyStep: this.assemblyStep,
+      collisionIds: this.collisionIds,
     });
 
     this.container.innerHTML = svg;
