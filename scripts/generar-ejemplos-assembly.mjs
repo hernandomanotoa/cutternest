@@ -328,6 +328,32 @@ const examples = [];
   examples.push({ name: 'Ejemplo_CSV_Banco_Zapatero.csv', dataName: 'ejemplo-zapatero-banco.csv', lines });
 }
 
+// 19. Zapatera-repisa con riel móvil (6 bandejas extraíbles)
+{
+  const lines = [];
+  lines.push(header('Ejemplo de zapatera-repisa con riel móvil', 'Módulo de clóset 800×1800×500 con 6 bandejas zapatera extraíbles en correderas telescópicas de extensión total. Cada bandeja: frente + 2 laterales + base (sin fondo ni tirador).'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
+  // Coherencia con el vano (mismas reglas que cajon()):
+  //   W=800−2·15=770 → frente 768×130 · D=500−30=470 → prof. cajón 445
+  //   laterales 445×(130−2·15=100) · base 738×445
+  const E = 15;
+  const W = 800 - 2 * E;
+  const frenteAncho = W - 2;
+  const frenteAlto = 130;
+  const profCajon = 500 - E - E - 25;
+  const latAlto = frenteAlto - 2 * 15;
+  const baseAncho = frenteAncho - 2 * 15;
+  for (let i = 1; i <= 6; i++) {
+    const sm = `1${i}`;
+    const label = ` ${i}`;
+    lines.push(line(`m${sm}-zapatera-repisa-frente`, `Frente zapatera repisa extraible${label}`, frenteAncho, frenteAlto, 1, 'si', '#C19A6B', 15, 'T,B,L,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-lateral-izq`, `Lateral zapatera repisa extraible${label} izq`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-lateral-der`, `Lateral zapatera repisa extraible${label} der`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-base`, `Base bandeja zapatera extraible${label}`, baseAncho, profCajon, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', sm));
+  }
+  examples.push({ name: 'Ejemplo_CSV_Zapatera_Repisa_Riel.csv', dataName: 'ejemplo-zapatera-repisa.csv', lines });
+}
+
 for (const ex of examples) {
   const content = ex.lines.join('\n') + '\n';
   fs.writeFileSync(path.join(DOCS_DIR, ex.name), content, 'utf8');

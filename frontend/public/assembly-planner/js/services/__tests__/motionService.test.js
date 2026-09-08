@@ -76,9 +76,9 @@ describe('applyApertureToGeo', () => {
     assert.equal(der.w, GEO.w);
   });
 
-  it('rail: traslada hacia el frente en y (0.85·d)', () => {
+  it('rail: traslada hacia el frente en y (extracción completa, 1.0·d)', () => {
     const out = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 1);
-    assert.equal(out.y, GEO.y + GEO.d * 0.85);
+    assert.equal(out.y, GEO.y + GEO.d * 1);
     assert.equal(out.x, GEO.x);
   });
 

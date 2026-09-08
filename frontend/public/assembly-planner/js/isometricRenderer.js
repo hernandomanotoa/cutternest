@@ -970,9 +970,9 @@ export class IsometricRenderer {
             : null;
           rail = (geo) => (rotation ? { ...geo, rotation } : geo);
         } else {
-          const railCfg = { kind: 'rail', side: null };
-          const railBase = { x: 0, y: yFace, z: currentZ, w, d: thickness, h };
-          const railDy = applyApertureToGeo(railBase, railCfg, drawerOpen).y - railBase.y;
+          // Extracción completa: Δy = apertura·(profundidad del cajón + 20 mm),
+          // de modo que la caja sale del todo del mueble al abrirse.
+          const railDy = drawerOpen * (drawerDepth + 20);
           rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
         }
 

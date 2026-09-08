@@ -86,7 +86,7 @@ export function calculateHardware(piezas, dependencies) {
     herrajes.push({
       nombre: 'Correderas telescópicas',
       cantidad: cajonesCorredera.length,
-      especificacion: 'Par por cajón, 450 mm, cierre suave (CONFIRMAR ANTES DE CORTAR)',
+      especificacion: 'Extensión total, cierre suave (CONFIRMAR ANTES DE CORTAR)',
       prioridad: 'Media',
       bloqueante: true,
     });

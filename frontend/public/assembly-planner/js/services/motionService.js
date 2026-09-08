@@ -71,7 +71,7 @@ export function motionConfigFor(piece) {
 /**
  * Aplica una apertura (0..1) a una geometría de caja y devuelve un NUEVO objeto.
  * - slide: traslada en x (±0.95·w, signo según side).
- * - rail: traslada en +y (0.85·d), hacia el frente del mueble.
+ * - rail: traslada en +y (t·d, extracción completa), hacia el frente del mueble.
  * - hinge: no traslada; adjunta rotation { axis, angleDeg, pivot }.
  */
 export function applyApertureToGeo(geo, config, openness) {
@@ -84,7 +84,7 @@ export function applyApertureToGeo(geo, config, openness) {
   }
 
   if (config.kind === 'rail') {
-    return { ...geo, y: geo.y + t * geo.d * 0.85 };
+    return { ...geo, y: geo.y + t * geo.d };
   }
 
   if (config.kind === 'hinge') {

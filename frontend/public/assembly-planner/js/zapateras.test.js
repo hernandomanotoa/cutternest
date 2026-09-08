@@ -1,13 +1,14 @@
 /**
  * zapateras.test.js
  *
- * Verifica los 3 ejemplos de zapateras generados por
+ * Verifica los 4 ejemplos de zapateras generados por
  * scripts/generar-ejemplos-assembly.mjs:
  *   - ejemplo-zapatero-volquete.csv   (cajones abatibles / volquete)
  *   - ejemplo-zapatero-extraible.csv  (5 zapateras-cajón extraíbles en correderas;
  *                                      conjunto mínimo: laterales + frente + base,
  *                                      sin fondo de cajón)
  *   - ejemplo-zapatero-banco.csv      (asiento + 2 cajones a nivel de piso)
+ *   - ejemplo-zapatera-repisa.csv     (6 bandejas extraíbles sin tirador; apertura rail)
  *
  * Casos: parseo sin warnings, clasificación de roles (drawer_face, drawer_side,
  * shelf, seat_panel, sin fallback 'panel') y hardware derivado (bisagras
@@ -23,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { parseCSV } from './csvParser.js';
 import { calculateHardware } from './hardware.js';
 import { inferRole } from './services/classifierService.js';
+import { motionConfigFor } from './services/motionService.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(HERE, '..', 'data');
@@ -31,6 +33,7 @@ const EXAMPLES = {
   volquete: 'ejemplo-zapatero-volquete.csv',
   extraible: 'ejemplo-zapatero-extraible.csv',
   banco: 'ejemplo-zapatero-banco.csv',
+  repisaRiel: 'ejemplo-zapatera-repisa.csv',
 };
 
 function loadExample(file) {
@@ -111,6 +114,35 @@ describe('ejemplos de zapateras', () => {
     const bandeja = pieces.find((p) => p.nombre === 'Bandeja zapatero');
     assert.ok(bandeja, 'falta la bandeja zapatero');
     assert.equal(inferRole(bandeja), 'shelf', '"Bandeja zapatero" debería ser shelf');
+  });
+
+  it('repisa con riel: 6 bandejas extraíbles clasifican como cajón y abren en rail', () => {
+    const { pieces } = loadExample(EXAMPLES.repisaRiel);
+    const frentes = pieces.filter((p) => p.nombre.includes('Frente zapatera repisa extraible'));
+    assert.equal(frentes.length, 6, `se esperaban 6 frentes: ${frentes.length}`);
+    for (const f of frentes) {
+      assert.equal(inferRole(f), 'drawer_face', `"${f.nombre}" debería ser drawer_face`);
+      assert.deepEqual(motionConfigFor(f), { kind: 'rail', side: null }, `"${f.nombre}" debería abrir en rail`);
+    }
+    const laterales = pieces.filter((p) => p.nombre.includes('Lateral zapatera repisa extraible'));
+    assert.equal(laterales.length, 12, `se esperaban 12 laterales (6×2): ${laterales.length}`);
+    for (const l of laterales) {
+      assert.equal(inferRole(l), 'drawer_side', `"${l.nombre}" debería ser drawer_side`);
+    }
+    const bases = pieces.filter((p) => p.nombre.includes('Base bandeja zapatera extraible'));
+    assert.equal(bases.length, 6, `se esperaban 6 bases: ${bases.length}`);
+    for (const b of bases) {
+      assert.equal(inferRole(b), 'drawer_bottom', `"${b.nombre}" debería ser drawer_bottom`);
+    }
+    assert.equal(
+      pieces.some((p) => p.nombre.includes('tirador')),
+      false,
+      'la zapatera-repisa omite el tirador (se jala del frente)'
+    );
+    const hw = hardwareFor(pieces);
+    const correderas = hw.find((h) => h.nombre === 'Correderas telescópicas');
+    assert.ok(correderas, 'faltan las correderas telescópicas');
+    assert.equal(correderas.cantidad, 6);
   });
 
   it('banco: asiento seat_panel, correderas telescópicas (2) y cajones drawer_face', () => {
