@@ -61,18 +61,22 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 - **ADR-0011-2026-08-19**: Assembly Planner vanilla ES6 en `frontend/public/assembly-planner/` como complemento offline al ensamblaje React. Sin dependencias de framework.
 - **ADR-0012-2026-08-19**: Refactor UI/UX progresivo con componentes base en `frontend/src/components/ui/`, Zustand para estado global y Tailwind exclusivo.
 - **ADR-0013-2026-08-19**: Catálogo de materiales y herrajes en JSON estático bajo `backend/app/config/`, consumido por backend y frontend.
+- **ADR-0021-2026-09-07**: Contrato de compatibilidad de ejemplos y tipos de zapatera (volquete, extraíble, banco). Gate obligatorio `test/validate-examples.mjs` (0 errores/0 warnings/0 roles genéricos). Ver `.devhive/decisions/ADR-0021-*.md`.
 
 ## Métricas actuales
 
-- Tests backend: 23 passed.
+- Tests backend: 37 passed (incl. contrato de plantillas `test_templates.py`).
 - Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
-- Tests Assembly Planner: 290 passed (T1–T13 del plan 3D incluidos).
+- Tests Assembly Planner: 319 passed (node --test, sin dependencias externas).
+- Ejemplos CSV: 75 archivos (data/ + docs/) validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
 
 ## Hotfixes recientes (Assembly Planner)
 
+- **Ejemplos coherentes (2026-09-07)**: los 75 CSV pasan de 259 warnings y 14 piezas genéricas a 0/0/0. Causa raíz corregida en los generadores (`cajon()` calcula el vano real del módulo padre); piezas sin rol renombradas (Respaldo, Travesano); zócalos = Σ anchos; pandeo por rol y no por substring; tapa/trasera globales huérfanas eliminadas en aparador y recibidor. Nuevos ejemplos: zapatera volquete, módulo extraíble y banco zapatero. Plantillas backend alineadas al mismo contrato (ADR-0021).
+- **Herrajes**: 1 par de correderas por cajón (antes por pieza); frentes "abatible/volquete" generan bisagras abatibles; tiradores de cajón explícitos en la lista (`hardware.js`).
 - **Manual de ensamblaje**: repisas inferiores con `cantidad > 1` se apilan hacia arriba dentro del interior del mueble, evitando que se dibujen debajo de la base (`manualView.js`).
 - **Grafo**: el layout estructural se recalcula y centra automáticamente al cambiar de pestaña o redimensionar el contenedor, usando `ResizeObserver` y reintentos por `requestAnimationFrame` (`graphView.js`).
 - **Render isométrico**: perspectiva configurable con viewBox dinámico para evitar que piezas se salgan del SVG (`isometricRenderer.js`).
@@ -81,15 +85,16 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
 
-- **Conservados en `frontend/public/assembly-planner/data/`**: básico, global, cajonera, closet, cocina, comoda, escritorio, librero-alto, mueble-tv, vanitory, armario, aparador, estantería, vitrina, mesa-extensible, cabecero, recibidor-lineal, consola, separador-ambientes, botellero, isla-cocina, columna-cocina, columna-auxiliar-bano, espejo-modulo, archivador, y ejemplos universales (cajonera, librero, ropero, zapatero).
+- **Conservados en `frontend/public/assembly-planner/data/`**: básico, global, cajonera, closet, cocina, comoda, escritorio, librero-alto, mueble-tv, vanitory, armario, aparador, estantería, vitrina, mesa-extensible, cabecero, recibidor-lineal, consola, separador-ambientes, botellero, isla-cocina, columna-cocina, columna-auxiliar-bano, espejo-modulo, archivador, ejemplos de fondo (externo/interno/custom), ejemplos universales (cajonera, librero, ropero, zapatero) y zapateras (compartimentos, volquete, extraíble, banco).
 - **Eliminados por no ajustarse al catálogo de muebles fabricables**: banco, mesa de centro, universal mesa y universal silla.
 - **Eliminados por obsoletos/redundantes**: renders SVG de `test/renders/` y directorio `docs/temp-svg/`.
+- **Deuda**: pares homónimos no unificados (`ejemplo-cajonera` vs `Cajoneras_4_Modulos`; `universal-*` vs `Universal`) — son diseños distintos, consistentes cada uno, pero el catálogo docs/ ↔ data/ no es 1:1.
 
 ## Next actions
 
 1. Generar `pnpm-lock.yaml` en un host con acceso a npm (`cd frontend && pnpm install`) y commitearlo.
 2. Validar el Assembly Planner y el modo paso 3D en navegador con ejemplos CSV (Chrome/Firefox/Edge).
-3. Coordinar re-indexación MCP tras cerrar el swarm.
+3. ~~Coordinar re-indexación MCP tras cerrar el swarm~~ — Hecho 2026-09-07 (índice + ADR persistidos en `codebase-memory-mcp`).
 
 ## Criterios de éxito del MVP actualizado
 
