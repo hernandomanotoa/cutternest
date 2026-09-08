@@ -67,7 +67,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 - Tests backend: 37 passed (incl. contrato de plantillas `test_templates.py`).
 - Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
-- Tests Assembly Planner: 319 passed (node --test, sin dependencias externas).
+- Tests Assembly Planner: 363 passed (node --test, sin dependencias externas; incl. apertura interactiva ADR-0022).
 - Ejemplos CSV: 75 archivos (data/ + docs/) validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.

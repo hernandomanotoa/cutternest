@@ -596,11 +596,13 @@ describe('renderer3d — apertura interactiva (geo.rotation)', () => {
     assert.ok(svg.includes('data-piece-id="m1-puerta"'), 'rotated door should render faces');
   });
 
-  it('Renderer3D.setApertura recalcula geometrías con rotation y traslaciones', async () => {
+  it('Renderer3D.setApertura anima y termina en el valor final (frames inyectados)', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
-    if (typeof window === 'undefined') globalThis.window = { addEventListener() {}, removeEventListener() {} };
-    if (typeof document === 'undefined') globalThis.document = { createElement: () => ({ style: {} }) };
-    if (typeof requestAnimationFrame === 'undefined') { globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = () => {}; }
+    let rafCb = null;
+    globalThis.requestAnimationFrame = (cb) => { rafCb = cb; return 1; };
+    globalThis.cancelAnimationFrame = () => { rafCb = null; };
+    let fakeNow = 1000;
+    Object.defineProperty(globalThis, 'performance', { value: { now: () => fakeNow }, configurable: true });
     const cont = {
       style: {}, innerHTML: '',
       getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
@@ -616,10 +618,57 @@ describe('renderer3d — apertura interactiva (geo.rotation)', () => {
     ]);
     const closed = r.geometries.find((g) => g.id === 'm1-puerta-izq');
     assert.equal(closed.rotation, undefined, 'closed door has no rotation');
+
     r.setApertura(1, {});
+    assert.ok(rafCb, 'animation should be scheduled');
+    // Frame intermedio (t=0.5): apertura ~0.5 → ángulo ~52.5°
+    fakeNow += 150;
+    let cb = rafCb; rafCb = null; cb();
+    const mid = r.geometries.find((g) => g.id === 'm1-puerta-izq');
+    assert.ok(mid.rotation, 'mid-animation door should carry rotation');
+    assert.ok(Math.abs(mid.rotation.angleDeg - 52.5) < 1e-6, `angle ~52.5°, got ${mid.rotation.angleDeg}`);
+    // Frames hasta el final: llega exacto a 105°
+    fakeNow += 200;
+    cb = rafCb; rafCb = null; cb();
     const open = r.geometries.find((g) => g.id === 'm1-puerta-izq');
-    assert.ok(open.rotation, 'open door should carry rotation after setApertura');
+    assert.ok(open.rotation, 'open door should carry rotation after animation');
     assert.equal(open.rotation.axis, 'z');
+    assert.ok(Math.abs(open.rotation.angleDeg - 105) < 1e-6, `final angle 105°, got ${open.rotation.angleDeg}`);
+    assert.equal(rafCb, null, 'animation finished, nothing scheduled');
     r.destroy();
+  });
+});
+
+describe('renderer3d — bounding box y lerp de apertura', () => {
+  it('computeBoundingBox usa esquinas rotadas: puerta hinge abierta desplaza +y', async () => {
+    const { computeBoundingBox } = await import('./geometry.js');
+    const carcass = { x: 0, y: 0, z: 0, w: 800, d: 550, h: 1000 };
+    // Puerta realista: ancho 770 en x, espesor 18 en y, frente en y=550.
+    const doorClosed = { x: 0, y: 550, z: 15, w: 770, d: 18, h: 900 };
+    const closed = computeBoundingBox([carcass, doorClosed]);
+    assert.equal(closed.max.y, 568);
+    const doorOpen = {
+      ...doorClosed,
+      rotation: { axis: 'z', angleDeg: 90, pivot: { x: 0, y: 559 } },
+    };
+    const open = computeBoundingBox([carcass, doorOpen]);
+    assert.ok(open.max.y > closed.max.y, `open door should extend bbox +y (${open.max.y} > ${closed.max.y})`);
+    // La esquina libre (x+w, y) rota a y = pivot.y + w = 559 + 770 = 1329
+    assert.ok(Math.abs(open.max.y - 1329) < 1e-6, `max.y ≈ 1329, got ${open.max.y}`);
+  });
+
+  it('lerpAperturaState interpola global y overrides hacia el destino', async () => {
+    const { lerpAperturaState } = await import('./transform.js');
+    const from = { global: 0, overrides: { p1: 0.8 } };
+    const to = { global: 1, overrides: { p1: 0.4, p2: 0.2 } };
+    const mid = lerpAperturaState(from, to, 0.5);
+    assert.ok(Math.abs(mid.global - 0.5) < 1e-9);
+    // p1: 0.8 → 0.4 ; p2 (nueva): desde el global origen (0) → 0.2
+    assert.ok(Math.abs(mid.overrides.p1 - 0.6) < 1e-9, `p1 ~0.6, got ${mid.overrides.p1}`);
+    assert.ok(Math.abs(mid.overrides.p2 - 0.1) < 1e-9, `p2 ~0.1, got ${mid.overrides.p2}`);
+    const end = lerpAperturaState(from, to, 1);
+    assert.equal(end.global, 1);
+    assert.equal(end.overrides.p1, 0.4);
+    assert.equal(end.overrides.p2, 0.2);
   });
 });

@@ -83,3 +83,13 @@ test('piezas de cajón sin frente identificable: fallback al conteo por piezas',
   const correderas = h.find((x) => x.nombre === 'Correderas telescópicas');
   assert.ok(correderas, 'fallback no rompe el cálculo');
 });
+
+test('tiradores de zapatera extraíble cuentan como tiradores de cajón', () => {
+  const h = calculateHardware([
+    pieza('t1', 'Tirador zapatera extraible 1'),
+    pieza('t2', 'Tirador zapatera extraible 2'),
+  ], []);
+  const tiradores = h.filter((x) => x.nombre === 'Tiradores');
+  assert.equal(tiradores.length, 1);
+  assert.equal(tiradores[0].cantidad, 2);
+});

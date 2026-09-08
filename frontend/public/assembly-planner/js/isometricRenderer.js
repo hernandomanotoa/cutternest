@@ -73,9 +73,21 @@ function getDepthKey(geo, xFactor = 0.5) {
   // Usar el centroide proyectado en X para el painter's algorithm.
   // Esto permite que piezas de módulos adyacentes en vista completa se
   // ordenen correctamente según su posición visual, no solo real.
-  const cx = geo.x + geo.w / 2;
-  const cy = geo.y + geo.d / 2;
-  const cz = geo.z + geo.h / 2;
+  // Con rotation (puerta abierta) el centroide se calcula sobre las esquinas
+  // rotadas, no sobre la caja alineada.
+  let cx;
+  let cy;
+  let cz;
+  if (geo.rotation) {
+    const corners = rotateCorners(boxCorners(geo), geo.rotation);
+    cx = corners.reduce((s, c) => s + c.x, 0) / corners.length;
+    cy = corners.reduce((s, c) => s + c.y, 0) / corners.length;
+    cz = corners.reduce((s, c) => s + c.z, 0) / corners.length;
+  } else {
+    cx = geo.x + geo.w / 2;
+    cy = geo.y + geo.d / 2;
+    cz = geo.z + geo.h / 2;
+  }
   return cx + cy * xFactor + cz;
 }
 
@@ -97,6 +109,31 @@ function getSideOrder(geo) {
   return 3; // repisas corrida / central / sin lado
 }
 
+function isHandlePiece(p) {
+  // Tirador reconocido por rol o por nombre. Necesario porque inferRole
+  // clasifica "Tirador puerta ..." como 'door' (la regla 'puerta' gana antes
+  // que 'tirador' en classifierService, que es capa cerrada).
+  if (inferRole(p) === 'handle') return true;
+  return normalizeNameLocal(p?.nombre || '').includes('tirador') ||
+    normalizeNameLocal(p?.id || '').includes('tirador');
+}
+
+function findPairedHandle(piece, candidates) {
+  // Empareja un frente (puerta o cajón) con su tirador: por prefijo de id
+  // (m1-puerta-izq → m1-puerta) o por inclusión del nombre normalizado
+  // ('Tirador puerta izq' incluye 'puerta izq'). Misma heurística que usa el
+  // emparejamiento de tiradores de cajón en _buildDrawerGeometries.
+  const parts = String(piece.id || '').split('-');
+  const prefix = parts.slice(0, -1).join('-');
+  const name = normalizeNameLocal(piece.nombre || '');
+  if (!prefix && !name) return null;
+  return candidates.find((p) => {
+    if (!isHandlePiece(p)) return false;
+    if (prefix && String(p.id).startsWith(prefix)) return true;
+    return Boolean(name) && normalizeNameLocal(p.nombre || '').includes(name);
+  });
+}
+
 export function sortByDepth(geometries, xFactor = 0.5) {
   return geometries.slice().sort((a, b) => {
     // Vista completa: pintar módulo a módulo (M1 completo, luego M2, ...).
@@ -112,7 +149,14 @@ export function sortByDepth(geometries, xFactor = 0.5) {
     // Capas especiales: fondo y lateral trasero primero; lateral frontal al final.
     const aSpecial = za <= 2 || za >= 20;
     const bSpecial = zb <= 2 || zb >= 20;
-    if (aSpecial || bSpecial) return za - zb;
+    if (aSpecial || bSpecial) {
+      if (za !== zb) return za - zb;
+      // Mismo zIndex especial (p. ej. dos puertas): con rotation desempatamos
+      // por profundidad real (centroide rotado); sin rotation conservamos el
+      // orden de inserción estable (sin cambios respecto al render previo).
+      if (a.rotation || b.rotation) return getDepthKey(a, xFactor) - getDepthKey(b, xFactor);
+      return 0;
+    }
 
     // Dentro de estantes/divisores, agrupar por lado para respetar el orden
     // izquierda → divisor → derecha → corrida, manteniendo el apilamiento
@@ -215,6 +259,16 @@ export class IsometricRenderer {
 
     const moduleLabel = getModuleLabel(moduleId, pieces);
 
+    // Tiradores emparejados a puertas (módulo o global): quedan excluidos del
+    // emparejamiento de cajones para no duplicar geos, y reciben el transform
+    // de su puerta en la pasada final de apertura.
+    this._doorHandleIds = new Set();
+    pieces.forEach((p) => {
+      if (inferRole(p) !== 'door' || isHandlePiece(p)) return;
+      const handle = findPairedHandle(p, pieces);
+      if (handle) this._doorHandleIds.add(handle.id);
+    });
+
     let geometries = [];
 
     if (isGlobalModule) {
@@ -251,7 +305,7 @@ export class IsometricRenderer {
       }
     }
 
-    return { geometries: geometries.map((g) => this._applyAperturaPuerta(g)), moduleW, moduleD, moduleH, thickness, moduleLabel };
+    return { geometries: this._applyAperturas(geometries), moduleW, moduleD, moduleH, thickness, moduleLabel };
   }
 
   /**
@@ -278,17 +332,54 @@ export class IsometricRenderer {
   }
 
   /**
-   * Aplica la apertura a una geo de puerta (bisagra → rotation, corrediza →
-   * traslación en x). Las piezas de cajón y sus tiradores se mueven con el
-   * frente en _buildDrawerGeometries (rail +y) y aquí se ignoran para no
-   * aplicar la traslación dos veces.
+   * Aplica la apertura a las puertas y propaga el transform a su tirador
+   * emparejado: la MISMA rotation (bisagra: mismo pivote/ángulo, las esquinas
+   * rotan alrededor del mismo eje) o la MISMA traslación x (corrediza). Las
+   * piezas de cajón y sus tiradores se mueven con el frente en
+   * _buildDrawerGeometries (rail +y) y aquí se ignoran para no duplicar.
    */
-  _applyAperturaPuerta(geo) {
-    if (geo.role !== 'door') return geo;
-    const cfg = motionConfigFor({ id: geo.id, nombre: geo.name });
-    if (!cfg) return geo;
-    const open = opennessFor(geo.id, this.aperturas, this._aperturaEfectivaGlobal());
-    return applyApertureToGeo(geo, cfg, open);
+  _applyAperturas(geometries) {
+    const doorMoves = [];
+    const moved = geometries.map((geo) => {
+      if (geo.role !== 'door') return geo;
+      const cfg = motionConfigFor({ id: geo.id, nombre: geo.name });
+      if (!cfg) return geo;
+      const open = opennessFor(geo.id, this.aperturas, this._aperturaEfectivaGlobal());
+      const next = applyApertureToGeo(geo, cfg, open);
+      if (!next.rotation) {
+        if (next.x !== geo.x) doorMoves.push({ geo, next });
+        return next;
+      }
+      // El servicio devuelve pivot sin y (contrato estable); el renderer fija
+      // la línea de bisagra en el plano de la puerta (centro en y) para que
+      // la rotación sea rígida y no alrededor del origen del módulo.
+      const withPivot = {
+        ...next,
+        rotation: {
+          ...next.rotation,
+          pivot: { ...next.rotation.pivot, y: geo.y + geo.d / 2 },
+        },
+      };
+      doorMoves.push({ geo, next: withPivot });
+      return withPivot;
+    });
+    if (!doorMoves.length) return moved;
+    return moved.map((geo) => {
+      if (geo.role !== 'handle') return geo;
+      const move = doorMoves.find((m) =>
+        this._handleBelongsToDoor(geo, m.geo));
+      if (!move) return geo;
+      if (move.next.rotation) return { ...geo, rotation: move.next.rotation };
+      return { ...geo, x: geo.x + (move.next.x - move.geo.x) };
+    });
+  }
+
+  _handleBelongsToDoor(handleGeo, doorGeo) {
+    const parts = String(doorGeo.id || '').split('-');
+    const prefix = parts.slice(0, -1).join('-');
+    const doorName = normalizeNameLocal(doorGeo.name || '');
+    if (prefix && String(handleGeo.id).startsWith(prefix)) return true;
+    return Boolean(doorName) && normalizeNameLocal(handleGeo.name || '').includes(doorName);
   }
 
   render(moduleId, pieces, _dependencies) {
@@ -671,11 +762,13 @@ export class IsometricRenderer {
     // Puertas y vidrios (paneles frontales): se apilan verticalmente para
     // diferenciar superior/inferior y evitar solapes cuando hay varios.
     const frontPanels = [
-      ...roles.filter((p) => p.role === 'door'),
+      // Los tiradores de puerta (rol 'door' por quirk del clasificador) no son
+      // paneles: renderizan como geo de handle emparejada a su puerta.
+      ...roles.filter((p) => p.role === 'door' && !isHandlePiece(p)),
       ...roles.filter((p) => p.role === 'glass'),
     ];
     if (frontPanels.length) {
-      geometries.push(...this._buildFrontPanelGeometries(frontPanels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset, topPanelOffset));
+      geometries.push(...this._buildFrontPanelGeometries(frontPanels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset, topPanelOffset, roles));
     }
 
     // Cajones
@@ -717,7 +810,7 @@ export class IsometricRenderer {
     return geometries;
   }
 
-  _buildFrontPanelGeometries(panels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset = 0, topPanelOffset = null) {
+  _buildFrontPanelGeometries(panels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset = 0, topPanelOffset = null, allRoles = []) {
     const overrides = this.verticalPositionOverrides || {};
     const t = Number(thickness) || 15;
     const gap = overrides.doorGap ?? VERTICAL_POSITIONS.doorGap;
@@ -796,6 +889,21 @@ export class IsometricRenderer {
           opacity: it.role === 'glass' ? 0.3 : 0.35,
         };
         geos.push(baseGeo);
+
+        // Tirador de puerta: geo propia centrada en el frente. Recibe el
+        // transform de la puerta (rotation/Δx) en la pasada final de apertura.
+        if (it.role === 'door') {
+          const handle = findPairedHandle(it.piece, allRoles);
+          if (handle && !geos.some((g) => g.id === handle.id)) {
+            geos.push({
+              x: it.x + it.w / 2 - 15,
+              y: moduleD + (Number(it.piece.espesor) || thickness),
+              z: z + it.h / 2 - 10,
+              w: 30, d: 10, h: 20,
+              color: handle.color || ROLE_COLORS.handle, role: 'handle', name: handle.nombre, id: handle.id,
+            });
+          }
+        }
       });
     });
 
@@ -891,6 +999,7 @@ export class IsometricRenderer {
         const faceIdPrefix = d.face.id.split('-').slice(0, -1).join('-');
         const handle = roles.find((p) =>
           inferRole(p) === 'handle' &&
+          !this._doorHandleIds?.has(p.id) &&
           (p.id.startsWith(faceIdPrefix) || normalizeNameLocal(p.nombre).includes(normalizeNameLocal(d.face.nombre)))
         );
         if (handle) {
@@ -1152,7 +1261,9 @@ export class IsometricRenderer {
         });
       } else if (role === 'door') {
         // Puertas globales: solo se renderizan en vista completa o estructura global.
-        if (includeDoors) {
+        // Los tiradores de puerta (rol 'door' por quirk del clasificador) no
+        // cuentan: renderizan como geo de handle emparejada a su puerta.
+        if (includeDoors && !isHandlePiece(p)) {
           globalDoors.push(p);
         }
       } else {
@@ -1195,6 +1306,18 @@ export class IsometricRenderer {
           opacity: 0.35,
         };
         geometries.push(baseGeo);
+        // Tirador de puerta global: geo propia; recibe el transform de la
+        // puerta en la pasada final de apertura.
+        const gHandle = findPairedHandle(door, globalPieces);
+        if (gHandle && !geometries.some((g) => g.id === gHandle.id)) {
+          geometries.push({
+            x: x + doorW / 2 - 15,
+            y: moduleD + (Number(door.espesor) || thickness),
+            z: z + h / 2 - 10,
+            w: 30, d: 10, h: 20,
+            color: gHandle.color || ROLE_COLORS.handle, role: 'handle', name: gHandle.nombre, id: gHandle.id,
+          });
+        }
       });
     }
 

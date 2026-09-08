@@ -767,3 +767,87 @@ describe('IsometricRenderer apertura interactiva', () => {
     assert.equal(door0.rotation, undefined);
   });
 });
+
+describe('IsometricRenderer tiradores de puerta', () => {
+  const cabinetBase = [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  ];
+  const hingeDoorWithHandle = [
+    ...cabinetBase,
+    { id: 'm1-puerta-izq', nombre: 'Puerta izq', ancho: 770, alto: 900, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: '1' },
+    { id: 'm1-puerta-izq-tir', nombre: 'Tirador puerta izq', ancho: 30, alto: 20, cantidad: 1, rotate: 'no', color: '#E2E8F0', espesor: 10, modulo: '1' },
+  ];
+  const slideDoorWithHandle = [
+    ...cabinetBase,
+    { id: 'm1-puerta-cor', nombre: 'Puerta corrediza izquierda', ancho: 770, alto: 900, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: '1' },
+    { id: 'm1-puerta-cor-tir', nombre: 'Tirador puerta corrediza', ancho: 30, alto: 20, cantidad: 1, rotate: 'no', color: '#E2E8F0', espesor: 10, modulo: '1' },
+  ];
+
+  it('tirador de puerta bisagra rota con la misma rotation (mismo pivote/ángulo)', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const { geometries } = renderer.computeGeometries('1', hingeDoorWithHandle);
+    const door = geometries.find((g) => g.role === 'door');
+    const handle = geometries.find((g) => g.role === 'handle');
+    assert.ok(door?.rotation, 'door should be open');
+    assert.ok(handle, 'door handle geometry should exist');
+    assert.deepEqual(handle.rotation, door.rotation, 'handle should share the door rotation');
+    assert.equal(handle.rotation.pivot.x, door.x, 'pivot on hinge side');
+  });
+
+  it('tirador de puerta corrediza recibe la misma traslación x (sin rotation)', () => {
+    const closed = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const closedGeos = closed.computeGeometries('1', slideDoorWithHandle).geometries;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const geos = renderer.computeGeometries('1', slideDoorWithHandle).geometries;
+    const door = geos.find((g) => g.role === 'door');
+    const handle = geos.find((g) => g.role === 'handle');
+    const closedDoor = closedGeos.find((g) => g.role === 'door');
+    const closedHandle = closedGeos.find((g) => g.role === 'handle');
+    assert.ok(handle, 'door handle geometry should exist');
+    assert.equal(door.rotation, undefined);
+    assert.equal(handle.rotation, undefined);
+    const doorDx = door.x - closedDoor.x;
+    const handleDx = handle.x - closedHandle.x;
+    assert.ok(Math.abs(doorDx) > 0, 'door should slide');
+    assert.ok(Math.abs(handleDx - doorDx) < 1e-9, `handle should share Δx (${handleDx} vs ${doorDx})`);
+  });
+
+  it('tirador de puerta no se empareja a un cajón (sin geos duplicadas)', () => {
+    const pieces = [
+      ...hingeDoorWithHandle,
+      { id: 'm1-cajon-1', nombre: 'Frente cajon 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const { geometries } = renderer.computeGeometries('1', pieces);
+    const handleGeos = geometries.filter((g) => g.role === 'handle' && g.id === 'm1-puerta-izq-tir');
+    assert.equal(handleGeos.length, 1, 'door handle should render exactly once');
+  });
+});
+
+describe('IsometricRenderer orden de pintado con rotation', () => {
+  // Puerta realista: ancho 770 en x, espesor 18 en y, bisagra izq en x=0
+  // con pivot.y en el plano de la puerta (lo que genera el renderer).
+  const doorClosed = { x: 0, y: 550, z: 15, w: 770, d: 18, h: 900, role: 'door', name: 'Puerta A', id: 'da' };
+  const doorOpen = {
+    ...doorClosed,
+    rotation: { axis: 'z', angleDeg: 90, pivot: { x: 0, y: 559 } },
+  };
+
+  it('puerta abierta (rotation) ordena por centroide rotado, no por caja alineada', () => {
+    // Centroide alineado sería idéntico en ambas (orden estable = cerrada
+    // primero). Con centroide rotado la abierta tiene cx mucho menor
+    // (swing hacia la bisagra) y decide el desempate.
+    const sorted = sortByDepth([doorClosed, doorOpen], 0.5);
+    assert.equal(sorted[0], doorOpen, 'open door should paint before closed door (rotated centroid)');
+  });
+
+  it('sin rotation el orden entre iguales es estable (regresión)', () => {
+    const a = { ...doorClosed, id: 'a' };
+    const b = { ...doorClosed, id: 'b' };
+    const sorted = sortByDepth([a, b], 0.5);
+    assert.deepEqual(sorted.map((g) => g.id), ['a', 'b']);
+  });
+});

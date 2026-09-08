@@ -3,7 +3,7 @@
 // orbital, explode, transparencia selectiva e interacción.
 
 import { pieceVertices, computeBoundingBox } from './geometry.js';
-import { applyExplode, lerp, rotateVertex, projectVertexCentered } from './transform.js';
+import { applyExplode, lerp, lerpAperturaState, rotateVertex, projectVertexCentered } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
@@ -25,6 +25,8 @@ export class Renderer3D {
     this.animationFrameId = null;
     this.animationStartExplode = 0;
     this.animationFromExplode = 0;
+    this.aperturaAnim = null;
+    this.aperturaFrameId = null;
 
     this.moduleGapMode = options.moduleGapMode ?? 'compact';
     this.verticalPositionOverrides = options.verticalPositionOverrides || {};
@@ -81,7 +83,7 @@ export class Renderer3D {
     });
   }
 
-  load(moduleId, pieces) {
+  load(moduleId, pieces, opts = {}) {
     this.moduleId = moduleId;
     this._lastPieces = pieces;
     const filtered = getModulePieces(pieces, moduleId);
@@ -120,7 +122,7 @@ export class Renderer3D {
     this.moduleCenter = computeBoundingBox(this.geometries).center;
 
     this.needsRender = true;
-    this._fitCameraToModule();
+    if (!opts.keepCamera) this._fitCameraToModule();
   }
 
   _fitCameraToModule() {
@@ -287,11 +289,60 @@ export class Renderer3D {
   }
 
   setApertura(aperturaGlobal, aperturas) {
-    this.isoRenderer.setApertura(aperturaGlobal, aperturas);
-    // Re-ejecutar el pipeline de load con los últimos argumentos: las
-    // traducciones (x/y) y las rotation de computeGeometries se heredan.
+    const to = {
+      global: Math.min(1, Math.max(0, Number(aperturaGlobal) || 0)),
+      overrides: { ...(aperturas || {}) },
+    };
+    const from = this._currentAperturaState();
+    if (from.global === to.global && JSON.stringify(from.overrides) === JSON.stringify(to.overrides)) {
+      this._applyAperturaState(to);
+      return;
+    }
+    // Un setApertura nuevo cancela la animación anterior y arranca desde el
+    // valor en vuelo (patrón del explode, ~300 ms con lerp/raf).
+    this._cancelAperturaAnimation();
+    this.aperturaAnim = { from, to, start: performance.now(), duration: 300 };
+    this._scheduleAperturaAnimation();
+  }
+
+  _currentAperturaState() {
+    return {
+      global: this.isoRenderer.aperturaGlobal ?? 0,
+      overrides: { ...(this.isoRenderer.aperturas || {}) },
+    };
+  }
+
+  _applyAperturaState(state) {
+    this.isoRenderer.setApertura(state.global, state.overrides);
     if (this.moduleId !== undefined && this._lastPieces) {
-      this.load(this.moduleId, this._lastPieces);
+      // keepCamera: la apertura no debe re-encuadrar la cámara en cada frame.
+      this.load(this.moduleId, this._lastPieces, { keepCamera: true });
+    }
+  }
+
+  _scheduleAperturaAnimation() {
+    this.aperturaFrameId = requestAnimationFrame(() => this._animateApertura());
+  }
+
+  _cancelAperturaAnimation() {
+    if (this.aperturaFrameId !== null) {
+      cancelAnimationFrame(this.aperturaFrameId);
+      this.aperturaFrameId = null;
+    }
+    this.aperturaAnim = null;
+  }
+
+  _animateApertura() {
+    const anim = this.aperturaAnim;
+    if (!anim) return;
+    const t = Math.min(1, (performance.now() - anim.start) / anim.duration);
+    this._applyAperturaState(lerpAperturaState(anim.from, anim.to, t));
+    if (t < 1) {
+      this._scheduleAperturaAnimation();
+    } else {
+      this.aperturaAnim = null;
+      this.aperturaFrameId = null;
+      this._applyAperturaState(anim.to); // valor final exacto
     }
   }
 
@@ -391,6 +442,7 @@ export class Renderer3D {
 
   destroy() {
     this._cancelAnimation();
+    this._cancelAperturaAnimation();
     this.controls.destroy();
     this.interaction.destroy();
     this.container.innerHTML = '';

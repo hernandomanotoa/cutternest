@@ -170,6 +170,20 @@ export function computeBoundingBox(pieces) {
   let maxY = -Infinity;
   let maxZ = -Infinity;
   for (const p of pieces) {
+    if (p.rotation) {
+      // Puerta abierta: la caja alineada no refleja la extensión real; se
+      // usan las 8 esquinas rotadas para acotar explode y centro orbital.
+      const corners = rotateCorners(boxCorners(p), p.rotation);
+      for (const c of corners) {
+        minX = Math.min(minX, c.x);
+        maxX = Math.max(maxX, c.x);
+        minY = Math.min(minY, c.y);
+        maxY = Math.max(maxY, c.y);
+        minZ = Math.min(minZ, c.z);
+        maxZ = Math.max(maxZ, c.z);
+      }
+      continue;
+    }
     minX = Math.min(minX, p.x);
     maxX = Math.max(maxX, p.x + p.w);
     minY = Math.min(minY, p.y);

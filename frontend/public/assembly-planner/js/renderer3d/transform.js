@@ -153,6 +153,28 @@ export function lerpObject(current, target, t) {
 }
 
 /**
+ * Interpola el estado de apertura { global, overrides } entre dos estados.
+ * Las claves de overrides se animan desde su valor efectivo (override o
+ * global del estado origen) hacia el efectivo del destino; las claves que
+ * desaparecen convergen al global destino.
+ */
+export function lerpAperturaState(from, to, t) {
+  const overrides = {};
+  const fromOv = from.overrides || {};
+  const toOv = to.overrides || {};
+  const keys = new Set([...Object.keys(fromOv), ...Object.keys(toOv)]);
+  keys.forEach((k) => {
+    const a = fromOv[k] ?? from.global ?? 0;
+    const b = toOv[k] ?? to.global ?? 0;
+    overrides[k] = lerp(a, b, t);
+  });
+  return {
+    global: lerp(from.global ?? 0, to.global ?? 0, t),
+    overrides,
+  };
+}
+
+/**
  * Calcula el centroide del módulo para un conjunto de piezas.
  */
 export { computeModuleCenter };

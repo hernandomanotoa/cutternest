@@ -25,5 +25,12 @@ Zapatera con rieles = cajón con **mínimo laterales + frente** (base recomendad
 ## Consecuencias
 
 - Ambas vistas (isométrica y 3D orbital) abren/corren con el mismo estado; el override por pieza gana sobre el global.
-- Limitaciones: las piezas reales de cajón (laterales/base/fondo clasificadas drawer_*) no reciben geometría propia (solo el frente genera la caja sintética), así que el grupo que sale es el sintético; el tirador de una puerta a bisagra no rota con ella; el orden de pintado usa la caja sin rotar (posible solapamiento leve con aperturas grandes).
+- Cierre de limitaciones (post-implentación):
+  - El tirador de puerta ahora es una geo propia emparejada por prefijo de id/nombre (`findPairedHandle`) y recibe el transform de su puerta: la MISMA rotation (bisagra, mismo pivote) o la MISMA traslación x (corrediza). Como `inferRole` clasifica "Tirador puerta …" como `door` (regla 'puerta' antes que 'tirador'), el renderer usa `isHandlePiece` (rol handle o nombre con 'tirador') para excluir esas piezas de los paneles frontales y tratarlas solo como tirador; el emparejamiento de cajones excluye los tiradores de puerta (`_doorHandleIds`).
+  - El renderer fija `pivot.y = geo.y + d/2` en la rotation devuelta por el servicio (el contrato de `motionService` entrega pivot sin y): la bisagra rota en el plano de la puerta, no alrededor del origen del módulo.
+  - Orden de pintado: `getDepthKey` usa el centroide de las esquinas rotadas cuando hay `geo.rotation`, y el desempate solo aplica entre geos de mismo zIndex especial con al menos uno rotado; sin apertura el orden es idéntico al anterior.
+  - `Renderer3D` anima la apertura ~300 ms (lerp/raf, patrón explode; `lerpAperturaState` interpola global y overrides), cancelable, sin re-encuadre de cámara (`load(..., { keepCamera: true })`).
+  - `computeBoundingBox` (renderer3d) acota con las esquinas rotadas: explode y centro orbital correctos con puertas abiertas.
+  - `hardware.js` cuenta como "Tiradores" de cajón las piezas 'tirador' + cajón/zapatera/zapatero (incluye zapateras extraíbles).
+- Limitación restante: las piezas reales de cajón (laterales/base/fondo clasificadas drawer_*) no reciben geometría propia (solo el frente genera la caja sintética), así que el grupo que sale es el sintético.
 - `applyDoorRotation` queda legacy sin uso del renderer (se conserva por compatibilidad de tests/imports).

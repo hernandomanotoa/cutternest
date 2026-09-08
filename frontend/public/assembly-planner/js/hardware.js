@@ -38,7 +38,11 @@ export function calculateHardware(piezas, dependencies) {
   const cajonesVolquete = (frentesCajon.length > 0 ? frentesCajon : []).filter(esVolquete);
   const tiradoresCajon = uniquePieces(
     piezas,
-    (p) => p.nombre.toLowerCase().includes('tirador') && p.nombre.toLowerCase().includes('cajon'),
+    (p) => {
+      const n = p.nombre.toLowerCase();
+      // Tiradores de cajón y de zapatera extraíble (zapatera-cajón).
+      return n.includes('tirador') && (n.includes('cajon') || n.includes('zapatera') || n.includes('zapatero'));
+    },
   );
   const barras = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('barra'));
   const modulos = new Set(piezas.map((p) => p.modulo)).size || 1;
