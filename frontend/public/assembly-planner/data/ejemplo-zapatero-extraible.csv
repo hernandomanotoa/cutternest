@@ -1,6 +1,6 @@
 # CutterNest Piezas v1
-# Ejemplo de módulo con zapatero extraíble
-# Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 cajones de bandeja extraíbles en correderas telescópicas (capacidad aproximada 40-50 pares).
+# Ejemplo de módulo con zapatera-cajón (zapatero extraíble)
+# Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: bandeja que se desliza en rieles; mínimo laterales + frente, base recomendada, fondo opcional (capacidad aproximada 40-50 pares).
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 m1-base,Base modulo M1,800,500,1,si,#8B5A2B,15,"T,B,L,R",1
 m1-tapa,Tapa modulo M1,800,500,1,si,#8B5A2B,15,"T,B,L,R",1
@@ -8,33 +8,28 @@ m1-lateral-izq,Lateral izquierdo M1,500,1800,1,no,#8B5A2B,15,"T,B,L",1
 m1-lateral-der,Lateral derecho M1,500,1800,1,no,#8B5A2B,15,"T,B,R",1
 m1-fondo,Fondo modulo M1,800,1800,1,no,#F2F2F2,15,"",1
 m1-bandeja-zapatero,Bandeja zapatero,770,450,1,si,#D9C2A3,18,"T,B,L,R",1
-m11-cajon-frente,Frente cajon extraible 1 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",11
-m11-cajon-lateral-izq,Lateral cajon extraible 1 M1,445,217,1,no,#D9C2A3,15,"T,B,L",11
-m11-cajon-lateral-der,Lateral cajon extraible 1 M1,445,217,1,no,#D9C2A3,15,"T,B,R",11
-m11-cajon-fondo,Fondo cajon extraible 1 M1,738,217,1,no,#F2F2F2,15,,11
-m11-cajon-base,Base cajon extraible 1 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",11
-m11-cajon-tirador,Tirador cajon extraible 1 M1,2,20,1,no,#A0A0A0,5,,11
-m12-cajon-frente,Frente cajon extraible 2 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",12
-m12-cajon-lateral-izq,Lateral cajon extraible 2 M1,445,217,1,no,#D9C2A3,15,"T,B,L",12
-m12-cajon-lateral-der,Lateral cajon extraible 2 M1,445,217,1,no,#D9C2A3,15,"T,B,R",12
-m12-cajon-fondo,Fondo cajon extraible 2 M1,738,217,1,no,#F2F2F2,15,,12
-m12-cajon-base,Base cajon extraible 2 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",12
-m12-cajon-tirador,Tirador cajon extraible 2 M1,2,20,1,no,#A0A0A0,5,,12
-m13-cajon-frente,Frente cajon extraible 3 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",13
-m13-cajon-lateral-izq,Lateral cajon extraible 3 M1,445,217,1,no,#D9C2A3,15,"T,B,L",13
-m13-cajon-lateral-der,Lateral cajon extraible 3 M1,445,217,1,no,#D9C2A3,15,"T,B,R",13
-m13-cajon-fondo,Fondo cajon extraible 3 M1,738,217,1,no,#F2F2F2,15,,13
-m13-cajon-base,Base cajon extraible 3 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",13
-m13-cajon-tirador,Tirador cajon extraible 3 M1,2,20,1,no,#A0A0A0,5,,13
-m14-cajon-frente,Frente cajon extraible 4 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",14
-m14-cajon-lateral-izq,Lateral cajon extraible 4 M1,445,217,1,no,#D9C2A3,15,"T,B,L",14
-m14-cajon-lateral-der,Lateral cajon extraible 4 M1,445,217,1,no,#D9C2A3,15,"T,B,R",14
-m14-cajon-fondo,Fondo cajon extraible 4 M1,738,217,1,no,#F2F2F2,15,,14
-m14-cajon-base,Base cajon extraible 4 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",14
-m14-cajon-tirador,Tirador cajon extraible 4 M1,2,20,1,no,#A0A0A0,5,,14
-m15-cajon-frente,Frente cajon extraible 5 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",15
-m15-cajon-lateral-izq,Lateral cajon extraible 5 M1,445,217,1,no,#D9C2A3,15,"T,B,L",15
-m15-cajon-lateral-der,Lateral cajon extraible 5 M1,445,217,1,no,#D9C2A3,15,"T,B,R",15
-m15-cajon-fondo,Fondo cajon extraible 5 M1,738,217,1,no,#F2F2F2,15,,15
-m15-cajon-base,Base cajon extraible 5 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",15
-m15-cajon-tirador,Tirador cajon extraible 5 M1,2,20,1,no,#A0A0A0,5,,15
+m11-zapatera-frente,Frente zapatera extraible 1 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",11
+m11-zapatera-lateral-izq,Lateral zapatera extraible 1 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",11
+m11-zapatera-lateral-der,Lateral zapatera extraible 1 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",11
+m11-zapatera-base,Base zapatera extraible 1 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",11
+m11-zapatera-tirador,Tirador zapatera extraible 1 M1,2,20,1,no,#A0A0A0,5,,11
+m12-zapatera-frente,Frente zapatera extraible 2 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",12
+m12-zapatera-lateral-izq,Lateral zapatera extraible 2 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",12
+m12-zapatera-lateral-der,Lateral zapatera extraible 2 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",12
+m12-zapatera-base,Base zapatera extraible 2 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",12
+m12-zapatera-tirador,Tirador zapatera extraible 2 M1,2,20,1,no,#A0A0A0,5,,12
+m13-zapatera-frente,Frente zapatera extraible 3 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",13
+m13-zapatera-lateral-izq,Lateral zapatera extraible 3 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",13
+m13-zapatera-lateral-der,Lateral zapatera extraible 3 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",13
+m13-zapatera-base,Base zapatera extraible 3 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",13
+m13-zapatera-tirador,Tirador zapatera extraible 3 M1,2,20,1,no,#A0A0A0,5,,13
+m14-zapatera-frente,Frente zapatera extraible 4 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",14
+m14-zapatera-lateral-izq,Lateral zapatera extraible 4 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",14
+m14-zapatera-lateral-der,Lateral zapatera extraible 4 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",14
+m14-zapatera-base,Base zapatera extraible 4 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",14
+m14-zapatera-tirador,Tirador zapatera extraible 4 M1,2,20,1,no,#A0A0A0,5,,14
+m15-zapatera-frente,Frente zapatera extraible 5 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",15
+m15-zapatera-lateral-izq,Lateral zapatera extraible 5 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",15
+m15-zapatera-lateral-der,Lateral zapatera extraible 5 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",15
+m15-zapatera-base,Base zapatera extraible 5 M1,738,445,1,si,#D9C2A3,15,"T,B,L,R",15
+m15-zapatera-tirador,Tirador zapatera extraible 5 M1,2,20,1,no,#A0A0A0,5,,15

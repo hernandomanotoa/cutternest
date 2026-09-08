@@ -98,6 +98,33 @@ describe('inferRole - dividers', () => {
   });
 });
 
+describe('inferRole - zapatera-cajón', () => {
+  it('zapatera extraíble: familia cajón sin la palabra "cajon"', () => {
+    assert.equal(inferRole(piece('Lateral zapatera extraible 1 izq')), 'drawer_side');
+    assert.equal(inferRole(piece('Lateral zapatera extraible 1 der')), 'drawer_side');
+    assert.equal(inferRole(piece('Frente zapatera extraible 1')), 'drawer_face');
+    assert.equal(inferRole(piece('Base zapatera extraible 1')), 'drawer_bottom');
+    assert.equal(inferRole(piece('Fondo zapatera extraible 1')), 'drawer_back');
+    assert.equal(inferRole(piece('Tirador zapatera extraible 1')), 'handle');
+    assert.equal(inferRole(piece('Pieza zapatera extraible 1')), 'drawer_part');
+  });
+
+  it('zapatera en riel/corredera también es familia cajón', () => {
+    assert.equal(inferRole(piece('Frente zapatera riel 1')), 'drawer_face');
+    assert.equal(inferRole(piece('Frente zapatero corredera 1')), 'drawer_face');
+  });
+
+  it('zapatero fijo sin keyword de deslizamiento sigue siendo shelf', () => {
+    assert.equal(inferRole(piece('Bandeja zapatero', { ancho: 870, alto: 15 })), 'shelf');
+    assert.equal(inferRole(piece('Zapatero compartimentos', { ancho: 870, alto: 15 })), 'shelf');
+  });
+
+  it('laterales/base estructurales sin zapatera no se ven afectados', () => {
+    assert.equal(inferRole(piece('Lateral izquierdo')), 'side_panel');
+    assert.equal(inferRole(piece('Base modulo M1')), 'bottom_panel');
+  });
+});
+
 describe('isDividerVertical', () => {
   it('detects tall dividers as vertical', () => {
     assert.equal(isDividerVertical(piece('Division vertical', { ancho: 550, alto: 2400 })), true);

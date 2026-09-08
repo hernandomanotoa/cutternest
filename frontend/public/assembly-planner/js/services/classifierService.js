@@ -18,6 +18,20 @@ export function inferRole(piece) {
 
   if (n.includes('vidrio') || n.includes('cristal') || id.includes('vidrio') || id.includes('cristal')) return 'glass';
 
+  // Zapatera-cajón: zapatero/a extraíble que se desliza en rieles como cajón.
+  // Va antes de las reglas estructurales porque "Lateral zapatera extraible"
+  // matchearía 'lateral' → side_panel y "Base zapatera extraible" → bottom_panel.
+  if (/\bzapat(?:ero|era|eros|eras)\b/.test(`${n} ${id}`) &&
+      (n.includes('extraible') || n.includes('riel') || n.includes('corredera') ||
+       id.includes('extraible') || id.includes('riel') || id.includes('corredera'))) {
+    if (n.includes('frente') || id.includes('frente')) return 'drawer_face';
+    if (n.includes('lateral') || id.includes('lateral')) return 'drawer_side';
+    if (n.includes('base') || id.includes('base')) return 'drawer_bottom';
+    if (n.includes('fondo') || id.includes('fondo')) return 'drawer_back';
+    if (n.includes('tirador') || id.includes('tirador')) return 'handle';
+    return 'drawer_part';
+  }
+
   // Estructura principal: base, tapa, laterales y fondo deben tener prioridad
   // sobre nombres compuestos como "Base aparador puertas" o "Lateral derecho vitrina".
   if (n.includes('base')) return 'bottom_panel';

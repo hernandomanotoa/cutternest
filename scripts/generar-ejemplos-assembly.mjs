@@ -27,6 +27,9 @@ function tirador(id, nombre, color, modulo) {
 //   frente.alto = altoVano − 3
 //   profCajon = D − 25 (corredera telescópica) o D − 15 (volquete/abatible)
 //   lateral = profCajon × (frente.alto − 2×espBase) · fondo/base = (frente.ancho − 2×espLat)
+// opts.vocabulario 'zapatera' nombra "zapatera extraible" en vez de "cajon"
+// (zapatera-cajón: se desliza en rieles sin la palabra "cajon" en el nombre).
+// opts.sinFondo omite el fondo del cajón (opcional en la zapatera-cajón).
 function cajon(parent, index, opts) {
   const {
     anchoModulo,
@@ -37,7 +40,9 @@ function cajon(parent, index, opts) {
     colorLateral,
     suffix = '',
     tipo = 'corredera',
-    altBandeja = 150
+    altBandeja = 150,
+    sinFondo = false,
+    vocabulario = 'cajon'
   } = opts;
   const E = 15; // espesor de laterales y fondo del módulo en estos ejemplos
   const ESP_LAT = 15; // espesor laterales del cajón
@@ -58,14 +63,27 @@ function cajon(parent, index, opts) {
   const sm = `${parent}${index}`;
   const label = suffix ? ` ${suffix}` : '';
   const tipoNombre = volquete ? ' abatible' : '';
-  return [
-    `m${sm}-cajon-frente,Frente cajon${tipoNombre}${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},15,"T,B,L,R",${sm}`,
-    `m${sm}-cajon-lateral-izq,Lateral cajon${label} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
-    `m${sm}-cajon-lateral-der,Lateral cajon${label} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`,
-    `m${sm}-cajon-fondo,Fondo cajon${label} M${parent},${fondoAncho},${latAlto},1,no,#F2F2F2,15,,${sm}`,
-    `m${sm}-cajon-base,Base cajon${label} M${parent},${fondoAncho},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
-    `m${sm}-cajon-tirador,Tirador cajon${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
+  const esZapatera = vocabulario === 'zapatera';
+  // En el volquete el calificativo 'abatible' va solo en el frente (es el que
+  // pivota); laterales/fondo/base/tirador mantienen el nombre plano "cajon".
+  const frenteVocab = esZapatera ? 'zapatera extraible' : `cajon${tipoNombre}`;
+  const vocab = esZapatera ? 'zapatera extraible' : 'cajon';
+  const idp = esZapatera ? 'zapatera' : 'cajon';
+  const ladoIzq = esZapatera ? ' izq' : '';
+  const ladoDer = esZapatera ? ' der' : '';
+  const rows = [
+    `m${sm}-${idp}-frente,Frente ${frenteVocab}${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},15,"T,B,L,R",${sm}`,
+    `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
+    `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`
   ];
+  if (!sinFondo) {
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${latAlto},1,no,#F2F2F2,15,,${sm}`);
+  }
+  rows.push(
+    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${fondoAncho},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    `m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
+  );
+  return rows;
 }
 
 function baseTapaLateralesFondo(mod, parent, ancho, alto, prof, colorCuerpo) {
@@ -287,14 +305,14 @@ const examples = [];
   examples.push({ name: 'Ejemplo_CSV_Zapatera_Volquete.csv', dataName: 'ejemplo-zapatero-volquete.csv', lines });
 }
 
-// 17. Módulo de clóset con zapatero extraíble
+// 17. Módulo de clóset con zapatera-cajón (zapatero extraíble)
 {
   const lines = [];
-  lines.push(header('Ejemplo de módulo con zapatero extraíble', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 cajones de bandeja extraíbles en correderas telescópicas (capacidad aproximada 40-50 pares).'));
+  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: bandeja que se desliza en rieles; mínimo laterales + frente, base recomendada, fondo opcional (capacidad aproximada 40-50 pares).'));
   lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
   lines.push(line('m1-bandeja-zapatero', 'Bandeja zapatero', 770, 450, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   for (let i = 1; i <= 5; i++) {
-    lines.push(...cajon(1, i, { anchoModulo: 800, profundidadModulo: 500, altoVano: 250, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: `extraible ${i}` }));
+    lines.push(...cajon(1, i, { anchoModulo: 800, profundidadModulo: 500, altoVano: 250, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: `${i}`, vocabulario: 'zapatera', sinFondo: true }));
   }
   examples.push({ name: 'Ejemplo_CSV_Zapatero_Extraible_Closet.csv', dataName: 'ejemplo-zapatero-extraible.csv', lines });
 }

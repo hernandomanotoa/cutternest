@@ -86,3 +86,19 @@ describe('parseCSV - pandeo', () => {
     assert.equal(pandeoWarnings(result).some((w) => w.includes('"Repisa X"')), false);
   });
 });
+
+describe('parseCSV - zapatera-cajón (submódulo mínimo)', () => {
+  it('acepta un submódulo 1.1 con solo frente + laterales (sin fondo/base)', () => {
+    const csv = [
+      ...MODULE_CSV,
+      'z1-frente,Frente zapatera extraible 1,550,150,1,no,#FFFFFF,18,"T,B,L,R",m1.1,',
+      'z1-lat-izq,Lateral zapatera extraible 1 izq,400,150,1,no,#FFFFFF,15,"T,B,L",m1.1,',
+      'z1-lat-der,Lateral zapatera extraible 1 der,400,150,1,no,#FFFFFF,15,"T,B,R",m1.1,',
+    ].join('\n');
+    const result = parseCSV(csv);
+
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.deepEqual(result.warnings, [], `warnings inesperados: ${result.warnings.join(' | ')}`);
+    assert.ok(result.pieces.find((p) => p.id === 'z1-frente'), 'falta el frente zapatera');
+  });
+});

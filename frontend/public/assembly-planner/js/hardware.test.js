@@ -61,6 +61,22 @@ test('tiradores de cajón explícitos aparecen en la lista', () => {
   assert.equal(tiradores[0].cantidad, 2);
 });
 
+test('frentes de zapatera-cajón: correderas como cajón estándar', () => {
+  const piezas = [
+    pieza('z1f', 'Frente zapatera extraible 1'),
+    pieza('z1li', 'Lateral zapatera extraible 1 izq'),
+    pieza('z1ld', 'Lateral zapatera extraible 1 der'),
+    pieza('z2f', 'Frente zapatera extraible 2'),
+    pieza('z2li', 'Lateral zapatera extraible 2 izq'),
+    pieza('z2ld', 'Lateral zapatera extraible 2 der'),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  const correderas = h.find((x) => x.nombre === 'Correderas telescópicas');
+  assert.ok(correderas, 'debe listar correderas');
+  assert.equal(correderas.cantidad, 2, '2 frentes zapatera = 2 pares');
+  assert.equal(h.some((x) => x.nombre.includes('volquete')), false);
+});
+
 test('piezas de cajón sin frente identificable: fallback al conteo por piezas', () => {
   const piezas = [pieza('c1', 'Cajon zapatero 1'), pieza('c2', 'Cajon zapatero 2')];
   const h = calculateHardware(piezas, dependenciesEstructural);
