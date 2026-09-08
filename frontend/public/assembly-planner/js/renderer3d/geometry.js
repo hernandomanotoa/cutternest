@@ -88,6 +88,7 @@ function classifyOrientation(role, piece) {
     role === 'glass' ||
     role === 'front_panel' ||
     role === 'drawer_face' ||
+    role === 'drawer_side' ||
     role === 'mirror' ||
     (role === 'back_panel' && !n.includes('fondo')) // fondo sin palabra fondo = panel trasero vertical
   ) {
@@ -96,6 +97,9 @@ function classifyOrientation(role, piece) {
 
   // Fondo propiamente dicho: en el prompt es horizontal XZ
   if (role === 'back_panel' && n.includes('fondo')) return 'horizontal_xz';
+
+  // Fondo de cajón: plano vertical trasero (ancho × alto, espesor en profundidad)
+  if (role === 'drawer_back') return 'horizontal_xz';
 
   // Todo lo demás se trata como horizontal XY (tapa, base, estantes, barras, cajones)
   return 'horizontal_xy';

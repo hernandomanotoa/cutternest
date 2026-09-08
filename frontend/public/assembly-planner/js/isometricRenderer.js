@@ -37,6 +37,7 @@ import {
   rotateCorners,
 } from './services/motionService.js';
 import { getPieceOffsetConfig } from './services/pieceOffsetService.js';
+import { buildDrawerBoxGeometries, hasRealDrawerBox, matchDrawerBoxParts } from './services/drawerGeometryService.js';
 import { inferRole, detectFamily, isDividerVertical, isShoeRack } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
@@ -914,6 +915,9 @@ export class IsometricRenderer {
     const geometries = [];
     const faces = roles.filter((p) => inferRole(p) === 'drawer_face');
     if (!faces.length) return geometries;
+    // Piezas reales ya emparejadas a un frente: se excluyen de los siguientes
+    // emparejamientos para que dos frentes no compartan la misma caja.
+    const consumed = new Set();
 
     // Ubicar cada cajón dentro del hueco (zona) que le corresponde.
     // Las zonas están definidas por base/tapa/repisas. shelfPositions se
@@ -982,31 +986,44 @@ export class IsometricRenderer {
           color: d.face.color, role: 'drawer_face', name: d.face.nombre, id: d.face.id,
         }));
 
-        // Laterales del cajón
-        const sideH = Math.max(0, h - 2 * thickness);
-        const sideColor = d.face.color;
-        geometries.push(
-          rail({
-            x: x + thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
-            color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side`, opacity: 0.5,
-          }),
-          rail({
-            x: x + w - 2 * thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
-            color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side2`, opacity: 0.5,
-          })
-        );
+        // Caja del cajón: piezas reales (laterales/base/fondo del CSV) cuando
+        // forman el conjunto mínimo (2 laterales + base); si no, caja
+        // sintética como fallback. En ambos casos el MISMO transform `rail`
+        // (traslación rail o rotation volquete) mueve la caja con el frente.
+        const drawerBox = matchDrawerBoxParts(d.face, roles.filter((p) => !consumed.has(p.id)));
+        if (hasRealDrawerBox(drawerBox)) {
+          const boxGeos = buildDrawerBoxGeometries({
+            parts: drawerBox, x, yFace, z: currentZ, w, h, thickness, fallbackDepth: drawerDepth,
+          });
+          boxGeos.forEach((g) => consumed.add(g.id));
+          boxGeos.forEach((g) => geometries.push(rail(g)));
+        } else {
+          // Laterales del cajón
+          const sideH = Math.max(0, h - 2 * thickness);
+          const sideColor = d.face.color;
+          geometries.push(
+            rail({
+              x: x + thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
+              color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side`, opacity: 0.5,
+            }),
+            rail({
+              x: x + w - 2 * thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
+              color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side2`, opacity: 0.5,
+            })
+          );
 
-        // Base del cajón
-        geometries.push(rail({
-          x: x + thickness, y: 0, z: currentZ + thickness, w: w - 2 * thickness, d: drawerDepth, h: thickness,
-          color: sideColor, role: 'drawer_bottom', name: 'Base cajón', id: `${d.face.id}-bottom`, opacity: 0.5,
-        }));
+          // Base del cajón
+          geometries.push(rail({
+            x: x + thickness, y: 0, z: currentZ + thickness, w: w - 2 * thickness, d: drawerDepth, h: thickness,
+            color: sideColor, role: 'drawer_bottom', name: 'Base cajón', id: `${d.face.id}-bottom`, opacity: 0.5,
+          }));
 
-        // Fondo del cajón
-        geometries.push(rail({
-          x: x + thickness, y: drawerDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness, d: thickness, h: sideH,
-          color: sideColor, role: 'drawer_back', name: 'Fondo cajón', id: `${d.face.id}-back`, opacity: 0.4,
-        }));
+          // Fondo del cajón
+          geometries.push(rail({
+            x: x + thickness, y: drawerDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness, d: thickness, h: sideH,
+            color: sideColor, role: 'drawer_back', name: 'Fondo cajón', id: `${d.face.id}-back`, opacity: 0.4,
+          }));
+        }
 
         // Tirador
         const faceIdPrefix = d.face.id.split('-').slice(0, -1).join('-');
