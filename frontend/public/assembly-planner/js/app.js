@@ -312,6 +312,31 @@ export function updateUserConfig(key, value) {
   saveUserConfig(next);
 }
 
+function clamp01(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
+export function setAperturaGlobal(valor) {
+  const store = getStore();
+  store.setField('aperturaGlobal', clamp01(valor));
+}
+
+export function setAperturaPieza(pieceId, valor) {
+  const store = getStore();
+  const state = store.get();
+  const aperturas = { ...state.aperturas };
+  const v = clamp01(valor);
+  if (v === 0 && !(pieceId in aperturas)) {
+    store.setField('aperturas', aperturas);
+    return;
+  }
+  if (v === 0) delete aperturas[pieceId];
+  else aperturas[pieceId] = v;
+  store.setField('aperturas', aperturas);
+}
+
 export function updatePieceOffset(originalId, field, value) {
   const store = getStore();
   const state = store.get();

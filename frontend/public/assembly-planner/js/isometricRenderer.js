@@ -12,7 +12,6 @@ import {
 } from './services/geometryService.js';
 import { calculateVerticalPositions, determineVerticalZone, findTopShelfLimit, getDefaultVerticalPosition } from './services/verticalPositionService.js';
 import {
-  applyDoorRotation,
   applyExplode,
   calculateVerticalZones,
   computeBays,
@@ -30,6 +29,13 @@ import {
   inferThickness,
   shouldShowLabel,
 } from './services/isoGeometryService.js';
+import {
+  applyApertureToGeo,
+  boxCorners,
+  motionConfigFor,
+  opennessFor,
+  rotateCorners,
+} from './services/motionService.js';
 import { getPieceOffsetConfig } from './services/pieceOffsetService.js';
 import { inferRole, detectFamily, isDividerVertical, isShoeRack } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
@@ -138,6 +144,11 @@ export class IsometricRenderer {
     this.showAxes = options.showAxes === true;
     this.drawerGap = options.drawerGap || 15;
     this.doorAngle = options.doorAngle || 0;
+    // Apertura interactiva: aperturaGlobal null = sin valor explícito (se
+    // conserva el legacy doorAngle como apertura global = doorAngle/105).
+    this.aperturaGlobal = options.aperturaGlobal ?? null;
+    this.aperturas = options.aperturas || {};
+    this._lastComputeArgs = null;
     this.explodeFactor = options.explodeFactor || 0;
     this.moduleGapMode = options.moduleGapMode || 'projected';
     this.labelMode = options.labelMode || 'auto';
@@ -151,6 +162,7 @@ export class IsometricRenderer {
    * posicionamiento.
    */
   computeGeometries(moduleId, pieces) {
+    this._lastComputeArgs = [moduleId, pieces];
     const family = detectFamily(pieces, moduleId);
     const globalPieces = pieces.filter((p) => isGlobalPiece(p));
     const globalBottoms = globalPieces.filter((p) => inferRole(p) === 'bottom_panel');
@@ -239,7 +251,44 @@ export class IsometricRenderer {
       }
     }
 
-    return { geometries, moduleW, moduleD, moduleH, thickness, moduleLabel };
+    return { geometries: geometries.map((g) => this._applyAperturaPuerta(g)), moduleW, moduleD, moduleH, thickness, moduleLabel };
+  }
+
+  /**
+   * Apertura interactiva (0..1). Actualiza el estado y, si ya hay geometrías
+   * calculadas, las recalcula con los últimos argumentos de computeGeometries.
+   * Devuelve el nuevo resultado de computeGeometries o null si no había nada.
+   */
+  setApertura(aperturaGlobal, aperturas) {
+    this.aperturaGlobal = aperturaGlobal == null ? null : Math.min(1, Math.max(0, Number(aperturaGlobal) || 0));
+    this.aperturas = aperturas || {};
+    if (this._lastComputeArgs) {
+      return this.computeGeometries(this._lastComputeArgs[0], this._lastComputeArgs[1]);
+    }
+    return null;
+  }
+
+  /**
+   * Apertura global efectiva: la explícita (setApertura/opciones) gana; si no
+   * hay, el doorAngle legacy se convierte a fracción de apertura (105° = 1).
+   */
+  _aperturaEfectivaGlobal() {
+    if (this.aperturaGlobal != null) return this.aperturaGlobal;
+    return Math.min(1, (this.doorAngle || 0) / 105);
+  }
+
+  /**
+   * Aplica la apertura a una geo de puerta (bisagra → rotation, corrediza →
+   * traslación en x). Las piezas de cajón y sus tiradores se mueven con el
+   * frente en _buildDrawerGeometries (rail +y) y aquí se ignoran para no
+   * aplicar la traslación dos veces.
+   */
+  _applyAperturaPuerta(geo) {
+    if (geo.role !== 'door') return geo;
+    const cfg = motionConfigFor({ id: geo.id, nombre: geo.name });
+    if (!cfg) return geo;
+    const open = opennessFor(geo.id, this.aperturas, this._aperturaEfectivaGlobal());
+    return applyApertureToGeo(geo, cfg, open);
   }
 
   render(moduleId, pieces, _dependencies) {
@@ -746,7 +795,7 @@ export class IsometricRenderer {
           color: it.piece.color, role: it.role, name: it.piece.nombre, id: it.piece.id,
           opacity: it.role === 'glass' ? 0.3 : 0.35,
         };
-        geos.push(it.role === 'door' ? applyDoorRotation(baseGeo, this.doorAngle) : baseGeo);
+        geos.push(baseGeo);
       });
     });
 
@@ -796,38 +845,47 @@ export class IsometricRenderer {
         const x = (moduleW - w) / 2;
         const drawerDepth = Math.max(0, moduleD - 2 * thickness - 10);
         const yFace = moduleD - thickness + this.drawerGap;
+        // Apertura del cajón: se toma del frente (override por pieza o global)
+        // y aplica a TODO el grupo (frente, laterales, base, fondo y tirador)
+        // como traslación en +y (rail), para que la caja salga coordinada con
+        // el mismo Δy (movimiento rígido, derivado del frente).
+        const drawerOpen = opennessFor(d.face.id, this.aperturas, this._aperturaEfectivaGlobal());
+        const railCfg = { kind: 'rail', side: null };
+        const railBase = { x: 0, y: yFace, z: currentZ, w, d: thickness, h };
+        const railDy = applyApertureToGeo(railBase, railCfg, drawerOpen).y - railBase.y;
+        const rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
 
         // Frente del cajón
-        geometries.push({
+        geometries.push(rail({
           x, y: yFace, z: currentZ, w, d: thickness, h,
           color: d.face.color, role: 'drawer_face', name: d.face.nombre, id: d.face.id,
-        });
+        }));
 
         // Laterales del cajón
         const sideH = Math.max(0, h - 2 * thickness);
         const sideColor = d.face.color;
         geometries.push(
-          {
+          rail({
             x: x + thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
             color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side`, opacity: 0.5,
-          },
-          {
+          }),
+          rail({
             x: x + w - 2 * thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
             color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side2`, opacity: 0.5,
-          }
+          })
         );
 
         // Base del cajón
-        geometries.push({
+        geometries.push(rail({
           x: x + thickness, y: 0, z: currentZ + thickness, w: w - 2 * thickness, d: drawerDepth, h: thickness,
           color: sideColor, role: 'drawer_bottom', name: 'Base cajón', id: `${d.face.id}-bottom`, opacity: 0.5,
-        });
+        }));
 
         // Fondo del cajón
-        geometries.push({
+        geometries.push(rail({
           x: x + thickness, y: drawerDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness, d: thickness, h: sideH,
           color: sideColor, role: 'drawer_back', name: 'Fondo cajón', id: `${d.face.id}-back`, opacity: 0.4,
-        });
+        }));
 
         // Tirador
         const faceIdPrefix = d.face.id.split('-').slice(0, -1).join('-');
@@ -838,10 +896,10 @@ export class IsometricRenderer {
         if (handle) {
           const hx = x + w / 2 - 15;
           const hz = currentZ + h / 2 - 10;
-          geometries.push({
+          geometries.push(rail({
             x: hx, y: moduleD + this.drawerGap, z: hz, w: 30, d: 10, h: 20,
             color: handle.color || ROLE_COLORS.handle, role: 'handle', name: handle.nombre, id: handle.id,
-          });
+          }));
         }
 
         currentZ += h + gap;
@@ -1029,14 +1087,16 @@ export class IsometricRenderer {
     let maxX = -Infinity;
     const xFactor = this.isoFlip ? -this.isoDepth : this.isoDepth;
     geometries.forEach((g) => {
-      const corners = [
-        [g.x, g.y],
-        [g.x + g.w, g.y],
-        [g.x + g.w, g.y + g.d],
-        [g.x, g.y + g.d],
-      ];
-      corners.forEach(([x, y]) => {
-        const px = includeDepth ? x + y * xFactor : x;
+      const corners = g.rotation
+        ? rotateCorners(boxCorners(g), g.rotation)
+        : [
+          { x: g.x, y: g.y },
+          { x: g.x + g.w, y: g.y },
+          { x: g.x + g.w, y: g.y + g.d },
+          { x: g.x, y: g.y + g.d },
+        ];
+      corners.forEach((c) => {
+        const px = includeDepth ? c.x + c.y * xFactor : c.x;
         minX = Math.min(minX, px);
         maxX = Math.max(maxX, px);
       });
@@ -1134,7 +1194,7 @@ export class IsometricRenderer {
           color: door.color || ROLE_COLORS.door, role: 'door', name: door.nombre, id: door.id,
           opacity: 0.35,
         };
-        geometries.push(applyDoorRotation(baseGeo, this.doorAngle));
+        geometries.push(baseGeo);
       });
     }
 
@@ -1250,29 +1310,20 @@ export class IsometricRenderer {
 
   _projectCuboid(geo, ox, oy) {
     const { x, y, z, w, d, h } = geo;
-    const v = [];
-    v[0] = this._isoProject(x, y, z + h, ox, oy); // base inferior-izq-trasera (z+h no, z es base, z+h es superior)
-    // Corrección: z es base inferior, z+h es superior
-    // Vértices en orden:
-    // 0: (x, y, z)       inferior-izq-trasera
-    // 1: (x+w, y, z)     inferior-der-trasera
-    // 2: (x+w, y+d, z)   inferior-der-frontal
-    // 3: (x, y+d, z)     inferior-izq-frontal
-    // 4: (x, y, z+h)     superior-izq-trasera
-    // 5: (x+w, y, z+h)   superior-der-trasera
-    // 6: (x+w, y+d, z+h) superior-der-frontal
-    // 7: (x, y+d, z+h)   superior-izq-frontal
-
-    const verts = [
-      [x, y, z],
-      [x + w, y, z],
-      [x + w, y + d, z],
-      [x, y + d, z],
-      [x, y, z + h],
-      [x + w, y, z + h],
-      [x + w, y + d, z + h],
-      [x, y + d, z + h],
-    ];
+    // Esquinas alineadas por defecto; con geo.rotation (bisagra) se usan las
+    // 8 esquinas rotadas (boxCorners + rotateCorners, mismo orden de índices).
+    const verts = geo.rotation
+      ? rotateCorners(boxCorners(geo), geo.rotation).map((c) => [c.x, c.y, c.z])
+      : [
+        [x, y, z],
+        [x + w, y, z],
+        [x + w, y + d, z],
+        [x, y + d, z],
+        [x, y, z + h],
+        [x + w, y, z + h],
+        [x + w, y + d, z + h],
+        [x, y + d, z + h],
+      ];
 
     const projected = verts.map((p) => this._isoProject(p[0], p[1], p[2], ox, oy));
 

@@ -2,19 +2,28 @@
 
 import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
+import { motionConfigFor } from '../services/motionService.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
+import { setAperturaGlobal, setAperturaPieza } from '../app.js';
 
 export function createRenderer3DView(store) {
   let unsubscribe = null;
   let unsubscribeConfig = null;
+  let unsubscribeApertura = null;
   let container = null;
   let canvas = null;
   let renderer = null;
   let renderLoopId = null;
   let moduleGapMode = 'compact';
   let playTimer = null;
+  // Referencias para distinguir cambios estructurales (piezas/módulo/config)
+  // de cambios de apertura (slider), que no deben re-montar la vista.
+  let lastPieces = null;
+  let lastModule = null;
+  let lastUserConfig = null;
+  let selectedPieceId = null;
 
   function stopPlayTimer() {
     if (playTimer !== null) {
@@ -39,10 +48,44 @@ export function createRenderer3DView(store) {
     }
   }
 
+  // Aplica el estado de apertura del store al renderer y sincroniza sliders.
+  function updatePieceAperturaUI(pieceId) {
+    if (!container) return;
+    const group = container.querySelector('#r3d-piece-apertura-group');
+    const input = container.querySelector('#r3d-piece-apertura');
+    if (!group || !input) return;
+    const state = store.get();
+    const piece = pieceId && lastPieces ? lastPieces.find((p) => p.id === pieceId) : null;
+    if (!piece || !motionConfigFor(piece)) {
+      group.style.display = 'none';
+      return;
+    }
+    group.style.display = '';
+    const override = state.aperturas?.[pieceId];
+    input.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
+  }
+
+  function applyAperturaFromStore() {
+    if (!renderer || !container) return;
+    const state = store.get();
+    renderer.setApertura(state.aperturaGlobal ?? 0, state.aperturas || {});
+    const globalInput = container.querySelector('#r3d-apertura');
+    if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
+    updatePieceAperturaUI(selectedPieceId);
+  }
+
   function mount(parent) {
     container = parent;
-    unsubscribe = store.subscribe('state:changed', () => renderView(container, store.get()));
+    unsubscribe = store.subscribe('state:changed', () => {
+      const state = store.get();
+      if (state.pieces !== lastPieces || state.currentModule !== lastModule || state.userConfig !== lastUserConfig) {
+        renderView(container, state);
+      } else {
+        applyAperturaFromStore();
+      }
+    });
     unsubscribeConfig = store.subscribe('userConfig:changed', () => renderView(container, store.get()));
+    unsubscribeApertura = store.subscribe('apertura:changed', () => applyAperturaFromStore());
     renderView(container, store.get());
   }
 
@@ -57,6 +100,10 @@ export function createRenderer3DView(store) {
       unsubscribeConfig();
       unsubscribeConfig = null;
     }
+    if (unsubscribeApertura) {
+      unsubscribeApertura();
+      unsubscribeApertura = null;
+    }
     if (renderer) {
       renderer.destroy();
       renderer = null;
@@ -69,6 +116,9 @@ export function createRenderer3DView(store) {
     const targetModule = state.currentModule;
     const modules = getModules(state.pieces);
     const pieces = getModulePieces(state.pieces, targetModule);
+    lastPieces = state.pieces;
+    lastModule = state.currentModule;
+    lastUserConfig = state.userConfig;
 
     if (!pieces.length) {
       const options = modules.map((m) => `<option value="${m}" ${m === targetModule ? 'selected' : ''}>${getModuleLabel(m, state.pieces)}</option>`).join('');
@@ -134,6 +184,14 @@ export function createRenderer3DView(store) {
             <input type="range" id="r3d-explode" min="0" max="1" step="0.05" value="0">
           </div>
           <div class="r3d-slider-group">
+            <label for="r3d-apertura">Apertura</label>
+            <input type="range" id="r3d-apertura" min="0" max="100" step="1" value="${Math.round((state.aperturaGlobal ?? 0) * 100)}">
+          </div>
+          <div class="r3d-slider-group" id="r3d-piece-apertura-group" style="display:none;">
+            <label for="r3d-piece-apertura">Apertura pieza</label>
+            <input type="range" id="r3d-piece-apertura" min="0" max="100" step="1" value="0">
+          </div>
+          <div class="r3d-slider-group">
             <label for="r3d-rot-x">Rotación X</label>
             <input type="range" id="r3d-rot-x" min="-60" max="60" step="1" value="${DEFAULT_CAMERA.rotX}">
           </div>
@@ -184,9 +242,14 @@ export function createRenderer3DView(store) {
       globalOpacity: 0.85,
       moduleGapMode,
       verticalPositionOverrides: state.userConfig,
-      onPieceSelect: (id) => syncBomSelection(id),
+      onPieceSelect: (id) => {
+        selectedPieceId = id;
+        syncBomSelection(id);
+        updatePieceAperturaUI(id);
+      },
     });
     renderer.load(targetModule, state.pieces);
+    applyAperturaFromStore();
 
     startRenderLoop();
 
@@ -204,7 +267,9 @@ export function createRenderer3DView(store) {
       row.addEventListener('click', () => {
         const id = row.dataset.pieceId;
         renderer.setSelectedId(renderer.selectedId === id ? null : id);
+        selectedPieceId = renderer.selectedId;
         syncBomSelection(renderer.selectedId);
+        updatePieceAperturaUI(renderer.selectedId);
       });
     });
 
@@ -226,6 +291,10 @@ export function createRenderer3DView(store) {
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
+    container.querySelector('#r3d-apertura')?.addEventListener('input', (e) => setAperturaGlobal(Number(e.target.value) / 100));
+    container.querySelector('#r3d-piece-apertura')?.addEventListener('input', (e) => {
+      if (selectedPieceId) setAperturaPieza(selectedPieceId, Number(e.target.value) / 100);
+    });
     rotXInput?.addEventListener('input', (e) => renderer.setRotX(e.target.value));
     rotYInput?.addEventListener('input', (e) => renderer.setRotY(e.target.value));
 

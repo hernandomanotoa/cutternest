@@ -2,7 +2,7 @@
 // Genera el SVG como string, sin dependencias del DOM, para poder ejecutarse
 // tanto en el navegador como en tests de Node.
 
-import { generateVertices, CUBOID_FACES } from './geometry.js';
+import { pieceVertices, CUBOID_FACES } from './geometry.js';
 import { rotateVertex, projectVertexCentered } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import {
@@ -87,7 +87,7 @@ export function buildSVG(pieces, camera, options = {}) {
   pieces.forEach((piece) => {
     if (section && sectionCoord(piece) > section.value + 1e-6) return;
     const type = classifyPiece(piece);
-    const baseVerts = generateVertices(piece);
+    const baseVerts = pieceVertices(piece);
     const rotatedVerts = baseVerts.map((v) => rotateVertex({
       x: v.x - moduleCenter.x,
       y: v.y - moduleCenter.y,

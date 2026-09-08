@@ -4,25 +4,42 @@ import { getModulePieces, getModuleLabel, getModules } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
+import { setAperturaGlobal } from '../app.js';
 
 export function createIsometricView(store) {
   let unsubscribe = null;
   let unsubscribeConfig = null;
+  let unsubscribeApertura = null;
   let container = null;
   let canvas = null;
   let scale = 0.12;
   let explodeFactor = 0;
   let drawerGap = 15;
-  let doorAngle = 0;
   let isoFlip = true;
   let fullscreenChangeHandler = null;
   let webkitFullscreenChangeHandler = null;
   let moduleGapMode = 'compact';
+  // Referencias para decidir si un state:changed requiere re-montar la vista
+  // (piezas/módulo/config cambiaron) o solo re-render del canvas (apertura).
+  let lastPieces = null;
+  let lastModule = null;
+  let lastUserConfig = null;
 
   function mount(parent) {
     container = parent;
-    unsubscribe = store.subscribe('state:changed', () => renderView(container, store.get()));
+    unsubscribe = store.subscribe('state:changed', () => {
+      const state = store.get();
+      if (state.pieces !== lastPieces || state.currentModule !== lastModule || state.userConfig !== lastUserConfig) {
+        renderView(container, state);
+      } else {
+        render();
+      }
+    });
     unsubscribeConfig = store.subscribe('userConfig:changed', () => render());
+    unsubscribeApertura = store.subscribe('apertura:changed', () => {
+      syncAperturaSlider();
+      render();
+    });
     renderView(container, store.get());
   }
 
@@ -34,6 +51,10 @@ export function createIsometricView(store) {
     if (unsubscribeConfig) {
       unsubscribeConfig();
       unsubscribeConfig = null;
+    }
+    if (unsubscribeApertura) {
+      unsubscribeApertura();
+      unsubscribeApertura = null;
     }
     if (fullscreenChangeHandler) {
       document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
@@ -51,6 +72,9 @@ export function createIsometricView(store) {
     let targetModule = state.currentModule;
     const modules = getModules(state.pieces);
     const pieces = getModulePieces(state.pieces, targetModule);
+    lastPieces = state.pieces;
+    lastModule = state.currentModule;
+    lastUserConfig = state.userConfig;
 
     if (!pieces.length) {
       const options = modules.map((m) => `<option value="${m}" ${m === targetModule ? 'selected' : ''}>Módulo ${m}</option>`).join('');
@@ -80,8 +104,10 @@ export function createIsometricView(store) {
             <button id="btn-iso-reset" class="btn btn--secondary btn--sm">Reset</button>
             <button id="btn-iso-explode" class="btn btn--secondary btn--sm">Explodida</button>
             <button id="btn-iso-flip" class="btn btn--secondary btn--sm">↔ Invertir perspectiva</button>
-            <button id="btn-iso-drawers" class="btn btn--secondary btn--sm">Abrir cajones</button>
-            <button id="btn-iso-doors" class="btn btn--secondary btn--sm">Abrir puertas</button>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.4rem;">
+              <span>Apertura</span>
+              <input type="range" id="iso-apertura" min="0" max="100" step="1" value="${Math.round((state.aperturaGlobal ?? 0) * 100)}" style="cursor:pointer;width:110px;">
+            </label>
             <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
             <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
@@ -116,7 +142,7 @@ export function createIsometricView(store) {
       scale = 0.12;
       explodeFactor = 0;
       drawerGap = 15;
-      doorAngle = 0;
+      setAperturaGlobal(0);
       render();
     });
     container.querySelector('#btn-iso-explode')?.addEventListener('click', () => {
@@ -127,14 +153,13 @@ export function createIsometricView(store) {
       isoFlip = !isoFlip;
       render();
     });
-    container.querySelector('#btn-iso-drawers')?.addEventListener('click', () => {
-      drawerGap = drawerGap > 15 ? 15 : 60;
-      render();
+    container.querySelector('#iso-apertura')?.addEventListener('input', (e) => {
+      setAperturaGlobal(Number(e.target.value) / 100);
     });
-    container.querySelector('#btn-iso-doors')?.addEventListener('click', () => {
-      doorAngle = doorAngle > 0 ? 0 : 25;
-      render();
-    });
+    function syncAperturaSlider() {
+      const input = container?.querySelector('#iso-apertura');
+      if (input) input.value = String(Math.round((store.get().aperturaGlobal ?? 0) * 100));
+    }
     container.querySelector('#btn-iso-export')?.addEventListener('click', () => {
       const svg = canvas.querySelector('svg');
       if (!svg) return;
@@ -191,7 +216,8 @@ export function createIsometricView(store) {
       padding: 100,
       showDimensions: true,
       drawerGap,
-      doorAngle,
+      aperturaGlobal: state.aperturaGlobal ?? 0,
+      aperturas: state.aperturas || {},
       explodeFactor,
       moduleGapMode,
       isoFlip,

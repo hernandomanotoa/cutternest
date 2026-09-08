@@ -16,6 +16,11 @@ export const EVENTS = {
   STATUS_CHANGED: 'status:changed',
   STATE_CHANGED: 'state:changed',
   USER_CONFIG_CHANGED: 'userConfig:changed',
+  APERTURA_CHANGED: 'apertura:changed',
+  // Claves de lookup para setField('aperturaGlobal'|'aperturas'): ambas
+  // emiten el evento dedicado APERTURA_CHANGED.
+  APERTURAGLOBAL_CHANGED: 'apertura:changed',
+  APERTURAS_CHANGED: 'apertura:changed',
 };
 
 const DEFAULT_STATE = {
@@ -35,6 +40,8 @@ const DEFAULT_STATE = {
   manualZoom: 1,
   warnings: [],
   userConfig: loadUserConfig(),
+  aperturaGlobal: 0,
+  aperturas: {},
 };
 
 export function createStore(initialState = {}) {

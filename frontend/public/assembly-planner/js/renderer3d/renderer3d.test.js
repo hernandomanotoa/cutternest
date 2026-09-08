@@ -562,3 +562,64 @@ describe('renderer3d — modo ensamblaje paso a paso', () => {
     r.destroy();
   });
 });
+
+describe('renderer3d — apertura interactiva (geo.rotation)', () => {
+  it('pieceVertices rota las esquinas cuando hay rotation (bisagra izq 90°)', async () => {
+    const { pieceVertices } = await import('./geometry.js');
+    const { boxCorners, rotateCorners } = await import('../services/motionService.js');
+    const geo = { x: 0, y: 0, z: 0, w: 100, d: 18, h: 500 };
+    const rotation = { axis: 'z', angleDeg: 90, pivot: { x: 0 } };
+    const verts = pieceVertices({ ...geo, rotation });
+    const expected = rotateCorners(boxCorners(geo), rotation);
+    assert.deepEqual(verts, expected);
+    // Esquina libre (x+w, y, z) desplazada hacia +y ≈ w
+    assert.ok(Math.abs(verts[1].y - 100) < 1e-9, `free corner y≈100, got ${verts[1].y}`);
+    assert.ok(Math.abs(verts[1].x) < 1e-9, `free corner x≈0, got ${verts[1].x}`);
+  });
+
+  it('pieceVertices sin rotation coincide con generateVertices (regresión)', async () => {
+    const { pieceVertices, generateVertices } = await import('./geometry.js');
+    const geo = { x: 5, y: 10, z: 20, w: 100, d: 50, h: 30 };
+    assert.deepEqual(pieceVertices(geo), generateVertices(geo));
+  });
+
+  it('buildSVG proyecta las caras rotadas de una puerta abierta', async () => {
+    const door = {
+      id: 'm1-puerta', name: 'Puerta izquierda', role: 'door', tipo: 'vertical',
+      x: 0, y: 550, z: 15, w: 18, h: 900, d: 770,
+      cx: 9, cy: 935, cz: 465,
+      color: '#FFFFFF', cantos: [], cantidad: 1, modulo: '1',
+      rotation: { axis: 'z', angleDeg: 90, pivot: { x: 0 } },
+    };
+    const camera = { rotX: 0, rotY: 0, scale: 0.5, offsetX: 200, offsetY: 150, projection: 'ortho' };
+    const svg = buildSVG([door], camera, {});
+    assert.ok(svg.includes('data-piece-id="m1-puerta"'), 'rotated door should render faces');
+  });
+
+  it('Renderer3D.setApertura recalcula geometrías con rotation y traslaciones', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    if (typeof window === 'undefined') globalThis.window = { addEventListener() {}, removeEventListener() {} };
+    if (typeof document === 'undefined') globalThis.document = { createElement: () => ({ style: {} }) };
+    if (typeof requestAnimationFrame === 'undefined') { globalThis.requestAnimationFrame = () => 0; globalThis.cancelAnimationFrame = () => {}; }
+    const cont = {
+      style: {}, innerHTML: '',
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
+      addEventListener() {}, removeEventListener() {},
+    };
+    const r = new Renderer3D(cont, { width: 900, height: 600 });
+    r.load('1', [
+      { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-puerta-izq', nombre: 'Puerta izquierda', ancho: 770, alto: 900, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: '1' },
+    ]);
+    const closed = r.geometries.find((g) => g.id === 'm1-puerta-izq');
+    assert.equal(closed.rotation, undefined, 'closed door has no rotation');
+    r.setApertura(1, {});
+    const open = r.geometries.find((g) => g.id === 'm1-puerta-izq');
+    assert.ok(open.rotation, 'open door should carry rotation after setApertura');
+    assert.equal(open.rotation.axis, 'z');
+    r.destroy();
+  });
+});

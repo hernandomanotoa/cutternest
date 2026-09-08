@@ -639,3 +639,131 @@ describe('IsometricRenderer vertical divider', () => {
     assert.ok(divider.z >= raisedBaseTop, 'divider should start at the top of the lower spanning shelf');
   });
 });
+
+describe('IsometricRenderer apertura interactiva', () => {
+  const cabinetBase = [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  ];
+  const drawerPieces = [
+    ...cabinetBase,
+    { id: 'm1-cajon-1', nombre: 'Frente cajon 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-cajon-1-tir', nombre: 'Tirador cajon 1', ancho: 30, alto: 20, cantidad: 1, rotate: 'no', color: '#E2E8F0', espesor: 10, modulo: '1' },
+  ];
+  const hingeDoorPieces = [
+    ...cabinetBase,
+    { id: 'm1-puerta-izq', nombre: 'Puerta izquierda', ancho: 770, alto: 900, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: '1' },
+  ];
+  const slideDoorPieces = [
+    ...cabinetBase,
+    { id: 'm1-puerta-cor', nombre: 'Puerta corrediza izquierda', ancho: 770, alto: 900, cantidad: 1, rotate: 'no', color: '#FFFFFF', espesor: 18, modulo: '1' },
+  ];
+
+  it('puerta bisagra apertura 1: adjunta rotation con pivote y ángulo correctos', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const { geometries } = renderer.computeGeometries('1', hingeDoorPieces);
+    const door = geometries.find((g) => g.role === 'door');
+    assert.ok(door, 'door geometry should exist');
+    assert.ok(door.rotation, 'door should have rotation at full aperture');
+    assert.equal(door.rotation.axis, 'z');
+    assert.equal(door.rotation.angleDeg, 105);
+    assert.equal(door.rotation.pivot.x, door.x);
+  });
+
+  it('puerta bisagra apertura 0.5: ángulo proporcional', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 0.5 });
+    const { geometries } = renderer.computeGeometries('1', hingeDoorPieces);
+    const door = geometries.find((g) => g.role === 'door');
+    assert.equal(door.rotation.angleDeg, 52.5);
+  });
+
+  it('puerta corrediza apertura 1: traslada en x sin rotation', () => {
+    const closed = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const closedDoor = closed.computeGeometries('1', slideDoorPieces).geometries.find((g) => g.role === 'door');
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const door = renderer.computeGeometries('1', slideDoorPieces).geometries.find((g) => g.role === 'door');
+    assert.equal(door.rotation, undefined, 'slide door should not rotate');
+    const expectedDx = -0.95 * closedDoor.w; // side izq
+    assert.ok(Math.abs(door.x - (closedDoor.x + expectedDx)) < 1e-9, `x should shift by ${expectedDx}`);
+    assert.equal(door.y, closedDoor.y);
+  });
+
+  it('cajón apertura 1: todo el grupo traslada +y el mismo Δy (frente, lados, base, fondo, tirador)', () => {
+    const closed = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const closedGeos = closed.computeGeometries('1', drawerPieces).geometries;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const geos = renderer.computeGeometries('1', drawerPieces).geometries;
+
+    const dyOf = (id) => {
+      const open = geos.find((g) => g.id === id);
+      const shut = closedGeos.find((g) => g.id === id);
+      assert.ok(open && shut, `geometry ${id} should exist in both renders`);
+      return open.y - shut.y;
+    };
+
+    const ids = [
+      'm1-cajon-1',
+      'm1-cajon-1-side',
+      'm1-cajon-1-side2',
+      'm1-cajon-1-bottom',
+      'm1-cajon-1-back',
+      'm1-cajon-1-tir',
+    ];
+    const dys = ids.map(dyOf);
+    assert.ok(dys[0] > 0, 'frente should move towards +y');
+    dys.forEach((dy, i) => {
+      assert.ok(Math.abs(dy - dys[0]) < 1e-9, `${ids[i]} should share the same Δy (${dy} vs ${dys[0]})`);
+      const open = geos.find((g) => g.id === ids[i]);
+      assert.equal(open.rotation, undefined, `${ids[i]} should not rotate`);
+    });
+  });
+
+  it('apertura 0: geometría sin rotation e igual posición', () => {
+    const reference = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const refGeos = reference.computeGeometries('1', hingeDoorPieces).geometries;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 0 });
+    const geos = renderer.computeGeometries('1', hingeDoorPieces).geometries;
+    const door = geos.find((g) => g.role === 'door');
+    const refDoor = refGeos.find((g) => g.role === 'door');
+    assert.equal(door.rotation, undefined);
+    assert.deepEqual(
+      { x: door.x, y: door.y, z: door.z, w: door.w, d: door.d, h: door.h },
+      { x: refDoor.x, y: refDoor.y, z: refDoor.z, w: refDoor.w, d: refDoor.d, h: refDoor.h }
+    );
+  });
+
+  it('override por pieza gana sobre la apertura global', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {
+      scale: 0.12,
+      aperturaGlobal: 0,
+      aperturas: { 'm1-puerta-izq': 1 },
+    });
+    const { geometries } = renderer.computeGeometries('1', hingeDoorPieces);
+    const door = geometries.find((g) => g.role === 'door');
+    assert.ok(door.rotation, 'override should open the door despite global 0');
+    assert.equal(door.rotation.angleDeg, 105);
+  });
+
+  it('setApertura recalcula las geometrías con los últimos argumentos', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    renderer.computeGeometries('1', hingeDoorPieces);
+    const result = renderer.setApertura(1, {});
+    assert.ok(result, 'setApertura should recompute geometries');
+    const door = result.geometries.find((g) => g.role === 'door');
+    assert.ok(door.rotation, 'door should be open after setApertura(1)');
+  });
+
+  it('doorAngle legacy sin apertura explícita se convierte a fracción (105° = 1)', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, doorAngle: 105 });
+    const { geometries } = renderer.computeGeometries('1', hingeDoorPieces);
+    const door = geometries.find((g) => g.role === 'door');
+    assert.ok(door.rotation, 'doorAngle 105 should fully open the door');
+    assert.equal(door.rotation.angleDeg, 105);
+    // doorAngle: 0 (smoke test) sigue sin efecto
+    const none = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, doorAngle: 0 });
+    const door0 = none.computeGeometries('1', hingeDoorPieces).geometries.find((g) => g.role === 'door');
+    assert.equal(door0.rotation, undefined);
+  });
+});

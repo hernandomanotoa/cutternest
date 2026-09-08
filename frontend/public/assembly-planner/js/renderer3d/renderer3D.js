@@ -2,7 +2,7 @@
 // Reutiliza el posicionamiento de IsometricRenderer y aplica proyección
 // orbital, explode, transparencia selectiva e interacción.
 
-import { generateVertices, computeBoundingBox } from './geometry.js';
+import { pieceVertices, computeBoundingBox } from './geometry.js';
 import { applyExplode, lerp, rotateVertex, projectVertexCentered } from './transform.js';
 import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
@@ -136,7 +136,7 @@ export class Renderer3D {
     let maxY = -Infinity;
 
     pieces.forEach((piece) => {
-      const baseVerts = generateVertices(piece);
+      const baseVerts = pieceVertices(piece);
       baseVerts.forEach((v) => {
         const p = projectVertexCentered(v, this.moduleCenter, camera);
         minX = Math.min(minX, p.x - camera.offsetX);
@@ -262,6 +262,8 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
+      aperturaGlobal: this.isoRenderer.aperturaGlobal,
+      aperturas: this.isoRenderer.aperturas,
     });
     this.needsRender = true;
     this.load(this.moduleId, this._lastPieces || []);
@@ -277,9 +279,20 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
+      aperturaGlobal: this.isoRenderer.aperturaGlobal,
+      aperturas: this.isoRenderer.aperturas,
     });
     this.needsRender = true;
     this.load(this.moduleId, this._lastPieces || []);
+  }
+
+  setApertura(aperturaGlobal, aperturas) {
+    this.isoRenderer.setApertura(aperturaGlobal, aperturas);
+    // Re-ejecutar el pipeline de load con los últimos argumentos: las
+    // traducciones (x/y) y las rotation de computeGeometries se heredan.
+    if (this.moduleId !== undefined && this._lastPieces) {
+      this.load(this.moduleId, this._lastPieces);
+    }
   }
 
   setXrayMode(value) {

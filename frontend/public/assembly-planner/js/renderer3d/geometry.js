@@ -2,6 +2,7 @@
 // Lógica pura, sin DOM. Reutiliza el clasificador de piezas existente.
 
 import { inferRole, isShoeRack, isDividerVertical } from '../services/classifierService.js';
+import { boxCorners, rotateCorners } from '../services/motionService.js';
 import { normalizeName } from '../utils/normalize.js';
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -125,6 +126,18 @@ export function generateVertices(box) {
     { x: x + w, y: y + d, z: z + h }, // 6 superior-der-frontal
     { x, y: y + d, z: z + h }, // 7 superior-izq-frontal
   ];
+}
+
+/**
+ * Vértices de una pieza 3D respetando geo.rotation (apertura de bisagra).
+ * El orden de esquinas de boxCorners/rotateCorners coincide con el de
+ * generateVertices, así que CUBOID_FACES sigue siendo válido.
+ */
+export function pieceVertices(piece) {
+  if (piece.rotation) {
+    return rotateCorners(boxCorners(piece), piece.rotation);
+  }
+  return generateVertices(piece);
 }
 
 /**
