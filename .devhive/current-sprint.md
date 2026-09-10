@@ -45,6 +45,8 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A32 | Volquete pivotante + apertura completa | Guardian | ✅ Completado | Zapatera volquete como hinge side `inf` (trampilla −105°); extracción total de cajones (factor riel 1.0, Δy = apertura·(prof+20)). 372 tests OK. |
 | A33 | Ejemplo Zapatera Repisa Riel | Guardian | ✅ Completado | Ejemplo 19: 6 bandejas extraíbles con frentes/laterales/bases bajas; CSV en `docs/` y `data/`; opción en selector. 377 tests OK. |
 | A34 | Geometría real de piezas de cajón | Guardian | ✅ Completado | Servicio puro `drawerGeometryService.js` empareja laterales/base/fondo con su frente; caja real anclada al frente con medidas del CSV; fallback sintético si faltan piezas. 382 tests OK. |
+| A35 | Ángulo de bisagra configurable + guía de colisión | Guardian | ✅ Completado | F1: `targetAngleDeg` clamp 0–120°, presets 45/70/90/110° + Auto, store `angulos` (evento `angulo:changed`). F2: `collisionService.js` (AABB con rotación, pares de móviles distintos), resaltado con color de alerta de `config.js`. 404 tests OK. |
+| A36 | Sincronizar apertura con modo paso (F3) | Guardian | ✅ Completado | Servicio puro `stepApertureService.js`: piezas móviles del paso actual → apertura 1, anteriores → 0, salvo override manual persistente; snapshot/restauración al entrar/salir del modo paso. 415 tests OK. |
 
 ## Leyenda estados
 
@@ -71,7 +73,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 - Tests backend: 37 passed (incl. contrato de plantillas `test_templates.py`).
 - Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
-- Tests Assembly Planner: 372 passed (node --test; incl. apertura interactiva ADR-0022: bisagra/corrediza/riel/volquete pivotante).
+- Tests Assembly Planner: 415 passed (node --test; incl. apertura interactiva ADR-0022: bisagra/corrediza/riel/volquete pivotante, ángulo configurable + colisión A35 y sincronización apertura↔modo paso A36).
 - Ejemplos CSV: 77 archivos (data/ + docs/) validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.
