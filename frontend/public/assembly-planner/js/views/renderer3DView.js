@@ -2,6 +2,7 @@
 
 import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
+import { computeStepApertures } from '../services/stepApertureService.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
 import { generarInstruccion, toolsForStep } from '../instructions.js';
@@ -173,6 +174,23 @@ export function createRenderer3DView(store) {
     lastModule = state.currentModule;
     lastUserConfig = state.userConfig;
 
+    // Estado del modo paso y de la apertura sincronizada. Se declara aquí (y
+    // no junto a los controles) porque los handlers de selección/doble-click
+    // del renderer también lo consultan. Overrides y snapshot son locales a
+    // la vista: no van al store (decisión documentada en syncStepApertures).
+    let stepMode = false;
+    let currentStep = 1;
+    // Overrides manuales de apertura (piezaId → 0..1) con prioridad sobre la
+    // apertura automática del paso. Persisten al navegar pasos dentro del
+    // modo paso y se limpian al salir de él.
+    let stepOverrides = new Map();
+    // Piezas cuya apertura fue escrita automáticamente en el store; se usan
+    // para retirar del store las entradas automáticas que ya no aplican.
+    let autoApertureKeys = new Set();
+    // Snapshot del estado de apertura previo a entrar al modo paso, para
+    // restaurarlo al salir.
+    let aperturaSnapshot = null;
+
     if (!pieces.length) {
       const options = modules.map((m) => `<option value="${m}" ${m === targetModule ? 'selected' : ''}>${getModuleLabel(m, state.pieces)}</option>`).join('');
       container.innerHTML = `
@@ -319,7 +337,9 @@ export function createRenderer3DView(store) {
         syncBomSelection(id);
         updatePieceAperturaUI(id);
         const actual = store.get().aperturas?.[id];
-        setAperturaPieza(id, decideAperturaToggle(actual));
+        const siguiente = decideAperturaToggle(actual);
+        markStepOverride(id, siguiente);
+        setAperturaPieza(id, siguiente);
       },
     });
     renderer.load(targetModule, state.pieces);
@@ -367,7 +387,12 @@ export function createRenderer3DView(store) {
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
     container.querySelector('#r3d-apertura')?.addEventListener('input', (e) => setAperturaGlobal(Number(e.target.value) / 100));
     container.querySelector('#r3d-piece-apertura')?.addEventListener('input', (e) => {
-      if (selectedPieceId) setAperturaPieza(selectedPieceId, Number(e.target.value) / 100);
+      if (!selectedPieceId) return;
+      const valor = Number(e.target.value) / 100;
+      // En modo paso, el valor manual es un override que gana sobre la
+      // apertura automática del paso y persiste al navegar.
+      markStepOverride(selectedPieceId, valor);
+      setAperturaPieza(selectedPieceId, valor);
     });
     container.querySelector('#r3d-piece-angulo')?.addEventListener('change', (e) => {
       if (!selectedPieceId) return;
@@ -432,12 +457,58 @@ export function createRenderer3DView(store) {
     const stepInstruction = container.querySelector('#r3d-step-instruction');
     const stepTools = container.querySelector('#r3d-step-tools');
     const playBtn = container.querySelector('#r3d-step-play');
-    let stepMode = false;
-    let currentStep = 1;
 
     // Si quedó un play activo de un render anterior (cambio de módulo/piezas), se detiene.
     stopPlayTimer();
     if (playBtn) playBtn.textContent = '▶ Play';
+
+    // Registra un override manual de apertura mientras el modo paso está
+    // activo. Fuera del modo paso no aplica: el store ya guarda el valor.
+    function markStepOverride(pieceId, valor) {
+      if (!stepMode) return;
+      const piece = pieces.find((p) => p.id === pieceId);
+      if (!piece || !motionConfigFor(piece)) return;
+      stepOverrides.set(pieceId, Math.min(1, Math.max(0, Number(valor) || 0)));
+    }
+
+    // Escribe en el store las aperturas automáticas del paso actual:
+    // piezas móviles del paso → 1, de pasos anteriores → 0, salvo override
+    // manual. Las de pasos posteriores quedan ocultas por setAssemblyStep y
+    // se retiran del store las entradas automáticas que ya no aplican.
+    function syncStepApertures() {
+      if (!stepMode) return;
+      const target = computeStepApertures(pieces, sequence, currentStep, stepOverrides);
+      const s = store.get();
+      const aperturas = { ...s.aperturas };
+      let changed = false;
+      for (const id of autoApertureKeys) {
+        if (!target.has(id) && id in aperturas) {
+          delete aperturas[id];
+          changed = true;
+        }
+      }
+      for (const [id, valor] of target) {
+        if (aperturas[id] !== valor) {
+          aperturas[id] = valor;
+          changed = true;
+        }
+      }
+      autoApertureKeys = new Set(target.keys());
+      if (changed) store.setField('aperturas', aperturas);
+    }
+
+    // Al salir del modo paso se restaura el estado de apertura previo a
+    // entrar (snapshot) y se descartan overrides y entradas automáticas.
+    function restoreAperturaSnapshot() {
+      stepOverrides = new Map();
+      autoApertureKeys = new Set();
+      if (!aperturaSnapshot) return;
+      store.set({
+        aperturas: aperturaSnapshot.aperturas,
+        aperturaGlobal: aperturaSnapshot.aperturaGlobal,
+      });
+      aperturaSnapshot = null;
+    }
 
     function renderStepPanel() {
       if (!stepMode) {
@@ -458,13 +529,20 @@ export function createRenderer3DView(store) {
     function updateStepUI() {
       if (stepLabel) stepLabel.textContent = `Paso ${currentStep}/${totalSteps}`;
       renderer.setAssemblyStep(stepMode ? currentStep : null);
+      syncStepApertures();
       renderStepPanel();
     }
     stepModeBtn?.addEventListener('click', () => {
       if (!totalSteps) return;
       stepMode = !stepMode;
       currentStep = Math.min(currentStep, totalSteps);
-      if (!stepMode) stopPlay();
+      if (stepMode) {
+        const s = store.get();
+        aperturaSnapshot = { aperturas: { ...s.aperturas }, aperturaGlobal: s.aperturaGlobal ?? 0 };
+      } else {
+        stopPlay();
+        restoreAperturaSnapshot();
+      }
       if (stepBar) stepBar.style.display = stepMode ? 'inline-flex' : 'none';
       stepModeBtn.classList.toggle('btn--active', stepMode);
       updateStepUI();
