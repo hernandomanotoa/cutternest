@@ -208,41 +208,6 @@ export function createIsometricView(store) {
     container.querySelector('#iso-angulo-auto')?.addEventListener('click', () => {
       if (selectedPieceId) clearAnguloPieza(selectedPieceId);
     });
-  }
-
-  // Sincroniza slider global y controles de la pieza seleccionada.
-  function syncAperturaUI() {
-    if (!container) return;
-    const state = store.get();
-    const globalInput = container.querySelector('#iso-apertura');
-    if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
-    const pieces = lastPieces ? getModulePieces(lastPieces, lastModule) : [];
-    const piece = selectedPieceId ? pieces.find((p) => p.id === selectedPieceId) : null;
-    const cfg = piece ? motionConfigFor(piece) : null;
-
-    const apGroup = container.querySelector('#iso-piece-apertura-group');
-    const apInput = container.querySelector('#iso-piece-apertura');
-    if (apGroup && apInput) {
-      if (piece && cfg) {
-        apGroup.style.display = '';
-        const override = state.aperturas?.[selectedPieceId];
-        apInput.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
-      } else {
-        apGroup.style.display = 'none';
-      }
-    }
-    const anGroup = container.querySelector('#iso-piece-angulo-group');
-    const anInput = container.querySelector('#iso-piece-angulo');
-    if (anGroup && anInput) {
-      if (piece && cfg?.kind === 'hinge') {
-        anGroup.style.display = '';
-        const override = state.angulos?.[selectedPieceId];
-        anInput.value = override != null ? String(Math.round(override)) : '';
-      } else {
-        anGroup.style.display = 'none';
-      }
-    }
-  }
     container.querySelector('#btn-iso-export')?.addEventListener('click', () => {
       const svg = canvas.querySelector('svg');
       if (!svg) return;
@@ -288,6 +253,40 @@ export function createIsometricView(store) {
       render();
     });
     syncAperturaUI();
+  }
+
+  // Sincroniza slider global y controles de la pieza seleccionada.
+  function syncAperturaUI() {
+    if (!container) return;
+    const state = store.get();
+    const globalInput = container.querySelector('#iso-apertura');
+    if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
+    const pieces = lastPieces ? getModulePieces(lastPieces, lastModule) : [];
+    const piece = selectedPieceId ? pieces.find((p) => p.id === selectedPieceId) : null;
+    const cfg = piece ? motionConfigFor(piece) : null;
+
+    const apGroup = container.querySelector('#iso-piece-apertura-group');
+    const apInput = container.querySelector('#iso-piece-apertura');
+    if (apGroup && apInput) {
+      if (piece && cfg) {
+        apGroup.style.display = '';
+        const override = state.aperturas?.[selectedPieceId];
+        apInput.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
+      } else {
+        apGroup.style.display = 'none';
+      }
+    }
+    const anGroup = container.querySelector('#iso-piece-angulo-group');
+    const anInput = container.querySelector('#iso-piece-angulo');
+    if (anGroup && anInput) {
+      if (piece && cfg?.kind === 'hinge') {
+        anGroup.style.display = '';
+        const override = state.angulos?.[selectedPieceId];
+        anInput.value = override != null ? String(Math.round(override)) : '';
+      } else {
+        anGroup.style.display = 'none';
+      }
+    }
   }
 
   function render() {
