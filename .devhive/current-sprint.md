@@ -81,6 +81,8 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Hotfixes recientes (Assembly Planner)
 
+- **App no cargaba (2026-09-10)**: `SyntaxError` en `js/views/isometricView.js` introducido por de3d811 — un `}` desplazado cerró `renderView` antes de tiempo y dejó el resto del cuerpo huérfano a nivel de módulo; el planner entero quedaba en blanco (seleccionar mueble/cargar sin efecto). El gate `node --test` no lo detectó porque ningún test importaba las vistas. Fix estructural + nuevo `js/smoke.test.js` que importa todos los módulos y simula seleccionar→cargar→render, cerrando la brecha.
+
 - **Ejemplos coherentes (2026-09-07)**: los 75 CSV pasan de 259 warnings y 14 piezas genéricas a 0/0/0. Causa raíz corregida en los generadores (`cajon()` calcula el vano real del módulo padre); piezas sin rol renombradas (Respaldo, Travesano); zócalos = Σ anchos; pandeo por rol y no por substring; tapa/trasera globales huérfanas eliminadas en aparador y recibidor. Nuevos ejemplos: zapatera volquete, módulo extraíble y banco zapatero. Plantillas backend alineadas al mismo contrato (ADR-0021).
 - **Herrajes**: 1 par de correderas por cajón (antes por pieza); frentes "abatible/volquete" generan bisagras abatibles; tiradores de cajón explícitos en la lista (`hardware.js`).
 - **Manual de ensamblaje**: repisas inferiores con `cantidad > 1` se apilan hacia arriba dentro del interior del mueble, evitando que se dibujen debajo de la base (`manualView.js`).
