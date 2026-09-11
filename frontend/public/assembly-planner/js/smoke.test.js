@@ -53,6 +53,17 @@ test('todos los módulos importan sin excepción (grafo completo)', async () => 
   }
 });
 
+test('todo CSV de data/ está en el selector de ejemplos (index.html)', () => {
+  // Regresión real (2026-09-10): los ejemplos zócalo-cajón se crearon con
+  // CSV y generador pero sin registrar en el selector, y no era posible
+  // seleccionarlos ni cargarlos en la app.
+  const html = readFileSync(join(JS_DIR, '..', 'index.html'), 'utf8');
+  const orphans = readdirSync(join(JS_DIR, '..', 'data'))
+    .filter((f) => f.endsWith('.csv'))
+    .filter((f) => !html.includes(f));
+  assert.deepEqual(orphans, [], `CSVs sin opción en el selector: ${orphans.join(', ')}`);
+});
+
 test('flujo seleccionar → cargar → render isométrico', async () => {
   const { parseCSV } = await import('./csvParser.js');
   const { sugerirDependencias } = await import('./heuristics.js');
