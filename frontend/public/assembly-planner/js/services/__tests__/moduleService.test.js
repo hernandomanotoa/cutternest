@@ -89,6 +89,38 @@ describe('getModuleGroup', () => {
   });
 });
 
+describe('getModuleGroup — convención concatenada de submódulos', () => {
+  it('incluye submódulos concatenados numéricos en el grupo del módulo padre', () => {
+    // Convención de los CSV de ejemplo: m11 = módulo 1, submódulo 1.
+    const pieces = [
+      piece('m1-lateral', '1'),
+      piece('m11-cajon-frente', '11'),
+      piece('m12-cajon-frente', '12'),
+    ];
+    const group = getModuleGroup(pieces, '1');
+    assert.deepEqual(group.modules, ['1', '11', '12']);
+    assert.ok(group.label.includes('submódulos'));
+  });
+
+  it('mantiene funcionando la notación con punto', () => {
+    const pieces = [piece('A', '1'), piece('B', '1.1'), piece('C', '2')];
+    const group = getModuleGroup(pieces, '1');
+    assert.deepEqual(group.modules, ['1', '1.1']);
+  });
+
+  it('un submódulo no absorbe a su módulo padre', () => {
+    const pieces = [piece('A', '1'), piece('B', '12')];
+    const group = getModuleGroup(pieces, '12');
+    assert.deepEqual(group.modules, ['12']);
+  });
+
+  it('no absorbe módulos no numéricos que compartan prefijo', () => {
+    const pieces = [piece('A', '1'), piece('B', '1global')];
+    const group = getModuleGroup(pieces, '1');
+    assert.deepEqual(group.modules, ['1']);
+  });
+});
+
 describe('getModulePieces', () => {
   it('returns global pieces for global module', () => {
     const pieces = [piece('G', 'estructura'), piece('A', '1')];

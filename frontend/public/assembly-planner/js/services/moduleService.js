@@ -1,7 +1,26 @@
 // js/services/moduleService.js — Lógica pura de agrupación y filtrado de módulos
 // Sin DOM.
+//
+// Convención de nombres de submódulos:
+// - Notación con punto: '1.1' es submódulo de '1'.
+// - Notación concatenada (usada en los CSV de ejemplo): '11' es el submódulo 1
+//   del módulo 1 (concatenación de índices numéricos, sin separador).
+// El helper isChildModule implementa ambas, restringiendo la concatenación a
+// prefijos puramente numéricos para que nombres como '1global' no sean
+// absorbidos por el módulo '1'. Debe usarse SIEMPRE para decidir jerarquía,
+// de modo que raíces (hasParent) y descendientes (getModuleGroup) sean
+// consistentes entre sí.
 
 import { normalizeName } from '../utils/normalize.js';
+
+// Devuelve true si m es el propio prefix o un descendiente suyo, según la
+// convención descrita arriba (punto o concatenación numérica).
+function isChildModule(m, prefix) {
+  if (m === prefix) return true;
+  if (m.startsWith(prefix + '.')) return true;
+  if (/^\d+$/.test(prefix) && m.startsWith(prefix) && /^\d+$/.test(m.slice(prefix.length))) return true;
+  return false;
+}
 
 export const ALL_MODULE_ID = 'all';
 export const ALL_MODULE_LABEL = 'Vista completa';
@@ -27,7 +46,7 @@ export function getModuleGroups(pieces) {
 
   function hasParent(h) {
     for (const p of sorted) {
-      if (p !== h && h.startsWith(p)) return true;
+      if (p !== h && isChildModule(h, p)) return true;
     }
     return false;
   }
@@ -80,7 +99,7 @@ export function getModuleGroup(pieces, groupId) {
   }
 
   const descendants = Array.from(allModules)
-    .filter((m) => m === prefix || m.startsWith(prefix + '.'))
+    .filter((m) => isChildModule(m, prefix))
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   if (descendants.length === 0) {
