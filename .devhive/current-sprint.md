@@ -48,6 +48,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A35 | Ángulo de bisagra configurable + guía de colisión | Guardian | ✅ Completado | F1: `targetAngleDeg` clamp 0–120°, presets 45/70/90/110° + Auto, store `angulos` (evento `angulo:changed`). F2: `collisionService.js` (AABB con rotación, pares de móviles distintos), resaltado con color de alerta de `config.js`. 404 tests OK. |
 | A36 | Sincronizar apertura con modo paso (F3) | Guardian | ✅ Completado | Servicio puro `stepApertureService.js`: piezas móviles del paso actual → apertura 1, anteriores → 0, salvo override manual persistente; snapshot/restauración al entrar/salir del modo paso. 415 tests OK. |
 | A37 | Defaults de altura lógicos por tipo de pieza | Guardian | ✅ Completado | `drawerBaseOffset` 80→10, `braceBaseOffset` 80→0, `lowerShelfBaseOffset` 80→30, `topInset` 120→50; riel colgador clampado a `tapa−60` (módulos bajos). 419 tests OK. |
+| A38 | Zócalo-cajón full-width sin base + ejemplos | Guardian | ✅ Completado | Rol `plinth_side`; detección por datos (con laterales → cajón visible 0..H; solo frente → patín intacto); base del módulo sigue con el módulo apoyada a z=zocaloHeight. 3 ejemplos nuevos (closet/cómoda/mueble TV). 425 tests OK, 83 CSV 0/0/0. |
 
 ## Leyenda estados
 
