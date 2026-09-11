@@ -99,10 +99,12 @@ export function createRenderer3DView(store) {
     const pieces = lastPieces || [];
     const movers = movingPieceIds(pieces, state.aperturas, state.aperturaGlobal);
     const pairs = detectCollisions(renderer.geometries, movers);
-    renderer.setCollisionIds(pairs.length ? pairs.flatMap((p) => [p.aId, p.bId]) : null);
     const key = pairs.map((p) => `${p.aId}|${p.bId}`).join(',');
+    // setCollisionIds fuerza un re-render; solo se invoca cuando el conjunto
+    // de colisiones realmente cambió (evita re-render por frame del loop).
     if (key === lastCollisionKey) return;
     lastCollisionKey = key;
+    renderer.setCollisionIds(pairs.length ? pairs.flatMap((p) => [p.aId, p.bId]) : null);
     if (!msg) return;
     if (!pairs.length) {
       msg.style.display = 'none';

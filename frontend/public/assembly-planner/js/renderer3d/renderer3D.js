@@ -457,7 +457,12 @@ export class Renderer3D {
       collisionIds: this.collisionIds,
     });
 
-    this.container.innerHTML = svg;
+    // No tocar el DOM si el SVG generado es idéntico al actual. Reescribir
+    // innerHTML en cada frame (loop de render) reemplaza los nodos y rompe
+    // el dblclick del navegador: los dos click deben apuntar al mismo nodo.
+    if (this.container.innerHTML !== svg) {
+      this.container.innerHTML = svg;
+    }
   }
 
   destroy() {
