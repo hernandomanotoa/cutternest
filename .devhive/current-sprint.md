@@ -47,6 +47,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A34 | Geometría real de piezas de cajón | Guardian | ✅ Completado | Servicio puro `drawerGeometryService.js` empareja laterales/base/fondo con su frente; caja real anclada al frente con medidas del CSV; fallback sintético si faltan piezas. 382 tests OK. |
 | A35 | Ángulo de bisagra configurable + guía de colisión | Guardian | ✅ Completado | F1: `targetAngleDeg` clamp 0–120°, presets 45/70/90/110° + Auto, store `angulos` (evento `angulo:changed`). F2: `collisionService.js` (AABB con rotación, pares de móviles distintos), resaltado con color de alerta de `config.js`. 404 tests OK. |
 | A36 | Sincronizar apertura con modo paso (F3) | Guardian | ✅ Completado | Servicio puro `stepApertureService.js`: piezas móviles del paso actual → apertura 1, anteriores → 0, salvo override manual persistente; snapshot/restauración al entrar/salir del modo paso. 415 tests OK. |
+| A37 | Defaults de altura lógicos por tipo de pieza | Guardian | ✅ Completado | `drawerBaseOffset` 80→10, `braceBaseOffset` 80→0, `lowerShelfBaseOffset` 80→30, `topInset` 120→50; riel colgador clampado a `tapa−60` (módulos bajos). 419 tests OK. |
 
 ## Leyenda estados
 
