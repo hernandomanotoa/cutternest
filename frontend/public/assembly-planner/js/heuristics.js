@@ -3,6 +3,7 @@
 import { isGlobalPiece } from './utils.js';
 import { normalizeName } from './utils/normalize.js';
 import { getPieceZone } from './services/pieceOffsetService.js';
+import { railConfirmationMessage } from './services/railHardwareService.js';
 
 export const DEPENDENCY_TYPES = {
   estructural: { label: 'Estructural', color: '#4ECDC4', width: 2, dash: 'none' },
@@ -146,7 +147,7 @@ export function sugerirDependencias(piezas) {
     const repisaModulo = repisas.find((r) => sameModule(r, caj));
     if (baseModulo) add(baseModulo.id, caj.id, 'interior');
     if (repisaModulo) add(repisaModulo.id, caj.id, 'interior');
-    add(caj.id, `${caj.id}-confirmar-corredera`, 'bloqueo', 'Confirmar corredera antes de cortar');
+    add(caj.id, `${caj.id}-confirmar-corredera`, 'bloqueo', railConfirmationMessage(caj));
   });
 
   // Paso 9: Tiradores dependen de puertas/cajones

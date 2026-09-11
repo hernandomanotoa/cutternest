@@ -1,5 +1,8 @@
 // hardware.js — cálculo de lista de herrajes e insumos
 
+import { railTypeFor, getRailType } from './services/railService.js';
+import { railHardwareName, railHardwareSpec } from './services/railHardwareService.js';
+
 function uniquePieces(piezas, predicate) {
   const seen = new Set();
   return piezas.filter((p) => {
@@ -81,16 +84,23 @@ export function calculateHardware(piezas, dependencies) {
     });
   }
 
-  // Correderas (1 par por cajón estándar; los volquetes usan bisagras abatibles)
-  if (cajonesCorredera.length > 0) {
+  // Correderas: 1 par por cajón estándar, agrupadas por tipo de riel inferido
+  // (una entrada por tipo presente, con la referencia de catálogo). Los
+  // volquetes usan bisagras abatibles y no entran aquí.
+  const correderasPorTipo = new Map();
+  cajonesCorredera.forEach((p) => {
+    const tipo = railTypeFor(p);
+    correderasPorTipo.set(tipo, (correderasPorTipo.get(tipo) || 0) + 1);
+  });
+  correderasPorTipo.forEach((cantidad, tipo) => {
     herrajes.push({
-      nombre: 'Correderas telescópicas',
-      cantidad: cajonesCorredera.length,
-      especificacion: 'Extensión total, cierre suave (CONFIRMAR ANTES DE CORTAR)',
+      nombre: railHardwareName(tipo),
+      cantidad,
+      especificacion: `${railHardwareSpec(tipo)} — ${getRailType(tipo).catalogo}`,
       prioridad: 'Media',
       bloqueante: true,
     });
-  }
+  });
 
   // Zapateras volquete: cajones abatibles que pivotan hacia adelante
   if (cajonesVolquete.length > 0) {

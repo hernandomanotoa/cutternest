@@ -93,3 +93,43 @@ test('tiradores de zapatera extraíble cuentan como tiradores de cajón', () => 
   assert.equal(tiradores.length, 1);
   assert.equal(tiradores[0].cantidad, 2);
 });
+
+test('agrupa correderas por tipo inferido: una entrada por tipo con su cantidad', () => {
+  const piezas = [
+    pieza('t1', 'Frente cajon 1'),
+    pieza('t2', 'Frente cajon 2'),
+    pieza('o1', 'Frente cajon oculto 1'),
+    pieza('o2', 'Frente cajon oculto 2'),
+    pieza('o3', 'Frente cajon oculto 3'),
+    pieza('r1', 'Frente cajon ruedas 1'),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  const tipos = h.filter((x) => x.nombre.startsWith('Correderas'));
+  assert.equal(tipos.length, 3, 'telescópica + oculta + ruedas = 3 entradas');
+  const porNombre = Object.fromEntries(tipos.map((x) => [x.nombre, x]));
+  assert.equal(porNombre['Correderas telescópicas'].cantidad, 2);
+  assert.equal(porNombre['Correderas ocultas'].cantidad, 3);
+  assert.equal(porNombre['Correderas euro ruedas'].cantidad, 1);
+  assert.match(porNombre['Correderas telescópicas'].especificacion, /vano − 25,4 mm/);
+  assert.match(porNombre['Correderas ocultas'].especificacion, /vano − 42 mm/);
+  assert.match(porNombre['Correderas ocultas'].especificacion, /Blum Tandem 563H/);
+  assert.match(porNombre['Correderas euro ruedas'].especificacion, /~75%/);
+  assert.ok(tipos.every((x) => x.bloqueante === true));
+});
+
+test('frente de zapatera con riel explícito: corredera ligera', () => {
+  const piezas = [
+    pieza('z1f', 'Frente zapatera riel 1'),
+    pieza('z1li', 'Lateral zapatera riel 1 izq'),
+    pieza('z1ld', 'Lateral zapatera riel 1 der'),
+    pieza('z2f', 'Frente zapatera extraible 2'),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  const ligera = h.find((x) => x.nombre === 'Correderas ligeras');
+  const telescopica = h.find((x) => x.nombre === 'Correderas telescópicas');
+  assert.ok(ligera, 'zapatera con riel explícito infiere corredera ligera');
+  assert.equal(ligera.cantidad, 1);
+  assert.match(ligera.especificacion, /uso ligero/);
+  assert.ok(telescopica, 'zapatera extraíble sin keyword sigue telescópica');
+  assert.equal(telescopica.cantidad, 1);
+});

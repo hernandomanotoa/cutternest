@@ -1,5 +1,7 @@
 // instructions.js — generación de instrucciones textuales por paso
 
+import { railInstallText } from './services/railHardwareService.js';
+
 export function generarInstruccion(paso, piezasData) {
   const ids = paso.piezas || [];
   const piezas = ids.map((id) => piezasData[id]).filter(Boolean);
@@ -39,7 +41,10 @@ export function generarInstruccion(paso, piezasData) {
   }
 
   if (cajones.length > 0) {
-    return `Armar cajones: laterales + base + frente + fondo. Instalar correderas telescópicas ya confirmadas.`;
+    // La mención de correderas se parametriza por tipo de riel inferido; con
+    // tipos mezclados se listan los textos de cada tipo presente una vez.
+    const textos = [...new Set(cajones.map((p) => railInstallText(p)))];
+    return `Armar cajones: laterales + base + frente + fondo. ${textos.join(' ')}`;
   }
 
   if (zocalos.length > 0) {
