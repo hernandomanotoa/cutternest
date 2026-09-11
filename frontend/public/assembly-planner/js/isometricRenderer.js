@@ -38,6 +38,7 @@ import {
 } from './services/motionService.js';
 import { getPieceOffsetConfig } from './services/pieceOffsetService.js';
 import { buildDrawerBoxGeometries, hasRealDrawerBox, matchDrawerBoxParts } from './services/drawerGeometryService.js';
+import { getRailType, railTypeFor } from './services/railService.js';
 import { inferRole, detectFamily, isDividerVertical, isShoeRack } from './services/classifierService.js';
 import { escapeHtml } from './utils.js';
 import { normalizeName as _normalizeName } from './utils/normalize.js';
@@ -981,6 +982,9 @@ export class IsometricRenderer {
         //   absoluto en coords de mundo; pivot.y = cara frontal).
         const drawerOpen = opennessFor(d.face.id, this.aperturas, this._aperturaEfectivaGlobal());
         const faceCfg = motionConfigFor(d.face);
+        // Tipo de riel inferido del frente: fija la fracción de extracción y
+        // la holgura lateral de la caja (RAIL_TYPES).
+        const railType = railTypeFor(d.face);
         let rail;
         if (faceCfg && faceCfg.kind === 'hinge') {
           const faceBase = { x, y: yFace, z: currentZ, w, d: thickness, h };
@@ -990,9 +994,10 @@ export class IsometricRenderer {
             : null;
           rail = (geo) => (rotation ? { ...geo, rotation } : geo);
         } else {
-          // Extracción completa: Δy = apertura·(profundidad del cajón + 20 mm),
-          // de modo que la caja sale del todo del mueble al abrirse.
-          const railDy = drawerOpen * (drawerDepth + 20);
+          // Extracción según el tipo de riel: Δy = apertura·extracción·
+          // (profundidad del cajón + 20 mm); con extensión total (1.0) la
+          // caja sale del todo del mueble al abrirse.
+          const railDy = drawerOpen * getRailType(railType).extraction * (drawerDepth + 20);
           rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
         }
 
@@ -1009,34 +1014,36 @@ export class IsometricRenderer {
         const drawerBox = matchDrawerBoxParts(d.face, roles.filter((p) => !consumed.has(p.id)));
         if (hasRealDrawerBox(drawerBox)) {
           const boxGeos = buildDrawerBoxGeometries({
-            parts: drawerBox, x, yFace, z: currentZ, w, h, thickness, fallbackDepth: drawerDepth,
+            parts: drawerBox, x, yFace, z: currentZ, w, h, thickness, fallbackDepth: drawerDepth, railType,
           });
           boxGeos.forEach((g) => consumed.add(g.id));
           boxGeos.forEach((g) => geometries.push(rail(g)));
         } else {
-          // Laterales del cajón
+          // Laterales del cajón: holgura del riel por lado (RAIL_TYPES); la
+          // oculta (clear 0) dibuja los laterales al ras del vano.
           const sideH = Math.max(0, h - 2 * thickness);
           const sideColor = d.face.color;
+          const clear = getRailType(railType).sideClearance || 0;
           geometries.push(
             rail({
-              x: x + thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
+              x: x + thickness + clear, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
               color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side`, opacity: 0.5,
             }),
             rail({
-              x: x + w - 2 * thickness, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
+              x: x + w - 2 * thickness - clear, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
               color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side2`, opacity: 0.5,
             })
           );
 
           // Base del cajón
           geometries.push(rail({
-            x: x + thickness, y: 0, z: currentZ + thickness, w: w - 2 * thickness, d: drawerDepth, h: thickness,
+            x: x + thickness + clear, y: 0, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: drawerDepth, h: thickness,
             color: sideColor, role: 'drawer_bottom', name: 'Base cajón', id: `${d.face.id}-bottom`, opacity: 0.5,
           }));
 
           // Fondo del cajón
           geometries.push(rail({
-            x: x + thickness, y: drawerDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness, d: thickness, h: sideH,
+            x: x + thickness + clear, y: drawerDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: thickness, h: sideH,
             color: sideColor, role: 'drawer_back', name: 'Fondo cajón', id: `${d.face.id}-back`, opacity: 0.4,
           }));
         }

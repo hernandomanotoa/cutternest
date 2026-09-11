@@ -9,6 +9,8 @@
 
 import { normalizeName } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
+import { getRailType } from './railService.js';
+import { DEFAULT_RAIL_TYPE } from '../core/config.js';
 
 const APERTURE_DEG = 105;
 export const HINGE_ANGLE_MAX_DEG = 120;
@@ -86,12 +88,14 @@ export function motionConfigFor(piece) {
 /**
  * Aplica una apertura (0..1) a una geometría de caja y devuelve un NUEVO objeto.
  * - slide: traslada en x (±0.95·w, signo según side).
- * - rail: traslada en +y (t·d, extracción completa), hacia el frente del mueble.
+ * - rail: traslada en +y (t·extraction·d, hacia el frente del mueble). La
+ *   fracción de extracción la fija el tipo de riel (RAIL_TYPES): telescópica y
+ *   oculta 1.0 (extensión total), ruedas y ligera 0.75 (extensión parcial).
  * - hinge: no traslada; adjunta rotation { axis, angleDeg, pivot }. El ángulo
  *   objetivo es el default por kind o el override por pieza (grados, clamp
  *   0–120° por targetAngleDeg).
  */
-export function applyApertureToGeo(geo, config, openness, anguloOverride) {
+export function applyApertureToGeo(geo, config, openness, anguloOverride, railType = DEFAULT_RAIL_TYPE) {
   const t = Math.min(1, Math.max(0, Number(openness) || 0));
   if (!config || t === 0) return { ...geo };
 
@@ -101,7 +105,8 @@ export function applyApertureToGeo(geo, config, openness, anguloOverride) {
   }
 
   if (config.kind === 'rail') {
-    return { ...geo, y: geo.y + t * geo.d };
+    const extraction = getRailType(railType).extraction;
+    return { ...geo, y: geo.y + t * geo.d * extraction };
   }
 
   if (config.kind === 'hinge') {

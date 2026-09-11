@@ -81,9 +81,10 @@ describe('buildDrawerBoxGeometries', () => {
     const box = buildDrawerBoxGeometries({ parts, ...PLACE });
     assert.equal(box.length, 4);
 
+    // Riel telescópico por defecto: holgura 12,7 mm por lado (RAIL_TYPES).
     const izq = box.find((g) => g.id === 'm1-cajon-lat-izq');
     const der = box.find((g) => g.id === 'm1-cajon-lat-der');
-    for (const [geo, xEsperado] of [[izq, 100], [der, 485]]) {
+    for (const [geo, xEsperado] of [[izq, 112.7], [der, 472.3]]) {
       assert.equal(geo.role, 'drawer_side');
       assert.equal(geo.x, xEsperado);
       assert.equal(geo.y, 20, 'anclada al frente: y = yFace − prof (500−480)');
@@ -94,17 +95,36 @@ describe('buildDrawerBoxGeometries', () => {
       assert.equal(geo.name, geo.id.includes('izq') ? 'Lateral cajon 1 izq' : 'Lateral cajon 1 der');
     }
 
+    // Máximo interior con holgura telescópica: 400 − 2·(15+12,7) = 344,6.
+    // La base real (370) se clampa a ese vano interior.
     const base = box.find((g) => g.id === 'm1-cajon-base');
     assert.equal(base.role, 'drawer_bottom');
-    assert.equal(base.w, 370, 'ancho real de la base (entre laterales)');
-    assert.equal(base.x, 115, 'centrada en el vano del frente');
+    assert.ok(Math.abs(base.w - 344.6) < 1e-9, 'base real clampada al máximo interior (vano − 2·(esp+holgura))');
+    assert.ok(Math.abs(base.x - 127.7) < 1e-9, 'centrada en el vano del frente');
     assert.equal(base.y, 20);
     assert.equal(base.h, 15, 'espesor real de la base');
 
     const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
     assert.equal(fondo.role, 'drawer_back');
+    assert.ok(Math.abs(fondo.w - 344.6) < 1e-9);
     assert.equal(fondo.d, 15, 'espesor real del fondo');
     assert.equal(fondo.y, 20, 'trasera de la caja, contra el fondo del cajón');
+  });
+
+  it('riel oculta: laterales al ras del vano y deducción interior solo en base/fondo', () => {
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE, railType: 'oculta' });
+    assert.equal(box.length, 4);
+
+    const izq = box.find((g) => g.id === 'm1-cajon-lat-izq');
+    const der = box.find((g) => g.id === 'm1-cajon-lat-der');
+    assert.equal(izq.x, 100, 'oculta no descuenta holgura lateral');
+    assert.equal(der.x, 485);
+
+    // Máximo interior oculta: 400 − 2·15 = 370 (sin holgura de riel).
+    const base = box.find((g) => g.id === 'm1-cajon-base');
+    assert.equal(base.w, 370, 'la deducción −42 de catálogo es del ancho interior, no del exterior');
+    assert.equal(base.x, 115);
   });
 
   it('sin fondo: 3 geometrías (zapatera-cajón)', () => {

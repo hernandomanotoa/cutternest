@@ -55,6 +55,46 @@ export const MANUAL_CONFIG = {
   zoomStep: 0.25,
 };
 
+// ── Tipos de riel/corredera ────────────────────────────────────────────────
+// Constantes de catálogo (Häfele/Blum) que gobiernan la holgura lateral de
+// la caja (sideClearance, mm por lado) y la fracción de extracción al abrir
+// (extraction: 1.0 = extensión total, 0.75 = extensión parcial típica).
+// La oculta es el caso especial: NO descuenta holgura por lado; su deducción
+// (−42 mm) aplica al ancho INTERIOR de la caja, más rebajo inferior y tope
+// de alto del cajón. Todo valor marcado '(verificar catálogo)' debe
+// confirmarse contra la ficha técnica antes de producción.
+export const RAIL_TYPES = {
+  telescopica: {
+    label: 'Lateral bolillas 3 tramos (extensión total)',
+    sideClearance: 12.7,   // mm por lado → ancho caja = vano − 25,4
+    extraction: 1.0,
+    catalogo: 'Häfele Matrix Runner BB / Accuride 3832 (verificar catálogo)',
+  },
+  oculta: {
+    label: 'Oculta inferior (extensión total)',
+    sideClearance: 0,      // no descuenta por lado: la caja va al ras del vano
+    extraction: 1.0,
+    interiorDeduction: 42, // ancho INTERIOR = vano − 42 (+ 2 × esp. lateral)
+    bottomClearance: 12.7, // rebajo inferior bajo la base del cajón
+    maxHeightDeduction: 23, // alto máx. del cajón = vano − 23
+    catalogo: 'Blum Tandem 563H / Häfele Matrix UM A30',
+  },
+  ruedas: {
+    label: 'Euro ruedas (extensión parcial ~75%)',
+    sideClearance: 12.5,   // mm por lado → ancho caja = vano − 25
+    extraction: 0.75,
+    catalogo: 'Häfele Euro roller (verificar catálogo)',
+  },
+  ligera: {
+    label: 'Ligera bolillas 27 mm ranurado (extensión parcial ~75%)',
+    sideClearance: 10,     // mm por lado (bandejas/zapateras ligeras)
+    extraction: 0.75,
+    catalogo: 'Bolillas 27 mm ranurado (verificar catálogo)',
+  },
+};
+
+export const DEFAULT_RAIL_TYPE = 'telescopica';
+
 export const STRUCTURAL = {
   defaultEMpa: 2500,
   defaultSigmaMpa: 18,

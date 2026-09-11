@@ -7,7 +7,8 @@
 
 import { inferRole } from './classifierService.js';
 import { normalizeName } from '../utils/normalize.js';
-import { DEFAULT_THICKNESS } from '../core/config.js';
+import { getRailType } from './railService.js';
+import { DEFAULT_RAIL_TYPE, DEFAULT_THICKNESS } from '../core/config.js';
 
 const PART_ROLES = ['drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part'];
 
@@ -90,13 +91,20 @@ export function hasRealDrawerBox(parts) {
  * Geometría de la caja (laterales, base y fondo) anclada al frente.
  * Convención de coordenadas del renderer: y = profundidad (+y = frente del
  * módulo), z = altura. La caja ocupa [yFace − prof, yFace] y queda centrada en
- * el vano del frente (x..x+w).
+ * el vano del frente (x..x+w). railType fija la holgura lateral que ocupa el
+ * riel (RAIL_TYPES): por defecto telescópica (12,7 mm por lado); quien no lo
+ * pasa ve holgura telescópica.
  *
  * @returns {Array} [{x,y,z,w,d,h,color,role,name,id}] por pieza real; [] si el
  *   conjunto no alcanza el mínimo (hasRealDrawerBox).
  */
-export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0 }) {
+export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE }) {
   if (!hasRealDrawerBox(parts)) return [];
+
+  // Holgura que el riel ocupa por lado en el vano (RAIL_TYPES). La oculta
+  // tiene sideClearance 0: sus laterales van al ras del vano y su deducción
+  // (−42 mm) aplica solo al ancho interior de base/fondo (maxInterior).
+  const clear = getRailType(railType).sideClearance || 0;
 
   const lat = parts.laterales[0];
   const espLat = Number(lat.espesor) || thickness;
@@ -109,7 +117,7 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
   const zBox = z + espBase;
   const box = [];
 
-  const latX = [x, x + Math.max(0, w - espLat)];
+  const latX = [x + clear, x + Math.max(0, w - espLat - clear)];
   parts.laterales.slice(0, 2).forEach((pieza, i) => {
     box.push({
       x: latX[i], y: yFace - profLat, z: zBox,
@@ -118,9 +126,12 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
     });
   });
 
-  const maxInterior = Math.max(0, w - espLat);
+  // Máximo ancho interior de base/fondo: con riel de holgura lateral se
+  // descuenta además clear por lado; la oculta (clear 0) solo descuenta los
+  // laterales — su deducción de catálogo (−42 mm) es del ancho interior.
+  const maxInterior = Math.max(0, w - 2 * (espLat + clear));
   const baseRealW = Math.max(0, Number(parts.base.ancho) || 0);
-  const baseW = baseRealW > 0 ? Math.min(baseRealW, maxInterior) : Math.max(0, w - 2 * espLat);
+  const baseW = baseRealW > 0 ? Math.min(baseRealW, maxInterior) : maxInterior;
   const profBase = Math.max(0, Number(parts.base.alto) || 0) || profLat;
   box.push({
     x: x + (w - baseW) / 2, y: yFace - profBase, z: zBox,
@@ -130,7 +141,7 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
 
   if (parts.fondo) {
     const backRealW = Math.max(0, Number(parts.fondo.ancho) || 0);
-    const backW = backRealW > 0 ? Math.min(backRealW, maxInterior) : Math.max(0, w - 2 * espLat);
+    const backW = backRealW > 0 ? Math.min(backRealW, maxInterior) : maxInterior;
     const backH = Math.max(0, Number(parts.fondo.alto) || 0) || latAlto;
     const backT = Number(parts.fondo.espesor) || thickness;
     box.push({

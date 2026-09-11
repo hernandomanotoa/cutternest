@@ -84,6 +84,21 @@ describe('applyApertureToGeo', () => {
     assert.equal(out.x, GEO.x);
   });
 
+  it('rail: extracción parcial según tipo (ruedas/ligera 0,75; telescópica/oculta 1,0)', () => {
+    const ruedas = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 1, undefined, 'ruedas');
+    assert.equal(ruedas.y, GEO.y + GEO.d * 0.75);
+    const ligera = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 1, undefined, 'ligera');
+    assert.equal(ligera.y, GEO.y + GEO.d * 0.75);
+    const oculta = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 1, undefined, 'oculta');
+    assert.equal(oculta.y, GEO.y + GEO.d * 1);
+    // Apertura intermedia: el recorrido escala con la extracción del tipo.
+    const half = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 0.5, undefined, 'ruedas');
+    assert.equal(half.y, GEO.y + 0.5 * GEO.d * 0.75);
+    // Tipo desconocido: fallback telescópico (extracción total).
+    const fallback = applyApertureToGeo(GEO, { kind: 'rail', side: null }, 1, undefined, 'inventado');
+    assert.equal(fallback.y, GEO.y + GEO.d * 1);
+  });
+
   it('hinge lateral: adjunta rotation sin cambiar la caja', () => {
     const izq = applyApertureToGeo(GEO, { kind: 'hinge', side: 'izq' }, 1);
     assert.deepEqual(

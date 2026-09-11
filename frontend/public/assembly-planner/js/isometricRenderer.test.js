@@ -720,6 +720,31 @@ describe('IsometricRenderer apertura interactiva', () => {
     });
   });
 
+  it('zapatera con riel ligero: extracción parcial (0,75) y holgura 10 mm por lado', () => {
+    const zapateraRielPieces = [
+      ...cabinetBase,
+      { id: 'm1-zap-riel-1', nombre: 'Frente zapatera riel 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    ];
+    const closed = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const closedGeos = closed.computeGeometries('1', zapateraRielPieces).geometries;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const geos = renderer.computeGeometries('1', zapateraRielPieces).geometries;
+
+    // Δy del frente: apertura 1 × extracción 0,75 × (prof 510 + 20) = 397,5.
+    const shut = closedGeos.find((g) => g.id === 'm1-zap-riel-1');
+    const open = geos.find((g) => g.id === 'm1-zap-riel-1');
+    assert.ok(open && shut);
+    assert.ok(Math.abs((open.y - shut.y) - 397.5) < 1e-9, `extracción parcial 0,75·530, obtenido ${open.y - shut.y}`);
+
+    // Caja sintética con holgura ligera (10 mm por lado): laterales inset y
+    // base/fondo más estrechos que los de un cajón telescópico.
+    const side = closedGeos.find((g) => g.id === 'm1-zap-riel-1-side');
+    const sideShutX = 200 + 15; // x del vano (200) + espesor
+    assert.ok(Math.abs(side.x - (sideShutX + 10)) < 1e-9, `lateral inset 10 mm por holgura de riel, x=${side.x}`);
+    const bottom = closedGeos.find((g) => g.id === 'm1-zap-riel-1-bottom');
+    assert.ok(Math.abs(bottom.w - (400 - 2 * 15 - 2 * 10)) < 1e-9, `base con doble descuento, w=${bottom.w}`);
+  });
+
   it('apertura 0: geometría sin rotation e igual posición', () => {
     const reference = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
     const refGeos = reference.computeGeometries('1', hingeDoorPieces).geometries;
