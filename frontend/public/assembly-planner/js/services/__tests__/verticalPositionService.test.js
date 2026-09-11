@@ -83,6 +83,20 @@ describe('getDefaultVerticalPosition', () => {
     assert.equal(getDefaultVerticalPosition(piece('Riel colgador'), MODULE_H, THICKNESS), VERTICAL_POSITIONS.hangerRailHeight);
   });
 
+  it('clamps hanger rail to at most 60 mm below the top panel in low modules', () => {
+    const lowModuleH = 800;
+    const topLimit = lowModuleH - THICKNESS;
+    assert.equal(
+      getDefaultVerticalPosition(piece('Riel colgador'), lowModuleH, THICKNESS),
+      topLimit - 60,
+      'riel clampado a 60 mm bajo la cara inferior de la tapa'
+    );
+  });
+
+  it('keeps hanger rail at 1700 mm in a standard 2100 mm closet', () => {
+    assert.equal(getDefaultVerticalPosition(piece('Riel colgador'), 2100, THICKNESS), 1700);
+  });
+
   it('places top shelves near the top panel', () => {
     assert.equal(
       getDefaultVerticalPosition(piece('Repisa superior'), MODULE_H, THICKNESS),

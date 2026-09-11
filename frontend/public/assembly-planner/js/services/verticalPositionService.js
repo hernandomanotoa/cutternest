@@ -69,7 +69,10 @@ export function getDefaultVerticalPosition(
     return moduleH / 2;
   }
 
-  if (role === 'hanger_rail') return cfg.offset;
+  // Riel colgador / asiento: altura absoluta desde el suelo.
+  // El riel nunca queda por encima de 60 mm bajo la cara inferior de la
+  // tapa/repisa superior (en módulos bajos queda clampado al interior).
+  if (role === 'hanger_rail') return Math.min(cfg.offset, topLimit - 60);
   if (role === 'seat_panel') return cfg.offset;
 
   if (role === 'drawer_face' || role === 'drawer_bottom') {

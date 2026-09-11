@@ -468,7 +468,7 @@ describe('IsometricRenderer vertical divider', () => {
     assert.equal(div.w, 15, 'divider width should be thickness');
     assert.equal(div.x, (800 - 15) / 2, 'divider should be centered');
     assert.equal(div.z, 115, 'divider bottom should rest on top of base');
-    assert.equal(div.h, 2150, 'divider height should stop below top shelf');
+    assert.equal(div.h, 2220, 'divider height should stop below top shelf');
     assert.equal(div.y, 15, 'divider should be inset by back thickness');
     assert.equal(div.d, 535, 'divider depth should be interior depth');
   });
@@ -535,7 +535,7 @@ describe('IsometricRenderer vertical divider', () => {
     const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
     const div = geoms.find((g) => g.role === 'divider');
     assert.equal(div.z, 165, 'divider bottom should include bottom offset');
-    assert.equal(div.h, 2070, 'divider height should include top inset');
+    assert.equal(div.h, 2140, 'divider height should include top inset');
   });
 
   it('stacks middle shelves independently per side', () => {

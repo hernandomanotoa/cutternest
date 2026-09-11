@@ -143,12 +143,12 @@ export const VERTICAL_POSITIONS = {
   stackGap: 20,              // gap entre piezas horizontales apiladas
 
   // ── Inset: distancia hacia adentro desde la cara INFERIOR de la tapa ──
-  topInset: 120,             // inset desde la cara inferior de la tapa a la pieza superior
+  topInset: 50,              // inset desde la cara inferior de la tapa a la pieza superior (maletero estándar)
 
   // Offsets desde la cara SUPERIOR de la base (base top → pieza inferior).
-  lowerShelfBaseOffset: 80,  // repisa inferior: distancia desde la cara superior de la base
-  drawerBaseOffset: 80,      // frente de cajón inferior: distancia desde la cara superior de la base
-  braceBaseOffset: 80,       // travesaño inferior: distancia desde la cara superior de la base
+  lowerShelfBaseOffset: 30,  // repisa inferior pegada a la base, hueco mínimo de limpieza
+  drawerBaseOffset: 10,      // frentes arrancan justo sobre la base; la base queda oculta tras el frente
+  braceBaseOffset: 0,        // travesaño inferior al ras de la cara superior de la base
   doorBaseOffset: 0,         // puerta inferior: distancia desde la cara superior de la base
 
   // ── Gaps específicos (difieren del stackGap genérico) ─────────
