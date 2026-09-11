@@ -456,6 +456,57 @@ function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerpo) {
   examples.push({ name: 'Ejemplo_CSV_Mueble_TV_Zocalo_Cajon.csv', dataName: 'ejemplo-mueble-tv-zocalo-cajon.csv', lines });
 }
 
+// 23. Cajonera con correderas ocultas (estilo Blum Tandem / Häfele Matrix UM)
+// La corredera oculta NO descuenta holgura lateral (sideClearance 0): los
+// laterales del cajón van al ras del frente. Su deducción de catálogo (−42 mm)
+// aplica al ancho INTERIOR: la base (que hace de fondo, anclada al frente)
+// mide vano − 42. Laterales de 16 mm (rango Blum 16/19); el alto de cajón debe
+// cumplir vano − 23 (maxHeightDeduction). El cajón es de base anclada al
+// frente, sin fondo trasero (la base hace de fondo), como la zapatera-cajón.
+function cajonOculto(parent, index, opts) {
+  const {
+    anchoModulo,
+    profundidadModulo,
+    altoVano,
+    colorFrente,
+    colorLateral,
+    suffix = '',
+  } = opts;
+  const E = 15;        // espesor de laterales y fondo del módulo
+  const ESP_LAT = 16;  // laterales del cajón (rango Blum 16/19)
+  const ESP_BASE = 16; // base del cajón (anclada al frente)
+  const W = anchoModulo - 2 * E;
+  const D = profundidadModulo - E - E;
+  const frenteAncho = W - 2;
+  const frenteAlto = altoVano - 3;
+  const profCajon = D - 20; // oculta: desplaza menos que la telescópica (25)
+  const latAlto = frenteAlto - 2 * ESP_BASE;
+  const baseAncho = W - 42; // deducción oculta: interior = vano − 42
+  const sm = `${parent}${index}`;
+  const label = suffix ? ` ${suffix}` : '';
+  return [
+    `m${sm}-cajon-frente,Frente cajon oculto${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},16,"T,B,L,R",${sm}`,
+    `m${sm}-cajon-lateral-izq,Lateral cajon oculto${label} izq M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
+    `m${sm}-cajon-lateral-der,Lateral cajon oculto${label} der M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`,
+    `m${sm}-cajon-base,Base cajon oculto${label} M${parent},${baseAncho},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    `m${sm}-cajon-tirador,Tirador cajon oculto${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
+  ];
+}
+
+// 23. Cajonera 600×900×450 con 3 cajones en correderas ocultas
+{
+  const lines = [];
+  lines.push(header('Ejemplo de cajonera con correderas ocultas', 'Cajonera 600×900×450 con 3 cajones en correderas ocultas de extensión total (estilo Blum Tandem / Häfele Matrix UM). Caja sin holgura lateral (laterales de 16 mm al ras del frente); base interior ensanchada = vano − 42 mm (la base hace de fondo, anclada al frente).'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 600, 900, 450, '#C19A6B'));
+  // Vano útil sobre la base: 870/3 = 290 → frente 568×287, laterales 400×255,
+  // base 528 (= 570 − 42) × 400.
+  lines.push(...cajonOculto(1, 1, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '1' }));
+  lines.push(...cajonOculto(1, 2, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '2' }));
+  lines.push(...cajonOculto(1, 3, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '3' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Cajonera_Correderas_Ocultas.csv', dataName: 'ejemplo-cajonera-correderas-ocultas.csv', lines });
+}
+
 for (const ex of examples) {
   const content = ex.lines.join('\n') + '\n';
   fs.writeFileSync(path.join(DOCS_DIR, ex.name), content, 'utf8');

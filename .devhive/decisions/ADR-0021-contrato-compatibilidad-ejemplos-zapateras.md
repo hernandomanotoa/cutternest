@@ -38,6 +38,14 @@ Reglas del modelo cajón:
 - **Altura total**: los laterales de los módulos se dimensionan con la altura TOTAL del mueble (zócalo incluido) y renderizan desde `z = zocaloHeight`; el zócalo ocupa `z: 0..zocaloHeight` a cara del mueble (frente y trasero como bandas, laterales a profundidad completa). La tapa corrida sigue en `z = moduleH` (altura total).
 - **Validación**: `csvParser.js` compara el ancho del **frente** (rol `bottom_panel`/`plinth` con 'zocalo' en el nombre) contra la suma de anchos de módulos (±2 mm). Los laterales (`plinth_side`) y el trasero (`back_panel`) quedan excluidos de la comparación para no contaminarla.
 
+### Correderas ocultas (addendum 2026-09-10, ejemplo 23)
+
+`ejemplo-cajonera-correderas-ocultas.csv` (generador: helper `cajonOculto()`, ejemplo 23) aplica el contrato de riel oculto (S1/S2, `RAIL_TYPES`/`railService.js`):
+
+- Los frentes se nombran "Frente cajon oculto …" para que `inferRailType` infiera `oculta` (keyword 'ocult').
+- La caja **no descuenta holgura lateral** (laterales de 16 mm al ras del frente, rango Blum 16/19); el cajón es de **base anclada al frente sin fondo trasero** (la base hace de fondo, como la zapatera-cajón del ejemplo 17), así el check de `csvParser.js` ("fondo ≈ frente − 2×espesor lateral") no aplica: la deducción −42 mm es del ancho interior de la base (`vano − 42`), no del frente.
+- `hardware.js` agrupa las 3 correderas bajo "Correderas ocultas" con especificación "vano − 42 mm" (catálogo Blum Tandem 563H / Häfele Matrix UM).
+
 ### Cambios en capas
 
 - **`js/hardware.js`**: correderas contadas por frente de cajón (1 par por cajón, antes por pieza); detección de volquete por "abatible"/"volquete" en el frente; tiradores de cajón explícitos en la lista.
