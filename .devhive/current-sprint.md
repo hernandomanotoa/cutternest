@@ -49,6 +49,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A36 | Sincronizar apertura con modo paso (F3) | Guardian | ✅ Completado | Servicio puro `stepApertureService.js`: piezas móviles del paso actual → apertura 1, anteriores → 0, salvo override manual persistente; snapshot/restauración al entrar/salir del modo paso. 415 tests OK. |
 | A37 | Defaults de altura lógicos por tipo de pieza | Guardian | ✅ Completado | `drawerBaseOffset` 80→10, `braceBaseOffset` 80→0, `lowerShelfBaseOffset` 80→30, `topInset` 120→50; riel colgador clampado a `tapa−60` (módulos bajos). 419 tests OK. |
 | A38 | Zócalo-cajón full-width sin base + ejemplos | Guardian | ✅ Completado | Rol `plinth_side`; detección por datos (con laterales → cajón visible 0..H; solo frente → patín intacto); base del módulo sigue con el módulo apoyada a z=zocaloHeight. 3 ejemplos nuevos (closet/cómoda/mueble TV). 425 tests OK, 83 CSV 0/0/0. |
+| A39 | Tipos de riel con holguras reales (Häfele/Blum) | Guardian | ✅ Completado | S1 `RAIL_TYPES`+`railService` (telescópica 12,7 mm/lado, oculta vano−42, ruedas 12,5, ligera 10; extracción 1,0/0,75) y holgura bilateral en geometría; S2 herrajes/instrucciones por tipo; S3 ejemplo 23 correderas ocultas. 453 tests OK, 85 CSV 0/0/0. Deuda: validación de fondo de cajón es telescópica-específica. |
 
 ## Leyenda estados
 
