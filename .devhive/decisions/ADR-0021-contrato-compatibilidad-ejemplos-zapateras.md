@@ -24,6 +24,20 @@ Los ejemplos de muebles (CSVs en `docs/` y `frontend/public/assembly-planner/dat
 2. **Extraíble** (`ejemplo-zapatero-extraible.csv`): módulo de clóset 800×1800×500, bandeja zapatero fija (rol `shelf`, espesor 18) + 5 cajones "extraible" en correderas telescópicas (1 par por cajón), ~40–50 pares.
 3. **Banco** (`ejemplo-zapatero-banco.csv`): módulo 900×420×350 con "Asiento banco" (`seat_panel`) + 2 cajones a nivel de piso. El planner no modela ruedas; el enunciado "ruedas o rieles" se resuelve con correderas telescópicas (documentado en el header del CSV).
 
+### Zócalo global: patín retranqueado vs cajón de zócalo (addendum 2026-09-10, ejemplos 20–22)
+
+Dos modelos de zócalo global full-width, distinguibles solo por los datos:
+
+1. **Patín retranqueado** (modelo clásico, ejemplos 5–10): el zócalo global es **solo el frente** (`glb-zocalo`, ancho = suma de anchos de módulos con base). Se dibuja retranqueado bajo la línea de suelo (`z < 0`) y los laterales de los módulos llegan al suelo.
+2. **Cajón de zócalo** (patrón real "zócalo completo sin base global", ejemplos `*-zocalo-cajon`): el zócalo global es **un cajón sin tapa ni base**: frente (`glb-zocalo`) + 2 laterales (`glb-zocalo-lateral-izq/der`, rol `plinth_side`, ancho = profundidad del mueble) + trasero opcional ("Fondo zocalo"). La base del primer módulo hace de tapa del cajón.
+
+Reglas del modelo cajón:
+
+- **La base va siempre con el módulo**: cada módulo conserva su `bottom_panel` propia, **interna** (ancho ≈ módulo − 2t), apoyada a `z = zocaloHeight`. Los interiores heredan el offset automáticamente.
+- **Detección**: cualquier pieza global con rol `plinth_side` (nombre `lateral`/`costado` + `zocalo`, clasificada en `classifierService.js`). Sin laterales, todo el render es idéntico al patín (los ~20 ejemplos previos y sus tests no cambian).
+- **Altura total**: los laterales de los módulos se dimensionan con la altura TOTAL del mueble (zócalo incluido) y renderizan desde `z = zocaloHeight`; el zócalo ocupa `z: 0..zocaloHeight` a cara del mueble (frente y trasero como bandas, laterales a profundidad completa). La tapa corrida sigue en `z = moduleH` (altura total).
+- **Validación**: `csvParser.js` compara el ancho del **frente** (rol `bottom_panel`/`plinth` con 'zocalo' en el nombre) contra la suma de anchos de módulos (±2 mm). Los laterales (`plinth_side`) y el trasero (`back_panel`) quedan excluidos de la comparación para no contaminarla.
+
 ### Cambios en capas
 
 - **`js/hardware.js`**: correderas contadas por frente de cajón (1 par por cajón, antes por pieza); detección de volquete por "abatible"/"volquete" en el frente; tiradores de cajón explícitos en la lista.

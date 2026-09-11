@@ -354,6 +354,108 @@ const examples = [];
   examples.push({ name: 'Ejemplo_CSV_Zapatera_Repisa_Riel.csv', dataName: 'ejemplo-zapatera-repisa.csv', lines });
 }
 
+// 20–22. Zócalo-cajón global (patrón real: zócalo full-width SIN base global)
+// El zócalo completo es un cajón sin tapa ni base: frente (ancho total × alto
+// del zócalo) + laterales (profundidad × alto del zócalo). Los módulos
+// conservan su propia base (interna, apoyada a z=zocaloHeight), que hace de
+// tapa del cajón. Contrato: frente = suma de anchos de módulos (±2 mm, ADR-0021).
+
+// Zócalo completo full-width: frente + 2 laterales, todo en 'estructura'.
+// El renderer distingue este modelo (cajón visible) del patín retranqueado
+// clásico (frente solo) por la presencia de los laterales (rol 'plinth_side').
+function zocaloCajon(nombre, anchoTotal, profundidad, altoZocalo, color) {
+  return [
+    line('glb-zocalo', `Zocalo corrido ${nombre}`, anchoTotal, altoZocalo, 1, 'si', color, 15, 'T,B,L,R', 'estructura'),
+    line('glb-zocalo-lateral-izq', `Lateral zocalo izquierdo ${nombre}`, profundidad, altoZocalo, 1, 'no', color, 15, 'T,B,L', 'estructura'),
+    line('glb-zocalo-lateral-der', `Lateral zocalo derecho ${nombre}`, profundidad, altoZocalo, 1, 'no', color, 15, 'T,B,R', 'estructura'),
+  ];
+}
+
+// Casco de módulo para el modelo zócalo-cajón: base INTERNA (ancho−2t × prof−2t)
+// apoyada sobre el zócalo y laterales de altura TOTAL del mueble (zócalo incluido).
+function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerpo) {
+  const E = 15;
+  return [
+    line(`m${mod}-base`, `Base modulo M${parent}`, ancho - 2 * E, prof - 2 * E, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
+    line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
+    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, prof, altoTotal, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
+    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, prof, altoTotal, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
+    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho, altoTotal, '#F2F2F2', mod),
+  ];
+}
+
+// 20. Clóset con zócalo-cajón
+{
+  const lines = [];
+  lines.push(header('Ejemplo de closet con zocalo-cajon', 'Zocalo completo full-width 1800×150 (frente + laterales, sin base global) + 2 modulos doble puerta 900×2100×550 con su propia base interna apoyada sobre el zocalo, riel colgador, repisa inferior y tapa corrida.'));
+  lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
+  lines.push(...zocaloCajon('closet', 1800, 550, 150, '#C19A6B'));
+  lines.push(line('glb-tapa', 'Tapa corrida closet', 1800, 550, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior closet', 1800, 2100, '#F2F2F2', 'estructura'));
+
+  // Modulo de cuerpo 900×2100×550 (altura TOTAL incluye zocalo de 150).
+  const cuerpoCloset = (mod, colorCuerpo, colorFrente) => [
+    ...cascoZocaloCajon(mod, mod, 900, 2100, 550, colorCuerpo),
+    line(`m${mod}-barra`, `Barra ropa M${mod}`, 870, 25, 1, 'si', '#A0A0A0', 25, '', mod),
+    line(`m${mod}-repisa-inferior`, `Repisa inferior M${mod}`, 570, 520, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', mod),
+    line(`m${mod}-puerta-izq`, `Puerta izquierda M${mod}`, 433, 1920, 1, 'no', colorFrente, 18, 'T,B,L,R', mod),
+    line(`m${mod}-puerta-der`, `Puerta derecha M${mod}`, 433, 1920, 1, 'no', colorFrente, 18, 'T,B,L,R', mod),
+  ];
+  lines.push('# --- Modulo 1: cuerpo izquierdo doble puerta ---');
+  lines.push(...cuerpoCloset(1, '#C19A6B', '#FFFFFF'));
+  lines.push('# --- Modulo 2: cuerpo derecho doble puerta ---');
+  lines.push(...cuerpoCloset(2, '#8B5A2B', '#FFFFFF'));
+
+  examples.push({ name: 'Ejemplo_CSV_Closet_Zocalo_Cajon.csv', dataName: 'ejemplo-closet-zocalo-cajon.csv', lines });
+}
+
+// 21. Cómoda con zócalo-cajón
+{
+  const lines = [];
+  lines.push(header('Ejemplo de comoda con zocalo-cajon', 'Zocalo completo 1200×150 (frente + laterales, sin base global) + 2 modulos cajonera 600×900×450 con su propia base interna apoyada sobre el zocalo y tapa corrida.'));
+  lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
+  lines.push(...zocaloCajon('comoda', 1200, 450, 150, '#C19A6B'));
+  lines.push(line('glb-tapa', 'Tapa corrida comoda', 1200, 450, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+
+  // Vano util sobre la base: 165..585 → 3 cajones de altoVano 235 (frente 232).
+  const cajonera = (mod, colorCuerpo, colorFrente) => [
+    ...cascoZocaloCajon(mod, mod, 600, 900, 450, colorCuerpo),
+    ...cajon(mod, 1, { anchoModulo: 600, profundidadModulo: 450, altoVano: 235, colorFrente, colorLateral: '#D9C2A3', suffix: 'superior' }),
+    ...cajon(mod, 2, { anchoModulo: 600, profundidadModulo: 450, altoVano: 235, colorFrente, colorLateral: '#D9C2A3', suffix: 'medio' }),
+    ...cajon(mod, 3, { anchoModulo: 600, profundidadModulo: 450, altoVano: 235, colorFrente, colorLateral: '#D9C2A3', suffix: 'inferior' }),
+  ];
+  lines.push('# --- Modulo 1: cajonera izquierda ---');
+  lines.push(...cajonera(1, '#C19A6B', '#8B5A2B'));
+  lines.push('# --- Modulo 2: cajonera derecha ---');
+  lines.push(...cajonera(2, '#8B5A2B', '#C19A6B'));
+
+  examples.push({ name: 'Ejemplo_CSV_Comoda_Zocalo_Cajon.csv', dataName: 'ejemplo-comoda-zocalo-cajon.csv', lines });
+}
+
+// 22. Mueble de TV con zócalo-cajón
+{
+  const lines = [];
+  lines.push(header('Ejemplo de mueble para TV con zocalo-cajon', 'Zocalo completo 1800×150 (frente + laterales, sin base global) + modulo cajonera 600 y modulo de repisas 1200 (ambos 600×450, base interna propia) y tapa corrida.'));
+  lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
+  lines.push(...zocaloCajon('TV', 1800, 450, 150, '#C19A6B'));
+  lines.push(line('glb-tapa', 'Tapa corrida TV', 1800, 450, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+
+  lines.push('# --- Modulo 1: cajonera (2 cajones, vano 210 → frente 207) ---');
+  lines.push(...cascoZocaloCajon(1, 1, 600, 600, 450, '#8B5A2B'));
+  lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 450, altoVano: 210, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 600, profundidadModulo: 450, altoVano: 210, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  lines.push('# --- Modulo 2: repisas con divisor central ---');
+  lines.push(...cascoZocaloCajon(2, 2, 1200, 600, 450, '#C19A6B'));
+  lines.push(line('m2-divisor-central', 'Divisor central M2', 15, 405, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-repisa-inf-izq', 'Repisa inferior izquierda M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-repisa-inf-der', 'Repisa inferior derecha M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-estante-izq', 'Estante izquierdo M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-estante-der', 'Estante derecho M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+
+  examples.push({ name: 'Ejemplo_CSV_Mueble_TV_Zocalo_Cajon.csv', dataName: 'ejemplo-mueble-tv-zocalo-cajon.csv', lines });
+}
+
 for (const ex of examples) {
   const content = ex.lines.join('\n') + '\n';
   fs.writeFileSync(path.join(DOCS_DIR, ex.name), content, 'utf8');

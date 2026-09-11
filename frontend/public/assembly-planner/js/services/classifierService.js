@@ -32,6 +32,24 @@ export function inferRole(piece) {
     return 'drawer_part';
   }
 
+  // Zócalo-cajón global (patrón sin base global): los laterales del cajón de
+  // zócalo ("Lateral zocalo izquierdo", id `glb-zocalo-lateral-izq`) deben
+  // clasificarse como `plinth_side`, no como `side_panel`: así el renderer
+  // distingue el modelo de zócalo completo (cajón visible) del patín
+  // retranqueado clásico (solo frente) y no los mezcla con el casco de los
+  // módulos. Solo aplica a piezas globales (módulo 'estructura'/'global' o id
+  // con prefijo `glb-`); en un módulo individual un "lateral zocalo" es un
+  // costado común y cae en `side_panel`. Debe ir ANTES de las reglas
+  // estructurales porque "Lateral zocalo ..." matchearía 'lateral'.
+  {
+    const mod = String(piece.modulo || '').trim().toLowerCase();
+    const esGlobal = mod === 'estructura' || mod === 'global' || id.startsWith('glb-');
+    const texto = `${n} ${id}`;
+    if (esGlobal && texto.includes('zocalo') && (texto.includes('lateral') || texto.includes('costado'))) {
+      return 'plinth_side';
+    }
+  }
+
   // Estructura principal: base, tapa, laterales y fondo deben tener prioridad
   // sobre nombres compuestos como "Base aparador puertas" o "Lateral derecho vitrina".
   if (n.includes('base')) return 'bottom_panel';

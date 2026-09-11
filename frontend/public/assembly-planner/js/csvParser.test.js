@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCSV } from './csvParser.js';
+import { inferRole } from './services/classifierService.js';
 
 const HEADER = 'id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z';
 
@@ -100,5 +101,51 @@ describe('parseCSV - zapatera-cajón (submódulo mínimo)', () => {
     assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
     assert.deepEqual(result.warnings, [], `warnings inesperados: ${result.warnings.join(' | ')}`);
     assert.ok(result.pieces.find((p) => p.id === 'z1-frente'), 'falta el frente zapatera');
+  });
+});
+
+describe('parseCSV - zócalo-cajón global (modelo sin base global)', () => {
+  // Dos módulos 600×700×450 con base propia → suma de anchos = 1200.
+  // Los laterales del zócalo se listan ANTES del frente a propósito: su ancho
+  // (450 = profundidad) no debe contaminar la comparación frente vs Σ módulos.
+  const baseCSV = (frenteAncho) => [
+    HEADER,
+    'glb-zocalo-lateral-izq,Lateral zocalo izquierdo,450,150,1,no,#FFFFFF,15,"T,B,L",estructura,',
+    'glb-zocalo-lateral-der,Lateral zocalo derecho,450,150,1,no,#FFFFFF,15,"T,B,R",estructura,',
+    `glb-zocalo,Zocalo corrido,${frenteAncho},150,1,si,#FFFFFF,15,"T,B,L,R",estructura,`,
+    'm1-lat-izq,Lateral izquierdo M1,450,700,1,no,#FFFFFF,15,"T,B,L",1,',
+    'm1-lat-der,Lateral derecho M1,450,700,1,no,#FFFFFF,15,"T,B,R",1,',
+    'm1-base,Base modulo M1,600,450,1,si,#FFFFFF,15,"T,B,L,R",1,',
+    'm1-tapa,Tapa modulo M1,600,450,1,si,#FFFFFF,15,"T,B,L,R",1,',
+    'm1-fondo,Fondo modulo M1,600,700,1,no,#FFFFFF,15,,1,',
+    'm2-lat-izq,Lateral izquierdo M2,450,700,1,no,#FFFFFF,15,"T,B,L",2,',
+    'm2-lat-der,Lateral derecho M2,450,700,1,no,#FFFFFF,15,"T,B,R",2,',
+    'm2-base,Base modulo M2,600,450,1,si,#FFFFFF,15,"T,B,L,R",2,',
+    'm2-tapa,Tapa modulo M2,600,450,1,si,#FFFFFF,15,"T,B,L,R",2,',
+    'm2-fondo,Fondo modulo M2,600,700,1,no,#FFFFFF,15,,2,',
+  ].join('\n');
+
+  const zocaloWidthWarning = (result) =>
+    result.warnings.filter((w) => /zócalo.*suma de bases/i.test(w));
+
+  it('clasifica los laterales del zócalo global como plinth_side (no side_panel ni bottom_panel)', () => {
+    const result = parseCSV(baseCSV(1200));
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    const latIzq = result.pieces.find((p) => p.id === 'glb-zocalo-lateral-izq');
+    assert.equal(inferRole(latIzq), 'plinth_side');
+    const frente = result.pieces.find((p) => p.id === 'glb-zocalo');
+    assert.equal(inferRole(frente), 'bottom_panel');
+  });
+
+  it('no advierte cuando el frente coincide con la suma de anchos (laterales no contaminan)', () => {
+    const result = parseCSV(baseCSV(1200));
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.deepEqual(zocaloWidthWarning(result), [], `warnings inesperados: ${result.warnings.join(' | ')}`);
+  });
+
+  it('advierte cuando el frente no coincide con la suma de anchos de módulos', () => {
+    const result = parseCSV(baseCSV(1190));
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(zocaloWidthWarning(result).length, 1, `se esperaba 1 warning de ancho de zócalo: ${result.warnings.join(' | ')}`);
   });
 });

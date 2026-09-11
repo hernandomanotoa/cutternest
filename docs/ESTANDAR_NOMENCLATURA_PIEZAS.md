@@ -176,6 +176,26 @@ m1-bar,Barra colgadora M1,770,25,1,no,#A0A0A0,25,,1,
 
 ---
 
+## 5bis. Piezas globales (`glb-` / módulo `estructura`)
+
+Las piezas compartidas por todo el mueble (zócalo corrido, tapa corrida, fondo corrido, corona, puertas corredizas) van en el módulo `estructura` (o `global`) con prefijo de id `glb-`. El clasificador las distingue de las piezas de módulo y el renderer las dibuja a lo ancho del mueble completo.
+
+### Zócalo global: dos modelos distinguibles por los datos
+
+| Modelo | Piezas | Convención de nombres |
+|---|---|---|
+| **Patín retranqueado** (clásico) | Solo frente | `glb-zocalo`, "Zocalo corrido …" |
+| **Cajón de zócalo** (sin base global) | Frente + 2 laterales (+ trasero opcional) | `glb-zocalo` + `glb-zocalo-lateral-izq/der` ("Lateral zocalo izquierdo/derecho") |
+
+Reglas del modelo **cajón de zócalo** (patrón real "zócalo completo full-width sin base global"):
+
+- El zócalo es un **cajón sin tapa ni base**: frente (ancho total × alto del zócalo) + laterales (profundidad × alto del zócalo, clasificados como rol `plinth_side`). La **base del primer módulo hace de tapa** del cajón.
+- **La base va siempre con el módulo**: cada módulo conserva su `bottom_panel` propia, interna (ancho ≈ módulo − 2·espesor), apoyada sobre el zócalo. No existe base global.
+- **Altura total**: los laterales de los módulos se dimensionan con la altura TOTAL del mueble (zócalo incluido) y el frente del zócalo debe medir la suma de anchos de los módulos (±2 mm, lo que valida `csvParser.js`). Los laterales del zócalo no entran en esa suma.
+- Ejemplos de referencia: `ejemplo-closet-zocalo-cajon.csv`, `ejemplo-comoda-zocalo-cajon.csv`, `ejemplo-mueble-tv-zocalo-cajon.csv`.
+
+---
+
 ## 6. Reglas que hay que respetar
 
 1. **No mezclar códigos de módulo**: si la pieza es del módulo 1, su `id` debe empezar con `m1-` y su nombre debe decir `M1`.
@@ -186,7 +206,7 @@ m1-bar,Barra colgadora M1,770,25,1,no,#A0A0A0,25,,1,
 
 ---
 
-## 7. Archivos afectados si se implementa
+## 8. Archivos afectados si se implementa
 
 - `frontend/public/assembly-planner/data/ejemplo-closet-modular-abierto.csv`
 - `docs/Ejemplo_CSV_Universal.csv`

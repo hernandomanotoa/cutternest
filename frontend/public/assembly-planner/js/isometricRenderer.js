@@ -215,6 +215,13 @@ export class IsometricRenderer {
     const globalTops = globalPieces.filter((p) => inferRole(p) === 'top_panel');
     const zocaloHeight = globalBottoms.length ? Math.max(...globalBottoms.map((p) => Number(p.alto) || 0)) : 0;
     const coronaHeight = globalTops.length ? Math.max(...globalTops.map((p) => Number(p.alto) || 0)) : 0;
+    // Modelo de zócalo: si el zócalo global incluye laterales (rol
+    // 'plinth_side', p. ej. `glb-zocalo-lateral-izq`), es un cajón de zócalo
+    // completo (frente + laterales, sin base global): los laterales de los
+    // módulos arrancan en su cara superior (z = zocaloHeight) en lugar de
+    // llegar al suelo. Sin laterales se conserva el patín retranqueado
+    // clásico (frente solo, dibujado bajo el suelo) y todo queda como antes.
+    const zocaloDrawerHeight = globalPieces.some((p) => inferRole(p) === 'plinth_side') ? zocaloHeight : 0;
     const isGlobalModule = String(moduleId).toLowerCase() === 'estructura' || String(moduleId).toLowerCase() === 'global';
     const target = String(moduleId).trim();
 
@@ -274,7 +281,7 @@ export class IsometricRenderer {
     let geometries = [];
 
     if (isGlobalModule) {
-      geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, true));
+      geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, true, zocaloHeight));
     } else if (target === ALL_MODULE_ID) {
       const nonGlobalPieces = allPieces.filter((p) => !isGlobalPiece(p));
       const moduleGroups = this._groupByModule(nonGlobalPieces);
@@ -284,7 +291,7 @@ export class IsometricRenderer {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
         const subGeometries = this._buildModuleGeometries(
-          group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight
+          group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight
         );
         const useProjection = this.moduleGapMode === 'projected';
         const bounds = this._computeModuleBounds(subGeometries, useProjection);
@@ -296,14 +303,14 @@ export class IsometricRenderer {
         offsetX += moduleVisualWidth + extraGap;
       });
       if (globalPieces.length) {
-        const globalGeoms = this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true);
+        const globalGeoms = this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true, zocaloHeight);
         globalGeoms.forEach((g) => { g.moduleSeq = sortedIds.length; });
         geometries.push(...globalGeoms);
       }
     } else {
-      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight));
+      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight));
       if (globalPieces.length) {
-        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, false));
+        geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, false, zocaloHeight));
       }
     }
 
@@ -411,7 +418,7 @@ export class IsometricRenderer {
   // GEOMETRÍA 3D
   // ═══════════════════════════════════════════════════════════
 
-  _buildModuleGeometries(pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0) {
+  _buildModuleGeometries(pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0, zocaloDrawerHeight = 0) {
     const geometries = [];
     const roles = pieces.map((p) => ({ ...p, role: inferRole(p) }));
 
@@ -486,7 +493,14 @@ export class IsometricRenderer {
       ? topPanelOverride
       : (topAxes.width === 'internal' ? Math.max(0, moduleH - thickness - coronaHeight) : moduleH - thickness);
 
-    const sideStartZ = baseAxes.width === 'internal' ? 0 : bottomPanelOffset + thickness;
+    // En el modelo zócalo-cajón (zocaloDrawerHeight > 0) el zócalo global es
+    // un cajón completo bajo los módulos: los laterales del módulo arrancan
+    // en su cara superior, no en el suelo. En el patín retranqueado clásico
+    // se conserva el comportamiento anterior (laterales al suelo, zócalo
+    // frontal embutido/retranqueado entre ellos).
+    const sideStartZ = zocaloDrawerHeight > 0
+      ? zocaloDrawerHeight
+      : (baseAxes.width === 'internal' ? 0 : bottomPanelOffset + thickness);
     const sideEndZ = topAxes.width === 'internal' ? topPanelOffset + thickness : topPanelOffset;
     const sideH = Math.max(0, sideEndZ - sideStartZ);
 
@@ -1248,21 +1262,73 @@ export class IsometricRenderer {
     };
   }
 
-  _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true) {
+  _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true, zocaloHeight = 0) {
     const geometries = [];
     const globalDoors = [];
+    // Modelo de zócalo: si el zócalo global incluye laterales (rol
+    // 'plinth_side', ver classifierService), es un cajón de zócalo completo
+    // sin base (patrón real de fabricación "zócalo full-width + módulos con
+    // su propia base encima"): se dibuja como cajón visible a cara del
+    // mueble, con el frente y el trasero como bandas z:0..zocaloHeight y los
+    // laterales a profundidad completa. La base del primer módulo (apoyada a
+    // z=zocaloHeight) hace de tapa del cajón. Sin laterales se conserva el
+    // patín retranqueado clásico: frente solo, dibujado bajo el suelo.
+    const plinthSides = globalPieces.filter((p) => inferRole(p) === 'plinth_side');
+    const drawerPlinth = plinthSides.length > 0;
+    const plinthH = drawerPlinth
+      ? (zocaloHeight || Math.max(0, ...plinthSides.map((p) => Number(p.alto) || 0)))
+      : 0;
+
+    plinthSides.forEach((side) => {
+      const sn = normalizeNameLocal(side.nombre);
+      const sid = normalizeNameLocal(side.id);
+      const isLeft = sn.includes('izquierdo') || sn.includes('izq') || sid.includes('izquierdo') || sid.includes('izq');
+      const t = Number(side.espesor) || thickness;
+      const x = isLeft ? 0 : moduleW - t;
+      // Mismo reparto frente/atrás que los laterales de los módulos: en
+      // perspectiva normal el lateral izquierdo queda al frente.
+      const isFront = this.isoFlip ? !isLeft : isLeft;
+      geometries.push({
+        x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
+        color: side.color || ROLE_COLORS.wood, role: isFront ? 'side_panel_front' : 'side_panel_rear',
+        name: side.nombre, id: side.id, opacity: 0.4,
+      });
+    });
+
     globalPieces.forEach((p) => {
       const role = inferRole(p);
       const n = normalizeNameLocal(p.nombre);
       const color = p.color || ROLE_COLORS.wood;
 
-      if (role === 'bottom_panel' || n.includes('zocalo')) {
+      if (role === 'plinth_side') {
+        // Ya dibujados en la pasada anterior (necesitan plinthH).
+      } else if (drawerPlinth && role === 'back_panel' && n.includes('zocalo')) {
+        // Trasero opcional del cajón de zócalo: banda z:0..zocaloHeight en
+        // la cara trasera (la rama genérica de back_panel lo dibujaría a
+        // altura completa del mueble).
         const w = Number(p.ancho) || moduleW;
-        const d = Number(p.alto) || 100;
+        const t = Number(p.espesor) || thickness;
         geometries.push({
-          x: 0, y: moduleD - d, z: -d, w, d, h: d,
-          color, role: 'bottom_panel', name: p.nombre, id: p.id,
+          x: 0, y: -t, z: 0, w, d: t, h: Number(p.alto) || plinthH,
+          color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
         });
+      } else if (role === 'bottom_panel' || n.includes('zocalo')) {
+        const w = Number(p.ancho) || moduleW;
+        if (drawerPlinth) {
+          // Frente del cajón de zócalo: banda visible z:0..zocaloHeight al
+          // ras del frente del mueble (no retranqueada ni bajo el suelo).
+          const t = Number(p.espesor) || thickness;
+          geometries.push({
+            x: 0, y: moduleD - t, z: 0, w, d: t, h: Number(p.alto) || plinthH,
+            color, role: 'plinth', name: p.nombre, id: p.id,
+          });
+        } else {
+          const d = Number(p.alto) || 100;
+          geometries.push({
+            x: 0, y: moduleD - d, z: -d, w, d, h: d,
+            color, role: 'bottom_panel', name: p.nombre, id: p.id,
+          });
+        }
       } else if (role === 'top_panel') {
         const w = Number(p.ancho) || moduleW;
         const d = Number(p.alto) || moduleD;

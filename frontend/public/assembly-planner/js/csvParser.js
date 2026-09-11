@@ -230,7 +230,14 @@ function validateDimensions(pieces, warnings) {
   // Estructura global
   globalModules.forEach((gmod) => {
     const globalPieces = modules[gmod];
-    const zocalo = findPiece(globalPieces, ['zocalo']);
+    // Frente del zócalo global: pieza 'zocalo' con rol de base/frontal. En el
+    // modelo zócalo-cajón hay también laterales (rol 'plinth_side') y un
+    // trasero opcional (rol 'back_panel') cuyo ancho es la profundidad: no
+    // deben entrar en la comparación contra la suma de anchos de módulos.
+    const zocalo = globalPieces.find((p) => {
+      const role = inferRole(p);
+      return (role === 'bottom_panel' || role === 'plinth') && normalizeName(p.nombre).includes('zocalo');
+    });
     const sumaBases = parentModules.reduce((sum, modId) => {
       const b = findPiece(modules[modId], ['base']);
       if (!b) return sum;

@@ -908,3 +908,85 @@ describe('IsometricRenderer volquete (apertura pivotante)', () => {
     assert.ok(topFront.z < face.z, `top edge should drop below pivot, got ${topFront.z}`);
   });
 });
+
+describe('IsometricRenderer zócalo-cajón global (modelo sin base global)', () => {
+  // Mueble 1800×2100×550 con zócalo-cajón 150 (frente + laterales globales)
+  // y un módulo 900×2100×550 con base interna apoyada sobre el zócalo.
+  const drawerPlinthPieces = [
+    { id: 'glb-zocalo', nombre: 'Zocalo corrido closet', ancho: 1800, alto: 150, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+    { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo closet', ancho: 550, alto: 150, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+    { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho closet', ancho: 550, alto: 150, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+    { id: 'glb-tapa', nombre: 'Tapa corrida closet', ancho: 1800, alto: 550, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 18, modulo: 'estructura' },
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 870, alto: 520, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 900, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 2100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 2100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 900, alto: 2100, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+  ];
+
+  it('dibuja el zócalo como cajón visible: laterales 0..zocaloHeight a profundidad completa y frente al ras', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries, moduleD, moduleH } = renderer.computeGeometries('1', drawerPlinthPieces);
+
+    const latIzq = geometries.find((g) => g.id === 'glb-zocalo-lateral-izq');
+    assert.ok(latIzq, 'lateral izquierdo del zócalo debe existir');
+    assert.equal(latIzq.x, 0, 'lateral izquierdo a la cara izquierda del mueble');
+    assert.equal(latIzq.y, 0, 'lateral a profundidad completa (desde el fondo)');
+    assert.equal(latIzq.z, 0, 'lateral del zócalo arranca en el suelo');
+    assert.equal(latIzq.d, moduleD, 'lateral del zócalo a profundidad completa');
+    assert.equal(latIzq.h, 150, 'lateral del zócalo de 0..zocaloHeight');
+
+    const latDer = geometries.find((g) => g.id === 'glb-zocalo-lateral-der');
+    assert.ok(latDer, 'lateral derecho del zócalo debe existir');
+    assert.equal(latDer.x + latDer.w, 900, 'lateral derecho contra la cara derecha del módulo');
+
+    const frente = geometries.find((g) => g.id === 'glb-zocalo');
+    assert.ok(frente, 'frente del zócalo debe existir');
+    assert.equal(frente.z, 0, 'frente del cajón visible desde el suelo (no bajo el suelo)');
+    assert.ok(frente.z + frente.h <= 150, 'frente como banda 0..zocaloHeight');
+    assert.equal(frente.y + frente.d, moduleD, 'frente al ras del frente del mueble');
+    assert.equal(frente.w, 1800, 'frente a ancho total del mueble');
+
+    // Nada del zócalo se dibuja bajo el suelo (como sí hace el patín).
+    assert.ok(
+      geometries.filter((g) => String(g.id).includes('zocalo')).every((g) => g.z >= 0),
+      'en el modelo cajón ninguna pieza del zócalo baja de z=0'
+    );
+    assert.equal(moduleH, 2100, 'la altura total del mueble incluye el zócalo');
+  });
+
+  it('mantiene la base del módulo apoyada a z=zocaloHeight y los laterales del módulo encima del zócalo', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries } = renderer.computeGeometries('1', drawerPlinthPieces);
+
+    const base = geometries.find((g) => g.id === 'm1-base');
+    assert.ok(base, 'base del módulo debe existir');
+    assert.equal(base.z, 150, 'base del módulo apoyada sobre el zócalo (z=zocaloHeight)');
+
+    const side = geometries.find((g) => g.id === 'm1-lateral-izq');
+    assert.ok(side, 'lateral del módulo debe existir');
+    assert.equal(side.z, 150, 'lateral del módulo arranca en la cara superior del cajón de zócalo');
+    assert.equal(side.z + side.h, 2085, 'lateral del módulo llega justo bajo la tapa');
+  });
+
+  it('mantiene el patín retranqueado clásico cuando el zócalo no tiene laterales', () => {
+    const skatePieces = [
+      { id: 'glb-zocalo', nombre: 'Zocalo corrido cocina', ancho: 2400, alto: 100, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+      { id: 'm1-base', nombre: 'Base modulo M1', ancho: 600, alto: 560, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 600, alto: 560, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 560, alto: 700, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 560, alto: 700, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+      { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 600, alto: 700, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries } = renderer.computeGeometries('1', skatePieces);
+
+    const zocalo = geometries.find((g) => g.id === 'glb-zocalo');
+    assert.ok(zocalo, 'zócalo patín debe existir');
+    assert.equal(zocalo.z, -100, 'patín retranqueado dibujado bajo la línea de suelo');
+    assert.equal(zocalo.role, 'bottom_panel', 'rol legacy del patín');
+
+    const side = geometries.find((g) => g.id === 'm1-lateral-izq');
+    assert.equal(side.z, 15, 'sin zócalo-cajón, los laterales del módulo arrancan sobre la base externa (comportamiento legacy)');
+  });
+});
