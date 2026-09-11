@@ -4,7 +4,7 @@ import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../util
 import { COLORS } from '../core/config.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
-import { motionConfigFor } from '../services/motionService.js';
+import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
 import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
@@ -155,6 +155,20 @@ export function createIsometricView(store) {
 
     canvas = container.querySelector('#iso-canvas');
     render();
+
+    // Doble-click sobre una pieza: alterna su apertura individual 0↔1
+    // (cajones, zapateras en riel, puertas bisagra/corrediza y volquetes).
+    canvas.addEventListener('dblclick', (e) => {
+      const poly = e.target.closest?.('polygon[data-piece-id]');
+      const id = poly?.getAttribute('data-piece-id');
+      if (!id) return;
+      const piece = pieces.find((p) => p.id === id);
+      if (!piece || !motionConfigFor(piece)) return;
+      selectedPieceId = id;
+      syncAperturaUI();
+      const actual = store.get().aperturas?.[id];
+      setAperturaPieza(id, decideAperturaToggle(actual));
+    });
 
     createPieceOffsetsConfig().mount(
       container.querySelector('#iso-config-host'),
