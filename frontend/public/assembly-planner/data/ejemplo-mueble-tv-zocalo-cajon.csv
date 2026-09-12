@@ -16,14 +16,16 @@ m1-fondo,Fondo modulo M1,600,600,1,no,#F2F2F2,15,"",1
 m11-cajon-frente,Frente cajon superior M1,568,207,1,si,#C19A6B,15,"T,B,L,R",11
 m11-cajon-lateral-izq,Lateral cajon superior M1,395,177,1,no,#D9C2A3,15,"T,B,L",11
 m11-cajon-lateral-der,Lateral cajon superior M1,395,177,1,no,#D9C2A3,15,"T,B,R",11
-m11-cajon-fondo,Fondo cajon superior M1,538,177,1,no,#F2F2F2,15,,11
-m11-cajon-base,Base cajon superior M1,538,395,1,si,#D9C2A3,15,"T,B,L,R",11
+m11-cajon-fondo,Fondo cajon superior M1,515,177,1,no,#F2F2F2,15,,11
+m11-cajon-cara,Cara cajon superior M1,515,177,1,no,#D9C2A3,15,"T,B,L,R",11
+m11-cajon-base,Base cajon superior M1,515,395,1,si,#D9C2A3,15,"T,B,L,R",11
 m11-cajon-tirador,Tirador cajon superior M1,2,20,1,no,#A0A0A0,5,,11
 m12-cajon-frente,Frente cajon inferior M1,568,207,1,si,#C19A6B,15,"T,B,L,R",12
 m12-cajon-lateral-izq,Lateral cajon inferior M1,395,177,1,no,#D9C2A3,15,"T,B,L",12
 m12-cajon-lateral-der,Lateral cajon inferior M1,395,177,1,no,#D9C2A3,15,"T,B,R",12
-m12-cajon-fondo,Fondo cajon inferior M1,538,177,1,no,#F2F2F2,15,,12
-m12-cajon-base,Base cajon inferior M1,538,395,1,si,#D9C2A3,15,"T,B,L,R",12
+m12-cajon-fondo,Fondo cajon inferior M1,515,177,1,no,#F2F2F2,15,,12
+m12-cajon-cara,Cara cajon inferior M1,515,177,1,no,#D9C2A3,15,"T,B,L,R",12
+m12-cajon-base,Base cajon inferior M1,515,395,1,si,#D9C2A3,15,"T,B,L,R",12
 m12-cajon-tirador,Tirador cajon inferior M1,2,20,1,no,#A0A0A0,5,,12
 # --- Modulo 2: repisas con divisor central ---
 m2-base,Base modulo M2,1170,420,1,si,#C19A6B,15,"T,B,L,R",2

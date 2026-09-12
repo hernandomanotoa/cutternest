@@ -20,16 +20,22 @@ function tirador(id, nombre, color, modulo) {
   return line(id, nombre, 2, 20, 1, 'no', color, 5, '', modulo);
 }
 
-// Genera un cajón coherente con el vano del módulo padre.
+// Genera un cajón de 6 piezas coherente con el vano del módulo padre:
+// frente decorativo + 2 laterales + base + fondo + cara (frente interior de
+// la caja, entre los laterales) + tirador.
 // Reglas (las mismas que valida js/csvParser.js):
 //   W = anchoModulo − 2E · D = profundidadModulo − E − E (fondo y lateral de 15)
 //   frente.ancho = N===1 ? W−2 : floor((W − (N−1)×3)/N) − 1  (debe ser ≤ W−2)
 //   frente.alto = altoVano − 3
 //   profCajon = D − 25 (corredera telescópica) o D − 15 (volquete/abatible)
-//   lateral = profCajon × (frente.alto − 2×espBase) · fondo/base = (frente.ancho − 2×espLat)
+//   lateral = profCajon × (frente.alto − 2×espBase)
+// Caja telescópica (RAIL_TYPES.telescopica, holgura 12,7 mm por lado):
+//   vanoCajon = N===1 ? W : frente.ancho + 2 (vano individual del cajón)
+//   boxExterior = round(vanoCajon − 25,4) · interior = boxExterior − 2×espLat
+//   base/fondo/cara miden el INTERIOR de la caja (no el ancho del frente
+//   decorativo: éste es ~24 mm más ancho que lo que permite la corredera).
 // opts.vocabulario 'zapatera' nombra "zapatera extraible" en vez de "cajon"
 // (zapatera-cajón: se desliza en rieles sin la palabra "cajon" en el nombre).
-// opts.sinFondo omite el fondo del cajón (opcional en la zapatera-cajón).
 function cajon(parent, index, opts) {
   const {
     anchoModulo,
@@ -41,7 +47,6 @@ function cajon(parent, index, opts) {
     suffix = '',
     tipo = 'corredera',
     altBandeja = 150,
-    sinFondo = false,
     vocabulario = 'cajon'
   } = opts;
   const E = 15; // espesor de laterales y fondo del módulo en estos ejemplos
@@ -59,7 +64,11 @@ function cajon(parent, index, opts) {
   const latAlto = volquete
     ? Math.min(frenteAlto - 2 * ESP_BASE, altBandeja)
     : frenteAlto - 2 * ESP_BASE;
-  const fondoAncho = frenteAncho - 2 * ESP_LAT;
+  // El volquete/abatible queda fuera del modelo de corredera: mantiene el
+  // cálculo clásico derivado del frente decorativo y sin pieza de cara.
+  const interior = volquete
+    ? frenteAncho - 2 * ESP_LAT
+    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * 12.7) - 2 * ESP_LAT;
   const sm = `${parent}${index}`;
   const label = suffix ? ` ${suffix}` : '';
   const tipoNombre = volquete ? ' abatible' : '';
@@ -76,11 +85,16 @@ function cajon(parent, index, opts) {
     `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
     `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`
   ];
-  if (!sinFondo) {
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${latAlto},1,no,#F2F2F2,15,,${sm}`);
+  if (!volquete) {
+    // Fondo y cara: piezas de la caja que miden el interior entre laterales.
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto},1,no,#F2F2F2,15,,${sm}`);
+    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L,R",${sm}`);
+  } else {
+    // Volquete/abatible: se conserva el fondo clásico derivado del frente.
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto},1,no,#F2F2F2,15,,${sm}`);
   }
   rows.push(
-    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${fondoAncho},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
     `m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
   );
   return rows;
@@ -308,11 +322,11 @@ const examples = [];
 // 17. Módulo de clóset con zapatera-cajón (zapatero extraíble)
 {
   const lines = [];
-  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: bandeja que se desliza en rieles; mínimo laterales + frente, base recomendada, fondo opcional (capacidad aproximada 40-50 pares).'));
+  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: caja completa de 6 piezas (frente decorativo, 2 laterales, base, fondo y cara) que se desliza en rieles; capacidad aproximada 40-50 pares.'));
   lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
   lines.push(line('m1-bandeja-zapatero', 'Bandeja zapatero', 770, 450, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   for (let i = 1; i <= 5; i++) {
-    lines.push(...cajon(1, i, { anchoModulo: 800, profundidadModulo: 500, altoVano: 250, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: `${i}`, vocabulario: 'zapatera', sinFondo: true }));
+    lines.push(...cajon(1, i, { anchoModulo: 800, profundidadModulo: 500, altoVano: 250, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: `${i}`, vocabulario: 'zapatera' }));
   }
   examples.push({ name: 'Ejemplo_CSV_Zapatero_Extraible_Closet.csv', dataName: 'ejemplo-zapatero-extraible.csv', lines });
 }
@@ -331,25 +345,28 @@ const examples = [];
 // 19. Zapatera-repisa con riel móvil (6 bandejas extraíbles)
 {
   const lines = [];
-  lines.push(header('Ejemplo de zapatera-repisa con riel móvil', 'Módulo de clóset 800×1800×500 con 6 bandejas zapatera extraíbles en correderas telescópicas de extensión total. Cada bandeja: frente + 2 laterales + base (sin fondo ni tirador).'));
+  lines.push(header('Ejemplo de zapatera-repisa con riel móvil', 'Módulo de clóset 800×1800×500 con 6 bandejas zapatera extraíbles en correderas telescópicas de extensión total. Cada bandeja: caja de 6 piezas (frente + 2 laterales + base + fondo + cara, sin tirador).'));
   lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
   // Coherencia con el vano (mismas reglas que cajon()):
   //   W=800−2·15=770 → frente 768×130 · D=500−30=470 → prof. cajón 445
-  //   laterales 445×(130−2·15=100) · base 738×445
+  //   laterales 445×(130−2·15=100) · interior = round(770−25,4)−2·15 = 715
+  //   base/fondo/cara 715 (el ancho interior entre laterales, no el frente)
   const E = 15;
   const W = 800 - 2 * E;
   const frenteAncho = W - 2;
   const frenteAlto = 130;
   const profCajon = 500 - E - E - 25;
   const latAlto = frenteAlto - 2 * 15;
-  const baseAncho = frenteAncho - 2 * 15;
+  const interior = Math.round(W - 2 * 12.7) - 2 * E;
   for (let i = 1; i <= 6; i++) {
     const sm = `1${i}`;
     const label = ` ${i}`;
     lines.push(line(`m${sm}-zapatera-repisa-frente`, `Frente zapatera repisa extraible${label}`, frenteAncho, frenteAlto, 1, 'si', '#C19A6B', 15, 'T,B,L,R', sm));
     lines.push(line(`m${sm}-zapatera-repisa-lateral-izq`, `Lateral zapatera repisa extraible${label} izq`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L', sm));
     lines.push(line(`m${sm}-zapatera-repisa-lateral-der`, `Lateral zapatera repisa extraible${label} der`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,R', sm));
-    lines.push(line(`m${sm}-zapatera-repisa-base`, `Base bandeja zapatera extraible${label}`, baseAncho, profCajon, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-fondo`, `Fondo zapatera repisa extraible${label}`, interior, latAlto, 1, 'no', '#F2F2F2', 15, '', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-cara`, `Cara zapatera repisa extraible${label}`, interior, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-base`, `Base bandeja zapatera extraible${label}`, interior, profCajon, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', sm));
   }
   examples.push({ name: 'Ejemplo_CSV_Zapatera_Repisa_Riel.csv', dataName: 'ejemplo-zapatera-repisa.csv', lines });
 }
@@ -459,10 +476,10 @@ function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerpo) {
 // 23. Cajonera con correderas ocultas (estilo Blum Tandem / Häfele Matrix UM)
 // La corredera oculta NO descuenta holgura lateral (sideClearance 0): los
 // laterales del cajón van al ras del frente. Su deducción de catálogo (−42 mm)
-// aplica al ancho INTERIOR: la base (que hace de fondo, anclada al frente)
-// mide vano − 42. Laterales de 16 mm (rango Blum 16/19); el alto de cajón debe
-// cumplir vano − 23 (maxHeightDeduction). El cajón es de base anclada al
-// frente, sin fondo trasero (la base hace de fondo), como la zapatera-cajón.
+// aplica al ancho INTERIOR de la caja (RAIL_TYPES.oculta.interiorDeduction):
+// base, fondo y cara miden vano − 42. Laterales de 16 mm (rango Blum 16/19)
+// con alto = vano − 23 (maxHeightDeduction). Modelo completo de 6 piezas:
+// frente decorativo + 2 laterales + base + fondo + cara + tirador.
 function cajonOculto(parent, index, opts) {
   const {
     anchoModulo,
@@ -474,21 +491,23 @@ function cajonOculto(parent, index, opts) {
   } = opts;
   const E = 15;        // espesor de laterales y fondo del módulo
   const ESP_LAT = 16;  // laterales del cajón (rango Blum 16/19)
-  const ESP_BASE = 16; // base del cajón (anclada al frente)
+  const ESP_BASE = 16; // base/fondo/cara del cajón
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
   const frenteAncho = W - 2;
   const frenteAlto = altoVano - 3;
-  const profCajon = D - 20; // oculta: desplaza menos que la telescópica (25)
-  const latAlto = frenteAlto - 2 * ESP_BASE;
-  const baseAncho = W - 42; // deducción oculta: interior = vano − 42
+  const profCajon = D - 20;      // oculta: desplaza menos que la telescópica (25)
+  const latAlto = altoVano - 23; // maxHeightDeduction (RAIL_TYPES.oculta)
+  const interior = W - 42;       // deducción de catálogo: interior = vano − 42
   const sm = `${parent}${index}`;
   const label = suffix ? ` ${suffix}` : '';
   return [
     `m${sm}-cajon-frente,Frente cajon oculto${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},16,"T,B,L,R",${sm}`,
     `m${sm}-cajon-lateral-izq,Lateral cajon oculto${label} izq M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
     `m${sm}-cajon-lateral-der,Lateral cajon oculto${label} der M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`,
-    `m${sm}-cajon-base,Base cajon oculto${label} M${parent},${baseAncho},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    `m${sm}-cajon-fondo,Fondo cajon oculto${label} M${parent},${interior},${latAlto},1,no,#F2F2F2,${ESP_BASE},,${sm}`,
+    `m${sm}-cajon-cara,Cara cajon oculto${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L,R",${sm}`,
+    `m${sm}-cajon-base,Base cajon oculto${label} M${parent},${interior},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
     `m${sm}-cajon-tirador,Tirador cajon oculto${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
   ];
 }
@@ -496,10 +515,10 @@ function cajonOculto(parent, index, opts) {
 // 23. Cajonera 600×900×450 con 3 cajones en correderas ocultas
 {
   const lines = [];
-  lines.push(header('Ejemplo de cajonera con correderas ocultas', 'Cajonera 600×900×450 con 3 cajones en correderas ocultas de extensión total (estilo Blum Tandem / Häfele Matrix UM). Caja sin holgura lateral (laterales de 16 mm al ras del frente); base interior ensanchada = vano − 42 mm (la base hace de fondo, anclada al frente).'));
+  lines.push(header('Ejemplo de cajonera con correderas ocultas', 'Cajonera 600×900×450 con 3 cajones en correderas ocultas de extensión total (estilo Blum Tandem / Häfele Matrix UM). Caja sin holgura lateral (laterales de 16 mm al ras del frente) y alto de cajón = vano − 23 mm (maxHeightDeduction); base, fondo y cara interiores = vano − 42 mm (deducción de catálogo).'));
   lines.push(...baseTapaLateralesFondo(1, 1, 600, 900, 450, '#C19A6B'));
-  // Vano útil sobre la base: 870/3 = 290 → frente 568×287, laterales 400×255,
-  // base 528 (= 570 − 42) × 400.
+  // Vano útil sobre la base: 870/3 = 290 → frente 568×287, laterales 400×267
+  // (= 290 − 23), base 528 (= 570 − 42) × 400, fondo y cara 528×267.
   lines.push(...cajonOculto(1, 1, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '1' }));
   lines.push(...cajonOculto(1, 2, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '2' }));
   lines.push(...cajonOculto(1, 3, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '3' }));

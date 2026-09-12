@@ -89,6 +89,7 @@ function classifyOrientation(role, piece) {
     role === 'front_panel' ||
     role === 'drawer_face' ||
     role === 'drawer_side' ||
+    (role === 'drawer_part' && n.includes('cara')) || // cara del cajón: panel vertical interior
     role === 'mirror' ||
     (role === 'back_panel' && !n.includes('fondo')) // fondo sin palabra fondo = panel trasero vertical
   ) {

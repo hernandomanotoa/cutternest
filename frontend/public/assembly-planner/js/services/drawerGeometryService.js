@@ -1,9 +1,9 @@
 // js/services/drawerGeometryService.js — Geometría de la caja de cajón con piezas reales
 // Lógica pura, sin DOM ni SVG. Dado un frente de cajón y las piezas reales del
-// módulo (drawer_side ×2, drawer_bottom, drawer_back), calcula la posición de
-// cada pieza de la caja en el espacio del módulo, anclada al frente. El
-// renderer aplica después el movimiento de apertura (rail/hinge) igual que al
-// frente: la caja se mueve como un grupo rígido.
+// módulo (drawer_side ×2, drawer_bottom, drawer_back, drawer_part/cara),
+// calcula la posición de cada pieza de la caja en el espacio del módulo,
+// anclada al frente. El renderer aplica después el movimiento de apertura
+// (rail/hinge) igual que al frente: la caja se mueve como un grupo rígido.
 
 import { inferRole } from './classifierService.js';
 import { normalizeName } from '../utils/normalize.js';
@@ -25,8 +25,9 @@ function sideOf(piece) {
  *   1. Prefijo de id (m21-cajon-frente → m21-cajon-lateral-izq/base/fondo).
  *   2. Mismo submódulo (mismo valor de columna `modulo`).
  *   3. Contención del nombre normalizado del frente.
- * Devuelve { laterales: [pieza, pieza], base, fondo } con lo encontrado
- * (cualquiera puede faltar) o null si no hay candidatos.
+ * Devuelve { laterales: [pieza, pieza], base, fondo, cara } con lo encontrado
+ * (cualquiera puede faltar; cara = frente interior de la caja, rol drawer_part)
+ * o null si no hay candidatos.
  */
 export function matchDrawerBoxParts(face, candidates) {
   const parts = (candidates || []).filter((p) => p !== face && PART_ROLES.includes(inferRole(p)));
@@ -75,8 +76,11 @@ export function matchDrawerBoxParts(face, candidates) {
   const named = (keyword) => pool.find((p) => normalizeName(p.nombre).includes(keyword) || normalizeName(p.id).includes(keyword));
   const base = pool.find((p) => inferRole(p) === 'drawer_bottom') || named('base');
   const fondo = pool.find((p) => inferRole(p) === 'drawer_back') || named('fondo');
+  // Cara: frente interior de la caja (entre los laterales). Rol genérico
+  // drawer_part o nombre/id con 'cara'.
+  const cara = pool.find((p) => inferRole(p) === 'drawer_part') || named('cara');
 
-  return { laterales, base: base || null, fondo: fondo || null };
+  return { laterales, base: base || null, fondo: fondo || null, cara: cara || null };
 }
 
 /**
@@ -88,13 +92,15 @@ export function hasRealDrawerBox(parts) {
 }
 
 /**
- * Geometría de la caja (laterales, base y fondo) anclada al frente.
+ * Geometría de la caja (laterales, base, fondo y cara) anclada al frente.
  * Convención de coordenadas del renderer: y = profundidad (+y = frente del
  * módulo), z = altura. La caja ocupa [yFace − prof, yFace] y queda centrada en
  * el vano del frente (x..x+w). railType fija la holgura lateral que ocupa el
  * riel (RAIL_TYPES): telescópica descuenta 12,7 mm por lado; la oculta usa
  * modo catálogo (interior = vano − 42, laterales retranqueados, rebajo
- * inferior de 12,7 mm y alto máx. = vano − 23).
+ * inferior de 12,7 mm y alto máx. = vano − 23). La cara (frente interior de
+ * la caja, entre los laterales) se dibuja solo si está presente en el CSV
+ * (compatibilidad hacia atrás con cajones de 5 piezas).
  *
  * @returns {Array} [{x,y,z,w,d,h,color,role,name,id}] por pieza real; [] si el
  *   conjunto no alcanza el mínimo (hasRealDrawerBox).
@@ -163,6 +169,20 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
       x: x + (w - backW) / 2, y: yFace - profLat, z: zBox,
       w: backW, d: backT, h: backH,
       color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
+    });
+  }
+
+  // Cara: frente interior de la caja (va justo detrás del frente decorativo).
+  // Mismo anclaje que el lateral izquierdo en x/z; en y ocupa el último
+  // espesor de la caja, pegada al frente.
+  if (parts.cara) {
+    const caraRealW = Math.max(0, Number(parts.cara.ancho) || 0);
+    const caraW = caraRealW > 0 ? Math.min(caraRealW, maxInterior) : maxInterior;
+    const espCara = Number(parts.cara.espesor) || espLat;
+    box.push({
+      x: latX[0], y: yFace - espCara, z: zBox,
+      w: caraW, d: espCara, h: latAlto,
+      color: parts.cara.color, role: 'drawer_part', name: parts.cara.nombre, id: parts.cara.id, real: true,
     });
   }
 

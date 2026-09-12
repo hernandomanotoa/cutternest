@@ -4,6 +4,7 @@ import { isHexColor, normalizeColor } from './utils.js';
 import { normalizeName, nameIncludes } from './utils/normalize.js';
 import { inferRole } from './services/classifierService.js';
 import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './services/geometryService.js';
+import { inferRailType, getRailType } from './services/railService.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
@@ -211,10 +212,36 @@ function validateDimensions(pieces, warnings) {
         });
       }
 
-      if (front && subBack && subLaterals.length) {
-        const expectedBackWidth = front.ancho - 2 * subLaterals[0].espesor;
-        if (Math.abs(subBack.ancho - expectedBackWidth) > 2) {
-          warnings.push(`Módulo ${modId} → ${subId}: fondo cajón (${subBack.ancho} mm) debería ser ≈ ${expectedBackWidth} mm (frente − 2×espesor lateral).`);
+      // Coherencia del ancho de las piezas de la caja (fondo, base y cara).
+      // Dos modelos válidos:
+      //   - Catálogo por riel (RAIL_TYPES): las piezas miden el INTERIOR de la
+      //     caja — telescópica/ruedas/ligera: round(vano − 2·holgura) − 2·espLat;
+      //     oculta: vano − interiorDeduction (vano = frente + 2).
+      //   - Clásico derivado del frente: frente − 2·espLat (ejemplos de
+      //     catálogo y volquete/abatible, que no usa corredera).
+      // Se advierte solo si el ancho no encaja en ninguno de los dos.
+      if (front && subLaterals.length) {
+        const espLat = subLaterals[0].espesor;
+        const frontText = `${normalizeName(front.nombre)} ${normalizeName(front.id)}`;
+        const rail = getRailType(inferRailType(front));
+        const vano = front.ancho + 2;
+        const legacyW = front.ancho - 2 * espLat;
+        const railW = frontText.includes('abatible') || frontText.includes('volquete')
+          ? legacyW
+          : Number(rail.interiorDeduction) > 0
+            ? vano - Number(rail.interiorDeduction)
+            : Math.round(vano - 2 * (rail.sideClearance || 0)) - 2 * espLat;
+        const encajaModelo = (ancho) =>
+          Math.abs(ancho - railW) <= 2 || Math.abs(ancho - legacyW) <= 2;
+        const boxParts = [
+          ['fondo', subBack],
+          ['base', findPiece(subPieces, ['base'])],
+          ['cara', findPiece(subPieces, ['cara'])],
+        ];
+        for (const [label, part] of boxParts) {
+          if (part && !encajaModelo(part.ancho)) {
+            warnings.push(`Módulo ${modId} → ${subId}: ${label} cajón (${part.ancho} mm) no coincide con el interior de caja según riel (≈ ${railW} mm) ni con el modelo clásico (≈ ${legacyW} mm).`);
+          }
         }
       }
     });

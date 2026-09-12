@@ -30,6 +30,31 @@ test('1 par de correderas por cajón estándar (no por pieza)', () => {
   assert.equal(h.some((x) => x.nombre.includes('volquete')), false);
 });
 
+test('la cara del cajón no duplica el conteo de correderas', () => {
+  const piezas = [
+    pieza('f1', 'Frente cajon 1'),
+    pieza('c1', 'Cara cajon 1'),
+    pieza('l1i', 'Lateral cajon 1 izq'),
+    pieza('l1d', 'Lateral cajon 1 der'),
+    pieza('b1', 'Base cajon 1'),
+    pieza('f1f', 'Fondo cajon 1'),
+    pieza('t1', 'Tirador cajon 1'),
+    pieza('f2', 'Frente cajon 2'),
+    pieza('c2', 'Cara cajon 2'),
+    pieza('l2i', 'Lateral cajon 2 izq'),
+    pieza('l2d', 'Lateral cajon 2 der'),
+    pieza('b2', 'Base cajon 2'),
+    pieza('f2f', 'Fondo cajon 2'),
+    pieza('t2', 'Tirador cajon 2'),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  const correderas = h.find((x) => x.nombre === 'Correderas telescópicas');
+  assert.ok(correderas, 'debe listar correderas');
+  assert.equal(correderas.cantidad, 2, '2 frentes decorativos = 2 cajones, la cara no cuenta');
+  const tiradores = h.find((x) => x.nombre === 'Tiradores');
+  assert.equal(tiradores.cantidad, 2, '2 tiradores explícitos');
+});
+
 test('cajón abatible/volquete: bisagras abatibles en vez de correderas', () => {
   const piezas = [
     pieza('v1', 'Frente cajon abatible 1'),

@@ -18,6 +18,7 @@ describe('inferRole', () => {
     assert.equal(inferRole(piece('Fondo Cajón')), 'drawer_back');
     assert.equal(inferRole(piece('Tirador Cajón')), 'handle');
     assert.equal(inferRole(piece('Cajón sin más')), 'drawer_part');
+    assert.equal(inferRole(piece('Cara cajon sup M1')), 'drawer_part', 'la cara no cae en panel genérico');
   });
 
   it('detects doors and handles', () => {
@@ -107,6 +108,7 @@ describe('inferRole - zapatera-cajón', () => {
     assert.equal(inferRole(piece('Fondo zapatera extraible 1')), 'drawer_back');
     assert.equal(inferRole(piece('Tirador zapatera extraible 1')), 'handle');
     assert.equal(inferRole(piece('Pieza zapatera extraible 1')), 'drawer_part');
+    assert.equal(inferRole(piece('Cara zapatera extraible 1')), 'drawer_part', 'la cara de zapatera no cae en panel genérico');
   });
 
   it('zapatera en riel/corredera también es familia cajón', () => {

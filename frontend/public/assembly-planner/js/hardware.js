@@ -22,7 +22,12 @@ export function calculateHardware(piezas, dependencies) {
     const n = p.nombre.toLowerCase();
     return n.includes('repisa') || n.includes('estante') || n.includes('entrepano') || n.includes('entrepaño');
   });
-  const cajones = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('cajon'));
+  const cajones = uniquePieces(piezas, (p) => {
+    const n = p.nombre.toLowerCase();
+    // La cara del cajón ("Cara cajon ...") no cuenta como cajón: solo el
+    // frente decorativo representa 1 cajón (fallback cuando no hay frentes).
+    return n.includes('cajon') && !n.includes('cara');
+  });
   // Frentes identificables: permiten contar cajones reales (1 frente = 1 cajón)
   // y detectar mecanismos especiales (volquete/abatible) por nombre.
   // Cuentan frentes de cajón y frentes de zapatera-cajón ("Frente zapatera

@@ -52,6 +52,9 @@ describe('motionConfigFor', () => {
     assert.deepEqual(motionConfigFor(piece('c4', 'Fondo cajon 1')), { kind: 'rail', side: null });
     assert.deepEqual(motionConfigFor(piece('c5', 'Cajon pie suelto')), { kind: 'rail', side: null });
     assert.deepEqual(motionConfigFor(piece('c6', 'Frente zapatera extraible 1')), { kind: 'rail', side: null });
+    // La cara (drawer_part) hereda rail: mismo tooltip de doble-click que el
+    // resto de la caja; el movimiento real lo aplica el transform del grupo.
+    assert.deepEqual(motionConfigFor(piece('c7', 'Cara cajon 1')), { kind: 'rail', side: null });
   });
 
   it('tirador: rail solo si pertenece a cajón/zapatera', () => {

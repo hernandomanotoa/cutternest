@@ -164,6 +164,7 @@ export const Z_INDEX = {
   drawer_back: 8,
   drawer_bottom: 9,
   drawer_side: 10,
+  drawer_part: 24, // cara del cajón: interior frontal, justo bajo el frente
   seat_panel: 11,
   leg: 13,
   side_panel_front: 20,

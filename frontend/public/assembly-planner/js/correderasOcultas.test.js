@@ -8,10 +8,11 @@
  *     Blum Tandem / Häfele Matrix UM)
  *
  * Casos: parseo sin warnings, roles sin fallback genérico, inferencia del tipo
- * de riel 'oculta' por keyword, geometría de la caja en modo catálogo
- * (laterales retranqueados 5 mm por lado, base = ancho − 42 mm, rebajo
- * inferior de 12,7 mm) y hardware derivado ('Correderas ocultas' con
- * especificación 'vano − 42 mm').
+ * de riel 'oculta' por keyword, modelo de caja de 6 piezas (cara y fondo
+ * interiores, laterales alto = vano − 23, base/fondo/cara = W − 42) y
+ * geometría de la caja en modo catálogo (laterales retranqueados 5 mm por
+ * lado, base = ancho − 42 mm, rebajo inferior de 12,7 mm) y hardware derivado
+ * ('Correderas ocultas' con especificación 'vano − 42 mm').
  */
 
 import { describe, it } from 'node:test';
@@ -96,6 +97,43 @@ describe('ejemplo cajonera con correderas ocultas', () => {
     // porque el frente cubre vano − 2.
     assert.equal(base.w, 526, 'base clampada a ancho del frente − 42 mm (deducción oculta)');
     assert.ok(Math.abs(izq.z - (50 + 16 - 12.7)) < 1e-9, 'rebajo inferior: la caja cuelga 12,7 mm bajo el vano');
+  });
+
+  it('modelo de 6 piezas por cajón: cara y fondo presentes, laterales alto = vano − 23, base/fondo/cara = W − 42', () => {
+    const { pieces } = loadExample();
+    // Submódulo 11: frente decorativo + 2 laterales + base + fondo + cara + tirador.
+    const cajon1 = pieces.filter((p) => String(p.modulo) === '11');
+    assert.equal(cajon1.length, 7, `6 piezas de caja + tirador: ${cajon1.map((p) => p.nombre).join(', ')}`);
+
+    const laterales = cajon1.filter((p) => p.nombre.startsWith('Lateral'));
+    assert.equal(laterales.length, 2);
+    for (const l of laterales) {
+      assert.equal(Number(l.alto), 267, 'alto de laterales = vano − 23 (maxHeightDeduction)');
+    }
+    for (const nombre of ['Base', 'Fondo', 'Cara']) {
+      const parte = cajon1.find((p) => p.nombre.startsWith(nombre));
+      assert.ok(parte, `falta la pieza "${nombre}" del cajón oculto`);
+      assert.equal(Number(parte.ancho), 528, `"${parte.nombre}" = W − 42 (deducción de catálogo)`);
+    }
+    const cara = cajon1.find((p) => p.nombre.startsWith('Cara'));
+    assert.equal(inferRole(cara), 'drawer_part', 'la cara cae en drawer_part, no en panel genérico');
+
+    // Geometría: la cara se renderiza anclada al frente de la caja.
+    const frente = cajon1.find((p) => p.nombre.startsWith('Frente'));
+    const parts = matchDrawerBoxParts(frente, pieces);
+    assert.ok(parts.cara, 'matchDrawerBoxParts debe extraer la cara');
+    const box = buildDrawerBoxGeometries({
+      parts,
+      x: 100,
+      yFace: 400,
+      z: 50,
+      w: frente.ancho,
+      h: frente.alto,
+      railType: railTypeFor(frente),
+    });
+    const caraGeo = box.find((b) => b.role === 'drawer_part');
+    assert.ok(caraGeo, 'la cara debe tener geometría en la caja');
+    assert.equal(caraGeo.y, 400 - 16, 'la cara va justo detrás del frente (yFace − espCara)');
   });
 
   it('hardware: una entrada Correderas ocultas (3 pares) con especificación vano − 42 mm', () => {

@@ -82,6 +82,7 @@ export class CutterNestSvgEngine {
       drawer_bottom: 7,
       drawer_side: 8,
       drawer_back: 9,
+      drawer_part: 9, // cara del cajón: misma capa que el fondo, antes del frente
       drawer_face: 10,
       door: 10,
       seat_panel: 10,

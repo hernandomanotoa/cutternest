@@ -5,10 +5,10 @@
  * scripts/generar-ejemplos-assembly.mjs:
  *   - ejemplo-zapatero-volquete.csv   (cajones abatibles / volquete)
  *   - ejemplo-zapatero-extraible.csv  (5 zapateras-cajón extraíbles en correderas;
- *                                      conjunto mínimo: laterales + frente + base,
- *                                      sin fondo de cajón)
+ *                                      caja completa de 6 piezas con fondo y cara)
  *   - ejemplo-zapatero-banco.csv      (asiento + 2 cajones a nivel de piso)
- *   - ejemplo-zapatera-repisa.csv     (6 bandejas extraíbles sin tirador; apertura rail)
+ *   - ejemplo-zapatera-repisa.csv     (6 bandejas extraíbles de 6 piezas, sin tirador;
+ *                                      apertura rail)
  *
  * Casos: parseo sin warnings, clasificación de roles (drawer_face, drawer_side,
  * shelf, seat_panel, sin fallback 'panel') y hardware derivado (bisagras
@@ -80,7 +80,7 @@ describe('ejemplos de zapateras', () => {
     );
   });
 
-  it('extraíble: zapateras-cajón (frente + laterales sin "cajon") clasifican como cajón', () => {
+  it('extraíble: zapateras-cajón de 6 piezas (frente + laterales sin "cajon") clasifican como cajón', () => {
     const { pieces } = loadExample(EXAMPLES.extraible);
     const frentes = pieces.filter((p) => p.nombre.includes('Frente zapatera extraible'));
     assert.equal(frentes.length, 5);
@@ -102,11 +102,20 @@ describe('ejemplos de zapateras', () => {
     for (const b of bases) {
       assert.equal(inferRole(b), 'drawer_bottom', `"${b.nombre}" debería ser drawer_bottom`);
     }
-    assert.equal(
-      pieces.some((p) => p.nombre.includes('Fondo zapatera')),
-      false,
-      'la zapatera-cajón del ejemplo omite el fondo (opcional)'
-    );
+    // Modelo completo de caja: fondo y cara interiores presentes en las 5
+    // zapateras (ancho interior = round(vano − 25,4) − 2·espLat = 715 mm).
+    const fondos = pieces.filter((p) => p.nombre.includes('Fondo zapatera extraible'));
+    assert.equal(fondos.length, 5, `se esperaban 5 fondos: ${fondos.length}`);
+    for (const f of fondos) {
+      assert.equal(inferRole(f), 'drawer_back', `"${f.nombre}" debería ser drawer_back`);
+      assert.equal(Number(f.ancho), 715, `"${f.nombre}" mide el interior de la caja`);
+    }
+    const caras = pieces.filter((p) => p.nombre.includes('Cara zapatera extraible'));
+    assert.equal(caras.length, 5, `se esperaban 5 caras: ${caras.length}`);
+    for (const c of caras) {
+      assert.equal(inferRole(c), 'drawer_part', `"${c.nombre}" debería ser drawer_part`);
+      assert.equal(Number(c.ancho), 715, `"${c.nombre}" mide el interior de la caja`);
+    }
     const hw = hardwareFor(pieces);
     const correderas = hw.find((h) => h.nombre === 'Correderas telescópicas');
     assert.ok(correderas, 'faltan las correderas telescópicas');
@@ -134,6 +143,17 @@ describe('ejemplos de zapateras', () => {
     for (const b of bases) {
       assert.equal(inferRole(b), 'drawer_bottom', `"${b.nombre}" debería ser drawer_bottom`);
     }
+    // Caja completa de 6 piezas: fondo y cara interiores (715 mm = interior).
+    const fondos = pieces.filter((p) => p.nombre.includes('Fondo zapatera repisa extraible'));
+    assert.equal(fondos.length, 6, `se esperaban 6 fondos: ${fondos.length}`);
+    for (const f of fondos) {
+      assert.equal(inferRole(f), 'drawer_back', `"${f.nombre}" debería ser drawer_back`);
+    }
+    const caras = pieces.filter((p) => p.nombre.includes('Cara zapatera repisa extraible'));
+    assert.equal(caras.length, 6, `se esperaban 6 caras: ${caras.length}`);
+    for (const c of caras) {
+      assert.equal(inferRole(c), 'drawer_part', `"${c.nombre}" debería ser drawer_part`);
+    }
     assert.equal(
       pieces.some((p) => p.nombre.includes('tirador')),
       false,
@@ -154,6 +174,13 @@ describe('ejemplos de zapateras', () => {
     assert.equal(frentes.length, 2);
     for (const f of frentes) {
       assert.equal(inferRole(f), 'drawer_face', `"${f.nombre}" debería ser drawer_face`);
+    }
+    // La cara ("Cara cajon ...") es parte de la caja: drawer_part, no cuenta
+    // como frente ni duplica el conteo de correderas.
+    const caras = pieces.filter((p) => p.nombre.includes('Cara cajon'));
+    assert.equal(caras.length, 2, `se esperaban 2 caras: ${caras.length}`);
+    for (const c of caras) {
+      assert.equal(inferRole(c), 'drawer_part', `"${c.nombre}" debería ser drawer_part`);
     }
     const hw = hardwareFor(pieces);
     const correderas = hw.find((h) => h.nombre === 'Correderas telescópicas');
