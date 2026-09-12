@@ -120,6 +120,31 @@ describe('getDefaultVerticalPosition', () => {
     assert.equal(getDefaultVerticalPosition(drawerMed, MODULE_H, THICKNESS), (MODULE_H - 150) / 2);
   });
 
+  it('apila frentes de cajón con drawerFrontGap (2,5 mm), no con el stackGap genérico', () => {
+    const drawers = [
+      piece('Frente cajón 1', { id: 'd1', alto: 150 }),
+      piece('Frente cajón 2', { id: 'd2', alto: 150 }),
+    ];
+    const positions = calculateVerticalPositions(600, 18, drawers);
+    const d1 = positions.find((p) => p.piece.id === 'd1');
+    const d2 = positions.find((p) => p.piece.id === 'd2');
+    // El cursor de apilamiento avanza por altura de posicionamiento (espesor,
+    // 18 mm, por ser paneles verticales) + gap. Con el stackGap genérico
+    // (20) sería 38; con drawerFrontGap debe ser 20,5.
+    const avance = Math.abs(d2.y - d1.y);
+    assert.equal(avance, 18 + VERTICAL_POSITIONS.drawerFrontGap, 'el gap de apilamiento debe ser drawerFrontGap');
+    assert.notEqual(VERTICAL_POSITIONS.drawerFrontGap, VERTICAL_POSITIONS.stackGap);
+  });
+
+  it('puertas con holgura vertical = doorGap (2 mm arriba y abajo)', () => {
+    const puertaInf = piece('Puerta inferior', { alto: 400 });
+    const puertaSup = piece('Puerta superior', { alto: 400 });
+    assert.equal(getDefaultVerticalPosition(puertaInf, MODULE_H, THICKNESS), baseTop + VERTICAL_POSITIONS.doorBaseOffset);
+    assert.equal(getDefaultVerticalPosition(puertaSup, MODULE_H, THICKNESS), MODULE_H - THICKNESS - 400 - VERTICAL_POSITIONS.doorTopInset);
+    assert.equal(VERTICAL_POSITIONS.doorBaseOffset, VERTICAL_POSITIONS.doorGap);
+    assert.equal(VERTICAL_POSITIONS.doorTopInset, VERTICAL_POSITIONS.doorGap);
+  });
+
   it('centers unknown horizontal pieces by default', () => {
     assert.equal(getDefaultVerticalPosition(piece('Misterio'), MODULE_H, THICKNESS), MODULE_H / 2);
   });

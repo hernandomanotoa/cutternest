@@ -92,8 +92,9 @@ export function hasRealDrawerBox(parts) {
  * Convención de coordenadas del renderer: y = profundidad (+y = frente del
  * módulo), z = altura. La caja ocupa [yFace − prof, yFace] y queda centrada en
  * el vano del frente (x..x+w). railType fija la holgura lateral que ocupa el
- * riel (RAIL_TYPES): por defecto telescópica (12,7 mm por lado); quien no lo
- * pasa ve holgura telescópica.
+ * riel (RAIL_TYPES): telescópica descuenta 12,7 mm por lado; la oculta usa
+ * modo catálogo (interior = vano − 42, laterales retranqueados, rebajo
+ * inferior de 12,7 mm y alto máx. = vano − 23).
  *
  * @returns {Array} [{x,y,z,w,d,h,color,role,name,id}] por pieza real; [] si el
  *   conjunto no alcanza el mínimo (hasRealDrawerBox).
@@ -101,23 +102,35 @@ export function hasRealDrawerBox(parts) {
 export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE }) {
   if (!hasRealDrawerBox(parts)) return [];
 
-  // Holgura que el riel ocupa por lado en el vano (RAIL_TYPES). La oculta
-  // tiene sideClearance 0: sus laterales van al ras del vano y su deducción
-  // (−42 mm) aplica solo al ancho interior de base/fondo (maxInterior).
-  const clear = getRailType(railType).sideClearance || 0;
+  const rail = getRailType(railType);
+  const clear = rail.sideClearance || 0;
+  // Modo catálogo (riel oculta, interiorDeduction > 0): la deducción es del
+  // ancho INTERIOR (base/fondo = vano − interiorDeduction). Los laterales se
+  // retranquean (interiorDeduction − 2·espLat)/2 por lado, la caja cuelga
+  // bottomClearance bajo el borde inferior del vano y su alto se capa a
+  // vano − maxHeightDeduction. Los rieles con sideClearance (laterales,
+  // ruedas, ligera) mantienen el cálculo clásico: vano − 2·(espLat + clear).
+  const catalog = Number(rail.interiorDeduction) > 0;
 
   const lat = parts.laterales[0];
   const espLat = Number(lat.espesor) || thickness;
   const espBase = parts.base ? (Number(parts.base.espesor) || thickness) : espLat;
   const profLat = Math.max(0, Number(lat.ancho) || 0) || fallbackDepth;
+  const latInset = catalog
+    ? Math.max(0, (Number(rail.interiorDeduction) - 2 * espLat) / 2)
+    : clear;
+  const bottomDrop = catalog ? Math.max(0, Number(rail.bottomClearance) || 0) : 0;
+  const maxBoxH = catalog
+    ? Math.max(0, h - (Number(rail.maxHeightDeduction) || 0))
+    : Math.max(0, h);
   const latAlto = Math.min(
     Math.max(0, Number(lat.alto) || 0) || Math.max(0, h - 2 * espBase),
-    Math.max(0, h)
+    maxBoxH
   );
-  const zBox = z + espBase;
+  const zBox = z + espBase - bottomDrop;
   const box = [];
 
-  const latX = [x + clear, x + Math.max(0, w - espLat - clear)];
+  const latX = [x + latInset, x + Math.max(0, w - espLat - latInset)];
   parts.laterales.slice(0, 2).forEach((pieza, i) => {
     box.push({
       x: latX[i], y: yFace - profLat, z: zBox,
@@ -126,10 +139,12 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
     });
   });
 
-  // Máximo ancho interior de base/fondo: con riel de holgura lateral se
-  // descuenta además clear por lado; la oculta (clear 0) solo descuenta los
-  // laterales — su deducción de catálogo (−42 mm) es del ancho interior.
-  const maxInterior = Math.max(0, w - 2 * (espLat + clear));
+  // Máximo ancho interior de base/fondo: modo catálogo (oculta) vano −
+  // interiorDeduction (deducción del ancho interior); modo clásico
+  // vano − 2·(espLat + clear).
+  const maxInterior = catalog
+    ? Math.max(0, w - Number(rail.interiorDeduction))
+    : Math.max(0, w - 2 * (espLat + clear));
   const baseRealW = Math.max(0, Number(parts.base.ancho) || 0);
   const baseW = baseRealW > 0 ? Math.min(baseRealW, maxInterior) : maxInterior;
   const profBase = Math.max(0, Number(parts.base.alto) || 0) || profLat;

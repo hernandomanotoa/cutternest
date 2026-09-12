@@ -189,17 +189,18 @@ export const VERTICAL_POSITIONS = {
   lowerShelfBaseOffset: 30,  // repisa inferior pegada a la base, hueco mínimo de limpieza
   drawerBaseOffset: 10,      // frentes arrancan justo sobre la base; la base queda oculta tras el frente
   braceBaseOffset: 0,        // travesaño inferior al ras de la cara superior de la base
-  doorBaseOffset: 0,         // puerta inferior: distancia desde la cara superior de la base
+  doorBaseOffset: 2,         // puerta inferior: gap desde la cara superior de la base (= doorGap)
 
   // ── Gaps específicos (difieren del stackGap genérico) ─────────
   doorGap: 2,                // gap entre puertas
+  drawerFrontGap: 2.5,       // gap entre frentes de cajón apilados (mueblería real: 2–3 mm)
 
   // ── Alturas absolutas desde el suelo ──────────────────────────
   seatHeight: 450,           // altura del asiento
   hangerRailHeight: 1700,    // altura del riel/barra colgadora
 
   // ── Inset específicos por tipo de pieza ─────────────────────
-  doorTopInset: 0,           // puerta superior: inset desde la cara inferior de la tapa
+  doorTopInset: 2,           // puerta superior: gap desde la cara inferior de la tapa (= doorGap)
 
   // ── Offset horizontal de patas ─────────────────────────────────
   legOffsetX: 20,            // margen patas desde lateral (X)

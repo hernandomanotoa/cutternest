@@ -8,9 +8,10 @@
  *     Blum Tandem / Häfele Matrix UM)
  *
  * Casos: parseo sin warnings, roles sin fallback genérico, inferencia del tipo
- * de riel 'oculta' por keyword, geometría de la caja (laterales al ras del
- * frente, sin descuento lateral; base = vano − 42 mm) y hardware derivado
- * ('Correderas ocultas' con especificación 'vano − 42 mm').
+ * de riel 'oculta' por keyword, geometría de la caja en modo catálogo
+ * (laterales retranqueados 5 mm por lado, base = ancho − 42 mm, rebajo
+ * inferior de 12,7 mm) y hardware derivado ('Correderas ocultas' con
+ * especificación 'vano − 42 mm').
  */
 
 import { describe, it } from 'node:test';
@@ -61,7 +62,7 @@ describe('ejemplo cajonera con correderas ocultas', () => {
     }
   });
 
-  it('caja del cajón oculto: laterales al ras del frente (sin holgura lateral) y base = vano − 42', () => {
+  it('caja del cajón oculto: modo catálogo — laterales retranqueados 5 mm por lado y base = ancho − 42', () => {
     const { pieces } = loadExample();
     const frente = pieces.find((p) => p.nombre === 'Frente cajon oculto 1 M1');
     assert.ok(frente, 'falta el Frente cajon oculto 1 M1');
@@ -85,11 +86,16 @@ describe('ejemplo cajonera con correderas ocultas', () => {
     }
     const izq = laterales.find((l) => l.id.includes('izq'));
     const der = laterales.find((l) => l.id.includes('der'));
-    assert.equal(izq.x, x, 'el lateral izquierdo va al ras del frente (sin holgura de riel)');
-    assert.equal(der.x, x + w - 16, 'el lateral derecho va al ras del frente (sin holgura de riel)');
+    // Retranqueo por lado = (42 − 2·16)/2 = 5 (deducción interior de catálogo).
+    assert.equal(izq.x, x + 5, 'el lateral izquierdo se retranquea 5 mm (modo catálogo oculta)');
+    assert.equal(der.x, x + w - 16 - 5, 'el lateral derecho se retranquea 5 mm');
     const base = box.find((b) => b.role === 'drawer_bottom');
     assert.ok(base, 'falta la base del cajón en la caja');
-    assert.equal(base.w, 528, 'la base mide vano − 42 mm (570 − 42 = 528), deducción de la corredera oculta');
+    // Máximo interior = ancho del frente − 42 = 526; la base real (528, cortada
+    // a vano 570 − 42) se clampa quedando 2 mm más estrecha que la pieza real
+    // porque el frente cubre vano − 2.
+    assert.equal(base.w, 526, 'base clampada a ancho del frente − 42 mm (deducción oculta)');
+    assert.ok(Math.abs(izq.z - (50 + 16 - 12.7)) < 1e-9, 'rebajo inferior: la caja cuelga 12,7 mm bajo el vano');
   });
 
   it('hardware: una entrada Correderas ocultas (3 pares) con especificación vano − 42 mm', () => {

@@ -116,8 +116,8 @@ describe('pieceOffsetService', () => {
       assert.equal(getDefaultGap(piece('Espejo'), 'middle'), VERTICAL_POSITIONS.stackGap);
     });
 
-    it('returns stackGap for drawer faces', () => {
-      assert.equal(getDefaultGap(piece('Frente cajón'), 'drawer'), VERTICAL_POSITIONS.stackGap);
+    it('returns drawerFrontGap for drawer faces (no el stackGap genérico)', () => {
+      assert.equal(getDefaultGap(piece('Frente cajón'), 'drawer'), VERTICAL_POSITIONS.drawerFrontGap);
     });
 
     it('returns dividerTopInset for dividers', () => {

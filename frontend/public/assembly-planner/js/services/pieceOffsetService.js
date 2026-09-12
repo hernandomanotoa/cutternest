@@ -202,7 +202,7 @@ export function getDefaultGap(piece, zone = getPieceZone(piece), globalOverrides
     if (zone === 'top') return defaultValue('stackGap', globalOverrides);
   }
 
-  if (role === 'drawer_face') return defaultValue('stackGap', globalOverrides);
+  if (role === 'drawer_face') return defaultValue('drawerFrontGap', globalOverrides);
   if (role === 'door') return defaultValue('doorGap', globalOverrides);
   if (role === 'brace') return defaultValue('stackGap', globalOverrides);
   if (role === 'mirror') return defaultValue('stackGap', globalOverrides);

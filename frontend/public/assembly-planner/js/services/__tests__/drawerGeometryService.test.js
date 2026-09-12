@@ -111,20 +111,37 @@ describe('buildDrawerBoxGeometries', () => {
     assert.equal(fondo.y, 20, 'trasera de la caja, contra el fondo del cajón');
   });
 
-  it('riel oculta: laterales al ras del vano y deducción interior solo en base/fondo', () => {
+  it('riel oculta: modo catálogo — laterales retranqueados, base = vano − 42, rebajo inferior y alto capado', () => {
     const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO]);
     const box = buildDrawerBoxGeometries({ parts, ...PLACE, railType: 'oculta' });
     assert.equal(box.length, 4);
 
     const izq = box.find((g) => g.id === 'm1-cajon-lat-izq');
     const der = box.find((g) => g.id === 'm1-cajon-lat-der');
-    assert.equal(izq.x, 100, 'oculta no descuenta holgura lateral');
-    assert.equal(der.x, 485);
+    // Retranqueo por lado = (interiorDeduction − 2·espLat)/2 = (42 − 30)/2 = 6.
+    assert.equal(izq.x, 106, 'oculta retranquea los laterales (21 − espLat por lado)');
+    assert.equal(der.x, 479);
+    // Rebajo inferior: la caja cuelga bottomClearance (12,7) bajo el borde
+    // inferior del vano.
+    assert.equal(izq.z, 52.3, 'z = z + espBase − bottomClearance (50 + 15 − 12,7)');
+    assert.equal(izq.h, 170, 'alto real 170 ≤ vano − 23 (177), sin cap');
 
-    // Máximo interior oculta: 400 − 2·15 = 370 (sin holgura de riel).
+    // Máximo interior oculta: 400 − 42 = 358 (deducción de catálogo). La base
+    // real (370) se clampa a ese interior.
     const base = box.find((g) => g.id === 'm1-cajon-base');
-    assert.equal(base.w, 370, 'la deducción −42 de catálogo es del ancho interior, no del exterior');
-    assert.equal(base.x, 115);
+    assert.equal(base.w, 358, 'base clampada a vano − 42 (deducción interior oculta)');
+    assert.equal(base.x, 121);
+  });
+
+  it('riel oculta: capa el alto de la caja a vano − maxHeightDeduction', () => {
+    const latAlta = { ...LAT_IZQ, id: 'm1-cajon-lat-alta', alto: 195 };
+    const latAlta2 = { ...LAT_DER, id: 'm1-cajon-lat-alta2', alto: 195 };
+    const parts = matchDrawerBoxParts(FACE, [latAlta, latAlta2, BASE, FONDO]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE, railType: 'oculta' });
+    const lat = box.find((g) => g.id === 'm1-cajon-lat-alta');
+    assert.equal(lat.h, 177, 'alto capado a vano − 23 (200 − 23)');
+    const base = box.find((g) => g.id === 'm1-cajon-base');
+    assert.ok(base, 'la base sigue presente con laterales altos');
   });
 
   it('sin fondo: 3 geometrías (zapatera-cajón)', () => {

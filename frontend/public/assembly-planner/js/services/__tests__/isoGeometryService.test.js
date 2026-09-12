@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { VERTICAL_POSITIONS } from '../../core/config.js';
 import {
   applyDoorRotation,
   applyExplode,
@@ -167,7 +168,7 @@ describe('inferDoorX', () => {
 
 describe('inferDoorZ', () => {
   it('places upper door near top', () => {
-    assert.equal(inferDoorZ({ nombre: 'Puerta superior' }, 1000, 400, 18), 582);
+    assert.equal(inferDoorZ({ nombre: 'Puerta superior' }, 1000, 400, 18), 1000 - 400 - 18 - VERTICAL_POSITIONS.doorTopInset);
   });
 
   it('centers by default', () => {
