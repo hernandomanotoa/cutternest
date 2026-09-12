@@ -120,7 +120,7 @@ describe('getDefaultVerticalPosition', () => {
     assert.equal(getDefaultVerticalPosition(drawerMed, MODULE_H, THICKNESS), (MODULE_H - 150) / 2);
   });
 
-  it('apila frentes de cajón con drawerFrontGap (2,5 mm), no con el stackGap genérico', () => {
+  it('apila frentes de cajón con su alto real y drawerFrontGap (2,5 mm), sin solaparse', () => {
     const drawers = [
       piece('Frente cajón 1', { id: 'd1', alto: 150 }),
       piece('Frente cajón 2', { id: 'd2', alto: 150 }),
@@ -128,12 +128,40 @@ describe('getDefaultVerticalPosition', () => {
     const positions = calculateVerticalPositions(600, 18, drawers);
     const d1 = positions.find((p) => p.piece.id === 'd1');
     const d2 = positions.find((p) => p.piece.id === 'd2');
-    // El cursor de apilamiento avanza por altura de posicionamiento (espesor,
-    // 18 mm, por ser paneles verticales) + gap. Con el stackGap genérico
-    // (20) sería 38; con drawerFrontGap debe ser 20,5.
+    // Los frentes son paneles verticales: el cursor avanza por alto real
+    // (150) + gap. Con el bug previo avanzaba por espesor (18) y se solapaban.
     const avance = Math.abs(d2.y - d1.y);
-    assert.equal(avance, 18 + VERTICAL_POSITIONS.drawerFrontGap, 'el gap de apilamiento debe ser drawerFrontGap');
-    assert.notEqual(VERTICAL_POSITIONS.drawerFrontGap, VERTICAL_POSITIONS.stackGap);
+    assert.equal(avance, 150 + VERTICAL_POSITIONS.drawerFrontGap);
+    assert.ok(avance >= 150, 'los frentes no deben solaparse');
+    assert.equal(VERTICAL_POSITIONS.drawerFrontGap, 2.5);
+  });
+
+  it('comprime el gap de frentes cuando el apilamiento excede el límite superior', () => {
+    // Tres frentes de 100 mm en un módulo de 540: el stack desborda la cara
+    // inferior de la tapa (522) y el gap se comprime de 2,5 a ~1 mm.
+    const drawers = [
+      piece('Frente cajón 1', { id: 'd1', alto: 100 }),
+      piece('Frente cajón 2', { id: 'd2', alto: 100 }),
+      piece('Frente cajón 3', { id: 'd3', alto: 100 }),
+    ];
+    const positions = calculateVerticalPositions(540, 18, drawers);
+    const ys = ['d1', 'd2', 'd3'].map((id) => positions.find((p) => p.piece.id === id).y);
+    const gap01 = ys[1] - ys[0] - 100;
+    const gap12 = ys[2] - ys[1] - 100;
+    assert.ok(Math.abs(gap01 - gap12) < 1e-9, 'gaps comprimidos iguales');
+    assert.ok(gap01 >= 0 && gap01 < VERTICAL_POSITIONS.drawerFrontGap, 'gap comprimido pero no negativo');
+    assert.ok(ys[2] + 100 <= 540 - 18 + 1e-9, 'el último frente no desborda la tapa');
+  });
+
+  it('no mueve frentes anclados con pos_z al comprimir', () => {
+    const drawers = [
+      piece('Frente cajón 1', { id: 'd1', alto: 150, pos_z: 100 }),
+      piece('Frente cajón 2', { id: 'd2', alto: 150 }),
+      piece('Frente cajón 3', { id: 'd3', alto: 150 }),
+    ];
+    const positions = calculateVerticalPositions(500, 18, drawers);
+    const d1 = positions.find((p) => p.piece.id === 'd1');
+    assert.equal(d1.y, 100, 'el frente con pos_z conserva su anclaje');
   });
 
   it('puertas con holgura vertical = doorGap (2 mm arriba y abajo)', () => {

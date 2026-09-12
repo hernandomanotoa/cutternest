@@ -17,6 +17,17 @@ function getPositioningHeight(piece, thickness) {
   return alto <= espesor * 1.5 ? alto : espesor;
 }
 
+// Altura que una pieza ocupa al apilarse: los frentes de cajón son paneles
+// verticales y ocupan su alto real (apilarlos por espesor los solapaba); el
+// resto de piezas horizontales avanza por su espesor.
+function getStackingHeight(piece, thickness) {
+  if (inferRole(piece) === 'drawer_face') {
+    const alto = Number(piece?.alto);
+    if (Number.isFinite(alto) && alto > 0) return alto;
+  }
+  return getPositioningHeight(piece, thickness);
+}
+
 function cfgFor(piece, zone, overrides, pieceOffsets) {
   return getPieceOffsetConfig(
     piece,
@@ -156,7 +167,7 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       : getDefaultVerticalPosition(piece, moduleH, t, overrides, baseOffset, topPanelOffset, pieceOffsets);
     return {
       piece,
-      h: getPositioningHeight(piece, t),
+      h: getStackingHeight(piece, t),
       zone,
       y: defaultY,
       hasPosZ,
@@ -255,6 +266,31 @@ export function calculateVerticalPositions(moduleH, thickness, pieces, options =
       const gap = Number.isFinite(item.cfg.gap) ? item.cfg.gap : v('stackGap');
       currentDrawer = item.y + item.h + gap;
     });
+
+  // Si los frentes exceden el límite superior (cara inferior de la tapa o de
+  // la última pieza 'top'), comprimir el gap uniformemente conservando el
+  // anclaje del primer frente (mismo criterio que la compresión de 'middle').
+  // Solo participan las piezas sin pos_z: las ancladas explícitamente no se
+  // mueven.
+  const drawerTopEnd = topItems.length ? currentTop + v('stackGap') : topPanelOffset;
+  const drawerStack = drawerItems.filter((i) => !i.hasPosZ).slice().sort((a, b) => a.y - b.y);
+  if (drawerStack.length) {
+    const lastDrawerTop = drawerStack[drawerStack.length - 1].y + drawerStack[drawerStack.length - 1].h;
+    if (lastDrawerTop > drawerTopEnd) {
+      const available = Math.max(0, drawerTopEnd - drawerStack[0].y);
+      const totalDrawerH = drawerStack.reduce((sum, i) => sum + i.h, 0);
+      const compressedGap = drawerStack.length > 1
+        ? Math.max(0, (available - totalDrawerH) / (drawerStack.length - 1))
+        : 0;
+      let cursor = drawerStack[0].y;
+      drawerStack.forEach((item) => {
+        item.y = cursor;
+        cursor += item.h + compressedGap;
+      });
+      const lastDrawer = drawerStack[drawerStack.length - 1];
+      currentDrawer = lastDrawer.y + lastDrawer.h + lastDrawer.cfg.gap;
+    }
+  }
 
   // Piezas 'middle': apiladas consecutivamente desde la base, el último zapatero,
   // repisa inferior o frente de cajón hacia arriba.
