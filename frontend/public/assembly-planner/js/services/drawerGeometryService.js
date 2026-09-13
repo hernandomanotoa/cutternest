@@ -1,6 +1,7 @@
 // js/services/drawerGeometryService.js — Geometría de la caja de cajón con piezas reales
 // Lógica pura, sin DOM ni SVG. Dado un frente de cajón y las piezas reales del
-// módulo (drawer_side ×2, drawer_bottom, drawer_back, drawer_part/cara),
+// módulo (drawer_side ×2, drawer_bottom, drawer_back, drawer_part/cara,
+// drawer_divider),
 // calcula la posición de cada pieza de la caja en el espacio del módulo,
 // anclada al frente. El renderer aplica después el movimiento de apertura
 // (rail/hinge) igual que al frente: la caja se mueve como un grupo rígido.
@@ -10,7 +11,7 @@ import { normalizeName } from '../utils/normalize.js';
 import { getRailType } from './railService.js';
 import { DEFAULT_RAIL_TYPE, DEFAULT_THICKNESS } from '../core/config.js';
 
-const PART_ROLES = ['drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part'];
+const PART_ROLES = ['drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part', 'drawer_divider'];
 
 function sideOf(piece) {
   const text = `${normalizeName(piece.nombre)} ${normalizeName(piece.id)}`;
@@ -25,8 +26,9 @@ function sideOf(piece) {
  *   1. Prefijo de id (m21-cajon-frente → m21-cajon-lateral-izq/base/fondo).
  *   2. Mismo submódulo (mismo valor de columna `modulo`).
  *   3. Contención del nombre normalizado del frente.
- * Devuelve { laterales: [pieza, pieza], base, fondo, cara } con lo encontrado
- * (cualquiera puede faltar; cara = frente interior de la caja, rol drawer_part)
+ * Devuelve { laterales: [pieza, pieza], base, fondo, cara, divisores } con lo
+ * encontrado (cualquiera puede faltar; cara = frente interior de la caja, rol
+ * drawer_part; divisores = paneles paralelos al fondo, rol drawer_divider)
  * o null si no hay candidatos.
  */
 export function matchDrawerBoxParts(face, candidates) {
@@ -79,8 +81,10 @@ export function matchDrawerBoxParts(face, candidates) {
   // Cara: frente interior de la caja (entre los laterales). Rol genérico
   // drawer_part o nombre/id con 'cara'.
   const cara = pool.find((p) => inferRole(p) === 'drawer_part') || named('cara');
+  // Divisores interiores de la caja (paneles paralelos al fondo/frente).
+  const divisores = pool.filter((p) => inferRole(p) === 'drawer_divider');
 
-  return { laterales, base: base || null, fondo: fondo || null, cara: cara || null };
+  return { laterales, base: base || null, fondo: fondo || null, cara: cara || null, divisores };
 }
 
 /**
@@ -92,7 +96,7 @@ export function hasRealDrawerBox(parts) {
 }
 
 /**
- * Geometría de la caja (laterales, base, fondo y cara) anclada al frente.
+ * Geometría de la caja (laterales, base, fondo, cara y divisores) anclada al frente.
  * Convención de coordenadas del renderer: y = profundidad (+y = frente del
  * módulo), z = altura. La caja ocupa [yFace − prof, yFace] y queda centrada en
  * el vano del frente (x..x+w). railType fija la holgura lateral que ocupa el
@@ -191,6 +195,28 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
       w: caraW, d: espCara, h: latAlto,
       color: parts.cara.color, role: 'drawer_part', name: parts.cara.nombre, id: parts.cara.id, real: true,
     });
+  }
+
+  // Divisores: paneles interiores paralelos al fondo/frente que dividen la
+  // caja a lo largo de su profundidad. Se apoyan sobre la base (mismo z que
+  // el fondo), su ancho se capa al interior entre laterales (igual ancla que
+  // la cara) y su alto al borde superior de los laterales. En y quedan
+  // centrados en la profundidad de la caja, entre la cara y el fondo.
+  if (parts.divisores?.length) {
+    const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
+    const divMaxH = Math.max(0, latAlto - espBase);
+    const yCenter = yFace - profLat / 2;
+    for (const div of parts.divisores) {
+      const divRealW = Math.max(0, Number(div.ancho) || 0);
+      const divW = divRealW > 0 ? Math.min(divRealW, interiorBetween) : interiorBetween;
+      const divH = Math.min(Math.max(0, Number(div.alto) || 0) || divMaxH, divMaxH);
+      const espDiv = Number(div.espesor) || espLat;
+      box.push({
+        x: latX[0] + espLat, y: yCenter - espDiv / 2, z: zBox + espBase,
+        w: divW, d: espDiv, h: divH,
+        color: div.color, role: 'drawer_divider', name: div.nombre, id: div.id, real: true,
+      });
+    }
   }
 
   return box;

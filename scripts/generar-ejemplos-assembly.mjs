@@ -346,7 +346,7 @@ const examples = [];
 // 19. Zapatera-repisa con riel móvil (6 bandejas extraíbles)
 {
   const lines = [];
-  lines.push(header('Ejemplo de zapatera-repisa con riel móvil', 'Módulo de clóset 800×1800×500 con 6 bandejas zapatera extraíbles en correderas telescópicas de extensión total. Cada bandeja: caja de 6 piezas (frente + 2 laterales + base + fondo + cara, sin tirador).'));
+  lines.push(header('Ejemplo de zapatera-repisa con riel móvil', 'Módulo de clóset 800×1800×500 con 6 bandejas zapatera extraíbles en correderas telescópicas de extensión total. Cada bandeja: caja de 7 piezas (frente + 2 laterales + base + fondo + cara + divisor central, sin tirador).'));
   lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
   // Coherencia con el vano (mismas reglas que cajon()):
   //   W=800−2·15=770 → frente 768×130 · D=500−30=470 → prof. cajón 445
@@ -367,6 +367,7 @@ const examples = [];
     lines.push(line(`m${sm}-zapatera-repisa-lateral-der`, `Lateral zapatera repisa extraible${label} der`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,R', sm));
     lines.push(line(`m${sm}-zapatera-repisa-fondo`, `Fondo zapatera repisa extraible${label}`, interior, latAlto - 18, 1, 'no', '#F2F2F2', 15, '', sm));
     lines.push(line(`m${sm}-zapatera-repisa-cara`, `Cara zapatera repisa extraible${label}`, interior, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-divisor`, `Divisor zapatera repisa extraible${label}`, interior, latAlto - 18, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', sm));
     lines.push(line(`m${sm}-zapatera-repisa-base`, `Base bandeja zapatera extraible${label}`, interior, profCajon, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', sm));
   }
   examples.push({ name: 'Ejemplo_CSV_Zapatera_Repisa_Riel.csv', dataName: 'ejemplo-zapatera-repisa.csv', lines });

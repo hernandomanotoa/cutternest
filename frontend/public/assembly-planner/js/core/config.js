@@ -130,6 +130,7 @@ export const ROLE_COLORS = {
   drawer_side: '#64748b',
   drawer_bottom: '#64748b',
   drawer_back: '#64748b',
+  drawer_divider: '#64748b',
   door: '#1e293b',
   mirror: '#1e293b',
   handle: '#e2e8f0',
@@ -165,6 +166,7 @@ export const Z_INDEX = {
   drawer_bottom: 9,
   drawer_side: 10,
   drawer_part: 24, // cara del cajón: interior frontal, justo bajo el frente
+  drawer_divider: 24, // divisor interior: capa de la cara, bajo el frente
   seat_panel: 11,
   leg: 13,
   side_panel_front: 20,

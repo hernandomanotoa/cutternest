@@ -238,3 +238,45 @@ describe('IsometricRenderer con piezas reales de cajón', () => {
     });
   });
 });
+
+const DIVISOR = { id: 'm1-cajon-divisor', nombre: 'Divisor cajon 1', ancho: 370, alto: 140, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' };
+
+describe('divisor interior de cajón (drawer_divider)', () => {
+  it('matchDrawerBoxParts devuelve los divisores del pool emparejado', () => {
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO, CARA, DIVISOR]);
+    assert.ok(parts);
+    assert.deepEqual(parts.divisores, [DIVISOR]);
+  });
+
+  it('sin divisores en el pool, parts.divisores queda vacío', () => {
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO, CARA]);
+    assert.deepEqual(parts.divisores, []);
+  });
+
+  it('el divisor no se confunde con la cara (drawer_part)', () => {
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO, CARA, DIVISOR]);
+    assert.equal(parts.cara, CARA);
+    assert.ok(!parts.divisores.includes(CARA));
+  });
+
+  it('geometría: paralelo al fondo, apoyado sobre la base, centrado en profundidad', () => {
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO, CARA, DIVISOR]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE });
+    const div = box.find((g) => g.id === DIVISOR.id);
+    assert.ok(div, 'falta la geometría del divisor');
+    assert.equal(div.role, 'drawer_divider');
+    const fondo = box.find((g) => g.id === FONDO.id);
+    const base = box.find((g) => g.id === BASE.id);
+    const cara = box.find((g) => g.id === CARA.id);
+    // Mismo plano que el fondo (ancho en x, espesor en y), apoyado sobre la base.
+    assert.equal(div.z, base.z + base.h);
+    assert.equal(div.w, fondo.w);
+    assert.equal(div.d, DIVISOR.espesor);
+    // Entre la cara (frente) y el fondo, sin tocarlos.
+    assert.ok(div.y > fondo.y + fondo.d, 'el divisor debe quedar detrás del fondo');
+    assert.ok(div.y + div.d < cara.y, 'el divisor debe quedar delante de la cara');
+    // Alto capado al borde superior de los laterales.
+    const lat = box.find((g) => g.role === 'drawer_side');
+    assert.ok(div.z + div.h <= lat.z + lat.h + 1e-9);
+  });
+});

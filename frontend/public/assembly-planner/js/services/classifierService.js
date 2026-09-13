@@ -12,6 +12,7 @@ export function inferRole(piece) {
     if (n.includes('lateral') || id.includes('lateral')) return 'drawer_side';
     if (n.includes('base') || id.includes('base')) return 'drawer_bottom';
     if (n.includes('fondo') || id.includes('fondo')) return 'drawer_back';
+    if (n.includes('divisor') || n.includes('division')) return 'drawer_divider';
     if (n.includes('tirador') || id.includes('tirador')) return 'handle';
     return 'drawer_part';
   }
@@ -28,6 +29,7 @@ export function inferRole(piece) {
     if (n.includes('lateral') || id.includes('lateral')) return 'drawer_side';
     if (n.includes('base') || id.includes('base')) return 'drawer_bottom';
     if (n.includes('fondo') || id.includes('fondo')) return 'drawer_back';
+    if (n.includes('divisor') || n.includes('division')) return 'drawer_divider';
     if (n.includes('tirador') || id.includes('tirador')) return 'handle';
     return 'drawer_part';
   }

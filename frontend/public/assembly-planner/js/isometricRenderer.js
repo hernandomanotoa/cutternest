@@ -1580,6 +1580,7 @@ export class IsometricRenderer {
       drawer_side: { color: ROLE_COLORS.drawer_side, width: 1 },
       drawer_bottom: { color: ROLE_COLORS.drawer_bottom, width: 1 },
       drawer_back: { color: ROLE_COLORS.drawer_back, width: 1 },
+      drawer_divider: { color: ROLE_COLORS.drawer_divider, width: 1 },
       door: { color: ROLE_COLORS.door, width: 2 },
       mirror: { color: ROLE_COLORS.mirror, width: 1 },
       handle: { color: ROLE_COLORS.handle, width: 1 },

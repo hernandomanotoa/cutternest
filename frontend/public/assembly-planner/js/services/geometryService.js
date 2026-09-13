@@ -62,7 +62,7 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
     return { w: ancho, h: alto };
   }
 
-  if (role === 'drawer_bottom' || role === 'drawer_side' || role === 'drawer_back') {
+  if (role === 'drawer_bottom' || role === 'drawer_side' || role === 'drawer_back' || role === 'drawer_divider') {
     return { w, h };
   }
 

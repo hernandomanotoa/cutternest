@@ -48,6 +48,7 @@ export function classifyPiece(piece) {
     role === 'drawer_side' ||
     role === 'drawer_bottom' ||
     role === 'drawer_back' ||
+    role === 'drawer_divider' ||
     role === 'handle' ||
     role === 'leg' ||
     role === 'seat_panel'

@@ -72,7 +72,7 @@ export function motionConfigFor(piece) {
   }
 
   if (role === 'drawer_face' || role === 'drawer_side' || role === 'drawer_bottom' ||
-      role === 'drawer_back' || role === 'drawer_part') {
+      role === 'drawer_back' || role === 'drawer_part' || role === 'drawer_divider') {
     // Volquete/abatible: pivota hacia adelante sobre bisagras inferiores,
     // no se desliza. Toda la familia (frente, lados, fondo, tirador) hereda
     // la misma config para rotar en conjunto.
