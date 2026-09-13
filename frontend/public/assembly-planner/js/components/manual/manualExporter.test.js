@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { buildStandaloneHtml } from './manualExporter.js';
 import { classifyFurniture, applyFichaCorrections } from '../../services/furnitureClassifier.js';
 import { getModuleDimensions } from '../../services/geometryService.js';
+import { buildAssemblySequence } from '../../services/assemblyStepService.js';
 
 const piecesById = {
   'lat-izq': { nombre: 'Lateral izquierdo M5' },
@@ -83,5 +84,34 @@ describe('manualExporter', () => {
     const html = buildStandaloneHtml(steps, piecesById, 'Genérico', { clasificacion });
     assert.ok(html.includes('Mueble: estanteria librero'));
     assert.ok(html.includes('sala'));
+  });
+
+  it('acepta steps de buildAssemblySequence con tiempo default (wiring del panel)', () => {
+    // Replica lo que construye buildFichaExport en furnitureFicha.js:
+    // secuencia real de assemblyStepService + tiempo 10 por paso (default de
+    // buildSteps) + ficha con clasificación corregida y medidas del proyecto.
+    const piezas = [
+      { id: 'm1-base', nombre: 'Base zapatero', ancho: 800, alto: 300, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-tapa', nombre: 'Tapa zapatero', ancho: 800, alto: 300, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-lat-izq', nombre: 'Lateral izquierdo', ancho: 300, alto: 1200, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-lat-der', nombre: 'Lateral derecho', ancho: 300, alto: 1200, espesor: 15, color: '#8B5A2B', modulo: '1' },
+    ];
+    const piecesByIdZapatera = Object.fromEntries(piezas.map((p) => [p.id, p]));
+    const { steps: sequenceSteps } = buildAssemblySequence(piezas);
+    const stepsConTiempo = sequenceSteps.map((s) => ({ ...s, tiempo: 10 }));
+    const clasificacion = applyFichaCorrections(
+      classifyFurniture(piezas),
+      { nivel: 'medio' },
+    );
+    const ficha = {
+      clasificacion,
+      medidasProyecto: getModuleDimensions(piezas, 15),
+    };
+    const html = buildStandaloneHtml(stepsConTiempo, piecesByIdZapatera, 'Zapatero 1', ficha);
+    assert.ok(html.includes('Ficha técnica'), 'la sección de ficha debe aparecer');
+    assert.ok(html.includes('Mueble: zapatera'), 'debe contener el tipo inferido');
+    assert.ok(html.includes('Nivel: Medio'), 'debe reflejar la corrección de nivel');
+    assert.ok(html.includes('Paso 1'), 'los pasos de la secuencia real deben aparecer');
+    assert.ok(html.includes('Tiempo estimado: 10 min'), 'cada paso debe traer su tiempo default');
   });
 });

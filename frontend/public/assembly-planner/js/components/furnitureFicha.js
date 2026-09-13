@@ -14,7 +14,9 @@ import {
 } from '../core/furnitureTaxonomy.js';
 import { classifyFurniture, applyFichaCorrections } from '../services/furnitureClassifier.js';
 import { getModuleDimensions } from '../services/geometryService.js';
-import { escapeHtml } from '../utils.js';
+import { buildAssemblySequence } from '../services/assemblyStepService.js';
+import { escapeHtml, getModuleLabel } from '../utils.js';
+import { buildStandaloneHtml, download } from './manual/manualExporter.js';
 import { updateFichaCorrections, clearFichaCorrections } from '../app.js';
 
 const COLLAPSE_KEY = 'cn-assembly-ficha-collapsed';
@@ -62,6 +64,32 @@ function inferThickness(pieces) {
   return Number(conEspesor?.espesor) || 18;
 }
 
+// Construye el HTML del manual (sección de ficha + pasos de ensamblaje) con
+// el pipeline real: secuencia física de assemblyStepService (sin posiciones
+// z: la vista 3D no está activa, se usa el orden por palabra clave) y
+// tiempo default de 10 min por paso, igual que buildSteps en app.js.
+// Devuelve { filename, html } listo para download().
+function buildFichaExport(pieces, clasificacion, currentModule) {
+  const piecesById = Object.fromEntries(pieces.map((p) => [p.id, p]));
+  const moduleLabel = getModuleLabel(currentModule, pieces);
+  const { steps } = buildAssemblySequence(pieces);
+  const stepsConTiempo = steps.map((s) => ({ ...s, tiempo: 10 }));
+  const ficha = {
+    clasificacion,
+    medidasProyecto: getModuleDimensions(pieces, inferThickness(pieces)),
+  };
+  const slug = String(moduleLabel || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return {
+    filename: `ficha-tecnica-${slug || 'mueble'}.html`,
+    html: buildStandaloneHtml(stepsConTiempo, piecesById, moduleLabel, ficha),
+  };
+}
+
 export function createFurnitureFicha() {
   function mount(parent, store) {
     const state = store.get();
@@ -98,6 +126,14 @@ export function createFurnitureFicha() {
       if (body) body.style.display = correcting ? '' : 'none';
       const btn = root.querySelector('[data-correct]');
       if (btn) btn.textContent = correcting ? 'Ocultar corrección' : 'Corregir';
+    });
+
+    // La clasificación ya lleva las correcciones aplicadas, así el HTML
+    // exportado refleja lo que el usuario ve en el panel.
+    root.querySelector('[data-export-ficha]')?.addEventListener('click', () => {
+      if (!pieces.length) return;
+      const { filename, html } = buildFichaExport(pieces, clasificacion, state.currentModule);
+      download(filename, new Blob([html], { type: 'text/html' }));
     });
 
     root.addEventListener('change', (e) => {
@@ -144,6 +180,7 @@ function renderPanel(pieces, clasificacion, corrections, correcting, collapsed) 
     <div class="iso-config-panel__header">
       <span>Ficha técnica del mueble</span>
       <div class="iso-config-panel__actions">
+        <button class="btn btn--secondary btn--sm" data-export-ficha>Exportar ficha (HTML)</button>
         <button class="btn btn--secondary btn--sm" data-correct>${correcting ? 'Ocultar corrección' : 'Corregir'}</button>
         <button class="btn btn--icon btn--sm" data-toggle title="Ocultar/mostrar ficha">${collapsed ? '▶' : '▼'}</button>
       </div>
