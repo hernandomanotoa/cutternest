@@ -13,12 +13,18 @@
 export const FICHAS_EJEMPLOS = {
   // ── Dormitorio ───────────────────────────────────────────────────────────
   'ejemplo-closet-zocalo-cajon.csv': { tipo: 'closet' },
+  'ejemplo-base-cama-cajones.csv': { tipo: 'cama_base' },
   'ejemplo-armario.csv': { tipo: 'closet' },
   'ejemplo-comoda.csv': { tipo: 'cajonera' },
   'ejemplo-comoda-zocalo-cajon.csv': { tipo: 'cajonera' },
   'ejemplo-cajonera-correderas-ocultas.csv': { tipo: 'cajonera' },
   'ejemplo-mesa-noche.csv': { tipo: 'buro' },
+  'ejemplo-buro-3-cajones.csv': { tipo: 'buro' },
+  'ejemplo-buro-flotante.csv': { tipo: 'buro' },
+  'ejemplo-comoda-baja.csv': { tipo: 'cajonera' },
   'ejemplo-tocador.csv': { tipo: 'tocador' },
+  'ejemplo-tocador-espejo.csv': { tipo: 'tocador' },
+  'ejemplo-closet-interior.csv': { tipo: 'closet' },
 
   // ── Cocina / comedor ─────────────────────────────────────────────────────
   'ejemplo-cocina.csv': { tipo: 'cocina_modular' },

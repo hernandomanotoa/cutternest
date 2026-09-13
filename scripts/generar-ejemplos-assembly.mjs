@@ -632,6 +632,166 @@ function cajonOculto(parent, index, opts) {
   examples.push({ name: 'Ejemplo_CSV_Estanteria_Oficina.csv', dataName: 'ejemplo-estanteria-oficina.csv', lines });
 }
 
+// 30. Buró 3 cajones (dormitorio)
+{
+  const lines = [];
+  lines.push(header('Ejemplo de buro 3 cajones', 'Buro a piso 500×720×400 (base + tapa + 2 laterales + fondo de 15 mm) con 3 vanos apilados iguales y un cajon de 6 piezas por vano (modelo cajon()). Herrajes: 3 pares de correderas telescopicas 400 mm y 3 tiradores.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 500, 720, 400, '#C19A6B'));
+  // Vano util: (720 − 2·15)/3 = 230 → frente 468×227
+  lines.push(...cajon(1, 1, { anchoModulo: 500, profundidadModulo: 400, altoVano: 230, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 500, profundidadModulo: 400, altoVano: 230, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'medio' }));
+  lines.push(...cajon(1, 3, { anchoModulo: 500, profundidadModulo: 400, altoVano: 230, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Buro_3_Cajones.csv', dataName: 'ejemplo-buro-3-cajones.csv', lines });
+}
+
+// 31. Buró flotante 2 cajones (dormitorio): colgado a pared, sin base inferior.
+// El tablero superior se nombra 'Tablero' (rol top_panel) para marcar el
+// módulo como no-casco rectangular (exención del parser: sin base inferior
+// intencional); el travesaño inferior queda en rol brace.
+{
+  const lines = [];
+  lines.push(header('Ejemplo de buro flotante', 'Buro colgado 600×420×350 fijado a pared con escuadras (herraje, no pieza): tablero superior, 2 laterales, fondo y travesano inferior (rol brace), sin base inferior. 2 cajones en fila (2 columnas) de 6 piezas con cajon(). Herrajes: escuadras de pared, 2 pares de correderas telescopicas 300 mm y 2 tiradores.'));
+  lines.push(line('m1-tablero', 'Tablero buro flotante', 600, 350, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-lateral-izq', 'Lateral izquierdo M1', 350, 420, 1, 'no', '#C19A6B', 15, 'T,B,L', 1));
+  lines.push(line('m1-lateral-der', 'Lateral derecho M1', 350, 420, 1, 'no', '#C19A6B', 15, 'T,B,R', 1));
+  lines.push(fondo('m1-fondo', 'Fondo buro flotante', 600, 420, '#F2F2F2', 1));
+  lines.push(line('m1-travesano-inferior', 'Travesano inferior buro flotante', 570, 80, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  // Vano util: 420 − 15 (tablero) − 80 (travesano) = 325 → altoVano 320
+  lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 350, altoVano: 320, nPorFila: 2, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'izquierdo' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 600, profundidadModulo: 350, altoVano: 320, nPorFila: 2, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'derecho' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Buro_Flotante.csv', dataName: 'ejemplo-buro-flotante.csv', lines });
+}
+
+// 32. Cómoda baja 3 cajones sobre 4 patas niveladoras (dormitorio)
+{
+  const lines = [];
+  lines.push(header('Ejemplo de comoda baja', 'Comoda baja 1200×600×450 (base + tapa + 2 laterales + fondo + travesano trasero) sobre 4 patas niveladoras de panel 80×80 (rol leg). 3 cajones apilados de 6 piezas con cajon(). Herrajes: 3 pares de correderas telescopicas 450 mm, 3 tiradores y 4 patas niveladoras.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 600, 450, '#C19A6B'));
+  lines.push(line('m1-travesano-trasero', 'Travesano trasero comoda', 1170, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-delantera-izq', 'Pata niveladora delantera izquierda comoda', 80, 80, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-delantera-der', 'Pata niveladora delantera derecha comoda', 80, 80, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-izq', 'Pata niveladora trasera izquierda comoda', 80, 80, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-der', 'Pata niveladora trasera derecha comoda', 80, 80, 1, 'no', '#8B5A2B', 15, 'T,B,L,R', 1));
+  // Vano util: (600 − 2·15)/3 = 190 → frente 1168×187
+  lines.push(...cajon(1, 1, { anchoModulo: 1200, profundidadModulo: 450, altoVano: 190, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 1200, profundidadModulo: 450, altoVano: 190, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'medio' }));
+  lines.push(...cajon(1, 3, { anchoModulo: 1200, profundidadModulo: 450, altoVano: 190, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Comoda_Baja.csv', dataName: 'ejemplo-comoda-baja.csv', lines });
+}
+
+// 33. Tocador con alzada de espejo (dormitorio): módulo bajo con zócalo
+// corrido (mismo modelo que ejemplo-tocador #24) + alzada con montantes,
+// respaldo (marca el módulo como no-casco rectangular: sin base ni fondo
+// de casco) y 2 puertas de espejo de 4 mm.
+{
+  const lines = [];
+  lines.push(header('Ejemplo de tocador con espejo', 'Modulo bajo 1200×800×480 con zocalo corrido y 3 cajones apilados de 6 piezas (mismo modelo que ejemplo-tocador) + alzada de espejo con 2 montantes, tapa, respaldo y 2 puertas de espejo con cristal de 4 mm pegado. Herrajes: bisagras de cazoleta 26 mm (2 por puerta), espejos 4 mm pegados y 3 pares de correderas telescopicas.'));
+  lines.push('# --- Estructura global ---');
+  lines.push(line('glb-zocalo', 'Zocalo corrido tocador espejo', 1200, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+
+  lines.push('# --- Modulo 1: tocador bajo con 3 cajones (mismo modelo que ejemplo-tocador) ---');
+  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 800, 480, '#C19A6B'));
+  lines.push(...cajon(1, 1, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'medio' }));
+  lines.push(...cajon(1, 3, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  lines.push('# --- Modulo 2: alzada de espejo (montantes + respaldo, no es casco rectangular) ---');
+  lines.push(line('m2-tapa', 'Tapa alzada M2', 1200, 300, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-montante-izq', 'Montante alzada izquierdo M2', 300, 900, 1, 'no', '#C19A6B', 15, 'T,B,L', 2));
+  lines.push(line('m2-montante-der', 'Montante alzada derecho M2', 300, 900, 1, 'no', '#C19A6B', 15, 'T,B,R', 2));
+  lines.push(fondo('m2-respaldo', 'Respaldo alzada M2', 1200, 900, '#F2F2F2', 2));
+  lines.push(line('m2-puerta-espejo-izq', 'Puerta espejo izquierda M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
+  lines.push(line('m2-puerta-espejo-der', 'Puerta espejo derecha M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
+  lines.push(line('m2-espejo-izq', 'Espejo izquierdo alzada M2', 500, 790, 1, 'no', '#E8F4F8', 4, '', 2));
+  lines.push(line('m2-espejo-der', 'Espejo derecho alzada M2', 500, 790, 1, 'no', '#E8F4F8', 4, '', 2));
+
+  examples.push({ name: 'Ejemplo_CSV_Tocador_Espejo.csv', dataName: 'ejemplo-tocador-espejo.csv', lines });
+}
+
+// 34. Clóset interior abierto (dormitorio): zócalo-cajón corrido + tapa
+// corrida (patrones de ejemplo-closet-zocalo-cajon) y 3 módulos de 600 con
+// base propia: doble colgado, cajonera interior y zapatera interior.
+{
+  const lines = [];
+  lines.push(header('Ejemplo de closet interior', 'Closet abierto 1800×2200×550 sin puertas (perchero), compatible con sistema de puertas corredizas: zocalo-cajon corrido 150 (patron ejemplo-closet-zocalo-cajon) + tapa corrida y 3 modulos de 600 con base propia: M1 doble colgado (2 barras cromadas a dos alturas + repisa superior), M2 cajonera interior (3 cajones de 6 piezas + tiradores) y M3 zapatera interior (bandeja zapatero fija inferior + 4 bandejas zapatera extraibles de 6 piezas + repisa superior). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
+  lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
+  lines.push(...zocaloCajon('closet interior', 1800, 550, 150, '#C19A6B'));
+  lines.push(line('glb-tapa', 'Tapa corrida closet interior', 1800, 550, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+
+  // Modulos de 600×2200×550 (altura TOTAL incluye zocalo de 150), base propia
+  // interna apoyada sobre el zocalo (cascoZocaloCajon).
+
+  lines.push('# --- Modulo 1: doble colgado (2 barras a dos alturas + repisa superior) ---');
+  lines.push(...cascoZocaloCajon(1, 1, 600, 2200, 550, '#C19A6B'));
+  lines.push(line('m1-barra-alta', 'Barra colgadora alta M1', 570, 25, 1, 'si', '#A0A0A0', 25, '', 1));
+  lines.push(line('m1-barra-baja', 'Barra colgadora baja M1', 570, 25, 1, 'si', '#A0A0A0', 25, '', 1));
+  lines.push(line('m1-repisa-superior', 'Repisa superior M1', 570, 450, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+
+  lines.push('# --- Modulo 2: cajonera interior (3 cajones apilados, vano util ≈ 2020 → 3 vanos de 520) ---');
+  lines.push(...cascoZocaloCajon(2, 2, 600, 2200, 550, '#8B5A2B'));
+  lines.push(...cajon(2, 1, { anchoModulo: 600, profundidadModulo: 550, altoVano: 520, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(2, 2, { anchoModulo: 600, profundidadModulo: 550, altoVano: 520, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'medio' }));
+  lines.push(...cajon(2, 3, { anchoModulo: 600, profundidadModulo: 550, altoVano: 520, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  lines.push('# --- Modulo 3: zapatera interior (bandeja fija + repisa superior + 4 bandejas extraibles) ---');
+  lines.push(...cascoZocaloCajon(3, 3, 600, 2200, 550, '#C19A6B'));
+  // Bandeja fija inferior (patron ejemplo-zapatero-extraible): al ser pieza de
+  // zapatero ('fixed-bottom') abajo y la repisa superior arriba, las 4 bandejas
+  // extraibles quedan en la zona media para el apilado sin solapes.
+  lines.push(line('m3-bandeja-zapatero', 'Bandeja zapatero M3', 570, 450, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-repisa-superior', 'Repisa superior M3', 570, 300, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
+  // Vano util ≈ 2020: bandeja fija ≈150 + 4 bandejas de 330 (1320) + repisa 300.
+  for (let i = 1; i <= 4; i++) {
+    lines.push(...cajon(3, i, { anchoModulo: 600, profundidadModulo: 550, altoVano: 330, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: `${i}`, vocabulario: 'zapatera' }));
+  }
+
+  examples.push({ name: 'Ejemplo_CSV_Closet_Interior.csv', dataName: 'ejemplo-closet-interior.csv', lines });
+}
+
+// 35. Base de cama matrimonial con cajones (dormitorio): dos cajoneras
+// largas de 2 cajones (M1 izq / M2 der) + estructura global (cabecero,
+// montantes, tablero frontal y tarima con láminas de somier). El marco va
+// en 'estructura' porque no es un casco rectangular (el parser exigiría
+// base/tapa/laterales/fondo, piezas que una cama no tiene).
+{
+  const lines = [];
+  lines.push(header('Ejemplo de base de cama con cajones', 'Base de cama matrimonial 1500×1900×350 de melamina 18 mm (mueble que soporta carga): estructura global con cabecero 1500×600, 2 montantes de cabecero, tablero frontal 1500×300, tarima de somier 1500×1850 y 10 láminas de somier transversales de 130×25×8 mm con separación 60 mm, y dos cajoneras largas de 400×350×1850 con 2 cajones de 6 piezas cada una. Herrajes: 4 pares de correderas telescópicas, 8 esquineros metálicos de unión, soporte central de tarima y zapatas niveladoras.'));
+  lines.push('# --- Estructura global: cabecero, montantes, tablero frontal, tarima y láminas ---');
+  lines.push(line('glb-cabecero', 'Cabecero cama', 1500, 600, 1, 'no', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-montante-izq', 'Montante cabecero izquierdo', 350, 600, 1, 'no', '#C19A6B', 18, 'T,B,L', 'estructura'));
+  lines.push(line('glb-montante-der', 'Montante cabecero derecho', 350, 600, 1, 'no', '#C19A6B', 18, 'T,B,R', 'estructura'));
+  lines.push(line('glb-frontal', 'Tablero frontal cama', 1500, 300, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-tarima', 'Tarima somier', 1500, 1850, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+  for (let i = 1; i <= 10; i++) {
+    lines.push(line(`glb-lamina-${i}`, `Lamina somier ${i}`, 130, 25, 1, 'no', '#D9C2A3', 8, '', 'estructura'));
+  }
+
+  // Cajonera larga 400×350×1850 (melamina 18 mm): base + tapa + 2 laterales
+  // + fondo. Los cajones usan cajon() con anchoModulo 394: el vano real es
+  // 400 − 2·18 = 364 y el frente de cajon() mide anchoModulo − 32 = 362
+  // (cajon() asume laterales de 15 en el módulo; con 18 mm se le pasa el
+  // ancho de vano real para mantener la coherencia con el validador).
+  const cajoneraCama = (mod) => [
+    line(`m${mod}-base`, `Base modulo M${mod}`, 400, 1850, 1, 'si', '#C19A6B', 18, 'T,B,L,R', mod),
+    line(`m${mod}-tapa`, `Tapa modulo M${mod}`, 400, 1850, 1, 'si', '#C19A6B', 18, 'T,B,L,R', mod),
+    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${mod}`, 1850, 350, 1, 'no', '#C19A6B', 18, 'T,B,L', mod),
+    line(`m${mod}-lateral-der`, `Lateral derecho M${mod}`, 1850, 350, 1, 'no', '#C19A6B', 18, 'T,B,R', mod),
+    line(`m${mod}-fondo`, `Fondo modulo M${mod}`, 400, 350, 1, 'no', '#F2F2F2', 18, '', mod),
+    // Vano útil: (350 − 2·18)/2 = 157 → altoVano 150
+    ...cajon(mod, 1, { anchoModulo: 394, profundidadModulo: 1850, altoVano: 150, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'largo superior' }),
+    ...cajon(mod, 2, { anchoModulo: 394, profundidadModulo: 1850, altoVano: 150, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'largo inferior' }),
+  ];
+  lines.push('# --- Modulo 1: cajonera larga izquierda (2 cajones) ---');
+  lines.push(...cajoneraCama(1));
+  lines.push('# --- Modulo 2: cajonera larga derecha (2 cajones) ---');
+  lines.push(...cajoneraCama(2));
+
+  examples.push({ name: 'Ejemplo_CSV_Base_Cama_Cajones.csv', dataName: 'ejemplo-base-cama-cajones.csv', lines });
+}
+
 for (const ex of examples) {
   const content = ex.lines.join('\n') + '\n';
   fs.writeFileSync(path.join(DOCS_DIR, ex.name), content, 'utf8');
