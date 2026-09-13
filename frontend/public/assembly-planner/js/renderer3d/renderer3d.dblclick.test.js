@@ -2,8 +2,10 @@
 //
 // Regresión reportada (2026-09-10): el doble-click de apertura individual
 // (cajones/zapateras/puertas) funciona en la vista isométrica pero no en la
-// vista 3D. Este test reproduce el chain completo con el ejemplo real de
-// cajonera: Renderer3D + interaction.js → callback onPieceDoubleClick.
+// vista 3D. Este test reproduce el chain completo con el ejemplo de
+// cajonera con correderas ocultas: Renderer3D + interaction.js → callback
+// onPieceDoubleClick. (Antes usaba el CSV legacy ejemplo-cajonera.csv,
+// retirado del catálogo al quedarse solo con ejemplos regenerables S1–S4.)
 
 import { test, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,7 +45,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
   it('onPieceDoubleClick se dispara con el id del frente de cajón', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
     const { parseCSV } = await import('../csvParser.js');
-    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera.csv'), 'utf8');
+    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
     const frente = findFrenteCajon(pieces);
     assert.ok(frente, 'el ejemplo de cajonera debe tener un frente de cajón');
@@ -68,7 +70,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
   it('el frente de cajón es clasificable como pieza móvil (rail)', async () => {
     const { parseCSV } = await import('../csvParser.js');
     const { motionConfigFor } = await import('../services/motionService.js');
-    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera.csv'), 'utf8');
+    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
     const frente = findFrenteCajon(pieces);
     const cfg = motionConfigFor(frente);
@@ -79,7 +81,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
   it('setApertura con override de pieza actualiza la geometría (extracción en y)', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
     const { parseCSV } = await import('../csvParser.js');
-    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera.csv'), 'utf8');
+    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
     const frente = findFrenteCajon(pieces);
 
@@ -102,7 +104,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
   it('render() no reescribe el DOM cuando el SVG no cambia (regresión dblclick)', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
     const { parseCSV } = await import('../csvParser.js');
-    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera.csv'), 'utf8');
+    const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
 
     let writes = 0;

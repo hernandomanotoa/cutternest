@@ -5,7 +5,7 @@ import { parseCSV } from '../js/csvParser.js';
 import { buildEngineForModule, getModuleDimensions } from '../js/svgEngine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const csvPath = path.join(__dirname, '..', '..', '..', '..', 'docs', 'Ejemplo_CSV_Universal.csv');
+const csvPath = path.join(__dirname, '..', '..', '..', '..', 'docs', 'Ejemplo_CSV_Cocina_Modular.csv');
 
 const csvText = fs.readFileSync(csvPath, 'utf8');
 const result = parseCSV(csvText);
@@ -17,14 +17,14 @@ if (!result.ok) {
 
 const pieces = result.pieces;
 
-// Dimensiones aproximadas esperadas según los SVGs de referencia
+// Dimensiones aproximadas esperadas por módulo (cocina modular: 4 módulos).
+// Antes usaba Ejemplo_CSV_Universal.csv, retirado del catálogo junto con las
+// demos legacy no regenerables.
 const expected = {
-  1: { w: 450, h: 2300 },
-  2: { w: 900, h: 2230 },
-  3: { w: 800, h: 480 },   // 450 leg + 30 top thickness
-  4: { w: 450, h: 965 },   // 500 back + 15 seat + 450 leg
-  5: { w: 1200, h: 2200 },
-  6: { w: 800, h: 1200 },
+  1: { w: 600, h: 700 },   // bajo mesada fregadero
+  2: { w: 600, h: 700 },   // cajonera triple
+  3: { w: 600, h: 1200 },  // alacena
+  4: { w: 600, h: 1200 },  // torre horno
 };
 
 function modulePiecesFor(modId) {
@@ -61,4 +61,4 @@ for (let i = 1; i <= 6; i++) {
   }
 }
 
-console.log('\nSVGs guardados en /tmp/m1.svg ... /tmp/m6.svg');
+console.log('\nSVGs guardados en /tmp/m1.svg ... /tmp/m4.svg');

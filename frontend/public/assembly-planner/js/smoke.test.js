@@ -70,10 +70,10 @@ test('flujo seleccionar → cargar → render isométrico', async () => {
   const { createStore } = await import('./core/store.js');
   const { IsometricRenderer } = await import('./isometricRenderer.js');
 
-  const csvText = readFileSync(join(JS_DIR, '..', 'data', 'ejemplo-basico.csv'), 'utf8');
+  const csvText = readFileSync(join(JS_DIR, '..', 'data', 'ejemplo-estanteria-oficina.csv'), 'utf8');
   const result = parseCSV(csvText);
   assert.equal(result.errors.length, 0, `errores de parseo: ${result.errors.join('; ')}`);
-  assert.ok(result.pieces.length > 0, 'el ejemplo básico no tiene piezas');
+  assert.ok(result.pieces.length > 0, 'el ejemplo de estantería de oficina no tiene piezas');
 
   const dependencies = sugerirDependencias(result.pieces);
   const store = createStore();

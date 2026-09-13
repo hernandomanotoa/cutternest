@@ -183,7 +183,10 @@ Siendo `tf` el espesor del fondo y `t` el espesor de los laterales. Esto evita q
 
 ## Ejemplos de referencia
 
-- Fondo externo: `ejemplo-fondo-externo.csv`
-- Fondo interno: `ejemplo-fondo-interno.csv` y `ejemplo-closet-modular-abierto.csv`
-- Fondo custom: `ejemplo-fondo-custom.csv`
-- Base interna con zócalo global: `ejemplo-armario.csv` y `ejemplo-closet-modular-abierto.csv`
+Los ejemplos del selector son los regenerables por `scripts/generar-ejemplos-assembly.mjs`
+y `scripts/generar-ejemplos-catalogo.py` (modelo de cajón de 6 piezas); las demos
+legacy no regenerables se retiraron del catálogo.
+
+- Fondo externo: `ejemplo-estanteria.csv` (trasera 900×1800) y `ejemplo-closet-zocalo-cajon.csv`
+- Fondo interno: `ejemplo-vanitory.csv` (torre auxiliar, fondo 340×1200)
+- Base interna con zócalo global: `ejemplo-closet-zocalo-cajon.csv` (zócalo-cajón full-width)
