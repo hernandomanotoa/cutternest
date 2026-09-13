@@ -2,6 +2,7 @@
 
 import { railTypeFor, getRailType } from './services/railService.js';
 import { railHardwareName, railHardwareSpec } from './services/railHardwareService.js';
+import { inferRole } from './services/classifierService.js';
 
 function uniquePieces(piezas, predicate) {
   const seen = new Set();
@@ -116,6 +117,58 @@ export function calculateHardware(piezas, dependencies) {
       prioridad: 'Alta',
       bloqueante: true,
     });
+  }
+
+  // Pistones de gas: un par (2) por cada frente abatible/volquete. Se reutiliza
+  // el mismo conteo de frentes que las bisagras abatibles (cajonesVolquete).
+  if (cajonesVolquete.length > 0) {
+    herrajes.push({
+      nombre: 'Pistones de gas 600 N',
+      cantidad: cajonesVolquete.length * 2,
+      especificacion: 'Un par por frente abatible, fijar con el mueble en posición vertical (CONFIRMAR ANTES DE CORTAR)',
+      prioridad: 'Media',
+      bloqueante: false,
+    });
+  }
+
+  // ── Dormitorio (camas) ────────────────────────────────────────────────────
+  const esCama = piezas.some((p) =>
+    ['headboard', 'bed_slat', 'bed_bottom'].includes(inferRole(p)));
+  if (esCama) {
+    herrajes.push({
+      nombre: 'Esquineros metálicos de unión',
+      cantidad: 8,
+      especificacion: 'Unión de base/tarima con laterales y cabecero de cama',
+      prioridad: 'Alta',
+      bloqueante: false,
+    });
+
+    // Soporte central solo si el panel horizontal más ancho de la cama
+    // (tarima, base o tapa) alcanza los 1400 mm.
+    const anchosPaneles = piezas
+      .filter((p) => ['bed_bottom', 'bottom_panel', 'top_panel'].includes(inferRole(p)))
+      .map((p) => Number(p.ancho) || 0);
+    if (anchosPaneles.length && Math.max(...anchosPaneles) >= 1400) {
+      herrajes.push({
+        nombre: 'Soporte central de tarima',
+        cantidad: 1,
+        especificacion: 'Pata central de refuerzo bajo la cara inferior de la tarima (verificar catálogo)',
+        prioridad: 'Media',
+        bloqueante: false,
+      });
+    }
+
+    // Zapatas niveladoras solo cuando la cama no tiene patas propias.
+    const hayPatas = piezas.some((p) => inferRole(p) === 'leg');
+    if (!hayPatas) {
+      herrajes.push({
+        nombre: 'Zapatas niveladoras',
+        cantidad: 4,
+        especificacion: 'Regulables ±10 mm, rosca M8/M10',
+        prioridad: 'Media',
+        bloqueante: false,
+      });
+    }
   }
 
   // Tiradores de cajón (piezas explícitas "Tirador cajon")

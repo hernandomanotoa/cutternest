@@ -15,6 +15,12 @@ export function generarInstruccion(paso, piezasData) {
   const cajones = piezas.filter((p) => p.nombre.toLowerCase().includes('cajon'));
   const zocalos = piezas.filter((p) => p.nombre.toLowerCase().includes('zocalo'));
   const barras = piezas.filter((p) => p.nombre.toLowerCase().includes('barra'));
+  const cabeceros = piezas.filter((p) => p.nombre.toLowerCase().includes('cabecero'));
+  const tarimas = piezas.filter((p) => p.nombre.toLowerCase().includes('tarima'));
+  const laminasSomier = piezas.filter((p) => {
+    const n = p.nombre.toLowerCase();
+    return n.includes('somier') || n.includes('lámina') || n.includes('lamina');
+  });
 
   if (laterales.length > 0) {
     return `Colocar ${laterales.length} laterales de pie, paralelos, verificando orientación de cantos. Asegurar que queden a escuadra.`;
@@ -44,7 +50,26 @@ export function generarInstruccion(paso, piezasData) {
     // La mención de correderas se parametriza por tipo de riel inferido; con
     // tipos mezclados se listan los textos de cada tipo presente una vez.
     const textos = [...new Set(cajones.map((p) => railInstallText(p)))];
-    return `Armar cajones: laterales + base + frente + fondo. ${textos.join(' ')}`;
+    const hayAbatible = cajones.some((p) => {
+      const n = p.nombre.toLowerCase();
+      return n.includes('abatible') || n.includes('volquete');
+    });
+    const piston = hayAbatible
+      ? ' Instalar el pistón de gas entre el frente abatible y el lateral, uno a cada lado, con el mueble en posición vertical.'
+      : '';
+    return `Armar cajones: laterales + base + frente + fondo. ${textos.join(' ')}${piston}`;
+  }
+
+  if (cabeceros.length > 0) {
+    return `Fijar el cabecero a la estructura de la base con esquineros metálicos de unión, verificando escuadra y altura final respecto a la tarima.`;
+  }
+
+  if (tarimas.length > 0) {
+    return `Instalar la tarima sobre la base con esquineros metálicos de unión. Si el ancho es de 1400 mm o más, añadir el soporte central de tarima bajo su cara inferior.`;
+  }
+
+  if (laminasSomier.length > 0) {
+    return `Colocar las láminas de somier sobre la tarima con separación de 50–80 mm, empezando por el centro hacia los extremos.`;
   }
 
   if (zocalos.length > 0) {
@@ -89,6 +114,17 @@ export function toolsForStep(paso, piezasData) {
     }
     if (name.includes('zocalo')) {
       tools.add('patas niveladoras');
+    }
+    if (name.includes('cabecero') || name.includes('tarima')) {
+      tools.add('taladro');
+      tools.add('escuadra');
+      tools.add('esquineros metálicos de unión');
+    }
+    if (name.includes('somier') || name.includes('lámina') || name.includes('lamina')) {
+      tools.add('láminas de somier');
+    }
+    if (name.includes('abatible') || name.includes('volquete')) {
+      tools.add('pistones de gas 600 N');
     }
   });
 

@@ -54,6 +54,27 @@ describe('inferRole', () => {
   it('defaults to panel', () => {
     assert.equal(inferRole(piece('Pieza genérica')), 'panel');
   });
+
+  it('espejo alargado es mirror aunque su ratio supere ×3 (regla antes del fallback)', () => {
+    assert.equal(inferRole(piece('Espejo cuerpo entero', { ancho: 1800, alto: 400 })), 'mirror');
+    assert.equal(inferRole(piece('Marco espejo vestidor', { ancho: 1900, alto: 600 })), 'mirror');
+  });
+});
+
+describe('inferRole - dormitorio (camas)', () => {
+  it('clasifica cabecero, lámina de somier y tarima', () => {
+    assert.equal(inferRole(piece('Cabecero cama matrimonial', { ancho: 1600, alto: 900 })), 'headboard');
+    assert.equal(inferRole(piece('Lámina somier 1', { ancho: 800, alto: 50 })), 'bed_slat');
+    assert.equal(inferRole(piece('Lamina somier 2', { ancho: 800, alto: 50 })), 'bed_slat');
+    assert.equal(inferRole(piece('Tarima somier', { ancho: 1600, alto: 500 })), 'bed_bottom');
+  });
+
+  it('las reglas de cama no roban piezas de cajón ni nombres similares', () => {
+    assert.equal(inferRole(piece('Frente cajón 1')), 'drawer_face');
+    assert.equal(inferRole(piece('Base cajón 1')), 'drawer_bottom');
+    assert.equal(inferRole(piece('Fondo laminado 1', { ancho: 500, alto: 300 })), 'back_panel');
+    assert.equal(inferRole(piece('Tabla', { ancho: 1200, alto: 100 })), 'shelf');
+  });
 });
 
 describe('detectFamily', () => {
@@ -75,6 +96,24 @@ describe('detectFamily', () => {
   it('detects cabinet when drawers exist', () => {
     const pieces = [piece('Cajón 1', { id: 'P-1' })];
     assert.equal(detectFamily(pieces), 'cabinet');
+  });
+
+  it('detects bed when headboard/slat/bottom pieces exist', () => {
+    const pieces = [
+      piece('Cabecero cama', { id: 'P-1' }),
+      piece('Tarima somier', { id: 'P-2' }),
+      piece('Lámina somier 1', { id: 'P-3' }),
+    ];
+    assert.equal(detectFamily(pieces), 'bed');
+  });
+
+  it('bed takes priority over drawers and doors', () => {
+    const pieces = [
+      piece('Cabecero cama', { id: 'P-1' }),
+      piece('Puerta', { id: 'P-2' }),
+      piece('Cajón 1', { id: 'P-3' }),
+    ];
+    assert.equal(detectFamily(pieces), 'bed');
   });
 
   it('filters by module id', () => {

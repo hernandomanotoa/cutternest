@@ -1587,6 +1587,9 @@ export class IsometricRenderer {
       leg: { color: ROLE_COLORS.leg, width: 2 },
       brace: { color: ROLE_COLORS.brace, width: 1 },
       hanger_rail: { color: ROLE_COLORS.hanger_rail, width: 2 },
+      headboard: { color: ROLE_COLORS.headboard, width: 1.5 },
+      bed_bottom: { color: ROLE_COLORS.bed_bottom, width: 1 },
+      bed_slat: { color: ROLE_COLORS.bed_slat, width: 1 },
     };
     return strokes[role] || { color: ROLE_COLORS.default, width: 1 };
   }

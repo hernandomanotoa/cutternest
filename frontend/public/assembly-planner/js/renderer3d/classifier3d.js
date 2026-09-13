@@ -34,7 +34,7 @@ export function classifyPiece(piece) {
   }
 
   // Structural: base (estructural pero visible)
-  if (role === 'bottom_panel' || role === 'plinth') {
+  if (role === 'bottom_panel' || role === 'plinth' || role === 'headboard') {
     return 'structural';
   }
 
@@ -51,7 +51,9 @@ export function classifyPiece(piece) {
     role === 'drawer_divider' ||
     role === 'handle' ||
     role === 'leg' ||
-    role === 'seat_panel'
+    role === 'seat_panel' ||
+    role === 'bed_slat' ||
+    role === 'bed_bottom'
   ) {
     return 'interior';
   }

@@ -85,12 +85,23 @@ export function inferRole(piece) {
   if (n.includes('respald') || n.includes('respaldo')) return 'back_panel';
   if (n.includes('asiento') || n.includes('banco')) return 'seat_panel';
 
+  // Dormitorio (camas): láminas de somier, tarima/base y cabecero. Van antes
+  // del fallback geométrico porque son piezas alargadas (una lámina de
+  // 800×50 mm caería en 'shelf' por forma) y deben conservar su rol de cama.
+  // 'tarima' va primero: "Tarima somier" es la base, no una lámina.
+  // '\blamina\b' evita colisiones con palabras como "laminado".
+  if (n.includes('tarima')) return 'bed_bottom';
+  if (/\blamina\b/.test(n) || n.includes('somier')) return 'bed_slat';
+  if (n.includes('cabecero')) return 'headboard';
+
+  // Espejo: también antes del fallback geométrico, porque un espejo alargado
+  // (p. ej. 1800×400 mm, ratio 4.5) sería 'shelf' por su forma.
+  if (n.includes('espejo') || n.includes('mirror') || n.includes('marco')) return 'mirror';
+
   const w = Number(piece.ancho) || 0;
   const h = Number(piece.alto) || 0;
   if (w > h * 3) return 'shelf';
   if (h > w * 3) return 'side_panel';
-
-  if (n.includes('espejo') || n.includes('mirror') || n.includes('marco')) return 'mirror';
 
   return 'panel';
 }
@@ -135,6 +146,9 @@ export function detectFamily(pieces, moduleId = null) {
     if (roles.some((r) => r === 'seat_panel' || r === 'back_panel')) return 'seating';
     return 'table';
   }
+  // Dormitorio: cualquier pieza de cama (cabecero, lámina de somier o tarima)
+  // define la familia 'bed' aunque el proyecto tenga cajones o puertas.
+  if (roles.some((r) => r === 'headboard' || r === 'bed_slat' || r === 'bed_bottom')) return 'bed';
   if (roles.some((r) => r === 'door')) return 'wardrobe';
   if (roles.some((r) => r.startsWith('drawer'))) return 'cabinet';
 

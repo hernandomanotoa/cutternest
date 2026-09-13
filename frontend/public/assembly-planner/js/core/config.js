@@ -131,6 +131,9 @@ export const ROLE_COLORS = {
   drawer_bottom: '#64748b',
   drawer_back: '#64748b',
   drawer_divider: '#64748b',
+  headboard: '#64748b',
+  bed_bottom: '#64748b',
+  bed_slat: '#a8a29e',
   door: '#1e293b',
   mirror: '#1e293b',
   handle: '#e2e8f0',
@@ -168,6 +171,7 @@ export const Z_INDEX = {
   drawer_part: 24, // cara del cajón: interior frontal, justo bajo el frente
   drawer_divider: 24, // divisor interior: capa de la cara, bajo el frente
   seat_panel: 11,
+  headboard: 12,
   leg: 13,
   side_panel_front: 20,
   glass: 24,
@@ -175,6 +179,9 @@ export const Z_INDEX = {
   drawer_face: 25,
   door: 25,
   handle: 26,
+  // Cama: tarima como cajón-base y láminas encima, antes del frente/cabecero
+  bed_bottom: 7,
+  bed_slat: 8,
 };
 
 export const VERTICAL_POSITIONS = {

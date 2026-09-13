@@ -158,3 +158,64 @@ test('frente de zapatera con riel explícito: corredera ligera', () => {
   assert.ok(telescopica, 'zapatera extraíble sin keyword sigue telescópica');
   assert.equal(telescopica.cantidad, 1);
 });
+
+function piezaMedida(id, nombre, ancho, alto, modulo = '1') {
+  return { id, originalId: id, nombre, modulo, ancho, alto, cantos: '' };
+}
+
+test('cama: esquineros ×8, soporte central con tarima ≥1400 y zapatas sin patas', () => {
+  const piezas = [
+    piezaMedida('c1', 'Cabecero cama matrimonial', 1600, 900),
+    piezaMedida('t1', 'Tarima somier', 1600, 500),
+    piezaMedida('l1', 'Lámina somier 1', 800, 50),
+    piezaMedida('l2', 'Lámina somier 2', 800, 50),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  const esquineros = h.find((x) => x.nombre === 'Esquineros metálicos de unión');
+  assert.ok(esquineros, 'la cama genera esquineros');
+  assert.equal(esquineros.cantidad, 8);
+  const soporte = h.find((x) => x.nombre === 'Soporte central de tarima');
+  assert.ok(soporte, 'tarima de 1600 mm ≥ 1400 mm genera soporte central');
+  assert.equal(soporte.cantidad, 1);
+  const zapatas = h.find((x) => x.nombre === 'Zapatas niveladoras');
+  assert.ok(zapatas, 'sin piezas rol leg deben aparecer zapatas');
+  assert.equal(zapatas.cantidad, 4);
+});
+
+test('cama estrecha: sin soporte central; con patas propias: sin zapatas', () => {
+  const piezas = [
+    pieza('p1', 'Pata cama 1'),
+    piezaMedida('c1', 'Cabecero cama', 900, 600),
+    piezaMedida('t1', 'Tarima somier', 900, 400),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  assert.equal(h.some((x) => x.nombre === 'Soporte central de tarima'), false, 'tarima 900 mm < 1400 mm');
+  assert.equal(h.some((x) => x.nombre === 'Zapatas niveladoras'), false, 'hay patas: no zapatas');
+  const esquineros = h.find((x) => x.nombre === 'Esquineros metálicos de unión');
+  assert.ok(esquineros, 'la cama sigue generando esquineros');
+  assert.equal(esquineros.cantidad, 8);
+});
+
+test('pistones de gas: 2 por cada frente abatible/volquete', () => {
+  const piezas = [
+    pieza('v1', 'Frente cajon abatible 1'),
+    pieza('v1l', 'Lateral cajon abatible 1 izq'),
+    pieza('v2', 'Frente cajon volquete 2'),
+    pieza('n1', 'Frente cajon 1'),
+    pieza('n1l', 'Lateral cajon 1 izq'),
+  ];
+  const h = calculateHardware(piezas, dependenciesEstructural);
+  const pistones = h.find((x) => x.nombre === 'Pistones de gas 600 N');
+  assert.ok(pistones, 'los volquetes generan pistones de gas');
+  assert.equal(pistones.cantidad, 4, '2 volquetes × 2 pistones');
+  const bisagras = h.find((x) => x.nombre.includes('Bisagras abatibles'));
+  assert.ok(bisagras, 'los volquetes siguen con bisagras abatibles');
+  assert.equal(bisagras.cantidad, 4);
+});
+
+test('proyecto sin cama: sin herrajes de dormitorio', () => {
+  const h = calculateHardware([pieza('f1', 'Frente cajon 1')], dependenciesEstructural);
+  assert.equal(h.some((x) => x.nombre === 'Esquineros metálicos de unión'), false);
+  assert.equal(h.some((x) => x.nombre === 'Zapatas niveladoras'), false);
+  assert.equal(h.some((x) => x.nombre === 'Soporte central de tarima'), false);
+});

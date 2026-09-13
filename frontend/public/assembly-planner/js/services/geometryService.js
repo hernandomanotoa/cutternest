@@ -38,6 +38,18 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
     return { w: ancho, h: useVisualThickness(alto, espesor) };
   }
 
+  // Dormitorio: la lámina de somier es una pieza plana horizontal delgada
+  // (como un estante) y la tarima una base horizontal (como bottom_panel).
+  if (role === 'bed_slat') {
+    return { w: ancho, h: useVisualThickness(alto, espesor) };
+  }
+  if (role === 'bed_bottom') {
+    return { w: ancho, h: useVisualThickness(alto, espesor) };
+  }
+  if (role === 'headboard') {
+    return { w: ancho, h: alto };
+  }
+
   if (role === 'brace') {
     return { w: ancho, h: useVisualThickness(alto, espesor) };
   }

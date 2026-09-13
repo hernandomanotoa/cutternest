@@ -87,6 +87,9 @@ export class CutterNestSvgEngine {
       drawer_face: 10,
       door: 10,
       seat_panel: 10,
+      bed_bottom: 7,
+      bed_slat: 8,
+      headboard: 12,
       handle: 11,
       leg: 12,
       container: 99,
@@ -866,6 +869,11 @@ function fillGapsWithDividers(engine, roles, meta, shelfPositions, drawerGroups,
     }
   }
 }
+
+// Familia 'bed' (dormitorio): misma geometría de carcasa que 'cabinet' por
+// ahora; el alias permite que el dispatch de buildEngineForModule no caiga en
+// el fallback implícito cuando detectFamily devuelve 'bed'.
+FamilyRouters.bed = FamilyRouters.cabinet;
 
 
 // ═══════════════════════════════════════════════════════════
