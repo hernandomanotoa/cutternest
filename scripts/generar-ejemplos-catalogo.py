@@ -149,21 +149,6 @@ m.add('glb-travesano', 'Travesano mesa', 1600, 80, 1, 'si', C_BODY, TH_BODY, 'T,
 m.add('glb-extension', 'Travesano soporte extensión mesa', 400, 450, 2, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'estructura')
 write('Mesa extensible', 'Estructura de mesa extensible para comedor (soporte sin mecanismo extensible).', m.pieces, 'ejemplo-mesa-extensible.csv')
 
-# === DORMITORIO ===
-
-# Cabecero con mesitas
-m = M('cabecero', 2000, 300, 1200)
-m.add('glb-panel', 'Respaldo cabecero', 2000, 1200, 1, 'si', C_FRONT, TH_TOP, 'T,B,L,R', 'estructura')
-# Mesita de noche integrada (módulo 400×350×500 con cajón en submódulo)
-for mod, cuerpo in (('m1', C_BODY), ('m2', C_FRONT)):
-    m.add(f'{mod}-base', f'Base mesita noche', 400, 350, 1, 'si', cuerpo, TH_BODY, 'T,B,L,R', mod)
-    m.add(f'{mod}-tapa', f'Tapa mesita noche', 400, 350, 1, 'si', cuerpo, TH_BODY, 'T,B,L,R', mod)
-    m.add(f'{mod}-lateral-izq', f'Lateral izquierdo mesita noche', 350, 500, 1, 'no', cuerpo, TH_BODY, 'T,B,L', mod)
-    m.add(f'{mod}-lateral-der', f'Lateral derecho mesita noche', 350, 500, 1, 'no', cuerpo, TH_BODY, 'T,B,R', mod)
-    m.add(f'{mod}-fondo', f'Fondo mesita noche', 400, 500, 1, 'no', C_FONDO, TH_BODY, '', mod)
-    m.cajon(mod, '1', alto_vano=150, ancho=400, prof=350)
-write('Cabecero', 'Cabecero de cama con dos mesitas de noche integradas.', m.pieces, 'ejemplo-cabecero.csv')
-
 # === RECIBIDOR ===
 
 # Recibidor lineal
