@@ -1,0 +1,9 @@
+# CutterNest Piezas v1
+# Ejemplo de panel para TV
+# Panel flotante 1800×1500×250 con repisas flotantes y canal de cables (anclaje a pared con tacos y tarugos).
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+# --- Estructura global: panel, repisas y canal ---
+glb-tablero,Tablero panel TV,1800,1500,1,no,#C19A6B,18,"T,B,L,R",estructura
+glb-canal,Canal cables panel TV,1800,80,1,si,#8B5A2B,18,"T,B,L,R",estructura
+glb-repisa-superior,Repisa flotante superior panel TV,800,280,1,si,#D9C2A3,18,"T,B,L,R",estructura
+glb-repisa-inferior,Repisa flotante inferior panel TV,600,280,1,si,#D9C2A3,18,"T,B,L,R",estructura

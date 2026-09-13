@@ -1,0 +1,14 @@
+# CutterNest Piezas v1
+# Ejemplo de banco de comedor
+# Asiento 1200×450 con 4 patas de panel y travesaños de refuerzo (ensamble de tarugo y pegamento). Sin casco: el asiento apoya directo sobre las patas.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
+# --- Estructura global: asiento ---
+glb-asiento,Asiento banco comedor,1200,450,1,si,#D9C2A3,25,"T,B,L,R",estructura
+# --- Modulo 1: patas y travesaños ---
+m1-pata-delantera-izq,Pata delantera izquierda banco,80,425,1,no,#8B5A2B,18,"T,B,L,R",1
+m1-pata-delantera-der,Pata delantera derecha banco,80,425,1,no,#8B5A2B,18,"T,B,L,R",1
+m1-pata-trasera-izq,Pata trasera izquierda banco,80,425,1,no,#8B5A2B,18,"T,B,L,R",1
+m1-pata-trasera-der,Pata trasera derecha banco,80,425,1,no,#8B5A2B,18,"T,B,L,R",1
+m1-travesano-frontal,Travesano frontal banco,1040,80,1,si,#8B5A2B,18,"T,B,L,R",1
+m1-travesano-trasero,Travesano trasero banco,1040,80,1,si,#8B5A2B,18,"T,B,L,R",1
+m1-travesano-lateral,Travesano lateral banco,290,80,2,no,#8B5A2B,18,"T,B,L,R",1

@@ -43,10 +43,20 @@ class M:
         self.laterales(mod, suffix)
         self.fondo(mod, suffix)
     def cajon(self, mod, sub, n_por_fila=1, alto_vano=180, tipo='corredera', ancho=None, prof=None, color=C_DRAW):
-        # Cajón coherente con el vano del módulo (mismas reglas que valida js/csvParser.js):
-        # W = ancho − 2E · D = profundidad − E − E · frente ≤ W−2
-        # profCajon = D − 25 (corredera) o D − 15 (volquete/abatible)
+        # Cajón de 6 piezas coherente con el vano del módulo (mismas reglas que
+        # cajon() de scripts/generar-ejemplos-assembly.mjs y que valida js/csvParser.js):
+        # W = ancho − 2E · D = profundidad − E − E
+        # frente.ancho = N===1 ? W−2 : floor((W − (N−1)×3)/N) − 1 · frente.alto = altoVano − 3
+        # profCajon = D − 25 (corredera telescópica) o D − 15 (volquete/abatible)
+        # lateral = profCajon × (frente.alto − 2×espBase)
+        # Caja telescópica: vanoCajon = N===1 ? W : frente.ancho + 2
+        #   interior = round(vanoCajon − 25,4) − 2×espLat
+        #   base/fondo/cara = interior (la cara es el frente interior entre laterales)
+        # Volquete/abatible: sin corredera, conserva el modelo clásico derivado
+        # del frente (interior = frente − 2×espLat) y no lleva pieza de cara.
         E = TH_BODY
+        ESP_LAT = TH_BODY
+        ESP_BASE = TH_BODY
         W = (ancho or self.w) - 2 * E
         D = (prof or self.d) - E - E
         if n_por_fila == 1:
@@ -54,15 +64,19 @@ class M:
         else:
             frente_w = (W - (n_por_fila - 1) * 3) // n_por_fila - 1
         frente_h = alto_vano - 3
-        prof_caj = D - (15 if tipo == 'volquete' else 25)
-        lat_h = frente_h - 2 * TH_BODY
-        fondo_w = frente_w - 2 * TH_BODY
-        nombre_tipo = ' abatible' if tipo == 'volquete' else ''
+        volquete = tipo == 'volquete'
+        prof_caj = D - (15 if volquete else 25)
+        lat_h = frente_h - 2 * ESP_BASE
+        vano_cajon = W if n_por_fila == 1 else frente_w + 2
+        interior = frente_w - 2 * ESP_LAT if volquete else round(vano_cajon - 25.4) - 2 * ESP_LAT
+        nombre_tipo = ' abatible' if volquete else ''
         self.add(f'{mod}{sub}-frente', f'Frente cajon{nombre_tipo} {sub}', frente_w, frente_h, 1, 'si', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
         self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', fondo_w, lat_h, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-base', f'Base cajon {sub}', fondo_w, prof_caj, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', interior, lat_h, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
+        if not volquete:
+            self.add(f'{mod}{sub}-cara', f'Cara cajon {sub}', interior, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-base', f'Base cajon {sub}', interior, prof_caj, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-tirador', f'Tirador cajon {sub}', 2, 20, 1, 'no', C_TIR, TH_TIR, '', f'{mod}{sub}')
 
 def write(title, desc, pieces, filename):
@@ -84,8 +98,8 @@ def write(title, desc, pieces, filename):
 
 # === SALÓN ===
 
-# Aparador
-m = M('aparador', 1600, 500, 800)
+# Aparador (prof 450 para entrar en el rango alacena 300–450)
+m = M('aparador', 1600, 450, 800)
 m.add('glb-zocalo', 'Zocalo aparador', 4800, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 # Modulo 1: cajonera (2 cajones por fila)
 m.box('m1', 'cajonera')
@@ -175,11 +189,11 @@ m.box('m1')
 m.cajon('m1', '1', alto_vano=150)
 write('Consola', 'Consola de recibidor con cajón amplio.', m.pieces, 'ejemplo-consola.csv')
 
-# Separador de ambientes
-m = M('separador', 1200, 200, 1600)
+# Separador de ambientes (prof 300 y alto 1800 para entrar en estanteria_librero 280–400 / 1800–2200)
+m = M('separador', 1200, 300, 1800)
 m.add('glb-zocalo', 'Zocalo separador', 1200, 80, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-tapa', 'Tapa separador', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
-m.add('glb-trasera', 'Panel posterior separador', 1200, 1600, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
+m.add('glb-trasera', 'Panel posterior separador', 1200, 1800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 m.add('m1-repisa-1', 'Repisa 1 separador', 1140, 170, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 m.add('m1-repisa-2', 'Repisa 2 separador', 1140, 170, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
@@ -189,14 +203,14 @@ write('Separador', 'Separador de ambientes tipo estantería abierta.', m.pieces,
 
 # === COCINA ===
 
-# Botellero
-m = M('botellero', 600, 300, 1200)
-m.add('glb-zocalo', 'Zocalo botellero', 600, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
-m.add('glb-tapa', 'Tapa botellero', 600, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
-m.add('glb-trasera', 'Panel posterior botellero', 600, 1200, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
+# Botellero (1000×400×1100, dentro de bar_cantina 1000–2000 / 400–600 / 1000–1100)
+m = M('botellero', 1000, 400, 1100)
+m.add('glb-zocalo', 'Zocalo botellero', 1000, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.add('glb-tapa', 'Tapa botellero', 1000, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
+m.add('glb-trasera', 'Panel posterior botellero', 1000, 1100, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 for i in range(1, 5):
-    m.add(f'm1-entrepaño-{i}', f'Entrepaño botellero {i}', 540, 250, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm1')
+    m.add(f'm1-entrepaño-{i}', f'Entrepaño botellero {i}', 940, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 write('Botellero', 'Botellero de cocina con entrepaños para botellas.', m.pieces, 'ejemplo-botellero.csv')
 
 # Isla
@@ -243,8 +257,8 @@ write('Espejo con módulo', 'Módulo de baño con puerta y espejo.', m.pieces, '
 
 # === ESTUDIO ===
 
-# Archivador
-m = M('archivador', 500, 600, 1300)
+# Archivador (prof 500 para entrar en el rango archivador 400–500)
+m = M('archivador', 500, 500, 1300)
 m.add('glb-zocalo', 'Zocalo archivador', 500, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-tapa', 'Tapa archivador', 500, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior archivador', 500, 1300, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')

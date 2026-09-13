@@ -21,6 +21,9 @@ export const FICHAS_EJEMPLOS = {
   'ejemplo-cajonera-correderas-ocultas.csv': { tipo: 'cajonera' },
   'ejemplo-universal-cajonera.csv': { tipo: 'cajonera' },
   'ejemplo-mesa-noche.csv': { tipo: 'buro' },
+  'ejemplo-tocador.csv': { tipo: 'tocador' },
+  // El cabecero (2000×300×1200) no es un tipo de la taxonomía; cama_base es
+  // el más cercano por función aunque sus rangos (alto 250–450) no lo cubran.
   'ejemplo-cabecero.csv': { tipo: 'cama_base', nota: 'clasificación aproximada' },
 
   // ── Cocina / comedor ─────────────────────────────────────────────────────
@@ -29,13 +32,15 @@ export const FICHAS_EJEMPLOS = {
   'ejemplo-columna-cocina.csv': { tipo: 'cocina_modular' },
   'ejemplo-aparador.csv': { tipo: 'alacena' },
   'ejemplo-bufetero.csv': { tipo: 'alacena' },
-  'ejemplo-vitrina.csv': { tipo: 'alacena', nota: 'clasificación aproximada' },
+  'ejemplo-vitrina.csv': { tipo: 'alacena' },
   'ejemplo-mesa-extensible.csv': { tipo: 'mesa_comedor' },
+  'ejemplo-banco-comedor.csv': { tipo: 'silla_banco' },
   'ejemplo-botellero.csv': { tipo: 'bar_cantina' },
 
   // ── Sala ─────────────────────────────────────────────────────────────────
   'ejemplo-mueble-tv.csv': { tipo: 'rack_entretenimiento' },
   'ejemplo-mueble-tv-zocalo-cajon.csv': { tipo: 'rack_entretenimiento' },
+  'ejemplo-panel-tv.csv': { tipo: 'panel_tv' },
   'ejemplo-estanteria.csv': { tipo: 'estanteria_librero' },
   'ejemplo-librero-alto.csv': { tipo: 'estanteria_librero' },
   'ejemplo-universal-librero.csv': { tipo: 'estanteria_librero' },
@@ -44,6 +49,9 @@ export const FICHAS_EJEMPLOS = {
   // ── Oficina ──────────────────────────────────────────────────────────────
   'ejemplo-escritorio.csv': { tipo: 'escritorio' },
   'ejemplo-archivador.csv': { tipo: 'archivador' },
+  'ejemplo-estacion-trabajo.csv': { tipo: 'estacion_trabajo' },
+  'ejemplo-recepcion.csv': { tipo: 'recepcion' },
+  'ejemplo-estanteria-oficina.csv': { tipo: 'estanteria_oficina' },
 
   // ── Entrada ──────────────────────────────────────────────────────────────
   'ejemplo-zapatera-repisa.csv': { tipo: 'zapatera' },
@@ -61,9 +69,15 @@ export const FICHAS_EJEMPLOS = {
   'ejemplo-columna-auxiliar-bano.csv': { tipo: 'mueble_alto_banio' },
 
   // ── Casos genéricos / de técnica (clasificación por contenido) ───────────
+  // Los tres demos de fondo son un casco cerrado de 600×800×400: coincide en
+  // medidas y estructura con la ficha de archivador (ancho 400–900, alto
+  // 700–1400, prof 400–500), así que la clasificación es exacta aunque el
+  // CSV sea ante todo una demo de montaje de fondo.
+  'ejemplo-fondo-custom.csv': { tipo: 'archivador' },
+  'ejemplo-fondo-externo.csv': { tipo: 'archivador' },
+  'ejemplo-fondo-interno.csv': { tipo: 'archivador' },
+  // Demo a escala reducida (120×60 mm) sin equivalente real en la taxonomía.
   'ejemplo-basico.csv': { tipo: 'estanteria_librero', nota: 'clasificación aproximada' },
+  // Demo técnica mixta (estantería 450×2300 + cajonera) fuera de todos los rangos.
   'ejemplo-global.csv': { tipo: 'estanteria_librero', nota: 'clasificación aproximada' },
-  'ejemplo-fondo-custom.csv': { tipo: 'estanteria_librero', nota: 'clasificación aproximada' },
-  'ejemplo-fondo-externo.csv': { tipo: 'estanteria_librero', nota: 'clasificación aproximada' },
-  'ejemplo-fondo-interno.csv': { tipo: 'estanteria_librero', nota: 'clasificación aproximada' },
 };

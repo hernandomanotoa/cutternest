@@ -184,11 +184,11 @@ const examples = [];
 // 7. Comoda / chifonier
 {
   const lines = [];
-  lines.push(header('Ejemplo de comoda / chifonier', '5 cajones verticales en un solo modulo, sin estructura global.'));
-  lines.push(...baseTapaLateralesFondo(1, 1, 900, 600, 450, '#C19A6B'));
+  lines.push(header('Ejemplo de comoda / chifonier', '5 cajones verticales en un solo modulo 900×700×450 (rango cajonera), sin estructura global.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 900, 700, 450, '#C19A6B'));
   for (let i = 1; i <= 5; i++) {
     const suffix = i === 1 ? 'superior' : i === 5 ? 'inferior' : `nivel ${i}`;
-    lines.push(...cajon(1, i, { anchoModulo: 900, profundidadModulo: 450, altoVano: 114, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix }));
+    lines.push(...cajon(1, i, { anchoModulo: 900, profundidadModulo: 450, altoVano: 132, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix }));
   }
   examples.push({ name: 'Ejemplo_CSV_Comoda_Chifonier.csv', dataName: 'ejemplo-comoda.csv', lines });
 }
@@ -284,10 +284,10 @@ const examples = [];
 // 14. Bufetero / aparador
 {
   const lines = [];
-  lines.push(header('Ejemplo de bufetero / aparador', 'Módulo bajo y ancho con 2 puertas y 1 repisa interna.'));
-  lines.push(...baseTapaLateralesFondo(1, 1, 1600, 900, 500, '#C19A6B'));
-  lines.push(line('m1-divisor-central', 'Divisor central M1', 470, 870, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-repisa', 'Repisa interna', 1540, 470, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(header('Ejemplo de bufetero / aparador', 'Módulo bajo y ancho 1600×900×450 (rango alacena) con 2 puertas y 1 repisa interna.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 1600, 900, 450, '#C19A6B'));
+  lines.push(line('m1-divisor-central', 'Divisor central M1', 420, 870, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-repisa', 'Repisa interna', 1540, 420, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
   lines.push(line('m1-puerta-izq', 'Puerta izquierda', 765, 830, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 1));
   lines.push(line('m1-puerta-der', 'Puerta derecha', 765, 830, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 1));
   lines.push(tirador('m1-tirador-izq', 'Tirador puerta izq', '#A0A0A0', 1));
@@ -524,6 +524,109 @@ function cajonOculto(parent, index, opts) {
   lines.push(...cajonOculto(1, 3, { anchoModulo: 600, profundidadModulo: 450, altoVano: 290, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: '3' }));
 
   examples.push({ name: 'Ejemplo_CSV_Cajonera_Correderas_Ocultas.csv', dataName: 'ejemplo-cajonera-correderas-ocultas.csv', lines });
+}
+
+// 24. Tocador (dormitorio): casco con espejo y 3 cajones
+{
+  const lines = [];
+  lines.push(header('Ejemplo de tocador', 'Estructura global + modulo tocador 1200×800×480 con 3 cajones y espejo con marco.'));
+  lines.push('# --- Estructura global ---');
+  lines.push(line('glb-zocalo', 'Zocalo corrido tocador', 1200, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-tapa', 'Tapa corrida tocador', 1200, 480, 1, 'si', '#C19A6B', 30, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-espejo', 'Espejo tocador', 1000, 600, 1, 'no', '#E8F4F8', 4, '', 'estructura'));
+
+  lines.push('# --- Modulo 1: tocador con 3 cajones ---');
+  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 800, 480, '#C19A6B'));
+  lines.push(...cajon(1, 1, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'medio' }));
+  lines.push(...cajon(1, 3, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Tocador.csv', dataName: 'ejemplo-tocador.csv', lines });
+}
+
+// 25. Banco de comedor (cocina_comedor): asiento + 4 patas + travesaños
+{
+  const lines = [];
+  lines.push(header('Ejemplo de banco de comedor', 'Asiento 1200×450 con 4 patas de panel y travesaños de refuerzo (ensamble de tarugo y pegamento). Sin casco: el asiento apoya directo sobre las patas.'));
+  lines.push('# --- Estructura global: asiento ---');
+  lines.push(line('glb-asiento', 'Asiento banco comedor', 1200, 450, 1, 'si', '#D9C2A3', 25, 'T,B,L,R', 'estructura'));
+
+  lines.push('# --- Modulo 1: patas y travesaños ---');
+  lines.push(line('m1-pata-delantera-izq', 'Pata delantera izquierda banco', 80, 425, 1, 'no', '#8B5A2B', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-delantera-der', 'Pata delantera derecha banco', 80, 425, 1, 'no', '#8B5A2B', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-izq', 'Pata trasera izquierda banco', 80, 425, 1, 'no', '#8B5A2B', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-pata-trasera-der', 'Pata trasera derecha banco', 80, 425, 1, 'no', '#8B5A2B', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-frontal', 'Travesano frontal banco', 1040, 80, 1, 'si', '#8B5A2B', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-trasero', 'Travesano trasero banco', 1040, 80, 1, 'si', '#8B5A2B', 18, 'T,B,L,R', 1));
+  lines.push(line('m1-travesano-lateral', 'Travesano lateral banco', 290, 80, 2, 'no', '#8B5A2B', 18, 'T,B,L,R', 1));
+
+  examples.push({ name: 'Ejemplo_CSV_Banco_Comedor.csv', dataName: 'ejemplo-banco-comedor.csv', lines });
+}
+
+// 26. Panel para TV (sala): panel flotante con repisas y canal de cables
+{
+  const lines = [];
+  lines.push(header('Ejemplo de panel para TV', 'Panel flotante 1800×1500×250 con repisas flotantes y canal de cables (anclaje a pared con tacos y tarugos).'));
+  lines.push('# --- Estructura global: panel, repisas y canal ---');
+  lines.push(line('glb-tablero', 'Tablero panel TV', 1800, 1500, 1, 'no', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-canal', 'Canal cables panel TV', 1800, 80, 1, 'si', '#8B5A2B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-repisa-superior', 'Repisa flotante superior panel TV', 800, 280, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-repisa-inferior', 'Repisa flotante inferior panel TV', 600, 280, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
+
+  examples.push({ name: 'Ejemplo_CSV_Panel_TV.csv', dataName: 'ejemplo-panel-tv.csv', lines });
+}
+
+// 27. Estación de trabajo (oficina): escritorio largo con divisor y cajonera
+{
+  const lines = [];
+  lines.push(header('Ejemplo de estacion de trabajo', 'Escritorio largo 2400×700 con divisor acustico, canaleta de cables y cajonera interior de 2 cajones.'));
+  lines.push('# --- Estructura global ---');
+  lines.push(line('glb-tablero', 'Tablero estacion trabajo', 2400, 700, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-divisor', 'Divisor acustico estacion trabajo', 350, 500, 1, 'no', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-canaleta', 'Canaleta cables estacion trabajo', 1200, 80, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-pata', 'Pata metalica estacion trabajo', 60, 700, 2, 'no', '#A0A0A0', 5, '', 'estructura'));
+
+  lines.push('# --- Modulo 1: cajonera interior de 2 cajones ---');
+  lines.push(...baseTapaLateralesFondo(1, 1, 500, 700, 600, '#C19A6B'));
+  lines.push(...cajon(1, 1, { anchoModulo: 500, profundidadModulo: 600, altoVano: 280, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 500, profundidadModulo: 600, altoVano: 280, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Estacion_Trabajo.csv', dataName: 'ejemplo-estacion-trabajo.csv', lines });
+}
+
+// 28. Recepción / mostrador (oficina): frente decorativo alto + cajonera interior
+{
+  const lines = [];
+  lines.push(header('Ejemplo de recepcion / mostrador', 'Mostrador alto 2400×1000×700 con frente decorativo continuo, tapa gruesa y cajonera interior con repisa.'));
+  lines.push('# --- Estructura global: frente decorativo y tapa ---');
+  lines.push(line('glb-frente', 'Frente decorativo mostrador', 2400, 1000, 1, 'no', '#8B5A2B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-tapa', 'Tapa mostrador', 2400, 700, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
+
+  lines.push('# --- Modulo 1: cajonera interior ---');
+  lines.push(...baseTapaLateralesFondo(1, 1, 600, 1000, 600, '#C19A6B'));
+  lines.push(line('m1-repisa', 'Repisa recepcion', 540, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 600, altoVano: 400, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Recepcion.csv', dataName: 'ejemplo-recepcion.csv', lines });
+}
+
+// 29. Estantería de oficina: abierta con 5 repisas y divisor vertical
+{
+  const lines = [];
+  lines.push(header('Ejemplo de estanteria de oficina', 'Estanteria abierta 1200×1900×350 con 5 repisas regulables y divisor vertical (anclaje anti-volcadura a pared).'));
+  lines.push('# --- Estructura global ---');
+  lines.push(line('glb-zocalo', 'Zocalo estanteria oficina', 1200, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-tapa', 'Tapa estanteria oficina', 1200, 40, 1, 'si', '#C19A6B', 30, 'T,B,L,R', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior estanteria oficina', 1200, 1900, '#F2F2F2', 'estructura'));
+
+  lines.push('# --- Modulo 1: casco con 5 repisas y divisor ---');
+  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 1900, 350, '#C19A6B'));
+  lines.push(line('m1-divisor-vertical', 'Divisor vertical estanteria oficina', 320, 1870, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
+  for (let i = 1; i <= 5; i++) {
+    lines.push(line(`m1-repisa-${i}`, `Repisa ${i} estanteria oficina`, 1140, 250, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  }
+
+  examples.push({ name: 'Ejemplo_CSV_Estanteria_Oficina.csv', dataName: 'ejemplo-estanteria-oficina.csv', lines });
 }
 
 for (const ex of examples) {
