@@ -4,6 +4,7 @@ import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../util
 import { COLORS } from '../core/config.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
+import { createFurnitureFicha } from '../components/furnitureFicha.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
 import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
@@ -170,10 +171,12 @@ export function createIsometricView(store) {
       setAperturaPieza(id, decideAperturaToggle(actual));
     });
 
-    createPieceOffsetsConfig().mount(
-      container.querySelector('#iso-config-host'),
-      store
-    );
+    const fichaHost = container.querySelector('#iso-config-host');
+    createFurnitureFicha().mount(fichaHost, store);
+    const offsetsRoot = createPieceOffsetsConfig().mount(fichaHost, store);
+    // Ambos paneles comparten el host flotante: se apilan en columna
+    // anulando el posicionamiento absoluto de .iso-config-panel.
+    if (offsetsRoot) offsetsRoot.style.position = 'relative';
 
     container.querySelector('#btn-iso-zoom-in')?.addEventListener('click', () => {
       scale = Math.min(scale * 1.2, 0.5);

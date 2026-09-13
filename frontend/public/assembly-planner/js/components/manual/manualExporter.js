@@ -3,8 +3,61 @@
 
 import { generarInstruccion, toolsForStep } from '../../instructions.js';
 import { COLORS } from '../../core/config.js';
+import {
+  FICHAS,
+  ESTRUCTURAS_CONSTRUCTIVAS,
+  USO_TABLERO,
+  NIVELES_COMPLEJIDAD,
+} from '../../core/furnitureTaxonomy.js';
 
-export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest') {
+// "mesa_centro_lateral" → "mesa centro lateral"
+function humanize(key) {
+  return String(key || '').replace(/_/g, ' ');
+}
+
+function formatRango([min, max]) {
+  return `${min}–${max} mm`;
+}
+
+// [90, 150] → "aprox. 1.5–2.5 h"
+function formatTiempo([min, max]) {
+  const h = (v) => Math.round((v / 60) * 10) / 10;
+  return `aprox. ${h(min)}–${h(max)} h`;
+}
+
+// Sección "Ficha técnica" al inicio del manual. `ficha` llega ya con las
+// correcciones manuales aplicadas (applyFichaCorrections). Solo se renderiza
+// cuando hay un tipo resuelto; sin clasificación no hay sección.
+function renderFichaSection(ficha) {
+  const c = ficha?.clasificacion;
+  if (!c || !c.tipo) return '';
+  const fichaTipo = FICHAS[c.tipo];
+  const medidasStd = fichaTipo
+    ? `Estándar: ${formatRango(fichaTipo.medidasEstandar.ancho)} (ancho) × ${formatRango(fichaTipo.medidasEstandar.alto)} (alto) × ${formatRango(fichaTipo.medidasEstandar.prof)} (prof).`
+    : '';
+  const medidasProyecto = ficha?.medidasProyecto
+    ? `Proyecto: ${ficha.medidasProyecto.width} × ${ficha.medidasProyecto.height} × ${ficha.medidasProyecto.depth} mm (ancho × alto × prof).`
+    : '';
+  const herrajes = fichaTipo
+    ? `<ul>${fichaTipo.herrajesTipicos.map((h) => `<li>${h}</li>`).join('')}</ul>`
+    : '';
+  const tiempo = fichaTipo
+    ? `<p>Tiempo estimado: ${formatTiempo(fichaTipo.tiempoMinutos)} (ajustable).</p>`
+    : '';
+
+  return `
+    <section style="page-break-after: always; margin-bottom: 2rem;">
+      <h2>Ficha técnica</h2>
+      <p>Mueble: ${humanize(c.tipo)}${c.ambiente ? ` — ambiente: ${humanize(c.ambiente)}` : ''}.</p>
+      <p>Estructura: ${ESTRUCTURAS_CONSTRUCTIVAS[c.estructura]?.label || humanize(c.estructura)}. Uso de tablero: ${USO_TABLERO[c.usoTablero]?.label || humanize(c.usoTablero)}. Nivel: ${NIVELES_COMPLEJIDAD[c.nivel]?.label || c.nivel}.</p>
+      <p>${medidasStd} ${medidasProyecto}</p>
+      ${fichaTipo ? `<p>Herrajes típicos:</p>${herrajes}` : ''}
+      ${tiempo}
+    </section>
+  `;
+}
+
+export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest', ficha = null) {
   const body = steps.map((s) => {
     const completed = new Set();
     for (let i = 0; i < steps.indexOf(s); i++) completed.add(steps[i].paso);
@@ -32,6 +85,7 @@ section { margin-bottom: 2rem; }
 </head>
 <body>
 <h1>Manual de Ensamblaje — ${moduleLabel}</h1>
+${renderFichaSection(ficha)}
 ${body}
 </body>
 </html>`;

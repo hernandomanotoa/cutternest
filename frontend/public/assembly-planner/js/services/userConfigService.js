@@ -1,4 +1,4 @@
-// js/services/userConfigService.js — Persistencia de offsets de posición vertical
+// js/services/userConfigService.js — Persistencia de offsets y correcciones
 // Sin DOM. Lógica pura testeable.
 
 import { VERTICAL_POSITIONS } from '../core/config.js';
@@ -15,7 +15,7 @@ function getStorage() {
 }
 
 export function loadUserConfig() {
-  const config = { ...VERTICAL_POSITIONS, pieceOffsets: {} };
+  const config = { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} };
   const storage = getStorage();
   if (!storage) return config;
 
@@ -34,6 +34,12 @@ export function loadUserConfig() {
         }
         if (parsed.pieceOffsets && typeof parsed.pieceOffsets === 'object') {
           config.pieceOffsets = { ...parsed.pieceOffsets };
+        }
+        // Correcciones manuales de la ficha técnica ({ambiente, tipo, nivel}
+        // parciales). Se copian tal cual; la validación ocurre al aplicarlas
+        // (applyFichaCorrections en furnitureClassifier.js).
+        if (parsed.fichaCorrections && typeof parsed.fichaCorrections === 'object') {
+          config.fichaCorrections = { ...parsed.fichaCorrections };
         }
       }
     }
@@ -66,6 +72,14 @@ export function saveUserConfig(overrides) {
       Object.keys(overrides.pieceOffsets).length > 0
     ) {
       diff.pieceOffsets = overrides.pieceOffsets;
+    }
+    // Mismo patrón que pieceOffsets: solo se persiste si no está vacío.
+    if (
+      overrides?.fichaCorrections &&
+      typeof overrides.fichaCorrections === 'object' &&
+      Object.keys(overrides.fichaCorrections).length > 0
+    ) {
+      diff.fichaCorrections = overrides.fichaCorrections;
     }
     storage.setItem(STORAGE_KEY, JSON.stringify(diff));
   } catch {

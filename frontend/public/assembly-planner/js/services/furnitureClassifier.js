@@ -6,7 +6,7 @@
 // La clasificación por pieza (rol) sigue en classifierService.js.
 
 import { inferRole, detectFamily } from './classifierService.js';
-import { COMPLEXITY_SCORE_RANGES } from '../core/furnitureTaxonomy.js';
+import { AMBIENTES, COMPLEXITY_SCORE_RANGES } from '../core/furnitureTaxonomy.js';
 import { normalizeName } from '../utils/normalize.js';
 
 // Reglas de keyword → { ambiente, tipo }. El ORDEN importa: las reglas más
@@ -194,4 +194,54 @@ export function classifyFurniture(pieces) {
       estructura: notaEstructura,
     },
   };
+}
+
+/**
+ * Aplica correcciones manuales del taller sobre una clasificación inferida.
+ * `corrections` es un objeto parcial { ambiente, tipo, nivel } (el campo
+ * `fichaCorrections` de userConfig). Reglas de saneado:
+ * - corrections null/undefined o sin campos aplicables → no-op.
+ * - ambiente solo se aplica si existe en AMBIENTES.
+ * - tipo solo se aplica si existe dentro del ambiente resultante (el
+ *   corregido, o el ya inferido si no hay corrección de ambiente). Si el
+ *   tipo corregido es inválido para el ambiente, la corrección de tipo se
+ *   IGNORA (queda la inferida). Si el ambiente corregido deja al tipo
+ *   vigente fuera de sus tipos, el tipo se sanea a null.
+ * - nivel solo se aplica si es 'basico' | 'medio' | 'alto'.
+ * Los campos corregidos pasan a confianza 'alta' (decisión humana, no
+ * inferencia), para que la UI no los marque como "(inferido)".
+ */
+export function applyFichaCorrections(clasificacion, corrections) {
+  if (!clasificacion || !corrections || typeof corrections !== 'object') {
+    return clasificacion;
+  }
+
+  const next = { ...clasificacion, confianza: { ...clasificacion.confianza } };
+  const tipoValidoEn = (tipo, ambiente) =>
+    !!ambiente && Array.isArray(AMBIENTES[ambiente]) && AMBIENTES[ambiente].includes(tipo);
+
+  if (corrections.ambiente && Object.prototype.hasOwnProperty.call(AMBIENTES, corrections.ambiente)) {
+    next.ambiente = corrections.ambiente;
+    next.confianza.ambiente = 'alta';
+  }
+
+  const ambienteResultante = next.ambiente;
+  if (corrections.tipo && typeof corrections.tipo === 'string') {
+    if (tipoValidoEn(corrections.tipo, ambienteResultante)) {
+      next.tipo = corrections.tipo;
+      next.confianza.tipo = 'alta';
+    }
+    // Tipo inválido para el ambiente resultante: se ignora la corrección.
+  }
+  // Saneo de consistencia: el tipo vigente debe pertenecer al ambiente.
+  if (next.tipo && !tipoValidoEn(next.tipo, next.ambiente)) {
+    next.tipo = null;
+    next.confianza.tipo = 'baja';
+  }
+
+  if (['basico', 'medio', 'alto'].includes(corrections.nivel)) {
+    next.nivel = corrections.nivel;
+  }
+
+  return next;
 }

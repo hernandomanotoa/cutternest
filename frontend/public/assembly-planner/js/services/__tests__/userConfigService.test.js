@@ -36,7 +36,7 @@ describe('userConfigService', () => {
   describe('loadUserConfig', () => {
     it('returns defaults when localStorage is empty', () => {
       const config = loadUserConfig();
-      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {} });
+      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} });
     });
 
     it('merges saved overrides with defaults', () => {
@@ -63,7 +63,7 @@ describe('userConfigService', () => {
     it('falls back to defaults when localStorage is unavailable', () => {
       delete globalThis.localStorage;
       const config = loadUserConfig();
-      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {} });
+      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} });
     });
   });
 
@@ -86,6 +86,32 @@ describe('userConfigService', () => {
       saveUserConfig({ ...VERTICAL_POSITIONS });
       const raw = storage.getItem('cn-assembly-config');
       assert.equal(raw, '{}');
+    });
+
+    it('stores fichaCorrections overrides', () => {
+      saveUserConfig({
+        ...VERTICAL_POSITIONS,
+        fichaCorrections: { ambiente: 'entrada', tipo: 'zapatera', nivel: 'basico' },
+      });
+      const raw = storage.getItem('cn-assembly-config');
+      const saved = JSON.parse(raw);
+      assert.deepEqual(saved.fichaCorrections, { ambiente: 'entrada', tipo: 'zapatera', nivel: 'basico' });
+    });
+
+    it('does not persist empty fichaCorrections', () => {
+      saveUserConfig({ ...VERTICAL_POSITIONS, fichaCorrections: {} });
+      const raw = storage.getItem('cn-assembly-config');
+      const saved = JSON.parse(raw);
+      assert.equal('fichaCorrections' in saved, false);
+    });
+
+    it('round-trip: loadUserConfig restores saved fichaCorrections', () => {
+      storage.setItem(
+        'cn-assembly-config',
+        JSON.stringify({ fichaCorrections: { nivel: 'alto' } })
+      );
+      const config = loadUserConfig();
+      assert.deepEqual(config.fichaCorrections, { nivel: 'alto' });
     });
 
     it('gracefully handles missing localStorage', () => {

@@ -373,9 +373,31 @@ export function resetPieceOffsets() {
   saveUserConfig(next);
 }
 
+export function updateFichaCorrections(patch) {
+  const store = getStore();
+  const state = store.get();
+  const fichaCorrections = { ...(state.userConfig?.fichaCorrections || {}) };
+  // null/undefined elimina la clave: permite revertir un campo a inferencia.
+  for (const [key, value] of Object.entries(patch || {})) {
+    if (value == null) delete fichaCorrections[key];
+    else fichaCorrections[key] = value;
+  }
+  const next = { ...state.userConfig, fichaCorrections };
+  store.set({ userConfig: next });
+  saveUserConfig(next);
+}
+
+export function clearFichaCorrections() {
+  const store = getStore();
+  const state = store.get();
+  const next = { ...state.userConfig, fichaCorrections: {} };
+  store.set({ userConfig: next });
+  saveUserConfig(next);
+}
+
 export function resetUserConfig() {
   const store = getStore();
-  store.set({ userConfig: { ...VERTICAL_POSITIONS, pieceOffsets: {} } });
+  store.set({ userConfig: { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} } });
   resetUserConfigService();
 }
 

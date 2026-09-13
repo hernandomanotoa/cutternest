@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildStandaloneHtml } from './manualExporter.js';
+import { classifyFurniture, applyFichaCorrections } from '../../services/furnitureClassifier.js';
+import { getModuleDimensions } from '../../services/geometryService.js';
 
 const piecesById = {
   'lat-izq': { nombre: 'Lateral izquierdo M5' },
@@ -37,5 +39,49 @@ describe('manualExporter', () => {
     const rightIdx = html.indexOf('derecho 1');
     assert.ok(leftIdx < divIdx, 'left shelf should appear before divider');
     assert.ok(divIdx < rightIdx, 'divider should appear before right shelf');
+  });
+
+  it('no incluye sección de ficha técnica sin clasificación', () => {
+    const html = buildStandaloneHtml(steps, piecesById, 'M5');
+    assert.equal(html.includes('Ficha técnica'), false);
+    const htmlNull = buildStandaloneHtml(steps, piecesById, 'M5', { clasificacion: { tipo: null } });
+    assert.equal(htmlNull.includes('Ficha técnica'), false);
+  });
+
+  it('incluye ficha técnica con el tipo inferido de las piezas de ejemplo', () => {
+    const piezasZapatera = [
+      { id: 'm1-base', nombre: 'Base zapatero', ancho: 800, alto: 300, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-tapa', nombre: 'Tapa zapatero', ancho: 800, alto: 300, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-lat-izq', nombre: 'Lateral izquierdo', ancho: 300, alto: 1200, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-lat-der', nombre: 'Lateral derecho', ancho: 300, alto: 1200, espesor: 15, color: '#8B5A2B', modulo: '1' },
+      { id: 'm1-estante', nombre: 'Estante zapatero 1', ancho: 770, alto: 280, espesor: 15, color: '#8B5A2B', modulo: '1' },
+    ];
+    const clasificacion = applyFichaCorrections(
+      classifyFurniture(piezasZapatera),
+      {},
+    );
+    assert.equal(clasificacion.tipo, 'zapatera');
+    const medidasProyecto = getModuleDimensions(piezasZapatera, 15);
+    const html = buildStandaloneHtml(steps, piecesById, 'Zapatero', {
+      clasificacion,
+      medidasProyecto,
+    });
+    assert.ok(html.includes('Ficha técnica'), 'debe incluir la sección');
+    assert.ok(html.includes('Mueble: zapatera'), 'debe contener el tipo inferido');
+    assert.ok(html.includes('entrada'), 'debe contener el ambiente inferido');
+    assert.ok(html.includes('Estándar:'), 'debe incluir las medidas estándar del tipo');
+    assert.ok(html.includes('Proyecto:'), 'debe incluir las medidas del proyecto');
+    assert.ok(html.includes('Herrajes típicos:'), 'debe incluir la lista de herrajes');
+    assert.ok(html.includes('Tiempo estimado:'), 'debe incluir el tiempo estimado');
+  });
+
+  it('la ficha técnica refleja correcciones manuales aplicadas', () => {
+    const clasificacion = applyFichaCorrections(
+      classifyFurniture([{ id: 'p1', nombre: 'Pieza suelta', ancho: 100, alto: 100 }]),
+      { ambiente: 'sala', tipo: 'estanteria_librero', nivel: 'basico' },
+    );
+    const html = buildStandaloneHtml(steps, piecesById, 'Genérico', { clasificacion });
+    assert.ok(html.includes('Mueble: estanteria librero'));
+    assert.ok(html.includes('sala'));
   });
 });

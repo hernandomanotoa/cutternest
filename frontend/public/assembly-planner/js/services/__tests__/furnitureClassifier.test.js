@@ -4,7 +4,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyFurniture } from '../furnitureClassifier.js';
+import { classifyFurniture, applyFichaCorrections } from '../furnitureClassifier.js';
 
 const piece = (nombre, overrides = {}) => ({
   id: overrides.id ?? `P-${nombre}`,
@@ -203,5 +203,82 @@ describe('classifyFurniture: score → nivel de complejidad', () => {
     }
     const result = classifyFurniture(pieces);
     assert.equal(result.score, 1);
+  });
+});
+
+describe('applyFichaCorrections', () => {
+  const clasificacionBase = {
+    ambiente: 'entrada',
+    tipo: 'zapatera',
+    estructura: 'abierto',
+    usoTablero: 'unicolor',
+    nivel: 'basico',
+    score: 0,
+    familia: 'cabinet',
+    confianza: { ambiente: 'media', tipo: 'media', estructura: 'media', usoTablero: 'media' },
+    notas: { estructura: null },
+  };
+
+  it('corrección válida de ambiente + tipo prevalece sobre la inferencia', () => {
+    const result = applyFichaCorrections(clasificacionBase, {
+      ambiente: 'dormitorio',
+      tipo: 'buro',
+      nivel: 'medio',
+    });
+    assert.equal(result.ambiente, 'dormitorio');
+    assert.equal(result.tipo, 'buro');
+    assert.equal(result.nivel, 'medio');
+    assert.equal(result.confianza.ambiente, 'alta');
+    assert.equal(result.confianza.tipo, 'alta');
+  });
+
+  it('tipo inválido para el ambiente corregido se ignora', () => {
+    const result = applyFichaCorrections(clasificacionBase, {
+      ambiente: 'banio',
+      tipo: 'zapatera', // zapatera no existe en banio
+    });
+    assert.equal(result.ambiente, 'banio');
+    assert.equal(result.tipo, null, 'el tipo inferido queda fuera del ambiente corregido → saneado a null');
+    assert.equal(result.confianza.tipo, 'baja');
+  });
+
+  it('tipo válido sin ambiente se valida contra el ambiente inferido', () => {
+    const result = applyFichaCorrections(clasificacionBase, { tipo: 'recibidor_consola' });
+    assert.equal(result.ambiente, 'entrada');
+    assert.equal(result.tipo, 'recibidor_consola');
+    assert.equal(result.confianza.tipo, 'alta');
+  });
+
+  it('corrección parcial de solo nivel no toca ambiente/tipo', () => {
+    const result = applyFichaCorrections(clasificacionBase, { nivel: 'alto' });
+    assert.equal(result.nivel, 'alto');
+    assert.equal(result.ambiente, 'entrada');
+    assert.equal(result.tipo, 'zapatera');
+    assert.equal(result.confianza.ambiente, 'media', 'lo no corregido conserva su confianza');
+  });
+
+  it('correcciones null/undefined son no-op', () => {
+    assert.equal(applyFichaCorrections(clasificacionBase, null), clasificacionBase);
+    assert.equal(applyFichaCorrections(clasificacionBase, undefined), clasificacionBase);
+  });
+
+  it('ambiente inexistente y nivel inválido se ignoran', () => {
+    const result = applyFichaCorrections(clasificacionBase, {
+      ambiente: 'terraza',
+      nivel: 'experto',
+    });
+    assert.equal(result.ambiente, 'entrada');
+    assert.equal(result.nivel, 'basico');
+  });
+
+  it('integración: la corrección manual prevalece tras classifyFurniture', () => {
+    const inferida = classifyFurniture([
+      piece('Pieza A'), piece('Pieza B'), piece('Pieza C'), piece('Pieza D'),
+    ]);
+    assert.equal(inferida.ambiente, null);
+    const corregida = applyFichaCorrections(inferida, { ambiente: 'sala', tipo: 'estanteria_librero' });
+    assert.equal(corregida.ambiente, 'sala');
+    assert.equal(corregida.tipo, 'estanteria_librero');
+    assert.equal(corregida.confianza.ambiente, 'alta');
   });
 });
