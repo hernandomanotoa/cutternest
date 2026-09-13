@@ -117,15 +117,31 @@ describe('buildDrawerBoxGeometries', () => {
     assert.ok(Math.abs(fondo.w - 344.6) < 1e-9);
     assert.equal(fondo.d, 15, 'espesor real del fondo');
     assert.equal(fondo.y, 20, 'trasera de la caja, contra el fondo del cajón');
+    assert.equal(fondo.z, 80, 'z = zBox + espBase (65+15): apoyado SOBRE la base');
+    assert.equal(fondo.h, 155, 'alto real 170 clampado a latAlto − espBase (170−15)');
 
-    // Cara: frente interior de la caja. Mismo anclaje x/z que el lateral
-    // izquierdo; en y va pegada al frente (yFace − espCara).
+    // El fondo no debe intersecar la base en AABB: rangos [z, z+h) disjuntos.
+    const aabb = (g) => ({ minX: g.x, maxX: g.x + g.w, minY: g.y, maxY: g.y + g.d, minZ: g.z, maxZ: g.z + g.h });
+    const ab = aabb(base);
+    const af = aabb(fondo);
+    assert.ok(
+      af.minZ >= ab.maxZ - 1e-9,
+      `el fondo [${af.minZ},${af.maxZ}) debe empezar donde termina la base [${ab.minZ},${ab.maxZ})`
+    );
+    // Y no debe superar el borde superior de los laterales.
+    const latTop = izq.z + izq.h;
+    assert.ok(af.maxZ <= latTop + 1e-9, `el fondo (${af.maxZ}) no debe pasar el borde superior de los laterales (${latTop})`);
+
+    // Cara: frente interior de la caja. Anclada a la cara INTERIOR del lateral
+    // izquierdo (su ancho mide el interior entre laterales); en y va pegada al
+    // frente (yFace − espCara).
     const cara = box.find((g) => g.id === 'm1-cajon-cara');
     assert.equal(cara.role, 'drawer_part');
-    assert.equal(cara.x, 112.7, 'misma x que el lateral izquierdo');
+    assert.equal(cara.x, 127.7, 'cara interior del lateral izq (latX[0] + espLat)');
     assert.equal(cara.y, 485, 'yFace − espCara (500−15)');
     assert.equal(cara.z, 65);
-    assert.ok(Math.abs(cara.w - 344.6) < 1e-9, 'ancho real clampado al máximo interior');
+    assert.ok(Math.abs(cara.w - 344.6) < 1e-9, 'ancho real clampado al interior entre laterales');
+    assert.ok(Math.abs(cara.x + cara.w - 472.3) < 1e-9, 'cara termina exactamente en la cara interior del lateral der');
     assert.equal(cara.d, 15, 'espesor real de la cara (en profundidad)');
     assert.equal(cara.h, 170, 'mismo alto que los laterales');
     assert.equal(cara.real, true);
@@ -154,9 +170,9 @@ describe('buildDrawerBoxGeometries', () => {
 
     // La cara comparte el anclaje del lateral izquierdo y va al frente de la caja.
     const cara = box.find((g) => g.id === 'm1-cajon-cara');
-    assert.equal(cara.x, 106);
+    assert.equal(cara.x, 121, 'cara interior del lateral izq (106 + espLat)');
     assert.equal(cara.y, 485, 'yFace − espCara (500−15)');
-    assert.equal(cara.w, 358, 'cara clampada a vano − 42');
+    assert.equal(cara.w, 358, 'cara clampada al interior entre laterales');
     assert.equal(cara.h, 170);
   });
 

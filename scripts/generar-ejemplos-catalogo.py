@@ -52,6 +52,7 @@ class M:
         # Caja telescópica: vanoCajon = N===1 ? W : frente.ancho + 2
         #   interior = round(vanoCajon − 25,4) − 2×espLat
         #   base/fondo/cara = interior (la cara es el frente interior entre laterales)
+        #   fondo alto = latAlto − espBase: va apoyado sobre la base.
         # Volquete/abatible: sin corredera, conserva el modelo clásico derivado
         # del frente (interior = frente − 2×espLat) y no lleva pieza de cara.
         E = TH_BODY
@@ -73,7 +74,7 @@ class M:
         self.add(f'{mod}{sub}-frente', f'Frente cajon{nombre_tipo} {sub}', frente_w, frente_h, 1, 'si', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
         self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', interior, lat_h, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', interior, lat_h - ESP_BASE, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
         if not volquete:
             self.add(f'{mod}{sub}-cara', f'Cara cajon {sub}', interior, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-base', f'Base cajon {sub}', interior, prof_caj, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')

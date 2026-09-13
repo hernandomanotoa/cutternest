@@ -163,24 +163,31 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
   if (parts.fondo) {
     const backRealW = Math.max(0, Number(parts.fondo.ancho) || 0);
     const backW = backRealW > 0 ? Math.min(backRealW, maxInterior) : maxInterior;
-    const backH = Math.max(0, Number(parts.fondo.alto) || 0) || latAlto;
+    // El fondo va APOYADO SOBRE la base (en un cajón real no comparten el
+    // plano inferior: z = zBox + espBase) y su alto se capa para no pasar
+    // el borde superior de los laterales: ocupa [zBox + espBase, zBox + latAlto).
+    const backMaxH = Math.max(0, latAlto - espBase);
+    const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
     const backT = Number(parts.fondo.espesor) || thickness;
     box.push({
-      x: x + (w - backW) / 2, y: yFace - profLat, z: zBox,
+      x: x + (w - backW) / 2, y: yFace - profLat, z: zBox + espBase,
       w: backW, d: backT, h: backH,
       color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
     });
   }
 
   // Cara: frente interior de la caja (va justo detrás del frente decorativo).
-  // Mismo anclaje que el lateral izquierdo en x/z; en y ocupa el último
-  // espesor de la caja, pegada al frente.
+  // Su ancho mide el interior ENTRE laterales, así que se ancla a la cara
+  // interior del lateral izquierdo (no a su cara exterior, que haría que la
+  // cara solapara el lateral en el AABB). En y ocupa el último espesor de la
+  // caja, pegada al frente.
   if (parts.cara) {
     const caraRealW = Math.max(0, Number(parts.cara.ancho) || 0);
-    const caraW = caraRealW > 0 ? Math.min(caraRealW, maxInterior) : maxInterior;
+    const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
+    const caraW = caraRealW > 0 ? Math.min(caraRealW, interiorBetween) : interiorBetween;
     const espCara = Number(parts.cara.espesor) || espLat;
     box.push({
-      x: latX[0], y: yFace - espCara, z: zBox,
+      x: latX[0] + espLat, y: yFace - espCara, z: zBox,
       w: caraW, d: espCara, h: latAlto,
       color: parts.cara.color, role: 'drawer_part', name: parts.cara.nombre, id: parts.cara.id, real: true,
     });

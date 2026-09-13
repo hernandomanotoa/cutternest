@@ -57,6 +57,51 @@ export function movingPieceIds(pieces, aperturas, aperturaGlobal) {
 }
 
 /**
+ * Uniones legítimas por diseño cuyo solape AABB es un artefacto de la
+ * aproximación (no un choque real):
+ *   - tirador anclado sobre la cara visible de su frente de cajón o puerta.
+ *   - cara (frente interior de la caja) unida en escuadra con la base: la
+ *     cara cubre el canto frontal de la base; son paneles perpendiculares
+ *     sin volumen compartido, pero sus AABB se intersectan.
+ * Solo aplican dentro de la misma caja/puerta (mismo tallo de id, es decir,
+ * mismo submódulo): el tirador o la cara de OTRA caja que solape sí se reporta.
+ */
+const LEGIT_JOINT_ROLES = new Set([
+  'drawer_bottom|drawer_part',
+  'drawer_face|handle',
+  'door|handle',
+]);
+
+function isLegitJoint(a, b) {
+  const key = [a.role || '', b.role || ''].sort().join('|');
+  if (!LEGIT_JOINT_ROLES.has(key)) return false;
+  const stem = (id) => String(id || '').split('-').slice(0, -1).join('-');
+  const sa = stem(a.id);
+  return sa !== '' && sa === stem(b.id);
+}
+
+/**
+ * Piezas con la MISMA rotación (eje, ángulo y pivote) pertenecen al mismo
+ * grupo rígido (p. ej. caja de volquete que pivota con su frente): no pueden
+ * colisionar entre sí. El AABB de un volumen rotado se infla respecto al
+ * real, así que dos piezas adyacentes del grupo sí pueden "solapar" en AABB
+ * sin tocarse (falso positivo).
+ */
+function sameRigidRotation(a, b) {
+  const ra = a.rotation;
+  const rb = b.rotation;
+  if (!ra || !rb || ra.axis !== rb.axis) return false;
+  if (Math.abs((ra.angleDeg || 0) - (rb.angleDeg || 0)) > 1e-9) return false;
+  const pa = ra.pivot || {};
+  const pb = rb.pivot || {};
+  return (
+    Math.abs((pa.x || 0) - (pb.x || 0)) < 1e-9 &&
+    Math.abs((pa.y || 0) - (pb.y || 0)) < 1e-9 &&
+    Math.abs((pa.z || 0) - (pb.z || 0)) < 1e-9
+  );
+}
+
+/**
  * Pares de piezas móviles distintas que se solapan al abrirse.
  * @returns {Array<{aId,bId,aName,bName,volume}>} un par por combinación de ids
  *   (el de mayor volumen), ordenado de mayor a menor volumen.
@@ -73,8 +118,13 @@ export function detectCollisions(geometries, movingIds) {
       const { geo: a, box: ba } = boxes[i];
       const { geo: b, box: bb } = boxes[j];
       if (a.id === b.id) continue;
+      if (isLegitJoint(a, b)) continue;
+      if (sameRigidRotation(a, b)) continue;
       const volume = intersectVolume(ba, bb);
-      if (volume <= 0) continue;
+      // Tolerancia epsilon: caras que se tocan con holguras decimales (12,7 mm
+      // de corredera, centrajes /2) producen polvo de punto flotante (~1e-11
+      // mm³) que no es una colisión. El contacto real sigue dando volumen 0.
+      if (volume < 1e-6) continue;
       const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
       const prev = byPair.get(key);
       if (!prev || volume > prev.volume) {

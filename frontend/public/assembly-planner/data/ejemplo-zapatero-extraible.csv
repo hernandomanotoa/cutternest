@@ -11,35 +11,35 @@ m1-bandeja-zapatero,Bandeja zapatero,770,450,1,si,#D9C2A3,18,"T,B,L,R",1
 m11-zapatera-frente,Frente zapatera extraible 1 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",11
 m11-zapatera-lateral-izq,Lateral zapatera extraible 1 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",11
 m11-zapatera-lateral-der,Lateral zapatera extraible 1 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",11
-m11-zapatera-fondo,Fondo zapatera extraible 1 M1,715,217,1,no,#F2F2F2,15,,11
+m11-zapatera-fondo,Fondo zapatera extraible 1 M1,715,202,1,no,#F2F2F2,15,,11
 m11-zapatera-cara,Cara zapatera extraible 1 M1,715,217,1,no,#D9C2A3,15,"T,B,L,R",11
 m11-zapatera-base,Base zapatera extraible 1 M1,715,445,1,si,#D9C2A3,15,"T,B,L,R",11
 m11-zapatera-tirador,Tirador zapatera extraible 1 M1,2,20,1,no,#A0A0A0,5,,11
 m12-zapatera-frente,Frente zapatera extraible 2 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",12
 m12-zapatera-lateral-izq,Lateral zapatera extraible 2 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",12
 m12-zapatera-lateral-der,Lateral zapatera extraible 2 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",12
-m12-zapatera-fondo,Fondo zapatera extraible 2 M1,715,217,1,no,#F2F2F2,15,,12
+m12-zapatera-fondo,Fondo zapatera extraible 2 M1,715,202,1,no,#F2F2F2,15,,12
 m12-zapatera-cara,Cara zapatera extraible 2 M1,715,217,1,no,#D9C2A3,15,"T,B,L,R",12
 m12-zapatera-base,Base zapatera extraible 2 M1,715,445,1,si,#D9C2A3,15,"T,B,L,R",12
 m12-zapatera-tirador,Tirador zapatera extraible 2 M1,2,20,1,no,#A0A0A0,5,,12
 m13-zapatera-frente,Frente zapatera extraible 3 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",13
 m13-zapatera-lateral-izq,Lateral zapatera extraible 3 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",13
 m13-zapatera-lateral-der,Lateral zapatera extraible 3 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",13
-m13-zapatera-fondo,Fondo zapatera extraible 3 M1,715,217,1,no,#F2F2F2,15,,13
+m13-zapatera-fondo,Fondo zapatera extraible 3 M1,715,202,1,no,#F2F2F2,15,,13
 m13-zapatera-cara,Cara zapatera extraible 3 M1,715,217,1,no,#D9C2A3,15,"T,B,L,R",13
 m13-zapatera-base,Base zapatera extraible 3 M1,715,445,1,si,#D9C2A3,15,"T,B,L,R",13
 m13-zapatera-tirador,Tirador zapatera extraible 3 M1,2,20,1,no,#A0A0A0,5,,13
 m14-zapatera-frente,Frente zapatera extraible 4 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",14
 m14-zapatera-lateral-izq,Lateral zapatera extraible 4 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",14
 m14-zapatera-lateral-der,Lateral zapatera extraible 4 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",14
-m14-zapatera-fondo,Fondo zapatera extraible 4 M1,715,217,1,no,#F2F2F2,15,,14
+m14-zapatera-fondo,Fondo zapatera extraible 4 M1,715,202,1,no,#F2F2F2,15,,14
 m14-zapatera-cara,Cara zapatera extraible 4 M1,715,217,1,no,#D9C2A3,15,"T,B,L,R",14
 m14-zapatera-base,Base zapatera extraible 4 M1,715,445,1,si,#D9C2A3,15,"T,B,L,R",14
 m14-zapatera-tirador,Tirador zapatera extraible 4 M1,2,20,1,no,#A0A0A0,5,,14
 m15-zapatera-frente,Frente zapatera extraible 5 M1,768,247,1,si,#C19A6B,15,"T,B,L,R",15
 m15-zapatera-lateral-izq,Lateral zapatera extraible 5 izq M1,445,217,1,no,#D9C2A3,15,"T,B,L",15
 m15-zapatera-lateral-der,Lateral zapatera extraible 5 der M1,445,217,1,no,#D9C2A3,15,"T,B,R",15
-m15-zapatera-fondo,Fondo zapatera extraible 5 M1,715,217,1,no,#F2F2F2,15,,15
+m15-zapatera-fondo,Fondo zapatera extraible 5 M1,715,202,1,no,#F2F2F2,15,,15
 m15-zapatera-cara,Cara zapatera extraible 5 M1,715,217,1,no,#D9C2A3,15,"T,B,L,R",15
 m15-zapatera-base,Base zapatera extraible 5 M1,715,445,1,si,#D9C2A3,15,"T,B,L,R",15
 m15-zapatera-tirador,Tirador zapatera extraible 5 M1,2,20,1,no,#A0A0A0,5,,15
