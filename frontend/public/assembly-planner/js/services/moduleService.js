@@ -136,3 +136,76 @@ export function getModuleLabel(moduleId, pieces = []) {
   const group = getModuleGroup(pieces, moduleId);
   return group.label;
 }
+
+/**
+ * Etiqueta descriptiva de un submódulo a partir de sus piezas: tipo (Zapatera,
+ * Cajón, Puerta…) + índice relativo a su módulo raíz ('22' de '2' → 2; '1.2'
+ * de '1' → 2). El índice sale del id (no del nombre), que es único por raíz;
+ * el nombre solo aporta el tipo ("Frente cajon inferior M2" → Cajón).
+ */
+export function describeSubmodule(pieces, moduleId, rootId = '') {
+  const mod = String(moduleId).trim();
+  const own = pieces.filter((p) => !isGlobalPiece(p) && String(p.modulo || '1').trim() === mod);
+  const face = own.find((p) => /frente/i.test(p.nombre || '')) || own[0];
+  const text = normalizeName(face ? `${face.nombre} ${face.id}` : '');
+  let type = 'Submódulo';
+  if (text.includes('zapater')) type = 'Zapatera';
+  else if (text.includes('cajonera')) type = 'Cajonera';
+  else if (text.includes('cajon')) type = 'Cajón';
+  else if (text.includes('puerta')) type = 'Puerta';
+  else if (text.includes('zocalo')) type = 'Zócalo';
+  else if (text.includes('repisa') || text.includes('estante')) type = 'Repisa';
+  let index = '';
+  const rel = rootId && mod.startsWith(rootId) ? mod.slice(rootId.length).replace(/^\.+/, '') : '';
+  if (/^\d+(\.\d+)*$/.test(rel)) {
+    index = rel.split('.').map((part) => String(parseInt(part, 10))).join('.');
+  }
+  if (!index) {
+    const digits = mod.match(/\d+$/);
+    if (digits) index = String(parseInt(digits[0], 10));
+  }
+  return index ? `${type} ${index}` : type;
+}
+
+/**
+ * Lista plana de opciones para un selector de módulo: entrada global (si hay
+ * piezas globales), cada módulo raíz y sus submódulos anidados (depth ≥ 1,
+ * ordenados numéricamente) y la vista completa al final. El consumidor usa
+ * `depth` para sangrar las entradas.
+ */
+export function getModuleOptions(pieces) {
+  const hasGlobal = pieces.some((p) => isGlobalPiece(p));
+  const roots = getModuleGroups(pieces);
+  const rootIds = new Set(roots.map((r) => r.id));
+  const all = new Set();
+  pieces.forEach((p) => {
+    if (isGlobalPiece(p)) return;
+    all.add(String(p.modulo || '1').trim());
+  });
+
+  // Profundidad de un submódulo = nº de ancestros en la jerarquía de ids.
+  const depthOf = (m) => {
+    let depth = 0;
+    for (const other of all) {
+      if (other !== m && isChildModule(m, other)) depth += 1;
+    }
+    return depth;
+  };
+
+  const options = [];
+  if (hasGlobal) options.push({ id: GLOBAL_MODULE_ID, label: GLOBAL_MODULE_LABEL, depth: 0 });
+  for (const root of roots) {
+    options.push({ id: root.id, label: getModuleLabel(root.id, pieces), depth: 0 });
+    const children = Array.from(all)
+      .filter((m) => m !== root.id && isChildModule(m, root.id) && depthOf(m) >= 1)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    for (const child of children) {
+      options.push({ id: child, label: describeSubmodule(pieces, child, root.id), depth: depthOf(child) });
+    }
+  }
+  const ids = roots.map((g) => g.id);
+  if (pieces.length > 0 && (hasGlobal ? ids.length + 1 : ids.length) > 1) {
+    options.push({ id: ALL_MODULE_ID, label: ALL_MODULE_LABEL, depth: 0 });
+  }
+  return options;
+}

@@ -11,6 +11,7 @@ import {
   getModuleDependencies,
   getModuleLabel,
   getModuleGroup,
+  getModuleOptions,
   isGlobalPiece,
 } from './utils.js';
 import { parseCSV, piecesToCSV, createEmptyPiece } from './csvParser.js';
@@ -72,7 +73,10 @@ export function recalculateAll() {
   );
 
   const modules = getModules(prev.pieces);
-  const currentModule = modules.includes(prev.currentModule)
+  // Validación amplia: raíces, submódulos, global y vista completa. Así un
+  // submódulo seleccionado (p. ej. la bandeja '14') sobrevive al recálculo.
+  const validIds = new Set(getModuleOptions(prev.pieces).map((o) => o.id));
+  const currentModule = validIds.has(prev.currentModule)
     ? prev.currentModule
     : modules[0] || GLOBAL_MODULE_ID;
 
@@ -194,10 +198,10 @@ export function updateModuleSelector() {
   const select = $('#module-selector');
   if (!select) return;
   const current = state.currentModule;
-  select.innerHTML = state.modules
-    .map((m) => {
-      const label = getModuleLabel(m, state.pieces);
-      return `<option value="${m}" ${m === current ? 'selected' : ''}>${label}</option>`;
+  select.innerHTML = getModuleOptions(state.pieces)
+    .map((o) => {
+      const indent = o.depth > 0 ? '\u00A0\u00A0'.repeat(o.depth) + '\u21B3 ' : '';
+      return `<option value="${o.id}" ${o.id === current ? 'selected' : ''}>${indent}${o.label}</option>`;
     })
     .join('');
 }

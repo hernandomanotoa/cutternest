@@ -12,6 +12,8 @@ import {
   getModulePieces,
   getModuleDependencies,
   getModuleLabel,
+  getModuleOptions,
+  describeSubmodule,
 } from '../moduleService.js';
 
 const piece = (id, modulo, nombre = id) => ({ id, modulo, nombre });
@@ -163,5 +165,55 @@ describe('getModuleLabel', () => {
   it('returns module label from group', () => {
     const pieces = [piece('A', '1')];
     assert.equal(getModuleLabel('1', pieces), 'Módulo 1');
+  });
+});
+
+describe('getModuleOptions / describeSubmodule', () => {
+  const zapatera = [
+    { id: 'm1-lat', modulo: '1', nombre: 'Lateral derecho M1' },
+    { id: 'm11-frente', modulo: '11', nombre: 'Frente zapatera repisa extraible 1' },
+    { id: 'm12-frente', modulo: '12', nombre: 'Frente zapatera repisa extraible 2' },
+    { id: 'm12-fondo', modulo: '12', nombre: 'Fondo zapatera repisa extraible 2' },
+  ];
+
+  it('lista raíces y submódulos anidados con profundidad', () => {
+    const options = getModuleOptions(zapatera);
+    assert.deepEqual(
+      options.map((o) => `${o.id}:${o.depth}`),
+      ['1:0', '11:1', '12:1'],
+    );
+  });
+
+  it('etiqueta submódulos por tipo + índice relativo al raíz', () => {
+    const options = getModuleOptions(zapatera);
+    assert.equal(options[1].label, 'Zapatera 1');
+    assert.equal(options[2].label, 'Zapatera 2');
+  });
+
+  it('incluye global y vista completa cuando corresponde', () => {
+    const withGlobal = [
+      { id: 'glb-zocalo', modulo: 'estructura', nombre: 'Zocalo frente' },
+      { id: 'm1-lat', modulo: '1', nombre: 'Lateral M1' },
+      { id: 'm2-lat', modulo: '2', nombre: 'Lateral M2' },
+    ];
+    const options = getModuleOptions(withGlobal);
+    assert.deepEqual(
+      options.map((o) => o.id),
+      [GLOBAL_MODULE_ID, '1', '2', ALL_MODULE_ID],
+    );
+  });
+
+  it('describeSubmodule: índice relativo con notación concatenada y con punto', () => {
+    const cocina = [
+      { id: 'm21-frente', modulo: '21', nombre: 'Frente cajon inferior M2' },
+      { id: 'm1.2-frente', modulo: '1.2', nombre: 'Frente cajon 1.2' },
+    ];
+    assert.equal(describeSubmodule(cocina, '21', '2'), 'Cajón 1');
+    assert.equal(describeSubmodule(cocina, '1.2', '1'), 'Cajón 2');
+  });
+
+  it('describeSubmodule: fallback a Submódulo cuando no hay tipo claro', () => {
+    const generic = [{ id: 'm13-x', modulo: '13', nombre: 'Pieza rara 13' }];
+    assert.equal(describeSubmodule(generic, '13', '1'), 'Submódulo 3');
   });
 });

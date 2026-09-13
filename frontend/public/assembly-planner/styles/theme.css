@@ -283,6 +283,26 @@ html, body {
   padding: 1rem;
 }
 
+/* Pantalla completa: el card de la vista activa ocupa todo el viewport y su
+   contenido (SVG isométrico/3D) se estira con él. */
+.card:fullscreen {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+.card:fullscreen .card__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.card:fullscreen .card__body > svg {
+  width: 100%;
+  height: 100%;
+}
+
 /* Tables */
 .table-container {
   overflow-x: auto;

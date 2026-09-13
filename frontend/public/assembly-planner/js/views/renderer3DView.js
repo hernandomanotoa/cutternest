@@ -1,6 +1,6 @@
 // js/views/renderer3DView.js — Vista del renderizador 3D orbital SVG
 
-import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
+import { getModulePieces, getModuleLabel, getModuleOptions, escapeHtml } from '../utils.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
 import { computeStepApertures } from '../services/stepApertureService.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
@@ -8,6 +8,7 @@ import { detectCollisions, movingPieceIds } from '../services/collisionService.j
 import { generarInstruccion, toolsForStep } from '../instructions.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS } from '../core/config.js';
+import { attachFullscreenToggle } from '../utils/fullscreen.js';
 import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
 export function createRenderer3DView(store) {
@@ -20,6 +21,7 @@ export function createRenderer3DView(store) {
   let renderer = null;
   let renderLoopId = null;
   let moduleGapMode = 'compact';
+  let detachFullscreen = null;
   let playTimer = null;
   // Referencias para distinguir cambios estructurales (piezas/módulo/config)
   // de cambios de apertura (slider), que no deben re-montar la vista.
@@ -164,13 +166,16 @@ export function createRenderer3DView(store) {
       renderer.destroy();
       renderer = null;
     }
+    if (detachFullscreen) {
+      detachFullscreen();
+      detachFullscreen = null;
+    }
     container = null;
     canvas = null;
   }
 
   function renderView(container, state) {
     const targetModule = state.currentModule;
-    const modules = getModules(state.pieces);
     const pieces = getModulePieces(state.pieces, targetModule);
     lastPieces = state.pieces;
     lastModule = state.currentModule;
@@ -194,7 +199,12 @@ export function createRenderer3DView(store) {
     let aperturaSnapshot = null;
 
     if (!pieces.length) {
-      const options = modules.map((m) => `<option value="${m}" ${m === targetModule ? 'selected' : ''}>${getModuleLabel(m, state.pieces)}</option>`).join('');
+      const options = getModuleOptions(state.pieces)
+        .map((o) => {
+          const indent = o.depth > 0 ? '\u00A0\u00A0'.repeat(o.depth) + '\u21B3 ' : '';
+          return `<option value="${o.id}" ${o.id === targetModule ? 'selected' : ''}>${indent}${o.label}</option>`;
+        })
+        .join('');
       container.innerHTML = `
         <div class="card">
           <div class="card__body">
@@ -216,6 +226,7 @@ export function createRenderer3DView(store) {
           <h2 class="card__title">Vista 3D — ${getModuleLabel(targetModule, state.pieces)}</h2>
           <div class="r3d-controls flex gap-1 flex-wrap">
             <button id="r3d-reset" class="btn btn--secondary btn--sm">↺ Reset</button>
+            <button id="r3d-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-dims" style="cursor:pointer;">
               <span>Cotas</span>
@@ -382,6 +393,11 @@ export function createRenderer3DView(store) {
       renderer.controls.reset();
       updateSlidersFromCamera();
     });
+    if (detachFullscreen) detachFullscreen();
+    detachFullscreen = attachFullscreenToggle(
+      container.querySelector('#r3d-fullscreen'),
+      container.querySelector('.card'),
+    );
     container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));

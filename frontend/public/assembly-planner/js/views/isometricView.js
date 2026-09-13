@@ -1,12 +1,13 @@
 // js/views/isometricView.js — Vista isométrica 3D SVG
 
-import { getModulePieces, getModuleLabel, getModules, escapeHtml } from '../utils.js';
+import { getModulePieces, getModuleLabel, getModuleOptions, escapeHtml } from '../utils.js';
 import { COLORS } from '../core/config.js';
 import { IsometricRenderer } from '../isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
 import { createFurnitureFicha } from '../components/furnitureFicha.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
+import { attachFullscreenToggle } from '../utils/fullscreen.js';
 import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
 export function createIsometricView(store) {
@@ -21,9 +22,8 @@ export function createIsometricView(store) {
   let explodeFactor = 0;
   let drawerGap = 15;
   let isoFlip = true;
-  let fullscreenChangeHandler = null;
-  let webkitFullscreenChangeHandler = null;
   let moduleGapMode = 'compact';
+  let detachFullscreen = null;
   // Referencias para decidir si un state:changed requiere re-montar la vista
   // (piezas/módulo/config cambiaron) o solo re-render del canvas (apertura).
   let lastPieces = null;
@@ -69,13 +69,9 @@ export function createIsometricView(store) {
       unsubscribeAngulo();
       unsubscribeAngulo = null;
     }
-    if (fullscreenChangeHandler) {
-      document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
-      fullscreenChangeHandler = null;
-    }
-    if (webkitFullscreenChangeHandler) {
-      document.removeEventListener('webkitfullscreenchange', webkitFullscreenChangeHandler);
-      webkitFullscreenChangeHandler = null;
+    if (detachFullscreen) {
+      detachFullscreen();
+      detachFullscreen = null;
     }
     container = null;
     canvas = null;
@@ -83,14 +79,18 @@ export function createIsometricView(store) {
 
   function renderView(container, state) {
     let targetModule = state.currentModule;
-    const modules = getModules(state.pieces);
     const pieces = getModulePieces(state.pieces, targetModule);
     lastPieces = state.pieces;
     lastModule = state.currentModule;
     lastUserConfig = state.userConfig;
 
     if (!pieces.length) {
-      const options = modules.map((m) => `<option value="${m}" ${m === targetModule ? 'selected' : ''}>Módulo ${m}</option>`).join('');
+      const options = getModuleOptions(state.pieces)
+        .map((o) => {
+          const indent = o.depth > 0 ? '\u00A0\u00A0'.repeat(o.depth) + '\u21B3 ' : '';
+          return `<option value="${o.id}" ${o.id === targetModule ? 'selected' : ''}>${indent}${o.label}</option>`;
+        })
+        .join('');
       container.innerHTML = `
         <div class="card">
           <div class="card__body">
@@ -240,28 +240,10 @@ export function createIsometricView(store) {
     });
 
     const card = container.querySelector('.card');
-    const btnFullscreen = container.querySelector('#btn-iso-fullscreen');
-    function updateFullscreenBtn() {
-      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      if (btnFullscreen) btnFullscreen.textContent = isFull ? 'Salir pantalla completa' : '⛶ Pantalla completa';
-    }
-    function toggleFullscreen() {
-      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      if (isFull) {
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-      } else if (card) {
-        if (card.requestFullscreen) card.requestFullscreen();
-        else if (card.webkitRequestFullscreen) card.webkitRequestFullscreen();
-      }
-    }
-    if (fullscreenChangeHandler) document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
-    if (webkitFullscreenChangeHandler) document.removeEventListener('webkitfullscreenchange', webkitFullscreenChangeHandler);
-    btnFullscreen?.addEventListener('click', toggleFullscreen);
-    document.addEventListener('fullscreenchange', updateFullscreenBtn);
-    document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
-    fullscreenChangeHandler = updateFullscreenBtn;
-    webkitFullscreenChangeHandler = updateFullscreenBtn;
+    detachFullscreen = attachFullscreenToggle(
+      container.querySelector('#btn-iso-fullscreen'),
+      card,
+    );
 
     const gapCheckbox = container.querySelector('#iso-gap-mode');
     if (gapCheckbox) gapCheckbox.checked = moduleGapMode === 'projected';

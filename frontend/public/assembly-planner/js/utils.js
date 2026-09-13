@@ -93,4 +93,6 @@ export {
   getModulePieces,
   getModuleDependencies,
   getModuleLabel,
+  getModuleOptions,
+  describeSubmodule,
 } from './services/moduleService.js';
