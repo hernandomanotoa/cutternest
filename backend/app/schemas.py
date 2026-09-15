@@ -107,6 +107,8 @@ class PlacementRead(BaseModel):
     color: str
     espesor: float
     rotado: bool
+    en_sobrante: bool = False
+    offcut_id: Optional[str] = None
 
 
 class BoardResult(BaseModel):
@@ -162,6 +164,26 @@ class InventoryMovementRead(BaseModel):
     tipo: str
     cantidad: int
     motivo: Optional[str]
+    created_at: datetime
+
+
+# Sobrantes reutilizables (tabla offcuts)
+class OffcutCreate(BaseModel):
+    material: str = Field(..., min_length=1, max_length=64)
+    width_mm: int = Field(..., gt=0)
+    height_mm: int = Field(..., gt=0)
+    thickness_mm: int = Field(..., gt=0)
+    quantity: int = Field(1, ge=1)
+
+
+class OffcutRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    material: str
+    width_mm: int
+    height_mm: int
+    thickness_mm: int
+    quantity: int
     created_at: datetime
 
 

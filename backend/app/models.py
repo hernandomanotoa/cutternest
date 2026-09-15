@@ -173,6 +173,18 @@ class Inventory(Base):
     project = relationship("Project")
 
 
+class Offcut(Base):
+    __tablename__ = "offcuts"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    material = Column(String(64), nullable=False)
+    width_mm = Column(Integer, nullable=False)
+    height_mm = Column(Integer, nullable=False)
+    thickness_mm = Column(Integer, nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class InventoryMovement(Base):
     __tablename__ = "inventory_movements"
 

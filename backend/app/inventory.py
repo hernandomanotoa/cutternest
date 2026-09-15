@@ -5,8 +5,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import Inventory, InventoryMovement, InventoryState, Project
-from app.schemas import InventoryCreate
+from app.models import Inventory, InventoryMovement, InventoryState, Offcut, Project
+from app.schemas import InventoryCreate, OffcutCreate
 
 settings = get_settings()
 
@@ -191,3 +191,75 @@ def add_offcut_from_project(
         motivo or f"Sobrante generado del proyecto {project.name}",
     )
     return offcut
+
+
+def create_offcut(db: Session, payload: OffcutCreate) -> Offcut:
+    item = Offcut(
+        material=payload.material,
+        width_mm=payload.width_mm,
+        height_mm=payload.height_mm,
+        thickness_mm=payload.thickness_mm,
+        quantity=payload.quantity,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def list_offcut_records(db: Session) -> List[Offcut]:
+    return (
+        db.query(Offcut)
+        .filter(Offcut.quantity > 0)
+        .order_by(Offcut.created_at.desc())
+        .all()
+    )
+
+
+def delete_offcut(db: Session, offcut_id: str) -> None:
+    item = db.query(Offcut).filter(Offcut.id == offcut_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sobrante no encontrado")
+    db.delete(item)
+    db.commit()
+
+
+def find_offcuts_for_optimization(
+    db: Session,
+    thickness_mm: float,
+    material_type: Optional[str] = None,
+) -> List[Offcut]:
+    """Retazos con stock disponible que coinciden en material y espesor.
+
+    El espesor se compara con tolerancia de redondeo (la tabla guarda enteros
+    y el request usa floats). El material se compara sin distinguir mayúsculas;
+    si no se indica material en el request, no se filtra por material.
+    """
+    rows = (
+        db.query(Offcut)
+        .filter(Offcut.quantity > 0)
+        .order_by(Offcut.created_at.desc())
+        .all()
+    )
+    material_key = material_type.strip().lower() if material_type else None
+    return [
+        row
+        for row in rows
+        if abs(float(row.thickness_mm) - float(thickness_mm)) < 1e-6
+        and (material_key is None or row.material.strip().lower() == material_key)
+    ]
+
+
+def consume_offcut_unit(db: Session, offcut_id: str) -> Optional[Offcut]:
+    """Decrementa en 1 el stock de un retazo; lo elimina al llegar a 0."""
+    item = db.query(Offcut).filter(Offcut.id == offcut_id).first()
+    if not item:
+        return None
+    item.quantity -= 1
+    if item.quantity <= 0:
+        db.delete(item)
+        db.commit()
+        return None
+    db.commit()
+    db.refresh(item)
+    return item

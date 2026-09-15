@@ -103,16 +103,21 @@ def optimize_cuts(
     _validate_pieces_fit(board_width_mm, board_height_mm, margin_mm, kerf_mm, rects)
 
     # Preparar bins: sobrantes primero, luego tableros nuevos de respaldo.
+    # Cada unidad de sobrante es un bin independiente; `bid` permite distinguir
+    # unidades del mismo retazo y `id` conserva el offcut_id real.
     offcut_boards = []
+    bid_to_offcut_id: Dict[str, Any] = {}
     for off in offcuts:
+        bid = str(off.get("bid") or off.get("id") or f"sobrante_{len(offcut_boards)}")
         offcut_boards.append(
             {
                 "id": off.get("id"),
+                "bid": bid,
                 "width": float(off["ancho"]),
                 "height": float(off["alto"]),
-                "bid": str(off.get("id", f"sobrante_{len(offcut_boards)}")),
             }
         )
+        bid_to_offcut_id[bid] = off.get("id")
 
     packer = _packer_with_best_algorithm(rotation=True)
 
@@ -166,6 +171,8 @@ def optimize_cuts(
                 "color": original.get("color", "#3B82F6") if original else "#3B82F6",
                 "espesor": original.get("espesor", 18.0) if original else 18.0,
                 "rotado": abs(rect.width - ow) > 1e-6,
+                "en_sobrante": not is_new_board,
+                "offcut_id": bid_to_offcut_id.get(bid),
             })
 
     # Filtrar bins vacíos, reindexar y calcular métricas.
