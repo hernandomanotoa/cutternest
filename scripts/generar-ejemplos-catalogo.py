@@ -1,7 +1,10 @@
 import csv, os
 
-OUT = '/workspace/cutternest-kit/frontend/public/assembly-planner/data'
-OUT_DOCS = '/workspace/cutternest-kit/docs'
+# Rutas relativas al repo (este archivo vive en <repo>/scripts/): ejecutable
+# desde cualquier CWD, no solo desde /workspace.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(_REPO_ROOT, 'frontend', 'public', 'assembly-planner', 'data')
+OUT_DOCS = os.path.join(_REPO_ROOT, 'docs')
 
 TH_BODY = 15
 TH_TOP = 30
@@ -37,7 +40,8 @@ class M:
         self.add(f'{mod}-lateral-der', f'Lateral derecho {n}', self.d, self.h, 1, 'no', C_BODY, TH_BODY, 'T,B,R', mod)
     def fondo(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
-        self.add(f'{mod}-fondo', f'Fondo {n}', self.w, self.h, 1, 'no', C_FONDO, TH_BODY, '', mod)
+        # Fondo de casco INTERNO (embutido): luz interior (w−2t × h−2t).
+        self.add(f'{mod}-fondo', f'Fondo {n}', self.w - 2 * TH_BODY, self.h - 2 * TH_BODY, 1, 'no', C_FONDO, TH_BODY, '', mod)
     def box(self, mod, suffix=''):
         self.base_top(mod, suffix)
         self.laterales(mod, suffix)

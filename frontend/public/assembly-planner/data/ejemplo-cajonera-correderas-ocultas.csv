@@ -6,7 +6,7 @@ m1-base,Base modulo M1,600,450,1,si,#C19A6B,15,"T,B,L,R",1
 m1-tapa,Tapa modulo M1,600,450,1,si,#C19A6B,15,"T,B,L,R",1
 m1-lateral-izq,Lateral izquierdo M1,450,900,1,no,#C19A6B,15,"T,B,L",1
 m1-lateral-der,Lateral derecho M1,450,900,1,no,#C19A6B,15,"T,B,R",1
-m1-fondo,Fondo modulo M1,600,900,1,no,#F2F2F2,15,"",1
+m1-fondo,Fondo modulo M1,570,870,1,no,#F2F2F2,15,"",1
 m11-cajon-frente,Frente cajon oculto 1 M1,568,287,1,si,#8B5A2B,16,"T,B,L,R",11
 m11-cajon-lateral-izq,Lateral cajon oculto 1 izq M1,400,267,1,no,#D9C2A3,16,"T,B,L",11
 m11-cajon-lateral-der,Lateral cajon oculto 1 der M1,400,267,1,no,#D9C2A3,16,"T,B,R",11

@@ -22,9 +22,12 @@ export const FICHAS_EJEMPLOS = {
   'ejemplo-buro-3-cajones.csv': { tipo: 'buro' },
   'ejemplo-buro-flotante.csv': { tipo: 'buro' },
   'ejemplo-comoda-baja.csv': { tipo: 'cajonera' },
+  'ejemplo-cajonera-alturas-mixtas.csv': { tipo: 'cajonera' },
   'ejemplo-tocador.csv': { tipo: 'tocador' },
   'ejemplo-tocador-espejo.csv': { tipo: 'tocador' },
   'ejemplo-closet-interior.csv': { tipo: 'closet' },
+  'ejemplo-closet-abierto-modular.csv': { tipo: 'closet' },
+  'ejemplo-closet-zapatera-mixta.csv': { tipo: 'zapatera' },
 
   // ── Cocina / comedor ─────────────────────────────────────────────────────
   'ejemplo-cocina.csv': { tipo: 'cocina_modular' },

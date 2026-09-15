@@ -1,119 +1,26 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { getLogger } from './lib/logger.mjs';
 import { recordMetric } from './lib/metrics.mjs';
+import {
+  line,
+  fondo,
+  tirador,
+  cajon,
+  baseTapaLateralesFondo,
+  header,
+  zocaloCajon,
+  cascoZocaloCajon,
+} from './lib/cajonModel.mjs';
 
 const logger = getLogger('generar-ejemplos-assembly');
 
-const DOCS_DIR = '/workspace/cutternest-kit/docs';
-const DATA_DIR = '/workspace/cutternest-kit/frontend/public/assembly-planner/data';
-
-function line(id, nombre, ancho, alto, cantidad, rotate, color, espesor, cantos, modulo) {
-  return `${id},${nombre},${ancho},${alto},${cantidad},${rotate},${color},${espesor},"${cantos}",${modulo}`;
-}
-
-function fondo(id, nombre, ancho, alto, color, modulo) {
-  return line(id, nombre, ancho, alto, 1, 'no', color, 15, '', modulo);
-}
-
-function tirador(id, nombre, color, modulo) {
-  return line(id, nombre, 2, 20, 1, 'no', color, 5, '', modulo);
-}
-
-// Genera un cajón de 6 piezas coherente con el vano del módulo padre:
-// frente decorativo + 2 laterales + base + fondo + cara (frente interior de
-// la caja, entre los laterales) + tirador.
-// Reglas (las mismas que valida js/csvParser.js):
-//   W = anchoModulo − 2E · D = profundidadModulo − E − E (fondo y lateral de 15)
-//   frente.ancho = N===1 ? W−2 : floor((W − (N−1)×3)/N) − 1  (debe ser ≤ W−2)
-//   frente.alto = altoVano − 3
-//   profCajon = D − 25 (corredera telescópica) o D − 15 (volquete/abatible)
-//   lateral = profCajon × (frente.alto − 2×espBase)
-//   fondo = interior × (latAlto − espBase): va apoyado sobre la base
-// Caja telescópica (RAIL_TYPES.telescopica, holgura 12,7 mm por lado):
-//   vanoCajon = N===1 ? W : frente.ancho + 2 (vano individual del cajón)
-//   boxExterior = round(vanoCajon − 25,4) · interior = boxExterior − 2×espLat
-//   base/fondo/cara miden el INTERIOR de la caja (no el ancho del frente
-//   decorativo: éste es ~24 mm más ancho que lo que permite la corredera).
-// opts.vocabulario 'zapatera' nombra "zapatera extraible" en vez de "cajon"
-// (zapatera-cajón: se desliza en rieles sin la palabra "cajon" en el nombre).
-function cajon(parent, index, opts) {
-  const {
-    anchoModulo,
-    profundidadModulo,
-    altoVano,
-    nPorFila = 1,
-    colorFrente,
-    colorLateral,
-    suffix = '',
-    tipo = 'corredera',
-    altBandeja = 150,
-    vocabulario = 'cajon'
-  } = opts;
-  const E = 15; // espesor de laterales y fondo del módulo en estos ejemplos
-  const ESP_LAT = 15; // espesor laterales del cajón
-  const ESP_BASE = 15; // espesor base del cajón
-  const W = anchoModulo - 2 * E;
-  const D = profundidadModulo - E - E;
-  const frenteAncho =
-    nPorFila === 1 ? W - 2 : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
-  const frenteAlto = altoVano - 3;
-  const volquete = tipo === 'volquete';
-  const profCajon = D - (volquete ? 15 : 25);
-  // En el volquete la bandeja es baja: el lateral/fondo miden lo alto de la
-  // bandeja, no del frente (el frente alto es el que pivota hacia adelante).
-  const latAlto = volquete
-    ? Math.min(frenteAlto - 2 * ESP_BASE, altBandeja)
-    : frenteAlto - 2 * ESP_BASE;
-  // El volquete/abatible queda fuera del modelo de corredera: mantiene el
-  // cálculo clásico derivado del frente decorativo y sin pieza de cara.
-  const interior = volquete
-    ? frenteAncho - 2 * ESP_LAT
-    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * 12.7) - 2 * ESP_LAT;
-  const sm = `${parent}${index}`;
-  const label = suffix ? ` ${suffix}` : '';
-  const tipoNombre = volquete ? ' abatible' : '';
-  const esZapatera = vocabulario === 'zapatera';
-  // En el volquete el calificativo 'abatible' va solo en el frente (es el que
-  // pivota); laterales/fondo/base/tirador mantienen el nombre plano "cajon".
-  const frenteVocab = esZapatera ? 'zapatera extraible' : `cajon${tipoNombre}`;
-  const vocab = esZapatera ? 'zapatera extraible' : 'cajon';
-  const idp = esZapatera ? 'zapatera' : 'cajon';
-  const ladoIzq = esZapatera ? ' izq' : '';
-  const ladoDer = esZapatera ? ' der' : '';
-  const rows = [
-    `m${sm}-${idp}-frente,Frente ${frenteVocab}${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},15,"T,B,L,R",${sm}`,
-    `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
-    `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`
-  ];
-  if (!volquete) {
-    // Fondo y cara: piezas de la caja que miden el interior entre laterales.
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - ESP_BASE},1,no,#F2F2F2,15,,${sm}`);
-    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L,R",${sm}`);
-  } else {
-    // Volquete/abatible: se conserva el fondo clásico derivado del frente.
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - ESP_BASE},1,no,#F2F2F2,15,,${sm}`);
-  }
-  rows.push(
-    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
-    `m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
-  );
-  return rows;
-}
-
-function baseTapaLateralesFondo(mod, parent, ancho, alto, prof, colorCuerpo) {
-  return [
-    line(`m${mod}-base`, `Base modulo M${parent}`, ancho, prof, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
-    line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
-    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, prof, alto, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
-    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, prof, alto, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
-    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho, alto, '#F2F2F2', mod)
-  ];
-}
-
-function header(titulo, desc) {
-  return `# CutterNest Piezas v1\n# ${titulo}\n# ${desc}\nid,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo`;
-}
+// Rutas relativas al repo (este archivo vive en <repo>/scripts/): el
+// generador es ejecutable desde cualquier CWD, no solo desde /workspace.
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const DOCS_DIR = path.join(REPO_ROOT, 'docs');
+const DATA_DIR = path.join(REPO_ROOT, 'frontend', 'public', 'assembly-planner', 'data');
 
 const examples = [];
 
@@ -382,27 +289,6 @@ const examples = [];
 // Zócalo completo full-width: frente + 2 laterales, todo en 'estructura'.
 // El renderer distingue este modelo (cajón visible) del patín retranqueado
 // clásico (frente solo) por la presencia de los laterales (rol 'plinth_side').
-function zocaloCajon(nombre, anchoTotal, profundidad, altoZocalo, color) {
-  return [
-    line('glb-zocalo', `Zocalo corrido ${nombre}`, anchoTotal, altoZocalo, 1, 'si', color, 15, 'T,B,L,R', 'estructura'),
-    line('glb-zocalo-lateral-izq', `Lateral zocalo izquierdo ${nombre}`, profundidad, altoZocalo, 1, 'no', color, 15, 'T,B,L', 'estructura'),
-    line('glb-zocalo-lateral-der', `Lateral zocalo derecho ${nombre}`, profundidad, altoZocalo, 1, 'no', color, 15, 'T,B,R', 'estructura'),
-  ];
-}
-
-// Casco de módulo para el modelo zócalo-cajón: base INTERNA (ancho−2t × prof−2t)
-// apoyada sobre el zócalo y laterales de altura TOTAL del mueble (zócalo incluido).
-function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerpo) {
-  const E = 15;
-  return [
-    line(`m${mod}-base`, `Base modulo M${parent}`, ancho - 2 * E, prof - 2 * E, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
-    line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
-    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, prof, altoTotal, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
-    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, prof, altoTotal, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
-    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho, altoTotal, '#F2F2F2', mod),
-  ];
-}
-
 // 20. Clóset con zócalo-cajón
 {
   const lines = [];
@@ -608,7 +494,7 @@ function cajonOculto(parent, index, opts) {
   lines.push('# --- Modulo 1: cajonera interior ---');
   lines.push(...baseTapaLateralesFondo(1, 1, 600, 1000, 600, '#C19A6B'));
   lines.push(line('m1-repisa', 'Repisa recepcion', 540, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
-  lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 600, altoVano: 400, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3' }));
+  lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 600, altoVano: 300, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3' }));
 
   examples.push({ name: 'Ejemplo_CSV_Recepcion.csv', dataName: 'ejemplo-recepcion.csv', lines });
 }
@@ -716,7 +602,7 @@ function cajonOculto(parent, index, opts) {
 // base propia: doble colgado, cajonera interior y zapatera interior.
 {
   const lines = [];
-  lines.push(header('Ejemplo de closet interior', 'Closet abierto 1800×2200×550 sin puertas (perchero), compatible con sistema de puertas corredizas: zocalo-cajon corrido 150 (patron ejemplo-closet-zocalo-cajon) + tapa corrida y 3 modulos de 600 con base propia: M1 doble colgado (2 barras cromadas a dos alturas + repisa superior), M2 cajonera interior (3 cajones de 6 piezas + tiradores) y M3 zapatera interior (bandeja zapatero fija inferior + 4 bandejas zapatera extraibles de 6 piezas + repisa superior). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
+  lines.push(header('Ejemplo de closet interior', 'Closet abierto 1800×2200×550 sin puertas (perchero), compatible con sistema de puertas corredizas: zocalo-cajon corrido 150 (patron ejemplo-closet-zocalo-cajon) + tapa corrida y 3 modulos de 600 con base propia: M1 doble colgado (2 barras cromadas a dos alturas + repisa superior), M2 cajonera interior (6 cajones de frentes mixtos: delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres) y M3 zapatera interior (bandeja zapatero fija inferior + 4 bandejas zapatera extraibles de 6 piezas + repisa superior). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
   lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
   lines.push(...zocaloCajon('closet interior', 1800, 550, 150, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida closet interior', 1800, 550, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
@@ -730,11 +616,14 @@ function cajonOculto(parent, index, opts) {
   lines.push(line('m1-barra-baja', 'Barra colgadora baja M1', 570, 25, 1, 'si', '#A0A0A0', 25, '', 1));
   lines.push(line('m1-repisa-superior', 'Repisa superior M1', 570, 450, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
 
-  lines.push('# --- Modulo 2: cajonera interior (3 cajones apilados, vano util ≈ 2020 → 3 vanos de 520) ---');
+  lines.push('# --- Modulo 2: cajonera interior con frentes mixtos (delgado 130, estandar 200, profundo 280) ---');
   lines.push(...cascoZocaloCajon(2, 2, 600, 2200, 550, '#8B5A2B'));
-  lines.push(...cajon(2, 1, { anchoModulo: 600, profundidadModulo: 550, altoVano: 520, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'superior' }));
-  lines.push(...cajon(2, 2, { anchoModulo: 600, profundidadModulo: 550, altoVano: 520, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'medio' }));
-  lines.push(...cajon(2, 3, { anchoModulo: 600, profundidadModulo: 550, altoVano: 520, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
+  lines.push(...cajon(2, 1, { anchoModulo: 600, profundidadModulo: 550, altoVano: 130, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'accesorios' }));
+  lines.push(...cajon(2, 2, { anchoModulo: 600, profundidadModulo: 550, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'camisetas' }));
+  lines.push(...cajon(2, 3, { anchoModulo: 600, profundidadModulo: 550, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'camisas' }));
+  lines.push(...cajon(2, 4, { anchoModulo: 600, profundidadModulo: 550, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'pantalones' }));
+  lines.push(...cajon(2, 5, { anchoModulo: 600, profundidadModulo: 550, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'ropa doblada' }));
+  lines.push(...cajon(2, 6, { anchoModulo: 600, profundidadModulo: 550, altoVano: 280, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'sueteres' }));
 
   lines.push('# --- Modulo 3: zapatera interior (bandeja fija + repisa superior + 4 bandejas extraibles) ---');
   lines.push(...cascoZocaloCajon(3, 3, 600, 2200, 550, '#C19A6B'));
@@ -790,6 +679,122 @@ function cajonOculto(parent, index, opts) {
   lines.push(...cajoneraCama(2));
 
   examples.push({ name: 'Ejemplo_CSV_Base_Cama_Cajones.csv', dataName: 'ejemplo-base-cama-cajones.csv', lines });
+}
+
+// 36. Clóset abierto modular 3400×2400 (vestidor): zócalo-cajón corrido + tapa
+// corrida y 4 módulos de 850 (3400 = 4×850, 100% modular) con base propia:
+// doble colgado, cajonera, zapatera y colgador simple con repisas.
+{
+  const lines = [];
+  lines.push(header('Ejemplo de closet abierto modular', 'Closet abierto modular 3400×2400×600 sin puertas, melamina 15 mm, 100% modular (4 modulos de 850): zocalo-cajon corrido 150 + tapa corrida y 4 modulos con base propia. Alturas ergonomicas: barras dobles a 2100/1000 mm (colgado corto por nivel) y barra camisera a 1800 mm (colgado largo). M1 doble colgado (2 barras cromadas + repisa superior), M2 cajonera con frentes mixtos (delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres; caja 30 mm mas baja que el frente y holgura de rieles 12.7 mm/lado), M3 zapatera por tipo de calzado (bandejas extraibles frente 180 planos, 200 tenis y 220 tacones/botines, vano abierto 450 para botas altas) y M4 colgador camisero (barra a 1800 + 3 repisas). Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm (melamina 15 mm). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
+  lines.push('# --- Estructura global: zocalo-cajon corrido (sin base global) ---');
+  lines.push(...zocaloCajon('closet abierto modular', 3400, 600, 150, '#C19A6B'));
+  lines.push(line('glb-tapa', 'Tapa corrida closet abierto modular', 3400, 600, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 'estructura'));
+
+  // Modulos de 850×2400×600 (altura TOTAL incluye zocalo de 150), base propia
+  // interna apoyada sobre el zocalo (cascoZocaloCajon). Vano util por modulo:
+  // 2400 − 150 (zocalo) − 15 (tapa) = 2235.
+
+  lines.push('# --- Modulo 1: doble colgado (2 barras a dos alturas + repisa superior) ---');
+  lines.push(...cascoZocaloCajon(1, 1, 850, 2400, 600, '#C19A6B'));
+  lines.push(line('m1-repisa-superior', 'Repisa superior M1', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-refuerzo-repisa', 'Refuerzo repisa superior M1', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-barra-alta', 'Barra colgadora alta M1', 820, 25, 1, 'si', '#A0A0A0', 25, '', 1));
+  lines.push(line('m1-barra-baja', 'Barra colgadora baja M1', 820, 25, 1, 'si', '#A0A0A0', 25, '', 1));
+
+  lines.push('# --- Modulo 2: cajonera con frentes mixtos por tipo de prenda ---');
+  lines.push('# Alturas ergonomicas de frente: delgado 130 (accesorios/ropa interior),');
+  lines.push('# estandar 200 (camisetas, camisas, pantalones), profundo 280 (sueteres,');
+  lines.push('# sabanas). La caja de cada cajon queda 30 mm mas baja que el frente');
+  lines.push('# (evita choque con el armazon) y usa holgura de rieles de 12.7 mm/lado.');
+  lines.push(...cascoZocaloCajon(2, 2, 850, 2400, 600, '#8B5A2B'));
+  lines.push(line('m2-repisa-superior', 'Repisa superior M2', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-refuerzo-repisa', 'Refuerzo repisa superior M2', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 2));
+  lines.push(...cajon(2, 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 130, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'accesorios' }));
+  lines.push(...cajon(2, 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'camisetas' }));
+  lines.push(...cajon(2, 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'camisas' }));
+  lines.push(...cajon(2, 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'pantalones' }));
+  lines.push(...cajon(2, 5, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'ropa doblada' }));
+  lines.push(...cajon(2, 6, { anchoModulo: 850, profundidadModulo: 600, altoVano: 280, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'sueteres' }));
+
+  lines.push('# --- Modulo 3: zapatera con alturas por tipo de calzado ---');
+  lines.push('# Bandejas extraibles con frente 180 (luz util ~150: zapatos planos),');
+  lines.push('# frente 200 (luz util ~170: tenis) y frente 220 (luz util ~190: tacones');
+  lines.push('# y botines); vano abierto de 450 para botas altas (luz util 350-450).');
+  lines.push(...cascoZocaloCajon(3, 3, 850, 2400, 600, '#C19A6B'));
+  lines.push(line('m3-bandeja-zapatero', 'Bandeja zapatero M3', 820, 450, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-refuerzo-bandeja', 'Refuerzo bandeja zapatero M3', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 3));
+  lines.push(...cajon(3, 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'planos', vocabulario: 'zapatera' }));
+  lines.push(...cajon(3, 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'tenis', vocabulario: 'zapatera' }));
+  lines.push(...cajon(3, 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'tacones', vocabulario: 'zapatera' }));
+  lines.push(...cajon(3, 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'botines', vocabulario: 'zapatera' }));
+  lines.push(line('m3-repisa-botas', 'Repisa botas M3', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-refuerzo-repisa-botas', 'Refuerzo repisa botas M3', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-repisa-superior', 'Repisa superior M3', 820, 300, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-refuerzo-repisa', 'Refuerzo repisa superior M3', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 3));
+
+  lines.push('# --- Modulo 4: colgador simple con 3 repisas ---');
+  lines.push(...cascoZocaloCajon(4, 4, 850, 2400, 600, '#8B5A2B'));
+  lines.push(line('m4-repisa-superior', 'Repisa superior M4', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 4));
+  lines.push(line('m4-refuerzo-repisa-superior', 'Refuerzo repisa superior M4', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 4));
+  lines.push(line('m4-barra', 'Barra colgadora M4', 820, 25, 1, 'si', '#A0A0A0', 25, '', 4));
+  lines.push(line('m4-repisa-media', 'Repisa media M4', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 4));
+  lines.push(line('m4-refuerzo-repisa-media', 'Refuerzo repisa media M4', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 4));
+  lines.push(line('m4-repisa-inferior', 'Repisa inferior M4', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 4));
+  lines.push(line('m4-refuerzo-repisa-inferior', 'Refuerzo repisa inferior M4', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 4));
+
+  examples.push({ name: 'Ejemplo_CSV_Closet_Abierto_Modular.csv', dataName: 'ejemplo-closet-abierto-modular.csv', lines });
+}
+
+// 37. Zapatera de clóset con alturas por tipo de calzado (vestidor): torre
+// zapatera 1700×2400×600, 100% modular (2 módulos de 850) sobre zócalo-cajón
+// corrido + tapa corrida. M1 bandejas extraibles por calzado cotidiano
+// (frente 180 planos/tenis, frente 220 tacones/botines) y M2 vanos abiertos
+// de 450 para botas altas entre repisas fijas.
+{
+  const lines = [];
+  lines.push(header('Ejemplo de zapatera de closet por tipo de calzado', 'Zapatera de closet abierta 1700×2400×600, melamina 15 mm, 100% modular (2 modulos de 850): zocalo-cajon corrido 150 + tapa corrida. Alturas libres por tipo de calzado: 150 mm (zapatos planos), 170-200 mm (tenis y calzado grueso), 190-220 mm (tacones y botines), 350-450 mm (botas altas). M1 calzado cotidiano: repisa superior + bandejas zapatera extraibles de frente 180 (planos), 200 (tenis) y 220 (tacones, botines). M2 botas altas: 2 vanos abiertos de 450 entre repisas fijas + repisa superior. Las bandejas extraibles mantienen costados bajos (caja 30 mm mas baja que el frente) para ver y sacar el calzado; holgura de rieles 12.7 mm/lado. Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm. Herrajes: correderas telescopicas y tiradores.'));
+  lines.push('# --- Estructura global: zocalo-cajon corrido (sin base global) ---');
+  lines.push(...zocaloCajon('zapatera closet', 1700, 600, 150, '#C19A6B'));
+  lines.push(line('glb-tapa', 'Tapa corrida zapatera closet', 1700, 600, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 'estructura'));
+
+  lines.push('# --- Modulo 1: calzado cotidiano (bandejas extraibles por altura de calzado) ---');
+  lines.push(...cascoZocaloCajon(1, 1, 850, 2400, 600, '#C19A6B'));
+  lines.push(line('m1-repisa-superior', 'Repisa superior M1', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-refuerzo-repisa', 'Refuerzo repisa superior M1', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(...cajon(1, 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'planos', vocabulario: 'zapatera' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'tenis', vocabulario: 'zapatera' }));
+  lines.push(...cajon(1, 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'tacones', vocabulario: 'zapatera' }));
+  lines.push(...cajon(1, 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'botines', vocabulario: 'zapatera' }));
+
+  lines.push('# --- Modulo 2: botas altas (2 vanos abiertos de 450 entre repisas fijas) ---');
+  lines.push(...cascoZocaloCajon(2, 2, 850, 2400, 600, '#8B5A2B'));
+  lines.push(line('m2-repisa-vano-1', 'Repisa vano botas 1 M2', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-refuerzo-vano-1', 'Refuerzo repisa vano botas 1 M2', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-repisa-vano-2', 'Repisa vano botas 2 M2', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-refuerzo-vano-2', 'Refuerzo repisa vano botas 2 M2', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-repisa-superior', 'Repisa superior M2', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-refuerzo-repisa', 'Refuerzo repisa superior M2', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 2));
+
+  examples.push({ name: 'Ejemplo_CSV_Closet_Zapatera_Mixta.csv', dataName: 'ejemplo-closet-zapatera-mixta.csv', lines });
+}
+
+// 38. Cajonera/chifonier con frentes mixtos por tipo de prenda (dormitorio):
+// casco 600×1300×450 de melamina 15 mm con 6 cajones en alturas ergonomicas
+// (delgado 130 accesorios/ropa interior, estándar 200 camisetas/camisas/
+// pantalones, profundo 280 suéteres/sábanas).
+{
+  const lines = [];
+  lines.push(header('Ejemplo de cajonera con frentes mixtos', 'Chifonier organizador 600×1300×450 de melamina 15 mm con 6 cajones de 6 piezas en alturas ergonomicas por tipo de prenda: frente delgado 130 (accesorios y ropa interior), frentes estandar 200 (camisetas, camisas, pantalones) y frente profundo 280 (sueteres y sabanas). La caja de cada cajon queda 30 mm mas baja que el frente (evita choque con el armazon al abrir/cerrar) y la holgura de rieles telescopicos es de 12.7 mm por lado. Herrajes: 6 pares de correderas telescopicas 450 mm y 6 tiradores.'));
+  lines.push(...baseTapaLateralesFondo(1, 1, 600, 1300, 450, '#C19A6B'));
+  lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 450, altoVano: 130, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'accesorios' }));
+  lines.push(...cajon(1, 2, { anchoModulo: 600, profundidadModulo: 450, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'camisetas' }));
+  lines.push(...cajon(1, 3, { anchoModulo: 600, profundidadModulo: 450, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'camisas' }));
+  lines.push(...cajon(1, 4, { anchoModulo: 600, profundidadModulo: 450, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'pantalones' }));
+  lines.push(...cajon(1, 5, { anchoModulo: 600, profundidadModulo: 450, altoVano: 130, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'ropa interior' }));
+  lines.push(...cajon(1, 6, { anchoModulo: 600, profundidadModulo: 450, altoVano: 280, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'sueteres' }));
+
+  examples.push({ name: 'Ejemplo_CSV_Cajonera_Alturas_Mixtas.csv', dataName: 'ejemplo-cajonera-alturas-mixtas.csv', lines });
 }
 
 for (const ex of examples) {

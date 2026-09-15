@@ -189,6 +189,7 @@ export class IsometricRenderer {
     this.showDimensions = options.showDimensions !== false;
     this.showAxes = options.showAxes === true;
     this.drawerGap = options.drawerGap || 15;
+    this.warnings = [];
     this.doorAngle = options.doorAngle || 0;
     // Apertura interactiva: aperturaGlobal null = sin valor explícito (se
     // conserva el legacy doorAngle como apertura global = doorAngle/105).
@@ -210,6 +211,10 @@ export class IsometricRenderer {
    */
   computeGeometries(moduleId, pieces) {
     this._lastComputeArgs = [moduleId, pieces];
+    // Avisos de posicionamiento detectados en esta pasada (p. ej. pilas de
+    // cajones que exceden su zona y se dibujan escaladas). La UI puede leer
+    // `renderer.warnings` tras renderizar/computar.
+    this.warnings = [];
     const family = detectFamily(pieces, moduleId);
     const globalPieces = pieces.filter((p) => isGlobalPiece(p));
     const globalBottoms = globalPieces.filter((p) => inferRole(p) === 'bottom_panel');
@@ -947,14 +952,35 @@ export class IsometricRenderer {
     // Ordenar: superior → medio → inferior
     dims.sort((a, b) => drawerRank(a.face) - drawerRank(b.face));
 
+    // Frentes anclados con pos_z explícito (borde inferior absoluto, misma
+    // convención que barras/puertas/piezas sueltas): se excluyen del apilado
+    // por zonas y se emiten como grupo propio con una zona sintética exacta
+    // [pos_z, pos_z+h] → scale 1, gap 0, currentZ = pos_z.
+    const anchoredDims = dims.filter((d) => Number.isFinite(d.face.pos_z));
+    const floatingDims = dims.filter((d) => !Number.isFinite(d.face.pos_z));
+
     const zoneGroups = zones.map(() => []);
-    dims.forEach((d) => {
+    // Zona del grupo de rango medio (sin 'superior'/'inferior' en el nombre):
+    // el vano MAS ALTO disponible. La torre de cajones vive en el hueco mayor
+    // entre repisas fijas; floor(zones/2) con 2 o 4 zonas los metía en un
+    // hueco pequeño, los escalaba hasta solapar las cajas (barrido
+    // drawerCollisionSweep).
+    let tallestZone = 0;
+    for (let zi = 1; zi < zones.length; zi++) {
+      if (zones[zi].yEnd - zones[zi].yStart > zones[tallestZone].yEnd - zones[tallestZone].yStart) tallestZone = zi;
+    }
+    floatingDims.forEach((d) => {
       const rank = drawerRank(d.face);
       let idx;
       if (rank <= 10) idx = zones.length - 1;          // superior → última zona (más alta)
       else if (rank >= 90) idx = 0;                      // inferior → primera zona (más baja)
-      else idx = Math.max(0, Math.min(zones.length - 1, Math.floor(zones.length / 2)));
+      else idx = tallestZone;
       zoneGroups[idx].push(d);
+    });
+    anchoredDims.forEach((d) => {
+      const z0 = Number(d.face.pos_z);
+      zoneGroups.push([d]);
+      zones.push({ yStart: z0, yEnd: z0 + d.h });
     });
 
     zoneGroups.forEach((group, zi) => {
@@ -966,6 +992,16 @@ export class IsometricRenderer {
       const distributedGap = group.length > 0 ? (zoneH - totalH) / (group.length + 1) : 0;
       const gap = totalH < zoneH ? Math.min(stackGap, distributedGap) : 0;
       const scale = totalH > zoneH ? zoneH / totalH : 1;
+      if (scale < 1) {
+        // Antes el escalado era silencioso: el 3D mostraba cajones más bajos
+        // de lo diseñado sin avisar. Se conserva el ajuste para no solapar
+        // las cajas, pero se reporta (índice estable del grupo en la lista de
+        // zonas original: las zonas sintéticas pos_z se anexan al final).
+        const nombres = group.map((d) => `"${d.face.nombre}"`).join(', ');
+        this.warnings.push(
+          `La pila de cajones (${Math.round(totalH)} mm) excede el vano disponible (${Math.round(zoneH)} mm): ${nombres} se dibuja escalada. Reduzca frentes o aumente el vano.`
+        );
+      }
       let currentZ = zone.yStart + gap;
 
       group.forEach((d) => {
@@ -1005,6 +1041,7 @@ export class IsometricRenderer {
         geometries.push(rail({
           x, y: yFace, z: currentZ, w, d: thickness, h,
           color: d.face.color, role: 'drawer_face', name: d.face.nombre, id: d.face.id,
+          overflow: scale < 1,
         }));
 
         // Caja del cajón: piezas reales (laterales/base/fondo del CSV) cuando

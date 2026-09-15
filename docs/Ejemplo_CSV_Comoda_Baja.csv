@@ -6,7 +6,7 @@ m1-base,Base modulo M1,1200,450,1,si,#C19A6B,15,"T,B,L,R",1
 m1-tapa,Tapa modulo M1,1200,450,1,si,#C19A6B,15,"T,B,L,R",1
 m1-lateral-izq,Lateral izquierdo M1,450,600,1,no,#C19A6B,15,"T,B,L",1
 m1-lateral-der,Lateral derecho M1,450,600,1,no,#C19A6B,15,"T,B,R",1
-m1-fondo,Fondo modulo M1,1200,600,1,no,#F2F2F2,15,"",1
+m1-fondo,Fondo modulo M1,1170,570,1,no,#F2F2F2,15,"",1
 m1-travesano-trasero,Travesano trasero comoda,1170,100,1,si,#C19A6B,15,"T,B,L,R",1
 m1-pata-delantera-izq,Pata niveladora delantera izquierda comoda,80,80,1,no,#8B5A2B,15,"T,B,L,R",1
 m1-pata-delantera-der,Pata niveladora delantera derecha comoda,80,80,1,no,#8B5A2B,15,"T,B,L,R",1

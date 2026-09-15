@@ -19,6 +19,89 @@ const MODULE_CSV = [
 const pandeoWarnings = (result) =>
   result.warnings.filter((w) => /^(CRÍTICO|ALTO):/.test(w));
 
+describe('parseCSV - rangos ergonómicos de frente', () => {
+  const drawer = (sub, nombre, frenteAlto) => [
+    `${sub}-frente,${nombre},464,${frenteAlto},1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-lat,Lateral cajon ${sub},350,40,1,no,#FFFFFF,15,"T,B,L",m${sub},`,
+    `${sub}-base,Base cajon ${sub},434,350,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-fondo,Fondo cajon ${sub},434,25,1,no,#FFFFFF,15,,m${sub},`,
+  ];
+
+  it('marca un frente de cajón corredero demasiado alto (>320 mm)', () => {
+    const csv = [...MODULE_CSV, ...drawer('11', 'Frente cajon M1', 400)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.ok(
+      result.warnings.some((w) => w.includes('frente de cajón muy alto (400 mm)')),
+      `se esperaba warning ergonómico: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('exime los frentes abatibles/volquetes (frente alto pivotante)', () => {
+    const csv = [...MODULE_CSV, ...drawer('11', 'Frente cajon abatible M1', 577)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('frente de cajón muy alto')),
+      false,
+      `warning inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('marca bandejas zapatera fuera de 150-220 mm', () => {
+    const csv = [...MODULE_CSV, ...drawer('11', 'Frente zapatera extraible M1', 400)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.ok(
+      result.warnings.some((w) => w.includes('frente de zapatera muy alto')),
+      `se esperaba warning de zapatera: ${result.warnings.join(' | ')}`
+    );
+  });
+});
+
+describe('parseCSV - cobertura de vano en torres de cajones', () => {
+  // Torre de 3 cajones en un casco de 700 mm: frentes de 70 mm → 210/664 mm
+  // (32%) del alto útil: debe avisar de vano vacío.
+  const tower = (frontNombre, frontAlto) => ['11', '12', '13'].map((sub) => [
+    `${sub}-frente,${frontNombre} ${sub},464,${frontAlto},1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-lat,Lateral cajon ${sub},350,40,1,no,#FFFFFF,15,"T,B,L",m${sub},`,
+    `${sub}-base,Base cajon ${sub},434,350,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-fondo,Fondo cajon ${sub},434,25,1,no,#FFFFFF,15,,m${sub},`,
+  ]).flat();
+
+  it('avisa cuando los frentes cubren menos del 35% del alto útil', () => {
+    const csv = [...MODULE_CSV, ...tower('Frente cajon', 70)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.ok(
+      result.warnings.some((w) => w.includes('sobra vano')),
+      `se esperaba warning de cobertura: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('no avisa en una torre bien aprovechada', () => {
+    const csv = [...MODULE_CSV, ...tower('Frente cajon', 200)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('sobra vano')),
+      false,
+      `warning de cobertura inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('exime las torres de bandejas zapateras (el hueco lo ocupa el calzado)', () => {
+    const csv = [...MODULE_CSV, ...tower('Frente zapatera extraible', 70)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('sobra vano')),
+      false,
+      `warning de cobertura inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+});
+
 describe('parseCSV - pandeo', () => {
   it('no marca pandeo en "Fondo estanteria" (rol back_panel, no shelf)', () => {
     const csv = [...MODULE_CSV, 'fondo-est,Fondo estanteria,900,650,1,no,#FFFFFF,15,,m1,'].join('\n');

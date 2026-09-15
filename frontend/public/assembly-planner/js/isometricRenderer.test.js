@@ -75,6 +75,49 @@ describe('IsometricRenderer hanger rail', () => {
   });
 });
 
+describe('IsometricRenderer drawer pos_z anchor', () => {
+  it('places a drawer front with explicit pos_z at that height, unscaled', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-cajon-frente', nombre: 'Frente cajon M1', ancho: 700, alto: 200, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: '1', pos_z: 300 },
+    ];
+    const { geometries } = renderer.computeGeometries('1', pieces);
+    const face = geometries.find((g) => g.id === 'm1-cajon-frente');
+    assert.ok(face, 'drawer face geometry should exist');
+    assert.equal(face.z, 300, 'anchored drawer bottom edge should be at pos_z');
+    assert.equal(face.h, 200, 'anchored drawer should keep its real height (no zone scaling)');
+  });
+
+  it('warns and flags overflow when the drawer stack exceeds its zone', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-c1-frente', nombre: 'Frente cajon 1 M1', ancho: 700, alto: 1200, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
+      { id: 'm1-c2-frente', nombre: 'Frente cajon 2 M1', ancho: 700, alto: 1200, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
+    ];
+    const { geometries } = renderer.computeGeometries('1', pieces);
+    assert.ok(
+      renderer.warnings.some((w) => /excede el vano/.test(w)),
+      `se esperaba warning de desbordamiento: ${renderer.warnings.join(' | ')}`
+    );
+    const face = geometries.find((g) => g.id === 'm1-c1-frente');
+    assert.equal(face.overflow, true, 'el frente desbordado debe llevar overflow:true');
+  });
+
+  it('keeps zone stacking for drawers without pos_z', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const pieces = [
+      ...basePieces,
+      { id: 'm1-cajon-frente', nombre: 'Frente cajon M1', ancho: 700, alto: 200, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
+    ];
+    const { geometries } = renderer.computeGeometries('1', pieces);
+    const face = geometries.find((g) => g.id === 'm1-cajon-frente');
+    assert.ok(face, 'drawer face geometry should exist');
+    assert.ok(face.z >= 15 && face.z < 300, `floating drawer should stack from the module base, got z=${face.z}`);
+  });
+});
+
 describe('IsometricRenderer global doors', () => {
   const globalBase = [
     { id: 'glb-trasera', nombre: 'Panel posterior armario', ancho: 1600, alto: 2300, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: 'estructura' },

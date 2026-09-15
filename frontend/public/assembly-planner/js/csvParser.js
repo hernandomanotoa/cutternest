@@ -190,6 +190,29 @@ function validateDimensions(pieces, warnings) {
       }
     });
 
+    // Cobertura del vano por una torre de cajones: si el módulo es
+    // esencialmente una torre (≥3 frentes de cajón, sin colgador ni puertas)
+    // y los frentes suman menos del 35% del alto útil, lo más probable es un
+    // vano mal calculado o cajones sin declarar. Las torres de bandejas
+    // zapateras quedan exentas: ahí el hueco lo ocupa el calzado, no madera.
+    const drawerFaces = pieces.filter(
+      (p) => String(p.modulo).startsWith(modId) && inferRole(p) === 'drawer_face'
+    );
+    if (drawerFaces.length >= 3) {
+      const hasHangerOrDoor = pieces.some(
+        (p) =>
+          String(p.modulo).startsWith(modId) && ['hanger_rail', 'door'].includes(inferRole(p))
+      );
+      const allZapatera = drawerFaces.every((f) => normalizeName(f.nombre).includes('zapatera'));
+      if (!hasHangerOrDoor && !allZapatera && base && top && laterals.length) {
+        const usableH = Math.max(0, moduleBox.height - (Number(base.espesor) || 0) - (Number(top.espesor) || 0));
+        const frontsH = drawerFaces.reduce((s, f) => s + (Number(f.alto) || 0), 0);
+        if (usableH > 0 && frontsH / usableH < 0.35) {
+          warnings.push(`Módulo ${modId}: los frentes de cajón suman ${Math.round(frontsH)} mm (el ${Math.round((frontsH / usableH) * 100)}% del alto útil de ${Math.round(usableH)} mm) — revise si faltan cajones o sobra vano.`);
+        }
+      }
+    }
+
     // Cajones (submódulos)
     const drawerSubs = subModules.filter((m) => m.startsWith(modId));
     drawerSubs.forEach((subId) => {
@@ -200,6 +223,28 @@ function validateDimensions(pieces, warnings) {
 
       if (front && interiorWidth > 0 && front.ancho > interiorWidth - 3 + 1) {
         warnings.push(`Módulo ${modId} → ${subId}: frente cajón (${front.ancho} mm) no cabe en interior (${interiorWidth} mm).`);
+      }
+
+      // Rangos ergonómicos de frente (guía de diseño del taller). No aplican
+      // a volquetes/abatibles ('abatible'): su frente alto pivotante es el
+      // propio mecanismo, no una bandeja profunda.
+      //   cajón corredero: delgado 120-160 / estándar 150-200 / profundo 250-300;
+      //   bandeja zapatera extraíble: 150-220 mm (botas altas: vano abierto
+      //   de 350-450 mm, no bandeja).
+      if (front) {
+        const frontName = normalizeName(front.nombre);
+        const esZapatera = frontName.includes('zapatera');
+        const esAbatible = frontName.includes('abatible');
+        const altoFrente = Number(front.alto) || 0;
+        if (esZapatera) {
+          if (altoFrente < 120) {
+            warnings.push(`Módulo ${modId} → ${subId}: frente de zapatera muy bajo (${altoFrente} mm); lo habitual es 150-220 mm.`);
+          } else if (altoFrente > 340) {
+            warnings.push(`Módulo ${modId} → ${subId}: frente de zapatera muy alto (${altoFrente} mm); para calzado normal use 150-220 mm y deje las botas en vano abierto de 350-450 mm.`);
+          }
+        } else if (!esAbatible && altoFrente > 320) {
+          warnings.push(`Módulo ${modId} → ${subId}: frente de cajón muy alto (${altoFrente} mm); lo profundo habitual es 250-300 mm (suéteres/sábanas).`);
+        }
       }
 
       if (base && subLaterals.length) {
