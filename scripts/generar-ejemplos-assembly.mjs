@@ -29,32 +29,32 @@ const examples = [];
   const lines = [];
   lines.push(header('Ejemplo de cocina modular', 'Estructura global + 4 modulos: bajo mesada fregadero, cajonera triple, alacena y torre horno.'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo corrido cocina', 2400, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('cocina', 2400, 560, 100, '#C19A6B'));
   lines.push(line('glb-tapa-trabajo', 'Tapa de trabajo corrida', 2440, 40, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
   lines.push(fondo('glb-trasera', 'Panel posterior cocina', 2440, 600, '#F2F2F2', 'estructura'));
   lines.push(line('glb-cantonera-izq', 'Cantonera izquierda', 60, 60, 1, 'no', '#9CA3AF', 15, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-cantonera-der', 'Cantonera derecha', 60, 60, 1, 'no', '#9CA3AF', 15, 'T,B,L,R', 'estructura'));
 
   lines.push('# --- Modulo 1: bajo mesada fregadero con cajon ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 600, 700, 560, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 600, 800, 560, '#C19A6B'));
   lines.push(line('m1-repisa-inferior', 'Repisa inferior M1', 520, 380, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
   lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 560, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
 
   lines.push('# --- Modulo 2: cajonera triple ---');
-  lines.push(...baseTapaLateralesFondo(2, 2, 600, 700, 560, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(2, 2, 600, 800, 560, '#8B5A2B'));
   lines.push(...cajon(2, 1, { anchoModulo: 600, profundidadModulo: 560, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'superior' }));
   lines.push(...cajon(2, 2, { anchoModulo: 600, profundidadModulo: 560, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'medio' }));
   lines.push(...cajon(2, 3, { anchoModulo: 600, profundidadModulo: 560, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
 
   lines.push('# --- Modulo 3: alacena con estantes y puerta ---');
-  lines.push(...baseTapaLateralesFondo(3, 3, 600, 1200, 320, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(3, 3, 600, 1300, 320, '#C19A6B'));
   lines.push(line('m3-estante-1', 'Estante superior M3', 540, 280, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-estante-2', 'Estante medio M3', 540, 280, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-estante-3', 'Estante inferior M3', 540, 280, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-puerta', 'Puerta alacena M3', 560, 1160, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 3));
 
   lines.push('# --- Modulo 4: torre horno con cajon inferior ---');
-  lines.push(...baseTapaLateralesFondo(4, 4, 600, 1200, 560, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(4, 4, 600, 1300, 560, '#8B5A2B'));
   lines.push(line('m4-divisor', 'Divisor horno M4', 560, 550, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 4));
   lines.push(...cajon(4, 1, { anchoModulo: 600, profundidadModulo: 560, altoVano: 180, colorFrente: '#D9C2A3', colorLateral: '#C19A6B', suffix: 'inferior' }));
 
@@ -66,24 +66,24 @@ const examples = [];
   const lines = [];
   lines.push(header('Ejemplo de vanitory', 'Estructura global + 3 modulos: vanitory doble cajon, torre auxiliar y repisa abierta.'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo corrido bano', 1800, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('baño', 1800, 560, 100, '#C19A6B'));
   lines.push(line('glb-tapa-vanitory', 'Tapa vanitory corrida', 1800, 520, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-espejo', 'Espejo marco', 1200, 600, 1, 'no', '#A0A0A0', 5, '', 'estructura'));
 
   lines.push('# --- Modulo 1: vanitory doble cajon ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 800, 500, 560, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 800, 600, 560, '#C19A6B'));
   lines.push(...cajon(1, 1, { anchoModulo: 800, profundidadModulo: 560, altoVano: 180, nPorFila: 2, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'izquierdo' }));
   lines.push(...cajon(1, 2, { anchoModulo: 800, profundidadModulo: 560, altoVano: 180, nPorFila: 2, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'derecho' }));
 
   lines.push('# --- Modulo 2: torre auxiliar ---');
-  lines.push(...baseTapaLateralesFondo(2, 2, 400, 1200, 320, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(2, 2, 400, 1300, 320, '#8B5A2B'));
   lines.push(line('m2-estante-1', 'Estante superior M2', 340, 280, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
   lines.push(line('m2-estante-2', 'Estante medio M2', 340, 280, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
   lines.push(line('m2-estante-3', 'Estante inferior M2', 340, 280, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
   lines.push(line('m2-puerta', 'Puerta torre M2', 360, 1160, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
 
   lines.push('# --- Modulo 3: repisa abierta ---');
-  lines.push(...baseTapaLateralesFondo(3, 3, 600, 400, 200, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(3, 3, 600, 500, 200, '#C19A6B'));
   lines.push(line('m3-repisa', 'Repisa abierta M3', 540, 170, 2, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
 
   examples.push({ name: 'Ejemplo_CSV_Vanitory.csv', dataName: 'ejemplo-vanitory.csv', lines });
@@ -106,22 +106,22 @@ const examples = [];
   const lines = [];
   lines.push(header('Ejemplo de mueble para TV', 'Estructura global + 3 modulos: centro abierto y dos laterales con cajones/puerta.'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo corrido TV', 1800, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('corrido TV', 1800, 400, 100, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida TV', 1800, 40, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-trasera', 'Panel posterior TV', 1800, 500, 1, 'no', '#F2F2F2', 15, '', 'estructura'));
 
   lines.push('# --- Modulo 1: centro abierto ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 800, 500, 400, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 800, 600, 400, '#C19A6B'));
   lines.push(line('m1-estante-1', 'Estante superior M1', 740, 280, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   lines.push(line('m1-estante-2', 'Estante inferior M1', 740, 280, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
 
   lines.push('# --- Modulo 2: lateral cajonera ---');
-  lines.push(...baseTapaLateralesFondo(2, 2, 500, 500, 400, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(2, 2, 500, 600, 400, '#8B5A2B'));
   lines.push(...cajon(2, 1, { anchoModulo: 500, profundidadModulo: 400, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'superior' }));
   lines.push(...cajon(2, 2, { anchoModulo: 500, profundidadModulo: 400, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
 
   lines.push('# --- Modulo 3: lateral puerta ---');
-  lines.push(...baseTapaLateralesFondo(3, 3, 500, 500, 400, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(3, 3, 500, 600, 400, '#8B5A2B'));
   lines.push(line('m3-puerta', 'Puerta M3', 460, 460, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 3));
 
   examples.push({ name: 'Ejemplo_CSV_Mueble_TV.csv', dataName: 'ejemplo-mueble-tv.csv', lines });
@@ -133,21 +133,21 @@ const examples = [];
   lines.push(header('Ejemplo de escritorio', 'Estructura global tipo tablero + cajoneras laterales y repisa superior.'));
   lines.push('# --- Estructura global ---');
   lines.push(line('glb-tablero', 'Tablero escritorio', 1600, 700, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
-  lines.push(line('glb-zocalo', 'Zocalo escritorio', 2400, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('escritorio', 2400, 560, 100, '#C19A6B'));
 
   lines.push('# --- Modulo 1: cajonera izquierda ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 400, 700, 560, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 400, 800, 560, '#C19A6B'));
   lines.push(...cajon(1, 1, { anchoModulo: 400, profundidadModulo: 560, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
   lines.push(...cajon(1, 2, { anchoModulo: 400, profundidadModulo: 560, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
 
   lines.push('# --- Modulo 2: cajonera derecha ---');
-  lines.push(...baseTapaLateralesFondo(2, 2, 400, 700, 560, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(2, 2, 400, 800, 560, '#8B5A2B'));
   lines.push(...cajon(2, 1, { anchoModulo: 400, profundidadModulo: 560, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'superior' }));
   lines.push(...cajon(2, 2, { anchoModulo: 400, profundidadModulo: 560, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
 
   lines.push('# --- Modulo 3: repisa superior ---');
-  lines.push(...baseTapaLateralesFondo(3, 3, 1600, 300, 250, '#C19A6B'));
-  lines.push(line('m3-montante-central', 'Montante central M3', 250, 300, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
+  lines.push(...cascoZocaloCajon(3, 3, 1600, 400, 250, '#C19A6B'));
+  lines.push(line('m3-montante-central', 'Montante central M3', 250, 400, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
   lines.push(line('m3-travesano', 'Travesano trasero M3', 1540, 60, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-superior', 'Repisa superior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-inferior', 'Repisa inferior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
@@ -160,19 +160,19 @@ const examples = [];
   const lines = [];
   lines.push(header('Ejemplo de armario con puertas corredizas', 'Estructura global + 2 modulos interiores + puertas corredizas.'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo corrido armario', 1600, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('corrido armario', 1600, 550, 100, '#C19A6B'));
   lines.push(line('glb-corona', 'Corona armario', 1600, 100, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
   lines.push(fondo('glb-trasera', 'Panel posterior armario', 1600, 2300, '#F2F2F2', 'estructura'));
   lines.push(line('glb-puerta-izq', 'Puerta corrediza izquierda', 780, 2250, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-puerta-der', 'Puerta corrediza derecha', 780, 2250, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 'estructura'));
 
   lines.push('# --- Modulo 1: cuerpo izquierdo ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 800, 2300, 550, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 800, 2400, 550, '#C19A6B'));
   lines.push(line('m1-barra', 'Barra ropa M1', 740, 25, 1, 'si', '#A0A0A0', 25, '', 1));
   lines.push(...cajon(1, 1, { anchoModulo: 800, profundidadModulo: 550, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
 
   lines.push('# --- Modulo 2: cuerpo derecho ---');
-  lines.push(...baseTapaLateralesFondo(2, 2, 800, 2300, 550, '#8B5A2B'));
+  lines.push(...cascoZocaloCajon(2, 2, 800, 2400, 550, '#8B5A2B'));
   lines.push(line('m2-repisa-superior', 'Repisa superior M2', 740, 350, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 2));
   lines.push(line('m2-repisa-inferior', 'Repisa inferior M2', 740, 350, 2, 'si', '#D9C2A3', 18, 'T,B,L,R', 2));
   lines.push(...cajon(2, 1, { anchoModulo: 800, profundidadModulo: 550, altoVano: 180, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
@@ -420,12 +420,12 @@ function cajonOculto(parent, index, opts) {
   const lines = [];
   lines.push(header('Ejemplo de tocador', 'Estructura global + modulo tocador 1200×800×480 con 3 cajones y espejo con marco.'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo corrido tocador', 1200, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('corrido tocador', 1200, 480, 100, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida tocador', 1200, 480, 1, 'si', '#C19A6B', 30, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-espejo', 'Espejo tocador', 1000, 600, 1, 'no', '#E8F4F8', 4, '', 'estructura'));
 
   lines.push('# --- Modulo 1: tocador con 3 cajones ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 800, 480, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 1200, 900, 480, '#C19A6B'));
   lines.push(...cajon(1, 1, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
   lines.push(...cajon(1, 2, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'medio' }));
   lines.push(...cajon(1, 3, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));
@@ -504,13 +504,13 @@ function cajonOculto(parent, index, opts) {
   const lines = [];
   lines.push(header('Ejemplo de estanteria de oficina', 'Estanteria abierta 1200×1900×350 con 5 repisas regulables y divisor vertical (anclaje anti-volcadura a pared).'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo estanteria oficina', 1200, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('estanteria oficina', 1200, 350, 100, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa estanteria oficina', 1200, 40, 1, 'si', '#C19A6B', 30, 'T,B,L,R', 'estructura'));
   lines.push(fondo('glb-trasera', 'Panel posterior estanteria oficina', 1200, 1900, '#F2F2F2', 'estructura'));
 
   lines.push('# --- Modulo 1: casco con 5 repisas y divisor ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 1900, 350, '#C19A6B'));
-  lines.push(line('m1-divisor-vertical', 'Divisor vertical estanteria oficina', 320, 1870, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(...cascoZocaloCajon(1, 1, 1200, 2000, 350, '#C19A6B'));
+  lines.push(line('m1-divisor-vertical', 'Divisor vertical estanteria oficina', 320, 1970, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
   for (let i = 1; i <= 5; i++) {
     lines.push(line(`m1-repisa-${i}`, `Repisa ${i} estanteria oficina`, 1140, 250, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
   }
@@ -576,10 +576,10 @@ function cajonOculto(parent, index, opts) {
   const lines = [];
   lines.push(header('Ejemplo de tocador con espejo', 'Modulo bajo 1200×800×480 con zocalo corrido y 3 cajones apilados de 6 piezas (mismo modelo que ejemplo-tocador) + alzada de espejo con 2 montantes, tapa, respaldo y 2 puertas de espejo con cristal de 4 mm pegado. Herrajes: bisagras de cazoleta 26 mm (2 por puerta), espejos 4 mm pegados y 3 pares de correderas telescopicas.'));
   lines.push('# --- Estructura global ---');
-  lines.push(line('glb-zocalo', 'Zocalo corrido tocador espejo', 1200, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 'estructura'));
+  lines.push(...zocaloCajon('corrido tocador espejo', 1200, 480, 100, '#C19A6B'));
 
   lines.push('# --- Modulo 1: tocador bajo con 3 cajones (mismo modelo que ejemplo-tocador) ---');
-  lines.push(...baseTapaLateralesFondo(1, 1, 1200, 800, 480, '#C19A6B'));
+  lines.push(...cascoZocaloCajon(1, 1, 1200, 900, 480, '#C19A6B'));
   lines.push(...cajon(1, 1, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'superior' }));
   lines.push(...cajon(1, 2, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'medio' }));
   lines.push(...cajon(1, 3, { anchoModulo: 1200, profundidadModulo: 480, altoVano: 200, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'inferior' }));

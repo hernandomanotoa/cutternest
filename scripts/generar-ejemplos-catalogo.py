@@ -32,8 +32,20 @@ class M:
         self.pieces.append(piece(*args))
     def base_top(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
-        self.add(f'{mod}-base', f'Base {n}', self.w, self.d, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', mod)
+        # Base INTERNA (embutida entre laterales): luz interior (w−2t × d−2t).
+        # El módulo apoya sobre el zócalo-cajón global, no al piso (modelo
+        # zócalo-cajón, mismo patrón que cascoZocaloCajon() del generador mjs).
+        self.add(f'{mod}-base', f'Base {n}', self.w - 2 * TH_BODY, self.d - 2 * TH_BODY, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', mod)
         self.add(f'{mod}-tapa', f'Tapa {n}', self.w, self.d, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', mod)
+    def zocalo_cajon(self, nombre, alto, n_modulos=1, prof=None):
+        # Zócalo-cajón global: frente corrido (n×w) + laterales del cajón
+        # (prof × alto del zócalo). Los módulos conservan su base interna
+        # apoyada sobre el zócalo. Mismo contrato que zocaloCajon() del
+        # generador mjs: frente = suma de anchos de módulos (±2 mm, ADR-0021).
+        p = prof or self.d
+        self.add('glb-zocalo', f'Zocalo {nombre}', self.w * n_modulos, alto, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+        self.add('glb-zocalo-lateral-izq', f'Lateral zocalo izquierdo {nombre}', p, alto, 1, 'no', C_BODY, TH_BODY, 'T,B,L', 'estructura')
+        self.add('glb-zocalo-lateral-der', f'Lateral zocalo derecho {nombre}', p, alto, 1, 'no', C_BODY, TH_BODY, 'T,B,R', 'estructura')
     def laterales(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
         self.add(f'{mod}-lateral-izq', f'Lateral izquierdo {n}', self.d, self.h, 1, 'no', C_BODY, TH_BODY, 'T,B,L', mod)
@@ -105,7 +117,7 @@ def write(title, desc, pieces, filename):
 
 # Aparador (prof 450 para entrar en el rango alacena 300–450)
 m = M('aparador', 1600, 450, 800)
-m.add('glb-zocalo', 'Zocalo aparador', 4800, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('aparador', 100, n_modulos=3)
 # Modulo 1: cajonera (2 cajones por fila)
 m.box('m1', 'cajonera')
 m.cajon('m1', '1', n_por_fila=2)
@@ -123,7 +135,7 @@ write('Aparador', 'Aparador tipo buffet para salón o comedor: cajonera, puertas
 
 # Estantería (estantería/librería abierta)
 m = M('estanteria', 900, 300, 1800)
-m.add('glb-zocalo', 'Zocalo estanteria', 900, 80, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('estanteria', 80)
 m.add('glb-tapa', 'Tapa estanteria', 900, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior estanteria', 900, 1800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -135,7 +147,7 @@ write('Estantería', 'Estantería alta abierta para salón o estudio con 4 repis
 
 # Vitrina (alta)
 m = M('vitrina', 800, 400, 2000)
-m.add('glb-zocalo', 'Zocalo vitrina', 800, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('vitrina', 100)
 m.add('glb-tapa', 'Tapa vitrina', 800, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior vitrina', 800, 2000, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -158,7 +170,7 @@ write('Mesa extensible', 'Estructura de mesa extensible para comedor (soporte si
 
 # Recibidor lineal
 m = M('recibidor', 1200, 350, 900)
-m.add('glb-zocalo', 'Zocalo recibidor', 2400, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('recibidor', 100, n_modulos=2)
 # Modulo 1: cajonera
 m.box('m1')
 m.cajon('m1', '1')
@@ -172,7 +184,7 @@ write('Recibidor lineal', 'Recibidor lineal con cajonera y espejo.', m.pieces, '
 
 # Consola
 m = M('consola', 1000, 300, 850)
-m.add('glb-zocalo', 'Zocalo consola', 1000, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('consola', 100)
 m.add('glb-tapa', 'Tapa consola', 1000, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior consola', 1000, 850, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -181,7 +193,7 @@ write('Consola', 'Consola de recibidor con cajón amplio.', m.pieces, 'ejemplo-c
 
 # Separador de ambientes (prof 300 y alto 1800 para entrar en estanteria_librero 280–400 / 1800–2200)
 m = M('separador', 1200, 300, 1800)
-m.add('glb-zocalo', 'Zocalo separador', 1200, 80, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('separador', 80)
 m.add('glb-tapa', 'Tapa separador', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior separador', 1200, 1800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -195,7 +207,7 @@ write('Separador', 'Separador de ambientes tipo estantería abierta.', m.pieces,
 
 # Botellero (1000×400×1100, dentro de bar_cantina 1000–2000 / 400–600 / 1000–1100)
 m = M('botellero', 1000, 400, 1100)
-m.add('glb-zocalo', 'Zocalo botellero', 1000, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('botellero', 100)
 m.add('glb-tapa', 'Tapa botellero', 1000, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior botellero', 1000, 1100, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -205,7 +217,7 @@ write('Botellero', 'Botellero de cocina con entrepaños para botellas.', m.piece
 
 # Isla
 m = M('isla', 1200, 900, 900)
-m.add('glb-zocalo', 'Zocalo isla', 1200, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('isla', 100)
 m.add('glb-tapa', 'Tapa isla', 1200, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.box('m1')
 m.cajon('m1', '1', n_por_fila=2)
@@ -216,7 +228,7 @@ write('Isla cocina', 'Isla central de cocina con cajones y panel lateral.', m.pi
 
 # Columna alta
 m = M('columna', 600, 600, 2100)
-m.add('glb-zocalo', 'Zocalo columna', 600, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('columna', 100)
 m.add('glb-tapa', 'Tapa columna', 600, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior columna', 600, 2100, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -228,7 +240,7 @@ write('Columna cocina', 'Columna alta de cocina para horno/microondas con repisa
 
 # Columna auxiliar baño
 m = M('columna auxiliar', 300, 300, 1600)
-m.add('glb-zocalo', 'Zocalo columna auxiliar', 300, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('columna auxiliar', 100)
 m.add('glb-tapa', 'Tapa columna auxiliar', 300, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior columna auxiliar', 300, 1600, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -237,7 +249,7 @@ write('Columna auxiliar baño', 'Columna auxiliar estrecha para baño con cajón
 
 # Espejo con módulo
 m = M('espejo modulo', 800, 150, 700)
-m.add('glb-zocalo', 'Zocalo modulo baño', 800, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('modulo baño', 100)
 m.add('glb-tapa', 'Tapa modulo baño', 800, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior modulo baño', 800, 700, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
@@ -249,7 +261,7 @@ write('Espejo con módulo', 'Módulo de baño con puerta y espejo.', m.pieces, '
 
 # Archivador (prof 500 para entrar en el rango archivador 400–500)
 m = M('archivador', 500, 500, 1300)
-m.add('glb-zocalo', 'Zocalo archivador', 500, 100, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
+m.zocalo_cajon('archivador', 100)
 m.add('glb-tapa', 'Tapa archivador', 500, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior archivador', 500, 1300, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
