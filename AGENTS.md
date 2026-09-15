@@ -23,6 +23,7 @@ Guía orientativa para agentes que trabajan en `/workspace/cutternest-kit`. Ante
   - `backend/app/inventory.py`, `quotes.py`, `assembly.py`, `templates.py`: servicios de negocio.
 - **Autenticación**: local TOTP (pyotp + qrcode) + Guest PIN; sin LDAP, SMTP, SMS, WhatsApp ni OAuth en MVP.
 - **Endpoints**: prefijo `/api/v1/` (`/api/v1/optimize`, `/api/v1/projects`, `/api/v1/projects/{id}/assembly/plan`, `/api/v1/inventory`, `/api/v1/auth/*`, etc.).
+- **Sobrantes (offcuts)**: tabla `offcuts` (material, width/height/thickness_mm, quantity) con CRUD en `/api/v1/inventory/offcuts` (POST/DELETE) y listado en `/api/v1/inventory/offcuts/registry` (el GET en `/api/v1/inventory/offcuts` sigue reservado al endpoint preexistente de sobrantes derivados de `Inventory`). `/api/v1/optimize` acepta `use_offcuts: bool = False`: con `true` empaqueta primero en sobrantes coincidiendo material+espesor, marca los placements con `en_sobrante`/`offcut_id` y decrementa `quantity` (la fila se elimina al llegar a 0).
 - **Exportaciones**: SVG, PNG, PDF y CSV se generan en `/app/data/exports/` y se sirven como estáticos.
 
 ### Frontend
@@ -75,7 +76,9 @@ El Assembly Planner se organiza por capas con responsabilidades definidas. Cuand
 
 **Regla de oro**: si una función no necesita DOM, no debe vivir en una vista; si una función no necesita SVG, no debe vivir en un renderizador; si una función no necesita conocer el estado global, no debe vivir en `app.js`.
 
-**Validación de ejemplos**: todo CSV de ejemplo (`data/ejemplo-*.csv` o `docs/Ejemplo_CSV_*.csv`) debe pasar `node frontend/public/assembly-planner/test/validate-examples.mjs` con 0 errores, 0 warnings y 0 piezas con rol genérico `panel`. Los CSVs regenerables se editan en `scripts/generar-ejemplos-catalogo.py` y `scripts/generar-ejemplos-assembly.mjs` (su helper `cajon()` calcula la geometría coherente con el vano del módulo padre); ver ADR-0021 para el contrato completo.
+**Validación de ejemplos**: todo CSV de ejemplo (`data/ejemplo-*.csv` o `docs/Ejemplo_CSV_*.csv`) debe pasar `node frontend/public/assembly-planner/test/validate-examples.mjs` con 0 errores, 0 warnings y 0 piezas con rol genérico `panel`. Los CSVs regenerables se editan en `scripts/generar-ejemplos-catalogo.py` y `scripts/generar-ejemplos-assembly.mjs` (el helper `cajon()` vive en `scripts/lib/cajonModel.mjs` y calcula la geometría coherente con el vano del módulo padre, con test de propiedades en `scripts/lib/cajonModel.test.mjs`); ver ADR-0021 para el contrato completo.
+
+**Convenciones del CSV que el parser valida con warnings**: la columna 11 `pos_z` ancla explícitamente frentes de cajón (y barras/puertas) a una posición Z; sin `pos_z` el renderer apila por zonas y **no escala silenciosamente** — emite warning (`isometricRenderer.warnings`) si la pila excede el vano, y `csvParser.js` advierte cuando un módulo-torre tiene frentes que cubren <35% del alto útil (posible vano desaprovechado) o cuando un frente incumple rangos ergonómicos (corredero >320 mm, zapatera fuera de 120–340 mm). Los volquetes (`abatible`) están exentos de la regla de frentes correderos.
 
 ## 3. Convenciones de código
 
@@ -96,7 +99,8 @@ El Assembly Planner se organiza por capas con responsabilidades definidas. Cuand
 
 - Backend: **pytest** (`backend/tests/`). Ejecuta con `cd backend && pytest` o `docker exec cutternest-backend pytest`.
 - Frontend: **Vitest** (`frontend/src/**/*.test.ts`). Ejecuta con `cd frontend && pnpm test`.
-- E2E: **Playwright** cuando exista (post-MVP).
+- Assembly Planner (vanilla): **node --test** (`frontend/public/assembly-planner/test/*.test.mjs` y `js/**/*.test.js`). Ejecuta con `cd frontend/public/assembly-planner && node --test 'test/*.test.mjs' 'js/**/*.test.js'`. Valida ejemplos CSV con `node frontend/public/assembly-planner/test/validate-examples.mjs`.
+- E2E: **Playwright** (`frontend/e2e/`, sirve el planner estático en el puerto 8931). Ejecuta con `cd frontend && pnpm test:e2e`.
 - Añade tests para nuevas funciones de optimización, cálculo de cotizaciones y helpers de Three.js.
 - Asegúrate de que los tests no fallen tras tus cambios; si un test falla por un cambio real, actualiza el test, no inviertas la lógica para que pase.
 
@@ -123,6 +127,13 @@ cd frontend && pnpm build
 
 # Frontend: tests
 pnpm test
+
+# Assembly Planner (node --test) + validación de ejemplos CSV
+cd frontend/public/assembly-planner && node --test 'test/*.test.mjs' 'js/**/*.test.js'
+node frontend/public/assembly-planner/test/validate-examples.mjs
+
+# E2E Playwright (planner estático, puerto 8931)
+cd frontend && pnpm test:e2e
 
 # Fase 2 (PostgreSQL + Redis + backups)
 docker compose -f docker-compose.yml -f docker-compose.fase2.yml up -d --build
