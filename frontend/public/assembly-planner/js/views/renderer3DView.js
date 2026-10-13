@@ -32,7 +32,7 @@ export function createRenderer3DView(store) {
   let lastUserConfig = null;
   let selectedPieceId = null;
   // Controles de apertura compartidos. Se recrean en cada render estructural
-  // porque onAperturaPieza debe cerrar sobre markStepOverride (local al modo paso).
+  // dentro de renderView (ver creación previa al template del HTML).
   let aperturaControls = null;
   // Toggle "Gap profundidad" compartido: sus callbacks solo tocan estado de la
   // vista (moduleGapMode) y el renderer, así que se crea una sola vez.
@@ -198,6 +198,25 @@ export function createRenderer3DView(store) {
       return;
     }
 
+    // Se recrean en cada render estructural porque onAperturaPieza debe cerrar
+    // sobre markStepOverride (local al modo paso). Deben existir ANTES del
+    // template: su HTML se interpola en los sliders de abajo.
+    aperturaControls = createAperturaControls({
+      prefix: 'r3d',
+      layout: 'group',
+      onAperturaGlobal: setAperturaGlobal,
+      onAperturaPieza: (id, valor) => {
+        // En modo paso, el valor manual es un override que gana sobre la
+        // apertura automática del paso y persiste al navegar.
+        markStepOverride(id, valor);
+        setAperturaPieza(id, valor);
+      },
+      onAnguloPieza: (id, degrees) => {
+        if (degrees == null) clearAnguloPieza(id);
+        else setAnguloPieza(id, degrees);
+      },
+    });
+
     container.innerHTML = `
       <div class="card" style="height:100%;display:flex;flex-direction:column;">
         <div class="card__header">
@@ -288,21 +307,6 @@ export function createRenderer3DView(store) {
         </div>
       </div>`;
 
-    aperturaControls = createAperturaControls({
-      prefix: 'r3d',
-      layout: 'group',
-      onAperturaGlobal: setAperturaGlobal,
-      onAperturaPieza: (id, valor) => {
-        // En modo paso, el valor manual es un override que gana sobre la
-        // apertura automática del paso y persiste al navegar.
-        markStepOverride(id, valor);
-        setAperturaPieza(id, valor);
-      },
-      onAnguloPieza: (id, degrees) => {
-        if (degrees == null) clearAnguloPieza(id);
-        else setAnguloPieza(id, degrees);
-      },
-    });
     aperturaControls.bind(container);
     gapToggle.bind(container);
 

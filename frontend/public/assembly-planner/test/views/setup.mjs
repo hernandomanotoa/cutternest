@@ -23,6 +23,7 @@ const globals = {
   DocumentFragment: window.DocumentFragment,
   Document: window.Document,
   SVGElement: window.SVGElement,
+  CSS: window.CSS,
   Event: window.Event,
   CustomEvent: window.CustomEvent,
   MouseEvent: window.MouseEvent,

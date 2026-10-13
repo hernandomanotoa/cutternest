@@ -140,11 +140,13 @@ describe('Renderer3D integration', () => {
     assert.ok(maxX > 800, 'second module should be offset beyond the first module width');
 
     // El pivot de rotación debe ser el centro de la caja envolvente global,
-    // no el centro del primer módulo (moduleW/2).
+    // no el centro del primer módulo (moduleW/2 del módulo individual).
     assert.equal(renderer.moduleCenter.x, (minX + maxX) / 2, 'center X should be the bbox center of all modules');
+    // En vista 'all' moduleW debe abarcar todos los módulos (con el gap de
+    // separación), no quedarse en el ancho del primer módulo.
     assert.ok(
-      renderer.moduleCenter.x > renderer.moduleW / 2,
-      'rotation center must not sit on the first module'
+      renderer.moduleW >= maxX - minX - 1e-6,
+      'moduleW should span the whole scene (all modules + gap)'
     );
   });
 

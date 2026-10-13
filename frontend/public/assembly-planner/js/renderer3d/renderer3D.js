@@ -10,6 +10,8 @@ import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
 import { createInteraction } from './interaction.js';
 import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
 import { getModulePieces, getModuleLabel } from '../utils/helpers.js';
+import { ALL_MODULE_ID } from '../services/moduleService.js';
+import { ensureModuleGap, MODULE_GAP_MM } from './moduleLayout.js';
 
 export class Renderer3D {
   constructor(container, options = {}) {
@@ -124,7 +126,18 @@ export class Renderer3D {
     // las geometrías visibles. En vista completa ('all') los módulos se
     // desplazan en X (offsetX acumulado en computeGeometries) y moduleW/2
     // quedaría sobre el primer módulo en vez del centro global de la escena.
-    this.moduleCenter = computeBoundingBox(this.geometries).center;
+    if (moduleId === ALL_MODULE_ID) {
+      // Separar los módulos con el gap estándar (en 'compact' quedan pegados)
+      // y usar el ancho real de la escena (no el del primer módulo) para
+      // perspectiva, cotas y plano de sección.
+      this.geometries = ensureModuleGap(this.geometries, MODULE_GAP_MM);
+      const sceneBox = computeBoundingBox(this.geometries);
+      this.moduleW = Math.max(this.moduleW, sceneBox.size.w);
+      this.moduleCenter = sceneBox.center;
+      this.perspDistance = Math.max(this.moduleW, this.moduleD, this.moduleH, 1) * 2.5;
+    } else {
+      this.moduleCenter = computeBoundingBox(this.geometries).center;
+    }
 
     this.needsRender = true;
     if (!opts.keepCamera) this._fitCameraToModule();
