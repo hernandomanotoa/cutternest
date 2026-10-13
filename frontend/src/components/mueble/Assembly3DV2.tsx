@@ -4,6 +4,9 @@ import { CameraControls, Edges, Grid, TransformControls } from '@react-three/dre
 import * as THREE from 'three'
 import type { AssemblyConnector, AssemblyPiece3D, AssemblyPieceState, Point3D, Transform3D } from '../../types'
 import { PieceLabel } from './PieceLabel'
+import { getModuleColor } from './moduleColor'
+
+export { getModuleColor }
 
 interface Assembly3DV2Props {
   pieces: AssemblyPiece3D[]
@@ -31,27 +34,6 @@ interface Assembly3DV2Props {
 export const SCALE = 0.025
 const MIN_THICKNESS = 1.0
 const EXPLODE_DISTANCE_MM = 120
-
-const MODULE_PALETTE = [
-  '#ef4444',
-  '#f97316',
-  '#f59e0b',
-  '#84cc16',
-  '#10b981',
-  '#06b6d4',
-  '#3b82f6',
-  '#8b5cf6',
-  '#d946ef',
-  '#f43f5e',
-]
-
-export function getModuleColor(modulo?: string): string {
-  if (!modulo) return '#64748b'
-  let hash = 0
-  for (let i = 0; i < modulo.length; i++) hash = modulo.charCodeAt(i) + ((hash << 5) - hash)
-  const index = Math.abs(hash) % MODULE_PALETTE.length
-  return MODULE_PALETTE[index]
-}
 
 const CONNECTOR_COLORS: Record<string, string> = {
   confirmat: '#94a3b8',

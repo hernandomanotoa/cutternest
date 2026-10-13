@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
@@ -30,7 +30,11 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
 import { Separator } from '../ui/Separator'
-import { Assembly3DV2, getModuleColor } from './Assembly3DV2'
+import { getModuleColor } from './moduleColor'
+
+const Assembly3DV2 = lazy(() =>
+  import('./Assembly3DV2').then((m) => ({ default: m.Assembly3DV2 }))
+)
 import { StepTimeline } from './StepTimeline'
 import { LevelTimeline } from './LevelTimeline'
 import { ExplodeControl } from './ExplodeControl'
@@ -628,7 +632,14 @@ export function AssemblyPage() {
         <div className='min-h-0 flex-1 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_22rem]'>
           <div className='flex min-h-0 flex-col gap-3'>
             <div className='relative min-h-[24rem] flex-1 overflow-hidden rounded-xl border bg-card'>
-              <Assembly3DV2
+              <Suspense
+                fallback={
+                  <div className='flex h-full min-h-[24rem] items-center justify-center text-muted-foreground'>
+                    Cargando vista 3D...
+                  </div>
+                }
+              >
+                <Assembly3DV2
                 pieces={mode === 'assistant' ? response.vista_completa : accumulatedPieces}
                 expectedPieces={response.pieces}
                 connectors={accumulatedConnectors}
@@ -647,7 +658,8 @@ export function AssemblyPage() {
                 pieceStates={mode === 'assistant' ? pieceStates : undefined}
                 onSelectPiece={handleSelectPiece}
                 onTransformEnd={handleTransformEnd}
-              />
+                />
+              </Suspense>
             </div>
 
             <Card className='shrink-0'>
