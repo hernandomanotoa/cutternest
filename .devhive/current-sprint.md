@@ -50,6 +50,8 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A37 | Defaults de altura lógicos por tipo de pieza | Guardian | ✅ Completado | `drawerBaseOffset` 80→10, `braceBaseOffset` 80→0, `lowerShelfBaseOffset` 80→30, `topInset` 120→50; riel colgador clampado a `tapa−60` (módulos bajos). 419 tests OK. |
 | A38 | Zócalo-cajón full-width sin base + ejemplos | Guardian | ✅ Completado | Rol `plinth_side`; detección por datos (con laterales → cajón visible 0..H; solo frente → patín intacto); base del módulo sigue con el módulo apoyada a z=zocaloHeight. 3 ejemplos nuevos (closet/cómoda/mueble TV). 425 tests OK, 83 CSV 0/0/0. |
 | A39 | Tipos de riel con holguras reales (Häfele/Blum) | Guardian | ✅ Completado | S1 `RAIL_TYPES`+`railService` (telescópica 12,7 mm/lado, oculta vano−42, ruedas 12,5, ligera 10; extracción 1,0/0,75) y holgura bilateral en geometría; S2 herrajes/instrucciones por tipo; S3 ejemplo 23 correderas ocultas. 453 tests OK, 85 CSV 0/0/0. Deuda: validación de fondo de cajón es telescópica-específica. |
+| A40 | Refactor por capas del planner completo | Guardian | ✅ Completado | Todos los módulos de la raíz de `js/` movidos a su capa: `services/` (csvParser, heuristics, structural, instructions, topologicalSort, hardware), `components/renderers/` (isometricRenderer como orquestador de 16 módulos en `renderers/isometric/`, svgEngine), `utils/helpers.js`. Nuevos componentes: `toast.js`, `aperturaControls.js`, `moduleSelector.js`, `domUtils.js`. `vendor/` con html2canvas+jspdf (manual PDF en cliente). Tests DOM de vistas con happy-dom (`test/views/*.dom.test.js`, runner aparte `pnpm test:dom`). 748 tests node --test + 9 DOM OK, 85 CSV 0/0/0. |
+| A41 | Infra de tests frontend React + CI | Guardian | ✅ Completado | Vitest excluye `e2e/` (Playwright aparte), nuevos componentes `OtpInput` y `ConfirmDialog` con tests, ajustes en páginas auth/proyectos, `vite.config.ts`. Workflow `.github/workflows/ci.yml` con 3 jobs: backend pytest, frontend (install + test + build), planner (node --test + validate-examples). 86 tests Vitest OK, build OK. Pendiente: generar `pnpm-lock.yaml` con red para que `pnpm install --frozen-lockfile` funcione en CI. |
 
 ## Leyenda estados
 
@@ -74,10 +76,11 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Métricas actuales
 
-- Tests backend: 37 passed (incl. contrato de plantillas `test_templates.py`).
-- Tests frontend (React): build validado en Docker; tests unitarios no ejecutados por falta de lockfile.
-- Tests Assembly Planner: 415 passed (node --test; incl. apertura interactiva ADR-0022: bisagra/corrediza/riel/volquete pivotante, ángulo configurable + colisión A35 y sincronización apertura↔modo paso A36).
-- Ejemplos CSV: 77 archivos (data/ + docs/) validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI).
+- Tests backend: 43 passed.
+- Tests frontend (React): 86 passed (Vitest, 20 archivos); build de producción OK.
+- Tests Assembly Planner: 748 passed (node --test) + 9 tests DOM de vistas (happy-dom, `pnpm test:dom`).
+- Ejemplos CSV: 85 archivos validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI).
+- CI: `.github/workflows/ci.yml` corre pytest, Vitest + build y la suite completa del planner en cada push/PR (requiere `pnpm-lock.yaml`, pendiente de generar con red).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
@@ -103,7 +106,8 @@ Se unificaron y limpiaron los CSV de ejemplo del Assembly Planner:
 
 ## Next actions
 
-1. Generar `pnpm-lock.yaml` en un host con acceso a npm (`cd frontend && pnpm install`) y commitearlo.
+0. Commitear el trabajo validado (A40 refactor por capas + A41 infra de tests/CI) en bloques, con confirmación del usuario.
+1. Generar `pnpm-lock.yaml` en un host con acceso a npm (`cd frontend && pnpm install`) y commitearlo — requisito para que el job de CI `pnpm install --frozen-lockfile` funcione.
 2. Validar el Assembly Planner y el modo paso 3D en navegador con ejemplos CSV (Chrome/Firefox/Edge).
 3. ~~Coordinar re-indexación MCP tras cerrar el swarm~~ — Hecho 2026-09-07 (índice + ADR persistidos en `codebase-memory-mcp`).
 
