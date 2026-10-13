@@ -32,6 +32,7 @@ import { getApiErrorMessage } from '../../utils/apiError'
 import { fetchCatalog } from '../../utils/catalog'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import {
   Card,
   CardContent,
@@ -351,14 +352,21 @@ export function ProjectsPage() {
     }
   }
 
-  async function deleteProject(id: string) {
-    if (!window.confirm('¿Eliminar este proyecto? Esta acción no se puede deshacer.')) return
+  const [projectToDelete, setProjectToDelete] = useState<ProjectWithStats | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  async function deleteProject(project: ProjectWithStats) {
+    if (deleting) return
+    setDeleting(true)
     try {
-      await api.delete(`/projects/${id}`)
-      setProjects((prev) => prev.filter((p) => p.id !== id))
+      await api.delete(`/projects/${project.id}`)
+      setProjects((prev) => prev.filter((p) => p.id !== project.id))
       toast.success('Proyecto eliminado')
+      setProjectToDelete(null)
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err) || 'Error al eliminar')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -730,7 +738,7 @@ export function ProjectsPage() {
                         variant='ghost'
                         size='icon'
                         className='h-8 w-8'
-                        onClick={() => deleteProject(project.id)}
+                        onClick={() => setProjectToDelete(project)}
                         aria-label='Eliminar proyecto'
                       >
                         <Trash2 className='h-4 w-4 text-destructive' />
@@ -878,6 +886,20 @@ export function ProjectsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={projectToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setProjectToDelete(null)
+        }}
+        title={`¿Eliminar ${projectToDelete?.name ?? 'este proyecto'}?`}
+        message='Esta acción no se puede deshacer. Se eliminarán el proyecto y todos sus datos asociados (piezas, optimizaciones y cotizaciones).'
+        confirmLabel='Eliminar'
+        loading={deleting}
+        onConfirm={() => {
+          if (projectToDelete) deleteProject(projectToDelete)
+        }}
+      />
     </div>
   )
 }

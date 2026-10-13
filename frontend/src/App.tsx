@@ -9,13 +9,21 @@ import { LoginPage } from './components/auth/LoginPage'
 import { RegisterPage } from './components/auth/RegisterPage'
 import { TOTPVerifyPage } from './components/auth/TOTPVerifyPage'
 import { GuestLoginPage } from './components/auth/GuestLoginPage'
-import { Dashboard } from './components/Dashboard'
-import { OptimizerPage } from './components/optimizer/OptimizerPage'
-import { InventoryPage } from './components/taller/InventoryPage'
-import { QuotePage } from './components/cotizacion/QuotePage'
-import { ProjectsPage } from './components/projects/ProjectsPage'
 
+const Dashboard = React.lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })))
+const OptimizerPage = React.lazy(() => import('./components/optimizer/OptimizerPage').then((m) => ({ default: m.OptimizerPage })))
+const InventoryPage = React.lazy(() => import('./components/taller/InventoryPage').then((m) => ({ default: m.InventoryPage })))
+const QuotePage = React.lazy(() => import('./components/cotizacion/QuotePage').then((m) => ({ default: m.QuotePage })))
+const ProjectsPage = React.lazy(() => import('./components/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })))
 const AssemblyPage = React.lazy(() => import('./components/mueble/AssemblyPage'))
+
+function PageFallback({ label }: { label: string }) {
+  return (
+    <div className='flex min-h-screen items-center justify-center bg-background text-muted-foreground'>
+      Cargando {label}...
+    </div>
+  )
+}
 
 function AuthInit({ children }: { children: React.ReactNode }) {
   const { setAuthenticated, setUser, clear } = useAuth()
@@ -72,7 +80,9 @@ function App() {
                 path='/'
                 element={
                   <ProtectedRoute guestAllowed>
-                    <Dashboard />
+                    <Suspense fallback={<PageFallback label='panel' />}>
+                      <Dashboard />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -80,7 +90,9 @@ function App() {
                 path='/optimizer'
                 element={
                   <ProtectedRoute>
-                    <OptimizerPage />
+                    <Suspense fallback={<PageFallback label='optimizador' />}>
+                      <OptimizerPage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -88,7 +100,9 @@ function App() {
                 path='/projects'
                 element={
                   <ProtectedRoute guestAllowed>
-                    <ProjectsPage />
+                    <Suspense fallback={<PageFallback label='proyectos' />}>
+                      <ProjectsPage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -96,7 +110,9 @@ function App() {
                 path='/inventory'
                 element={
                   <ProtectedRoute>
-                    <InventoryPage />
+                    <Suspense fallback={<PageFallback label='inventario' />}>
+                      <InventoryPage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -104,7 +120,9 @@ function App() {
                 path='/quote/:projectId'
                 element={
                   <ProtectedRoute>
-                    <QuotePage />
+                    <Suspense fallback={<PageFallback label='cotizacion' />}>
+                      <QuotePage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -112,7 +130,7 @@ function App() {
                 path='/assembly/:projectId'
                 element={
                   <ProtectedRoute guestAllowed>
-                    <Suspense fallback={<div className='flex min-h-screen items-center justify-center bg-background text-muted-foreground'>Cargando ensamblaje 3D...</div>}>
+                    <Suspense fallback={<PageFallback label='ensamblaje 3D' />}>
                       <AssemblyPage />
                     </Suspense>
                   </ProtectedRoute>

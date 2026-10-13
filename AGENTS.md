@@ -132,8 +132,15 @@ pnpm test
 cd frontend/public/assembly-planner && node --test 'test/*.test.mjs' 'js/**/*.test.js'
 node frontend/public/assembly-planner/test/validate-examples.mjs
 
+# Assembly Planner: tests DOM de vistas (happy-dom, runner aparte)
+cd frontend/public/assembly-planner && pnpm test:dom
+
 # E2E Playwright (planner estático, puerto 8931)
 cd frontend && pnpm test:e2e
+
+# CI: el workflow .github/workflows/ci.yml corre pytest (backend),
+# pnpm test + pnpm build (frontend) y la suite completa del planner
+# (unit + integration .mjs + validate-examples) en cada push/PR.
 
 # Fase 2 (PostgreSQL + Redis + backups)
 docker compose -f docker-compose.yml -f docker-compose.fase2.yml up -d --build

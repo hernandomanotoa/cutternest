@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+      - name: Backend tests
+        run: cd backend && pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Enable pnpm via corepack
+        run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - name: Install frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Frontend unit tests (Vitest)
+        working-directory: frontend
+        run: pnpm test
+      - name: Frontend type-check + production build
+        working-directory: frontend
+        run: pnpm build
+
+  assembly-planner-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Full Assembly Planner suite (unit + integration .mjs)
+        run: cd frontend/public/assembly-planner && node --test 'test/*.test.mjs' 'js/**/*.test.js'
+      - name: Validate all example CSVs (0 errors / 0 warnings / 0 generic roles)
+        run: node frontend/public/assembly-planner/test/validate-examples.mjs

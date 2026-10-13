@@ -77,3 +77,6 @@ frontend/public/assembly-planner/pnpm-lock.yaml
 # Playwright E2E
 frontend/test-results/
 frontend/playwright-report/
+
+# pnpm store local (no versionar)
+frontend/.pnpm-store/
