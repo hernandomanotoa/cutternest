@@ -15,8 +15,8 @@ import {
   createMetalGradient,
   getFillForFace,
 } from './materials.js';
-import { escapeHtml } from '../utils.js';
-import { COLORS } from '../core/config.js';
+import { escapeHtml } from '../utils/helpers.js';
+import { COLORS, RENDERER3D_THEME, HIGHLIGHT_COLORS } from '../core/config.js';
 
 /**
  * Escapa caracteres XML para atributos y contenido de texto.
@@ -164,7 +164,7 @@ export function buildSVG(pieces, camera, options = {}) {
       y1: l.from.y.toFixed(2),
       x2: l.to.x.toFixed(2),
       y2: l.to.y.toFixed(2),
-      stroke: '#8b949e',
+      stroke: RENDERER3D_THEME.textSecondary,
       'stroke-width': '1',
       'stroke-dasharray': '4,3',
       opacity: '0.7',
@@ -187,9 +187,9 @@ export function buildSVG(pieces, camera, options = {}) {
     const pointsStr = pts.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
     svgParts.push(voidTag('polygon', {
       points: pointsStr,
-      fill: '#58a6ff',
+      fill: RENDERER3D_THEME.accent,
       'fill-opacity': '0.08',
-      stroke: '#58a6ff',
+      stroke: RENDERER3D_THEME.accent,
       'stroke-width': '1',
       'stroke-dasharray': '6,4',
       'pointer-events': 'none',
@@ -221,7 +221,7 @@ export function buildSVG(pieces, camera, options = {}) {
     svgParts.push(voidTag('polygon', {
       points: pointsStr,
       fill: getFillForFace(face.name, piece, faceColors, metalId),
-      stroke: isCollision ? COLORS.strokeDanger : isSelected || isHovered ? '#FFD700' : isCurrentStep ? '#58a6ff' : '#222',
+      stroke: isCollision ? COLORS.strokeDanger : isSelected || isHovered ? HIGHLIGHT_COLORS.selection : isCurrentStep ? RENDERER3D_THEME.accent : RENDERER3D_THEME.strokeBase,
       'stroke-width': isCollision ? '2.5' : isSelected || isHovered ? '2' : isCurrentStep ? '1.75' : '0.75',
       'stroke-linejoin': 'round',
       'fill-opacity': Math.max(0.02, opacity).toFixed(3),
@@ -273,7 +273,7 @@ export function buildSVG(pieces, camera, options = {}) {
     svgParts.push(voidTag('polygon', {
       points: pointsStr,
       fill: 'url(#r3d-hatch)',
-      stroke: '#58a6ff',
+      stroke: RENDERER3D_THEME.accent,
       'stroke-width': '1',
       'pointer-events': 'none',
     }));
@@ -288,7 +288,7 @@ export function buildSVG(pieces, camera, options = {}) {
           width: '8',
           height: '8',
           patternTransform: 'rotate(45)',
-        }, `${voidTag('rect', { width: '8', height: '8', fill: '#58a6ff', 'fill-opacity': '0.2' })}${voidTag('line', { x1: '0', y1: '0', x2: '0', y2: '8', stroke: '#58a6ff', 'stroke-width': '1.5' })}`)
+        }, `${voidTag('rect', { width: '8', height: '8', fill: RENDERER3D_THEME.accent, 'fill-opacity': '0.2' })}${voidTag('line', { x1: '0', y1: '0', x2: '0', y2: '8', stroke: RENDERER3D_THEME.accent, 'stroke-width': '1.5' })}`)
       : '',
   ].filter(Boolean).join('\n    ');
   const defs = defsContent ? wrap('defs', {}, defsContent) : '';
@@ -297,7 +297,7 @@ export function buildSVG(pieces, camera, options = {}) {
     x: (width / 2).toFixed(1),
     y: '28',
     'text-anchor': 'middle',
-    fill: '#c9d1d9',
+    fill: RENDERER3D_THEME.textPrimary,
     'font-size': '16',
     'font-weight': '700',
   }, `Vista 3D${title ? ` — ${escapeHtml(title)}` : ''}`);
@@ -306,7 +306,7 @@ export function buildSVG(pieces, camera, options = {}) {
     x: (width / 2).toFixed(1),
     y: '50',
     'text-anchor': 'middle',
-    fill: '#8b949e',
+    fill: RENDERER3D_THEME.textSecondary,
     'font-size': '11',
   }, escapeHtml(dimsText));
 
@@ -317,7 +317,7 @@ export function buildSVG(pieces, camera, options = {}) {
     xmlns: 'http://www.w3.org/2000/svg',
     role: 'img',
     'preserve-aspect-ratio': 'xMidYMid meet',
-    style: 'width:100%;height:100%;display:block;background:#0d1117;',
+    style: `width:100%;height:100%;display:block;background:${RENDERER3D_THEME.canvasBackground};`,
   }, [defs, titleEl, dimsEl, mainGroup].filter(Boolean).join('\n  '));
 
   return svg;

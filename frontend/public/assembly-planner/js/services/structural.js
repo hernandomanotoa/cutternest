@@ -1,5 +1,7 @@
 // structural.js — análisis de cargas, pandeo, vuelco y riesgo
 
+import { RISK_COLORS } from '../core/config.js';
+
 const DEFAULT_E_MPA = 2500;
 const DEFAULT_SIGMA_MPA = 18;
 const DEFAULT_DEFLEXION_LIMIT = 250; // L/250
@@ -36,26 +38,26 @@ export function clasificarRiesgo(pieza) {
   const luz = Math.max(pieza.ancho, pieza.alto);
 
   if (pieza.espesor <= 5 && (name.includes('fondo') || name.includes('trasera') || name.includes('decor') || name.includes('tapacanto'))) {
-    return { level: 'info', label: 'Fondo decorativo', color: '#3b82f6', accion: 'No estructural' };
+    return { level: 'info', label: 'Fondo decorativo', color: RISK_COLORS.info, accion: 'No estructural' };
   }
 
   if (pieza.espesor <= 5) {
-    return { level: 'success', label: 'Bajo', color: '#10b981', accion: 'Pieza menor: sin acción' };
+    return { level: 'success', label: 'Bajo', color: RISK_COLORS.success, accion: 'Pieza menor: sin acción' };
   }
 
   if ((name.includes('repisa') || name.includes('estante')) && luz > 800 && pieza.espesor <= 15) {
-    return { level: 'danger', label: 'Crítico', color: '#ef4444', accion: 'Obligatorio: divisor vertical o soporte central' };
+    return { level: 'danger', label: 'Crítico', color: RISK_COLORS.danger, accion: 'Obligatorio: divisor vertical o soporte central' };
   }
 
   if ((name.includes('repisa') || name.includes('estante')) && luz >= 600 && luz <= 800 && pieza.espesor <= 15) {
-    return { level: 'warning', label: 'Alto', color: '#f97316', accion: 'Recomendado: soporte intermedio' };
+    return { level: 'warning', label: 'Alto', color: RISK_COLORS.warning, accion: 'Recomendado: soporte intermedio' };
   }
 
   if ((name.includes('repisa') || name.includes('estante')) && luz >= 400 && luz < 600 && pieza.espesor === 15) {
-    return { level: 'medium', label: 'Medio', color: '#fbbf24', accion: 'Opcional: soporte si carga > 15 kg' };
+    return { level: 'medium', label: 'Medio', color: RISK_COLORS.medium, accion: 'Opcional: soporte si carga > 15 kg' };
   }
 
-  return { level: 'success', label: 'Bajo', color: '#10b981', accion: 'Sin acción necesaria' };
+  return { level: 'success', label: 'Bajo', color: RISK_COLORS.success, accion: 'Sin acción necesaria' };
 }
 
 export function calcularVuelco(mueble) {

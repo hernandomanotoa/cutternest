@@ -15,7 +15,7 @@ import {
 import { classifyFurniture, applyFichaCorrections } from '../services/furnitureClassifier.js';
 import { getModuleDimensions } from '../services/geometryService.js';
 import { buildAssemblySequence } from '../services/assemblyStepService.js';
-import { escapeHtml, getModuleLabel } from '../utils.js';
+import { escapeHtml, getModuleLabel } from '../utils/helpers.js';
 import { buildStandaloneHtml, download } from './manual/manualExporter.js';
 import { updateFichaCorrections, clearFichaCorrections } from '../app.js';
 

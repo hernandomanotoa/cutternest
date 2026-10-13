@@ -6,6 +6,8 @@ import {
   $$,
   readFileAsText,
   downloadText,
+} from './components/domUtils.js';
+import {
   getModules,
   getModulePieces,
   getModuleDependencies,
@@ -13,15 +15,15 @@ import {
   getModuleGroup,
   getModuleOptions,
   isGlobalPiece,
-} from './utils.js';
-import { parseCSV, piecesToCSV, createEmptyPiece } from './csvParser.js';
-import { sugerirDependencias } from './heuristics.js';
-import { topologicalLevels, buildSteps } from './topologicalSort.js';
+} from './utils/helpers.js';
+import { parseCSV, piecesToCSV, createEmptyPiece } from './services/csvParser.js';
+import { sugerirDependencias } from './services/heuristics.js';
+import { topologicalLevels, buildSteps } from './services/topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
 import { createStructuralView } from './views/structuralView.js';
 import { createIsometricView } from './views/isometricView.js';
 import { createRenderer3DView } from './views/renderer3DView.js';
-import { calculateHardware } from './hardware.js';
+import { calculateHardware } from './services/hardware.js';
 import { getStore, setStore, createStore } from './core/store.js';
 import { VERTICAL_POSITIONS } from './core/config.js';
 import {
@@ -229,8 +231,45 @@ export function switchTab(view) {
     const active = tab.dataset.view === view;
     tab.classList.toggle('tab--active', active);
     tab.setAttribute('aria-selected', String(active));
+    // Roving tabindex: solo la tab activa entra en el orden de tabulación.
+    tab.tabIndex = active ? 0 : -1;
   });
+  // El panel compartido se etiqueta con la tab activa.
+  const activeTab = $(`.tab[data-view="${view}"]`);
+  $('#view-container')?.setAttribute('aria-labelledby', activeTab?.id || 'tab-csv');
   renderCurrentView();
+}
+
+// Navegación por teclado del tablist (patrón ARIA de tabs):
+// las flechas mueven el foco (roving tabindex) y Enter/Espacio activa.
+function handleTabsKeydown(event) {
+  const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+  if (!keys.includes(event.key)) return;
+  const tabs = $$('.tab');
+  const currentIndex = tabs.findIndex((t) => t === document.activeElement);
+  if (currentIndex === -1) return;
+  event.preventDefault();
+
+  let nextIndex = currentIndex;
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    nextIndex = (currentIndex + 1) % tabs.length;
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  } else if (event.key === 'Home') {
+    nextIndex = 0;
+  } else if (event.key === 'End') {
+    nextIndex = tabs.length - 1;
+  }
+  tabs[nextIndex].focus();
+}
+
+function activateFocusedTab(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const view = event.currentTarget?.dataset?.view;
+  if (!view) return;
+  // preventDefault evita el click nativo del botón (Enter/Space) que duplicaría la activación.
+  event.preventDefault();
+  switchTab(view);
 }
 
 export function loadExample(url) {
@@ -412,6 +451,8 @@ function init() {
 
   $$('.tab').forEach((tab) => {
     tab.addEventListener('click', () => switchTab(tab.dataset.view));
+    tab.addEventListener('keydown', handleTabsKeydown);
+    tab.addEventListener('keydown', activateFocusedTab);
   });
 
   $('#module-selector')?.addEventListener('change', (e) => {

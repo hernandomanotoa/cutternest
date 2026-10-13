@@ -95,14 +95,14 @@
     </header>
 
     <nav class="tabs" role="tablist" aria-label="Vistas">
-      <button class="tab tab--active" data-view="csv" role="tab" aria-selected="true">CSV</button>
-      <button class="tab" data-view="estructural" role="tab">Estructural</button>
-      <button class="tab" data-view="isometric" role="tab">🧊 Isométrica</button>
-      <button class="tab" data-view="renderer3d" role="tab">🧊 3D</button>
+      <button id="tab-csv" class="tab tab--active" data-view="csv" role="tab" aria-selected="true" aria-controls="view-container" tabindex="0">CSV</button>
+      <button id="tab-estructural" class="tab" data-view="estructural" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">Estructural</button>
+      <button id="tab-isometric" class="tab" data-view="isometric" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">🧊 Isométrica</button>
+      <button id="tab-renderer3d" class="tab" data-view="renderer3d" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">🧊 3D</button>
     </nav>
 
     <main class="main-layout">
-      <section id="view-container" class="view-container"></section>
+      <section id="view-container" class="view-container" role="tabpanel" aria-labelledby="tab-csv" tabindex="0"></section>
 
       <aside class="summary-panel">
         <h2>Resumen</h2>

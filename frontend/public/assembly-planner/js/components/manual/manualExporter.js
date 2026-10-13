@@ -1,8 +1,9 @@
 // js/components/manual/manualExporter.js — Exportación de manual de ensamblaje
 // Requiere DOM global (window, document) para html2canvas/jsPDF.
 
-import { generarInstruccion, toolsForStep } from '../../instructions.js';
-import { COLORS } from '../../core/config.js';
+import { generarInstruccion, toolsForStep } from '../../services/instructions.js';
+import { COLORS, UI_COLORS } from '../../core/config.js';
+import { toast } from '../toast.js';
 import {
   FICHAS,
   ESTRUCTURAS_CONSTRUCTIVAS,
@@ -77,7 +78,7 @@ export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest
 <meta charset="UTF-8">
 <title>Manual de Ensamblaje CutterNest — ${moduleLabel}</title>
 <style>
-body { font-family: system-ui, sans-serif; margin: 2rem; background: #fff; color: ${COLORS.textDark}; }
+body { font-family: system-ui, sans-serif; margin: 2rem; background: ${UI_COLORS.white}; color: ${COLORS.textDark}; }
 h1, h2 { color: ${COLORS.textDark}; }
 section { margin-bottom: 2rem; }
 @media print { body { margin: 0; } }
@@ -95,14 +96,15 @@ export async function exportCurrentStepPdf(step, piecesById, moduleLabel) {
   const hasJsPDF = typeof window.jspdf?.jsPDF === 'function';
   const hasHtml2Canvas = typeof window.html2canvas === 'function';
   if (!hasJsPDF || !hasHtml2Canvas) {
-    alert('Las librerías de PDF no están disponibles. Ejecuta "pnpm install" y vuelve a compilar.');
+    const missing = [!hasJsPDF && 'jspdf', !hasHtml2Canvas && 'html2canvas'].filter(Boolean).join(' y ');
+    toast(`Exportación PDF no disponible: falta ${missing}. Ejecuta "pnpm install" y recarga la página.`, { type: 'error' });
     return;
   }
 
   const { jsPDF } = window.jspdf;
   const svgEl = document.querySelector('#manual-step-content svg');
   if (!svgEl) {
-    alert('No hay diagrama para exportar en este paso.');
+    toast('No hay diagrama para exportar en este paso.', { type: 'info' });
     return;
   }
 
@@ -139,7 +141,7 @@ export async function exportCurrentStepPdf(step, piecesById, moduleLabel) {
     pdf.save(`manual-paso-${step.paso}-${moduleLabel.replace(/\s+/g, '_')}.pdf`);
   } catch (err) {
     console.error(err);
-    alert('No se pudo generar el PDF. Revisa la consola para más detalles.');
+    toast('No se pudo generar el PDF. Revisa la consola para más detalles.', { type: 'error' });
   }
 }
 

@@ -1,10 +1,12 @@
 // js/views/isometricView.js — Vista isométrica 3D SVG
 
-import { getModulePieces, getModuleLabel, getModuleOptions, escapeHtml } from '../utils.js';
+import { getModulePieces, getModuleLabel, escapeHtml } from '../utils/helpers.js';
 import { COLORS } from '../core/config.js';
-import { IsometricRenderer } from '../isometricRenderer.js';
+import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
 import { createFurnitureFicha } from '../components/furnitureFicha.js';
+import { createAperturaControls, createGapModeToggle } from '../components/aperturaControls.js';
+import { createModuleSelector } from '../components/moduleSelector.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
 import { attachFullscreenToggle } from '../utils/fullscreen.js';
@@ -30,6 +32,30 @@ export function createIsometricView(store) {
   let lastModule = null;
   let lastUserConfig = null;
 
+  // Controles de apertura/ángulo compartidos (componente sin estado): la vista
+  // les pasa piezas/aperturas/ángulos y recibe los cambios vía callbacks.
+  const aperturaControls = createAperturaControls({
+    prefix: 'iso',
+    layout: 'inline',
+    showPieceSelect: true,
+    onAperturaGlobal: setAperturaGlobal,
+    onAperturaPieza: setAperturaPieza,
+    onAnguloPieza: (id, degrees) => {
+      if (degrees == null) clearAnguloPieza(id);
+      else setAnguloPieza(id, degrees);
+    },
+    onSelectPiece: (id) => {
+      selectedPieceId = id;
+    },
+  });
+  const gapToggle = createGapModeToggle({
+    id: 'iso-gap-mode',
+    onChange: (mode) => {
+      moduleGapMode = mode;
+      render();
+    },
+  });
+
   function mount(parent) {
     container = parent;
     unsubscribe = store.subscribe('state:changed', () => {
@@ -42,11 +68,11 @@ export function createIsometricView(store) {
     });
     unsubscribeConfig = store.subscribe('userConfig:changed', () => render());
     unsubscribeApertura = store.subscribe('apertura:changed', () => {
-      syncAperturaUI();
+      syncAperturaControls();
       render();
     });
     unsubscribeAngulo = store.subscribe('angulo:changed', () => {
-      syncAperturaUI();
+      syncAperturaControls();
       render();
     });
     renderView(container, store.get());
@@ -73,6 +99,8 @@ export function createIsometricView(store) {
       detachFullscreen();
       detachFullscreen = null;
     }
+    aperturaControls.destroy();
+    gapToggle.destroy();
     container = null;
     canvas = null;
   }
@@ -85,25 +113,11 @@ export function createIsometricView(store) {
     lastUserConfig = state.userConfig;
 
     if (!pieces.length) {
-      const options = getModuleOptions(state.pieces)
-        .map((o) => {
-          const indent = o.depth > 0 ? '\u00A0\u00A0'.repeat(o.depth) + '\u21B3 ' : '';
-          return `<option value="${o.id}" ${o.id === targetModule ? 'selected' : ''}>${indent}${o.label}</option>`;
-        })
-        .join('');
-      container.innerHTML = `
-        <div class="card">
-          <div class="card__body">
-            <p class="empty-state mb-2">Selecciona un módulo para ver la vista isométrica.</p>
-            <select id="iso-module-selector" class="input" ${options ? '' : 'disabled'}>
-              ${options || '<option disabled>No hay módulos</option>'}
-            </select>
-          </div>
-        </div>`;
-      const select = container.querySelector('#iso-module-selector');
-      select?.addEventListener('change', (e) => {
-        store.set({ currentModule: e.target.value });
-      });
+      createModuleSelector({
+        id: 'iso-module-selector',
+        emptyText: 'Selecciona un módulo para ver la vista isométrica.',
+        onChange: (id) => store.set({ currentModule: id }),
+      }).mount(container, { pieces: state.pieces, currentModule: targetModule });
       return;
     }
 
@@ -117,42 +131,21 @@ export function createIsometricView(store) {
             <button id="btn-iso-reset" class="btn btn--secondary btn--sm">Reset</button>
             <button id="btn-iso-explode" class="btn btn--secondary btn--sm">Explodida</button>
             <button id="btn-iso-flip" class="btn btn--secondary btn--sm">↔ Invertir perspectiva</button>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.4rem;">
-              <span>Apertura</span>
-              <input type="range" id="iso-apertura" min="0" max="100" step="1" value="${Math.round((state.aperturaGlobal ?? 0) * 100)}" style="cursor:pointer;width:110px;">
-            </label>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.35rem;">
-              <span>Pieza</span>
-              <select id="iso-piece-select" class="input" style="width:auto;max-width:180px;">
-                <option value="">—</option>
-                ${pieces.filter((p) => motionConfigFor(p)).map((p) => `<option value="${escapeHtml(p.id)}" ${p.id === selectedPieceId ? 'selected' : ''}>${escapeHtml(p.nombre || p.id)}</option>`).join('')}
-              </select>
-            </label>
-            <label class="btn btn--secondary btn--sm" id="iso-piece-apertura-group" style="cursor:pointer;align-items:center;display:none;gap:0.4rem;">
-              <span>Apertura pieza</span>
-              <input type="range" id="iso-piece-apertura" min="0" max="100" step="1" value="0" style="cursor:pointer;width:90px;">
-            </label>
-            <label class="btn btn--secondary btn--sm" id="iso-piece-angulo-group" style="cursor:pointer;align-items:center;display:none;gap:0.35rem;">
-              <span>Ángulo</span>
-              <input type="number" id="iso-piece-angulo" min="0" max="120" step="5" placeholder="105" style="width:56px;">
-              <span style="font-size:0.75rem;">°</span>
-              ${[45, 70, 90, 110].map((a) => `<button type="button" class="btn btn--secondary btn--sm iso-angulo-preset" data-angulo="${a}" style="padding:0.05rem 0.3rem;">${a}°</button>`).join('')}
-              <button type="button" class="btn btn--secondary btn--sm" id="iso-angulo-auto" style="padding:0.05rem 0.3rem;">Auto</button>
-            </label>
+            ${aperturaControls.html({ aperturaGlobal: state.aperturaGlobal, pieces, selectedPieceId })}
             <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
             <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
-              <input type="checkbox" id="iso-gap-mode" ${moduleGapMode === 'projected' ? 'checked' : ''} style="cursor:pointer;">
-              <span>Gap profundidad</span>
-            </label>
+            ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;">
           <div id="iso-collision-msg" style="display:none;position:absolute;top:0.9rem;left:0.9rem;z-index:5;background:${COLORS.strokeDanger}1a;border:1px solid ${COLORS.strokeDanger};border-radius:6px;padding:0.4rem 0.7rem;font-size:0.78rem;color:${COLORS.strokeDanger};max-width:70%;"></div>
-          <div id="iso-canvas" class="iso-canvas" style="width:100%;height:100%;min-height:400px;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
+          <div id="iso-canvas" class="iso-canvas" role="img" aria-label="Vista isométrica 3D del módulo ${escapeHtml(getModuleLabel(targetModule, state.pieces))}" style="width:100%;height:100%;min-height:400px;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
           <div id="iso-config-host" class="iso-config-host"></div>
         </div>
       </div>`;
+
+    aperturaControls.bind(container);
+    gapToggle.bind(container);
 
     canvas = container.querySelector('#iso-canvas');
     render();
@@ -166,7 +159,7 @@ export function createIsometricView(store) {
       const piece = pieces.find((p) => p.id === id);
       if (!piece || !motionConfigFor(piece)) return;
       selectedPieceId = id;
-      syncAperturaUI();
+      syncAperturaControls();
       const actual = store.get().aperturas?.[id];
       setAperturaPieza(id, decideAperturaToggle(actual));
     });
@@ -201,30 +194,6 @@ export function createIsometricView(store) {
       isoFlip = !isoFlip;
       render();
     });
-    container.querySelector('#iso-apertura')?.addEventListener('input', (e) => {
-      setAperturaGlobal(Number(e.target.value) / 100);
-    });
-    container.querySelector('#iso-piece-select')?.addEventListener('change', (e) => {
-      selectedPieceId = e.target.value || null;
-      syncAperturaUI();
-    });
-    container.querySelector('#iso-piece-apertura')?.addEventListener('input', (e) => {
-      if (selectedPieceId) setAperturaPieza(selectedPieceId, Number(e.target.value) / 100);
-    });
-    container.querySelector('#iso-piece-angulo')?.addEventListener('change', (e) => {
-      if (!selectedPieceId) return;
-      const v = e.target.value;
-      if (v === '' || v == null) clearAnguloPieza(selectedPieceId);
-      else setAnguloPieza(selectedPieceId, Number(v));
-    });
-    container.querySelectorAll('.iso-angulo-preset').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (selectedPieceId) setAnguloPieza(selectedPieceId, Number(btn.dataset.angulo));
-      });
-    });
-    container.querySelector('#iso-angulo-auto')?.addEventListener('click', () => {
-      if (selectedPieceId) clearAnguloPieza(selectedPieceId);
-    });
     container.querySelector('#btn-iso-export')?.addEventListener('click', () => {
       const svg = canvas.querySelector('svg');
       if (!svg) return;
@@ -245,47 +214,21 @@ export function createIsometricView(store) {
       card,
     );
 
-    const gapCheckbox = container.querySelector('#iso-gap-mode');
-    if (gapCheckbox) gapCheckbox.checked = moduleGapMode === 'projected';
-    gapCheckbox?.addEventListener('change', () => {
-      moduleGapMode = gapCheckbox.checked ? 'projected' : 'compact';
-      render();
-    });
-    syncAperturaUI();
+    syncAperturaControls();
   }
 
-  // Sincroniza slider global y controles de la pieza seleccionada.
-  function syncAperturaUI() {
+  // Sincroniza slider global y controles de apertura/ángulo de la pieza
+  // seleccionada a través del componente compartido.
+  function syncAperturaControls() {
     if (!container) return;
     const state = store.get();
-    const globalInput = container.querySelector('#iso-apertura');
-    if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
-    const pieces = lastPieces ? getModulePieces(lastPieces, lastModule) : [];
-    const piece = selectedPieceId ? pieces.find((p) => p.id === selectedPieceId) : null;
-    const cfg = piece ? motionConfigFor(piece) : null;
-
-    const apGroup = container.querySelector('#iso-piece-apertura-group');
-    const apInput = container.querySelector('#iso-piece-apertura');
-    if (apGroup && apInput) {
-      if (piece && cfg) {
-        apGroup.style.display = '';
-        const override = state.aperturas?.[selectedPieceId];
-        apInput.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
-      } else {
-        apGroup.style.display = 'none';
-      }
-    }
-    const anGroup = container.querySelector('#iso-piece-angulo-group');
-    const anInput = container.querySelector('#iso-piece-angulo');
-    if (anGroup && anInput) {
-      if (piece && cfg?.kind === 'hinge') {
-        anGroup.style.display = '';
-        const override = state.angulos?.[selectedPieceId];
-        anInput.value = override != null ? String(Math.round(override)) : '';
-      } else {
-        anGroup.style.display = 'none';
-      }
-    }
+    aperturaControls.sync({
+      pieces: lastPieces ? getModulePieces(lastPieces, lastModule) : [],
+      aperturaGlobal: state.aperturaGlobal,
+      aperturas: state.aperturas || {},
+      angulos: state.angulos || {},
+      selectedPieceId,
+    });
   }
 
   function render() {

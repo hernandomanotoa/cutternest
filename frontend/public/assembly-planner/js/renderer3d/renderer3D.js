@@ -8,8 +8,8 @@ import { classifyPiece } from './classifier3d.js';
 import { buildSVG } from './svgBuilder.js';
 import { OrbitControls, DEFAULT_CAMERA } from './camera.js';
 import { createInteraction } from './interaction.js';
-import { IsometricRenderer } from '../isometricRenderer.js';
-import { getModulePieces, getModuleLabel } from '../utils.js';
+import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
+import { getModulePieces, getModuleLabel } from '../utils/helpers.js';
 
 export class Renderer3D {
   constructor(container, options = {}) {

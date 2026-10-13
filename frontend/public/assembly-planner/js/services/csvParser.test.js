@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCSV } from './csvParser.js';
-import { inferRole } from './services/classifierService.js';
+import { inferRole } from './classifierService.js';
 
 const HEADER = 'id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z';
 

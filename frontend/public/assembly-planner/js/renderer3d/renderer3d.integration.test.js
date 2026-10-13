@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer3D } from './renderer3D.js';
-import { IsometricRenderer } from '../isometricRenderer.js';
+import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
 
 // Stub mínimo de document para que Renderer3D pueda instanciar IsometricRenderer.
 if (typeof document === 'undefined') {

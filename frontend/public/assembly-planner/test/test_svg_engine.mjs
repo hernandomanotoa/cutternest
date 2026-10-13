@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseCSV } from '../js/csvParser.js';
-import { buildEngineForModule, getModuleDimensions } from '../js/svgEngine.js';
+import { parseCSV } from '../js/services/csvParser.js';
+import { buildEngineForModule, getModuleDimensions } from '../js/components/renderers/svgEngine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const csvPath = path.join(__dirname, '..', '..', '..', '..', 'docs', 'Ejemplo_CSV_Cocina_Modular.csv');

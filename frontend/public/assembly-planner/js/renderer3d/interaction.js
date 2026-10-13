@@ -1,7 +1,8 @@
 // js/renderer3d/interaction.js — Hover, click, tooltip y selección
 
-import { escapeHtml } from '../utils.js';
+import { escapeHtml } from '../utils/helpers.js';
 import { motionConfigFor } from '../services/motionService.js';
+import { WOOD_COLORS } from '../core/config.js';
 
 /**
  * Crea un sistema de interacción sobre el contenedor SVG.
@@ -85,7 +86,7 @@ export function createInteraction(container, callbacks = {}) {
           cantos: (target.getAttribute('data-cantos') || '').split(',').filter(Boolean),
           modulo: data.module,
           cantidad: target.getAttribute('data-qty') || '1',
-          color: target.getAttribute('data-color') || '#C19A6B',
+          color: target.getAttribute('data-color') || WOOD_COLORS.beech,
           role: target.getAttribute('data-role') || '',
           w: target.getAttribute('data-w') || '0',
           d: target.getAttribute('data-d') || '0',

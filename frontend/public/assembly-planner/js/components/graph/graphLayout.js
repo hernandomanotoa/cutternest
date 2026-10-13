@@ -2,7 +2,7 @@
 // Sin DOM.
 
 import { normalizeName } from '../../utils/normalize.js';
-import { topologicalLevels } from '../../topologicalSort.js';
+import { topologicalLevels } from '../../services/topologicalSort.js';
 
 export const NODE_W = 120;
 export const NODE_H = 56;

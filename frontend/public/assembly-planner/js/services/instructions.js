@@ -1,25 +1,34 @@
 // instructions.js — generación de instrucciones textuales por paso
 
-import { railInstallText } from './services/railHardwareService.js';
+import { railInstallText } from './railHardwareService.js';
+
+// Normaliza un nombre de pieza para el matcheo por keyword: minúsculas y sin
+// acentos (p. ej. "Zócalo" → "zocalo"), igual que structural.js/clasificarRiesgo.
+function normalizar(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
 
 export function generarInstruccion(paso, piezasData) {
   const ids = paso.piezas || [];
   const piezas = ids.map((id) => piezasData[id]).filter(Boolean);
 
-  const laterales = piezas.filter((p) => p.nombre.toLowerCase().includes('lateral'));
-  const bases = piezas.filter((p) => p.nombre.toLowerCase().includes('base'));
-  const tapas = piezas.filter((p) => p.nombre.toLowerCase().includes('tapa') || p.nombre.toLowerCase().includes('techo'));
-  const fondos = piezas.filter((p) => p.nombre.toLowerCase().includes('fondo') || p.nombre.toLowerCase().includes('trasera'));
-  const repisas = piezas.filter((p) => p.nombre.toLowerCase().includes('repisa') || p.nombre.toLowerCase().includes('estante'));
-  const puertas = piezas.filter((p) => p.nombre.toLowerCase().includes('puerta'));
-  const cajones = piezas.filter((p) => p.nombre.toLowerCase().includes('cajon'));
-  const zocalos = piezas.filter((p) => p.nombre.toLowerCase().includes('zocalo'));
-  const barras = piezas.filter((p) => p.nombre.toLowerCase().includes('barra'));
-  const cabeceros = piezas.filter((p) => p.nombre.toLowerCase().includes('cabecero'));
-  const tarimas = piezas.filter((p) => p.nombre.toLowerCase().includes('tarima'));
+  const laterales = piezas.filter((p) => normalizar(p.nombre).includes('lateral'));
+  const bases = piezas.filter((p) => normalizar(p.nombre).includes('base'));
+  const tapas = piezas.filter((p) => { const n = normalizar(p.nombre); return n.includes('tapa') || n.includes('techo'); });
+  const fondos = piezas.filter((p) => { const n = normalizar(p.nombre); return n.includes('fondo') || n.includes('trasera'); });
+  const repisas = piezas.filter((p) => { const n = normalizar(p.nombre); return n.includes('repisa') || n.includes('estante'); });
+  const puertas = piezas.filter((p) => normalizar(p.nombre).includes('puerta'));
+  const cajones = piezas.filter((p) => normalizar(p.nombre).includes('cajon'));
+  const zocalos = piezas.filter((p) => normalizar(p.nombre).includes('zocalo'));
+  const barras = piezas.filter((p) => normalizar(p.nombre).includes('barra'));
+  const cabeceros = piezas.filter((p) => normalizar(p.nombre).includes('cabecero'));
+  const tarimas = piezas.filter((p) => normalizar(p.nombre).includes('tarima'));
   const laminasSomier = piezas.filter((p) => {
-    const n = p.nombre.toLowerCase();
-    return n.includes('somier') || n.includes('lámina') || n.includes('lamina');
+    const n = normalizar(p.nombre);
+    return n.includes('somier') || n.includes('lamina');
   });
 
   if (laterales.length > 0) {
@@ -51,7 +60,7 @@ export function generarInstruccion(paso, piezasData) {
     // tipos mezclados se listan los textos de cada tipo presente una vez.
     const textos = [...new Set(cajones.map((p) => railInstallText(p)))];
     const hayAbatible = cajones.some((p) => {
-      const n = p.nombre.toLowerCase();
+      const n = normalizar(p.nombre);
       return n.includes('abatible') || n.includes('volquete');
     });
     const piston = hayAbatible
@@ -89,7 +98,7 @@ export function toolsForStep(paso, piezasData) {
   const tools = new Set(['metro', 'lápiz']);
 
   piezas.forEach((p) => {
-    const name = p.nombre.toLowerCase();
+    const name = normalizar(p.nombre);
     if (name.includes('lateral') || name.includes('base') || name.includes('tapa')) {
       tools.add('taladro');
       tools.add('escuadra');
@@ -120,7 +129,7 @@ export function toolsForStep(paso, piezasData) {
       tools.add('escuadra');
       tools.add('esquineros metálicos de unión');
     }
-    if (name.includes('somier') || name.includes('lámina') || name.includes('lamina')) {
+    if (name.includes('somier') || name.includes('lamina')) {
       tools.add('láminas de somier');
     }
     if (name.includes('abatible') || name.includes('volquete')) {

@@ -44,7 +44,7 @@ const findFrenteCajon = (pieces) =>
 describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3D)', () => {
   it('onPieceDoubleClick se dispara con el id del frente de cajón', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
-    const { parseCSV } = await import('../csvParser.js');
+    const { parseCSV } = await import('../services/csvParser.js');
     const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
     const frente = findFrenteCajon(pieces);
@@ -68,7 +68,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
   });
 
   it('el frente de cajón es clasificable como pieza móvil (rail)', async () => {
-    const { parseCSV } = await import('../csvParser.js');
+    const { parseCSV } = await import('../services/csvParser.js');
     const { motionConfigFor } = await import('../services/motionService.js');
     const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
@@ -80,7 +80,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
 
   it('setApertura con override de pieza actualiza la geometría (extracción en y)', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
-    const { parseCSV } = await import('../csvParser.js');
+    const { parseCSV } = await import('../services/csvParser.js');
     const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
     const frente = findFrenteCajon(pieces);
@@ -103,7 +103,7 @@ describe('renderer3d/renderer3D — doble-click de apertura (regresión iso vs 3
 
   it('render() no reescribe el DOM cuando el SVG no cambia (regresión dblclick)', async () => {
     const { Renderer3D } = await import('./renderer3D.js');
-    const { parseCSV } = await import('../csvParser.js');
+    const { parseCSV } = await import('../services/csvParser.js');
     const csv = readFileSync(join(DATA_DIR, 'ejemplo-cajonera-correderas-ocultas.csv'), 'utf8');
     const { pieces } = parseCSV(csv);
 

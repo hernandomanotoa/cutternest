@@ -1,10 +1,11 @@
 // csvParser.js — parseo, validación y exportación de CSV
 
-import { isHexColor, normalizeColor } from './utils.js';
-import { normalizeName, nameIncludes } from './utils/normalize.js';
-import { inferRole } from './services/classifierService.js';
-import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './services/geometryService.js';
-import { inferRailType, getRailType } from './services/railService.js';
+import { isHexColor, normalizeColor } from '../utils/helpers.js';
+import { normalizeName, nameIncludes } from '../utils/normalize.js';
+import { inferRole } from './classifierService.js';
+import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
+import { inferRailType, getRailType } from './railService.js';
+import { COLORS } from '../core/config.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
@@ -475,7 +476,7 @@ export function createEmptyPiece(index = 1) {
     alto: 100,
     cantidad: 1,
     rotate: false,
-    color: '#4ECDC4',
+    color: COLORS.globalBadge,
     espesor: 18,
     cantos: 'T,B,L,R',
     modulo: '1',

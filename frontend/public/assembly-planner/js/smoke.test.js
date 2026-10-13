@@ -65,10 +65,10 @@ test('todo CSV de data/ está en el selector de ejemplos (index.html)', () => {
 });
 
 test('flujo seleccionar → cargar → render isométrico', async () => {
-  const { parseCSV } = await import('./csvParser.js');
-  const { sugerirDependencias } = await import('./heuristics.js');
+  const { parseCSV } = await import('./services/csvParser.js');
+  const { sugerirDependencias } = await import('./services/heuristics.js');
   const { createStore } = await import('./core/store.js');
-  const { IsometricRenderer } = await import('./isometricRenderer.js');
+  const { IsometricRenderer } = await import('./components/renderers/isometricRenderer.js');
 
   const csvText = readFileSync(join(JS_DIR, '..', 'data', 'ejemplo-estanteria-oficina.csv'), 'utf8');
   const result = parseCSV(csvText);

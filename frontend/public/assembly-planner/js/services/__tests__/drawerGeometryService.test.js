@@ -14,7 +14,7 @@ import {
   hasRealDrawerBox,
   matchDrawerBoxParts,
 } from '../drawerGeometryService.js';
-import { IsometricRenderer } from '../../isometricRenderer.js';
+import { IsometricRenderer } from '../../components/renderers/isometricRenderer.js';
 
 const FACE = { id: 'm1-cajon-1', nombre: 'Frente cajon 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' };
 const LAT_IZQ = { id: 'm1-cajon-lat-izq', nombre: 'Lateral cajon 1 izq', ancho: 480, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' };

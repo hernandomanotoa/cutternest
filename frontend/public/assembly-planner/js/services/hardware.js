@@ -1,8 +1,8 @@
 // hardware.js — cálculo de lista de herrajes e insumos
 
-import { railTypeFor, getRailType } from './services/railService.js';
-import { railHardwareName, railHardwareSpec } from './services/railHardwareService.js';
-import { inferRole } from './services/classifierService.js';
+import { railTypeFor, getRailType } from './railService.js';
+import { railHardwareName, railHardwareSpec } from './railHardwareService.js';
+import { inferRole } from './classifierService.js';
 
 function uniquePieces(piezas, predicate) {
   const seen = new Set();

@@ -1,10 +1,12 @@
 // csvView.js — Vista de importación y edición de CSV
 
-import { $, $$, escapeHtml, isGlobalPiece, getModuleLabel } from '../utils.js';
+import { $, $$ } from '../components/domUtils.js';
+import { escapeHtml, isGlobalPiece, getModuleLabel } from '../utils/helpers.js';
 import { getModuleDimensions } from '../services/geometryService.js';
 import { getDefaultVerticalPosition } from '../services/verticalPositionService.js';
 import { recalculateAll, loadCSV, addEmptyPiece, setStatus, updatePiece, removePiece } from '../app.js';
-import { piecesToCSV } from '../csvParser.js';
+import { piecesToCSV } from '../services/csvParser.js';
+import { UI_COLORS } from '../core/config.js';
 
 export function createCSVView(store) {
   let unsubscribe = null;
@@ -39,7 +41,7 @@ function render(container, state) {
       <div class="card__body">
         <div class="form-group mb-2">
           <label for="csv-raw">Pega aquí el CSV CutterNest</label>
-          <textarea id="csv-raw" class="csv-editor" placeholder="id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo\nm1-base,Base,120,60,1,si,#96CEB4,18,\"T,B,L,R\",1"></textarea>
+          <textarea id="csv-raw" class="csv-editor" placeholder="id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo\nm1-base,Base,120,60,1,si,${UI_COLORS.mint},18,\"T,B,L,R\",1"></textarea>
           <small class="form-help">Edita el CSV y presiona <kbd>Ctrl</kbd>+<kbd>Enter</kbd> o el botón <strong>Actualizar mueble</strong> para aplicar los cambios.</small>
         </div>
         <div class="flex gap-1 items-center flex-wrap">

@@ -1,8 +1,9 @@
 // structuralView.js — Vista de análisis estructural
 
-import { $, getModulePieces, getModuleLabel } from '../utils.js';
+import { $ } from '../components/domUtils.js';
+import { getModulePieces, getModuleLabel } from '../utils/helpers.js';
 import { COLORS } from '../core/config.js';
-import { calcularCargaRepisa, clasificarRiesgo, calcularVuelco, estimatePieceWeight, getProfundidadMueble } from '../structural.js';
+import { calcularCargaRepisa, clasificarRiesgo, calcularVuelco, estimatePieceWeight, getProfundidadMueble } from '../services/structural.js';
 
 export function createStructuralView(store) {
   let unsubscribe = null;

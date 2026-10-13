@@ -7,8 +7,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseCSV } from '../js/csvParser.js';
-import { IsometricRenderer } from '../js/isometricRenderer.js';
+import { parseCSV } from '../js/services/csvParser.js';
+import { IsometricRenderer } from '../js/components/renderers/isometricRenderer.js';
 
 const OUT_DIR = '/tmp/iso-tests';
 const SCALE = 0.06;

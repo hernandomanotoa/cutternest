@@ -1,0 +1,170 @@
+/**
+ * Geometrías de piezas globales (zócalo, corona/tapa, fondo, espejo,
+ * puertas y piezas genéricas) compartidas entre módulos.
+ * Extraído de isometricRenderer.js — refactor puro, misma lógica.
+ */
+
+import { ROLE_COLORS, VERTICAL_POSITIONS } from '../../../core/config.js';
+import { inferRole } from '../../../services/classifierService.js';
+import { normalizeName } from '../../../utils/normalize.js';
+import { findPairedHandle, isHandlePiece } from './handleMatching.js';
+
+export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true, zocaloHeight = 0) {
+  const geometries = [];
+  const globalDoors = [];
+  // Modelo de zócalo: si el zócalo global incluye laterales (rol
+  // 'plinth_side', ver classifierService), es un cajón de zócalo completo
+  // sin base (patrón real de fabricación "zócalo full-width + módulos con
+  // su propia base encima"): se dibuja como cajón visible a cara del
+  // mueble, con el frente y el trasero como bandas z:0..zocaloHeight y los
+  // laterales a profundidad completa. La base del primer módulo (apoyada a
+  // z=zocaloHeight) hace de tapa del cajón. Sin laterales se conserva el
+  // patín retranqueado clásico: frente solo, dibujado bajo el suelo.
+  const plinthSides = globalPieces.filter((p) => inferRole(p) === 'plinth_side');
+  const drawerPlinth = plinthSides.length > 0;
+  const plinthH = drawerPlinth
+    ? (zocaloHeight || Math.max(0, ...plinthSides.map((p) => Number(p.alto) || 0)))
+    : 0;
+
+  plinthSides.forEach((side) => {
+    const sn = normalizeName(side.nombre);
+    const sid = normalizeName(side.id);
+    const isLeft = sn.includes('izquierdo') || sn.includes('izq') || sid.includes('izquierdo') || sid.includes('izq');
+    const t = Number(side.espesor) || thickness;
+    const x = isLeft ? 0 : moduleW - t;
+    // Mismo reparto frente/atrás que los laterales de los módulos: en
+    // perspectiva normal el lateral izquierdo queda al frente.
+    const isFront = renderer.isoFlip ? !isLeft : isLeft;
+    geometries.push({
+      x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
+      color: side.color || ROLE_COLORS.wood, role: isFront ? 'side_panel_front' : 'side_panel_rear',
+      name: side.nombre, id: side.id, opacity: 0.4,
+    });
+  });
+
+  globalPieces.forEach((p) => {
+    const role = inferRole(p);
+    const n = normalizeName(p.nombre);
+    const color = p.color || ROLE_COLORS.wood;
+
+    if (role === 'plinth_side') {
+      // Ya dibujados en la pasada anterior (necesitan plinthH).
+    } else if (drawerPlinth && role === 'back_panel' && n.includes('zocalo')) {
+      // Trasero opcional del cajón de zócalo: banda z:0..zocaloHeight en
+      // la cara trasera (la rama genérica de back_panel lo dibujaría a
+      // altura completa del mueble).
+      const w = Number(p.ancho) || moduleW;
+      const t = Number(p.espesor) || thickness;
+      geometries.push({
+        x: 0, y: -t, z: 0, w, d: t, h: Number(p.alto) || plinthH,
+        color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
+      });
+    } else if (role === 'bottom_panel' || n.includes('zocalo')) {
+      const w = Number(p.ancho) || moduleW;
+      if (drawerPlinth) {
+        // Frente del cajón de zócalo: banda visible z:0..zocaloHeight al
+        // ras del frente del mueble (no retranqueada ni bajo el suelo).
+        const t = Number(p.espesor) || thickness;
+        geometries.push({
+          x: 0, y: moduleD - t, z: 0, w, d: t, h: Number(p.alto) || plinthH,
+          color, role: 'plinth', name: p.nombre, id: p.id,
+        });
+      } else {
+        const d = Number(p.alto) || 100;
+        geometries.push({
+          x: 0, y: moduleD - d, z: -d, w, d, h: d,
+          color, role: 'bottom_panel', name: p.nombre, id: p.id,
+        });
+      }
+    } else if (role === 'top_panel') {
+      const w = Number(p.ancho) || moduleW;
+      const d = Number(p.alto) || moduleD;
+      geometries.push({
+        x: 0, y: 0, z: moduleH, w, d, h: thickness,
+        color, role: 'top_panel', name: p.nombre, id: p.id,
+      });
+    } else if (role === 'back_panel') {
+      const w = Number(p.ancho) || moduleW;
+      const h = Number(p.alto) || moduleH;
+      geometries.push({
+        x: 0, y: -thickness, z: 0, w, d: thickness, h,
+        color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
+      });
+    } else if (role === 'mirror') {
+      // Espejo montado en la pared trasera, centrado en X y con offset desde tapa.
+      const w = Number(p.ancho) || moduleW;
+      const h = Number(p.alto) || 600;
+      const zPos = Number.isFinite(p.pos_z)
+        ? Number(p.pos_z)
+        : Math.max(thickness, moduleH - thickness - h - (renderer.verticalPositionOverrides?.topInset ?? VERTICAL_POSITIONS.topInset));
+      geometries.push({
+        x: Math.max(0, (moduleW - w) / 2),
+        y: -thickness,
+        z: zPos,
+        w, d: thickness, h,
+        color, role: 'mirror', name: p.nombre, id: p.id, opacity: 0.45,
+      });
+    } else if (role === 'door') {
+      // Puertas globales: solo se renderizan en vista completa o estructura global.
+      // Los tiradores de puerta (rol 'door' por quirk del clasificador) no
+      // cuentan: renderizan como geo de handle emparejada a su puerta.
+      if (includeDoors && !isHandlePiece(p)) {
+        globalDoors.push(p);
+      }
+    } else {
+      // Pieza global genérica: caja según ancho/alto/espesor
+      const w = Number(p.ancho) || moduleW;
+      const d = Number(p.alto) || moduleD;
+      const h = Number(p.espesor) || thickness;
+      geometries.push({
+        x: 0, y: 0, z: moduleH, w, d, h,
+        color, role: 'brace', name: p.nombre, id: p.id, opacity: 0.8,
+      });
+    }
+  });
+
+  // Puertas globales: reparten el ancho total del módulo/mueble.
+  // Si hay izquierda + derecha, cada una ocupa la mitad; si es una sola, todo.
+  const doorCount = globalDoors.length;
+  if (doorCount) {
+    const doorGap = renderer.verticalPositionOverrides?.doorGap ?? VERTICAL_POSITIONS.doorGap;
+    const availableW = Math.max(0, moduleW - (doorCount - 1) * doorGap);
+    const doorW = doorCount >= 2 ? availableW / doorCount : moduleW;
+    globalDoors.forEach((door, idx) => {
+      const dn = normalizeName(door.nombre);
+      const did = normalizeName(door.id);
+      const isLeft = dn.includes('izquierdo') || dn.includes('izq') || did.includes('izquierdo') || did.includes('izq');
+      const isRight = dn.includes('derecho') || dn.includes('der') || did.includes('derecho') || did.includes('der');
+      let x = 0;
+      if (doorCount >= 2) {
+        if (isLeft) x = 0;
+        else if (isRight) x = moduleW - doorW;
+        else x = idx * (doorW + doorGap);
+      }
+      const h = Number(door.alto) || moduleH - 2 * thickness;
+      const z = Number.isFinite(door.pos_z)
+        ? Number(door.pos_z)
+        : Math.max(thickness, moduleH - h - thickness - (renderer.verticalPositionOverrides?.doorTopInset ?? VERTICAL_POSITIONS.doorTopInset));
+      const baseGeo = {
+        x, y: moduleD, z, w: doorW, d: thickness, h,
+        color: door.color || ROLE_COLORS.door, role: 'door', name: door.nombre, id: door.id,
+        opacity: 0.35,
+      };
+      geometries.push(baseGeo);
+      // Tirador de puerta global: geo propia; recibe el transform de la
+      // puerta en la pasada final de apertura.
+      const gHandle = findPairedHandle(door, globalPieces);
+      if (gHandle && !geometries.some((g) => g.id === gHandle.id)) {
+        geometries.push({
+          x: x + doorW / 2 - 15,
+          y: moduleD + (Number(door.espesor) || thickness),
+          z: z + h / 2 - 10,
+          w: 30, d: 10, h: 20,
+          color: gHandle.color || ROLE_COLORS.handle, role: 'handle', name: gHandle.nombre, id: gHandle.id,
+        });
+      }
+    });
+  }
+
+  return geometries;
+}

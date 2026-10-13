@@ -935,7 +935,7 @@ describe('IsometricRenderer volquete (apertura pivotante)', () => {
   const GROUP_IDS = ['m1-volq-1', 'm1-volq-1-side', 'm1-volq-1-side2', 'm1-volq-1-bottom', 'm1-volq-1-back', 'm1-volq-1-tir'];
 
   it('frente volquete apertura 1: rotation eje x, pivot inferior, ángulo ~105°', async () => {
-    const { motionConfigFor } = await import('./services/motionService.js');
+    const { motionConfigFor } = await import('../../services/motionService.js');
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
     const { geometries } = renderer.computeGeometries('1', volquetePieces);
     const face = geometries.find((g) => g.id === 'm1-volq-1');
@@ -966,7 +966,7 @@ describe('IsometricRenderer volquete (apertura pivotante)', () => {
   });
 
   it('las esquinas rotadas del frente basculan hacia +y/−z (apertura real)', async () => {
-    const { boxCorners, rotateCorners } = await import('./services/motionService.js');
+    const { boxCorners, rotateCorners } = await import('../../services/motionService.js');
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
     const { geometries } = renderer.computeGeometries('1', volquetePieces);
     const face = geometries.find((g) => g.id === 'm1-volq-1');

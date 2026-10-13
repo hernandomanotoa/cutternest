@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseCSV } from '../js/csvParser.js';
+import { parseCSV } from '../js/services/csvParser.js';
 import { inferRole, detectFamily } from '../js/services/classifierService.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

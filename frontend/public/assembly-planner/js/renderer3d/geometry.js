@@ -4,6 +4,7 @@
 import { inferRole, isShoeRack, isDividerVertical } from '../services/classifierService.js';
 import { boxCorners, rotateCorners } from '../services/motionService.js';
 import { normalizeName } from '../utils/normalize.js';
+import { WOOD_COLORS } from '../core/config.js';
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -57,7 +58,7 @@ export function buildPiece3D(csvRow) {
     cx: x + w / 2,
     cy: y + d / 2,
     cz: z + h / 2,
-    color: piece.color || '#C19A6B',
+    color: piece.color || WOOD_COLORS.beech,
     espesor,
     tipo,
     role,

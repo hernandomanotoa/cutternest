@@ -215,6 +215,15 @@ describe('assemblyStepService/buildAssemblySequence', () => {
     assert.equal(steps[steps.length - 1].piezas[0], 'glb-tapa-corrida');
   });
 
+  it('sin piezas: secuencia y niveles vacíos (totalPasos 0)', () => {
+    const { steps, totalPasos, totalPiezas } = buildAssemblySequence([]);
+    assert.deepEqual(steps, []);
+    assert.equal(totalPasos, 0);
+    assert.equal(totalPiezas, 0);
+    const levels = buildAssemblyLevels([]);
+    assert.equal(levels.size, 0);
+  });
+
   it('agrupa por módulo: módulo 1 completo antes que módulo 2', () => {
     const twoModules = [
       mk('m2-base', 'Base librero', '2'),

@@ -14,7 +14,7 @@ import {
   movingPieceIds,
   detectCollisions,
 } from '../collisionService.js';
-import { IsometricRenderer } from '../../isometricRenderer.js';
+import { IsometricRenderer } from '../../components/renderers/isometricRenderer.js';
 
 const box = (id, name, dims) => ({ id, name, role: 'panel', ...dims });
 

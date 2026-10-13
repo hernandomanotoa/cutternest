@@ -1,13 +1,14 @@
 // js/renderer3d/materials.js — Colores, cantos, metales e indicadores visuales
 
-import { escapeHtml } from '../utils.js';
+import { escapeHtml } from '../utils/helpers.js';
 import { classifyPiece } from './classifier3d.js';
+import { WOOD_COLORS, HIGHLIGHT_COLORS, ROLE_COLORS } from '../core/config.js';
 
 /**
  * Ajusta un color hexadecimal aclarando u oscureciendo un porcentaje.
  */
 export function adjustColor(hex, percent) {
-  const clean = String(hex || '#C19A6B').replace('#', '');
+  const clean = String(hex || WOOD_COLORS.beech).replace('#', '');
   const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
   const num = parseInt(full, 16);
   const adjust = Math.round(percent * 2.55);
@@ -63,9 +64,9 @@ export function calculateOpacity(pieceType, faceName, globalOpacity, xrayMode) {
  * Color del borde/canto según material.
  */
 export function getEdgeBandColor(baseColor) {
-  // Nogal (#8B5A2B) -> oscuro, Haya (#C19A6B) -> más oscuro
-  if (baseColor?.toLowerCase() === '#8b5a2b') return '#3a1f0a';
-  if (baseColor?.toLowerCase() === '#c19a6b') return '#5c3a1e';
+  // Nogal -> oscuro, Haya -> más oscuro
+  if (baseColor?.toLowerCase() === WOOD_COLORS.walnut.toLowerCase()) return WOOD_COLORS.walnutEdge;
+  if (baseColor?.toLowerCase() === WOOD_COLORS.beech.toLowerCase()) return WOOD_COLORS.beechEdge;
   return adjustColor(baseColor, -40);
 }
 
@@ -96,7 +97,7 @@ export function makeRotationIndicator(frontPolygon, piece) {
   if (!frontPolygon || frontPolygon.length < 4) return '';
   const cx = frontPolygon.reduce((s, p) => s + p.x, 0) / frontPolygon.length;
   const cy = frontPolygon.reduce((s, p) => s + p.y, 0) / frontPolygon.length;
-  return `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#FFD700" font-size="14" font-weight="bold" pointer-events="none">↻</text>`;
+  return `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="${HIGHLIGHT_COLORS.selection}" font-size="14" font-weight="bold" pointer-events="none">↻</text>`;
 }
 
 /**
@@ -109,15 +110,15 @@ export function makeDimensionLines(frontPolygon, piece) {
   let svg = '';
 
   // Ancho (borde inferior)
-  svg += drawCota(bl, br, `${piece.w.toFixed(0)}`, 0, offset, '#00ff88');
+  svg += drawCota(bl, br, `${piece.w.toFixed(0)}`, 0, offset, HIGHLIGHT_COLORS.dimension);
   // Alto (borde izquierdo)
-  svg += drawCota(bl, tl, `${piece.h.toFixed(0)}`, -offset, 0, '#00ff88');
+  svg += drawCota(bl, tl, `${piece.h.toFixed(0)}`, -offset, 0, HIGHLIGHT_COLORS.dimension);
   // Profundidad: se representa como texto central con las 3 dimensiones,
   // ya que la profundidad no es visible en la proyección 2D de la cara frontal.
   const cx = (bl.x + br.x + tr.x + tl.x) / 4;
   const cy = (bl.y + br.y + tr.y + tl.y) / 4;
   svg += `
-    <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="#00ff88" font-size="9" font-family="monospace" font-weight="600" pointer-events="none">${escapeHtml(`${piece.w.toFixed(0)} × ${piece.d.toFixed(0)} × ${piece.h.toFixed(0)}`)}</text>`;
+    <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" fill="${HIGHLIGHT_COLORS.dimension}" font-size="9" font-family="monospace" font-weight="600" pointer-events="none">${escapeHtml(`${piece.w.toFixed(0)} × ${piece.d.toFixed(0)} × ${piece.h.toFixed(0)}`)}</text>`;
 
   return svg;
 }
@@ -140,7 +141,7 @@ function drawCota(a, b, text, offX, offY, color) {
  * Genera un degradado metálico simulado para barras colgadoras.
  * Devuelve un <linearGradient> con un id único.
  */
-export function createMetalGradient(id, color = '#A0A0A0') {
+export function createMetalGradient(id, color = ROLE_COLORS.metal) {
   return `<linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="0%">
     <stop offset="0%" stop-color="${adjustColor(color, -20)}" />
     <stop offset="50%" stop-color="${adjustColor(color, 30)}" />
@@ -162,8 +163,8 @@ export function getFillForFace(faceName, piece, faceColors, metalGradientId) {
  * Calcula el color del stroke según selección/hover.
  */
 export function getStrokeColor(isSelected, isHovered) {
-  if (isSelected) return '#FFD700';
-  if (isHovered) return '#FFD700';
+  if (isSelected) return HIGHLIGHT_COLORS.selection;
+  if (isHovered) return HIGHLIGHT_COLORS.selection;
   return null; // usar stroke por defecto
 }
 

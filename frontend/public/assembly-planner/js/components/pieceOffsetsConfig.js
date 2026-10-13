@@ -3,7 +3,7 @@
 
 import { VERTICAL_POSITIONS } from '../core/config.js';
 import { updatePieceOffset, resetPieceOffsets } from '../app.js';
-import { getModulePieces, escapeHtml } from '../utils.js';
+import { getModulePieces, escapeHtml } from '../utils/helpers.js';
 import { inferRole, isShoeRack } from '../services/classifierService.js';
 import {
   groupPiecesByOriginalId,

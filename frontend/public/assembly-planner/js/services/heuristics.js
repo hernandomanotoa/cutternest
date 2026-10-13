@@ -1,19 +1,15 @@
 // heuristics.js — reglas de sugerencia de dependencias de ensamblaje
 
-import { isGlobalPiece } from './utils.js';
-import { normalizeName } from './utils/normalize.js';
-import { getPieceZone } from './services/pieceOffsetService.js';
-import { railConfirmationMessage } from './services/railHardwareService.js';
+import { isGlobalPiece } from '../utils/helpers.js';
+import { normalizeName } from '../utils/normalize.js';
+import { getPieceZone } from './pieceOffsetService.js';
+import { railConfirmationMessage } from './railHardwareService.js';
+import { DEPENDENCY_STYLES } from '../core/config.js';
 
-export const DEPENDENCY_TYPES = {
-  estructural: { label: 'Estructural', color: '#4ECDC4', width: 2, dash: 'none' },
-  fondo: { label: 'Fondo', color: '#94a3b8', width: 1.5, dash: '4,4' },
-  interior: { label: 'Interior', color: '#DDA0DD', width: 1.5, dash: 'none' },
-  soporte: { label: 'Soporte', color: '#f97316', width: 3, dash: 'none' },
-  accesorio: { label: 'Accesorio', color: '#3b82f6', width: 1, dash: 'none' },
-  acabado: { label: 'Acabado', color: '#fbbf24', width: 1, dash: 'none' },
-  bloqueo: { label: 'Bloqueo', color: '#ef4444', width: 3, dash: '8,4' },
-};
+// Mapa de tipos de dependencia derivado de DEPENDENCY_STYLES (mismas claves/valores).
+export const DEPENDENCY_TYPES = Object.fromEntries(
+  Object.entries(DEPENDENCY_STYLES).map(([key, style]) => [key, { ...style }])
+);
 
 function normalize(s) {
   return normalizeName(s);

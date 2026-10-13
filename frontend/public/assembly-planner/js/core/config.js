@@ -153,6 +153,50 @@ export const DIMENSION_COLORS = {
   text: '#f59e0b',
 };
 
+// ── Tema oscuro del renderer 3D (estilo GitHub dark) ───────────────────────
+// Usado por js/renderer3d/* (SVG del canvas 3D) y js/views/renderer3DView.js.
+export const RENDERER3D_THEME = {
+  canvasBackground: '#0d1117', // fondo del canvas SVG 3D
+  surface: '#161b22',          // superficie de paneles laterales (BOM)
+  rowBorder: '#21262d',        // borde inferior de filas
+  rowSelected: '#2d333b',      // fondo de fila seleccionada
+  border: '#30363d',           // bordes genéricos de tarjetas/paneles
+  textSecondary: '#8b949e',    // texto secundario y metadatos
+  textPrimary: '#c9d1d9',      // texto principal
+  accent: '#58a6ff',           // acento: plano de sección y paso actual
+  strokeBase: '#222',          // stroke por defecto de las caras 3D
+};
+
+// ── Maderas del renderer 3D ────────────────────────────────────────────────
+// Haya = color base por defecto; Nogal y sus cantos asociados.
+export const WOOD_COLORS = {
+  beech: '#C19A6B',      // Haya (color base por defecto de piezas)
+  walnut: '#8B5A2B',     // Nogal
+  walnutEdge: '#3a1f0a', // canto de nogal (oscuro)
+  beechEdge: '#5c3a1e',  // canto de haya (más oscuro)
+};
+
+// ── Colores de resaltado interactivo ───────────────────────────────────────
+export const HIGHLIGHT_COLORS = {
+  selection: '#FFD700', // selección / hover / fila activa
+  dimension: '#00ff88', // cotas y texto de dimensiones 3D
+};
+
+// ── Colores de la UI (placeholders, exportaciones) ─────────────────────────
+export const UI_COLORS = {
+  mint: '#96CEB4',   // color de ejemplo en el placeholder del editor CSV
+  white: '#ffffff',  // fondo blanco de manuales exportados
+};
+
+// ── Semáforo de riesgo estructural (js/structural.js) ──────────────────────
+export const RISK_COLORS = {
+  info: '#3b82f6',    // fondo decorativo / no estructural
+  success: '#10b981', // riesgo bajo
+  danger: '#ef4444',  // riesgo crítico
+  warning: '#f97316', // riesgo alto
+  medium: '#fbbf24',  // riesgo medio
+};
+
 export const Z_INDEX = {
   back_panel: 1,
   side_panel_rear: 2,

@@ -1,14 +1,16 @@
 // js/views/renderer3DView.js — Vista del renderizador 3D orbital SVG
 
-import { getModulePieces, getModuleLabel, getModuleOptions, escapeHtml } from '../utils.js';
+import { getModulePieces, getModuleLabel, escapeHtml } from '../utils/helpers.js';
 import { buildAssemblyLevels, buildAssemblySequence } from '../services/assemblyStepService.js';
 import { computeStepApertures } from '../services/stepApertureService.js';
 import { motionConfigFor, decideAperturaToggle } from '../services/motionService.js';
 import { detectCollisions, movingPieceIds } from '../services/collisionService.js';
-import { generarInstruccion, toolsForStep } from '../instructions.js';
+import { generarInstruccion, toolsForStep } from '../services/instructions.js';
 import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
-import { COLORS } from '../core/config.js';
+import { COLORS, RENDERER3D_THEME, HIGHLIGHT_COLORS } from '../core/config.js';
 import { attachFullscreenToggle } from '../utils/fullscreen.js';
+import { createAperturaControls, createGapModeToggle } from '../components/aperturaControls.js';
+import { createModuleSelector } from '../components/moduleSelector.js';
 import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
 export function createRenderer3DView(store) {
@@ -29,6 +31,18 @@ export function createRenderer3DView(store) {
   let lastModule = null;
   let lastUserConfig = null;
   let selectedPieceId = null;
+  // Controles de apertura compartidos. Se recrean en cada render estructural
+  // porque onAperturaPieza debe cerrar sobre markStepOverride (local al modo paso).
+  let aperturaControls = null;
+  // Toggle "Gap profundidad" compartido: sus callbacks solo tocan estado de la
+  // vista (moduleGapMode) y el renderer, así que se crea una sola vez.
+  const gapToggle = createGapModeToggle({
+    id: 'r3d-gap-mode',
+    onChange: (mode) => {
+      moduleGapMode = mode;
+      renderer?.setModuleGapMode?.(mode);
+    },
+  });
 
   function stopPlayTimer() {
     if (playTimer !== null) {
@@ -54,42 +68,19 @@ export function createRenderer3DView(store) {
     }
   }
 
-  // Aplica el estado de apertura del store al renderer y sincroniza sliders.
-  function updatePieceAperturaUI(pieceId) {
-    if (!container) return;
-    const group = container.querySelector('#r3d-piece-apertura-group');
-    const input = container.querySelector('#r3d-piece-apertura');
-    if (!group || !input) return;
+  // Sincroniza el slider global y los controles de apertura/ángulo de la
+  // pieza seleccionada a través del componente compartido. La lógica de
+  // visibilidad (pieza móvil / kind === 'hinge') vive en el componente.
+  function syncAperturaControls(pieces = null) {
+    if (!aperturaControls) return;
     const state = store.get();
-    const piece = pieceId && lastPieces ? lastPieces.find((p) => p.id === pieceId) : null;
-    const cfg = piece ? motionConfigFor(piece) : null;
-    if (!piece || !cfg) {
-      group.style.display = 'none';
-      updatePieceAnguloUI(null);
-      return;
-    }
-    group.style.display = '';
-    const override = state.aperturas?.[pieceId];
-    input.value = String(Math.round((override ?? state.aperturaGlobal ?? 0) * 100));
-    updatePieceAnguloUI(pieceId, cfg);
-  }
-
-  // Control de ángulo de bisagra (hinge): visible solo para puertas/volquetes.
-  function updatePieceAnguloUI(pieceId, cfg = null) {
-    if (!container) return;
-    const group = container.querySelector('#r3d-piece-angulo-group');
-    if (!group) return;
-    const state = store.get();
-    const piece = pieceId && lastPieces ? lastPieces.find((p) => p.id === pieceId) : null;
-    const kind = cfg?.kind ?? (piece ? motionConfigFor(piece)?.kind : null);
-    if (!piece || kind !== 'hinge') {
-      group.style.display = 'none';
-      return;
-    }
-    group.style.display = '';
-    const input = container.querySelector('#r3d-piece-angulo');
-    const override = state.angulos?.[pieceId];
-    if (input) input.value = override != null ? String(Math.round(override)) : '';
+    aperturaControls.sync({
+      pieces: pieces ?? (lastPieces || []),
+      aperturaGlobal: state.aperturaGlobal,
+      aperturas: state.aperturas || {},
+      angulos: state.angulos || {},
+      selectedPieceId,
+    });
   }
 
   // Guía de colisión: resalta piezas móviles que se solapan al abrirse.
@@ -122,9 +113,7 @@ export function createRenderer3DView(store) {
     if (!renderer || !container) return;
     const state = store.get();
     renderer.setApertura(state.aperturaGlobal ?? 0, state.aperturas || {}, state.angulos || {});
-    const globalInput = container.querySelector('#r3d-apertura');
-    if (globalInput) globalInput.value = String(Math.round((state.aperturaGlobal ?? 0) * 100));
-    updatePieceAperturaUI(selectedPieceId);
+    syncAperturaControls();
   }
 
   function mount(parent) {
@@ -170,6 +159,8 @@ export function createRenderer3DView(store) {
       detachFullscreen();
       detachFullscreen = null;
     }
+    aperturaControls?.destroy();
+    gapToggle.destroy();
     container = null;
     canvas = null;
   }
@@ -199,24 +190,11 @@ export function createRenderer3DView(store) {
     let aperturaSnapshot = null;
 
     if (!pieces.length) {
-      const options = getModuleOptions(state.pieces)
-        .map((o) => {
-          const indent = o.depth > 0 ? '\u00A0\u00A0'.repeat(o.depth) + '\u21B3 ' : '';
-          return `<option value="${o.id}" ${o.id === targetModule ? 'selected' : ''}>${indent}${o.label}</option>`;
-        })
-        .join('');
-      container.innerHTML = `
-        <div class="card">
-          <div class="card__body">
-            <p class="empty-state mb-2">Selecciona un módulo para ver la vista 3D.</p>
-            <select id="r3d-module-selector" class="input" ${options ? '' : 'disabled'}>
-              ${options || '<option disabled>No hay módulos</option>'}
-            </select>
-          </div>
-        </div>`;
-      container.querySelector('#r3d-module-selector')?.addEventListener('change', (e) => {
-        store.set({ currentModule: e.target.value });
-      });
+      createModuleSelector({
+        id: 'r3d-module-selector',
+        emptyText: 'Selecciona un módulo para ver la vista 3D.',
+        onChange: (id) => store.set({ currentModule: id }),
+      }).mount(container, { pieces: state.pieces, currentModule: targetModule });
       return;
     }
 
@@ -235,10 +213,7 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-xray" style="cursor:pointer;">
               <span>X-ray</span>
             </label>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
-              <input type="checkbox" id="r3d-gap-mode" ${moduleGapMode === 'projected' ? 'checked' : ''} style="cursor:pointer;">
-              <span>Gap profundidad</span>
-            </label>
+            ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
               <span>Perspectiva</span>
@@ -246,7 +221,7 @@ export function createRenderer3DView(store) {
             <button id="r3d-step-mode" class="btn btn--secondary btn--sm" ${pieces.length ? '' : 'disabled'}>Modo paso</button>
             <span id="r3d-step-bar" style="display:none;align-items:center;gap:0.4rem;">
               <button id="r3d-step-prev" class="btn btn--secondary btn--sm">◀</button>
-              <span id="r3d-step-label" style="font-size:0.8rem;color:#c9d1d9;white-space:nowrap;">Paso 1/1</span>
+              <span id="r3d-step-label" style="font-size:0.8rem;color:${RENDERER3D_THEME.textPrimary};white-space:nowrap;">Paso 1/1</span>
               <button id="r3d-step-next" class="btn btn--secondary btn--sm">▶</button>
               <button id="r3d-step-play" class="btn btn--secondary btn--sm">▶ Play</button>
             </span>
@@ -267,23 +242,7 @@ export function createRenderer3DView(store) {
             <label for="r3d-explode">Explode</label>
             <input type="range" id="r3d-explode" min="0" max="1" step="0.05" value="0">
           </div>
-          <div class="r3d-slider-group">
-            <label for="r3d-apertura">Apertura</label>
-            <input type="range" id="r3d-apertura" min="0" max="100" step="1" value="${Math.round((state.aperturaGlobal ?? 0) * 100)}">
-          </div>
-          <div class="r3d-slider-group" id="r3d-piece-apertura-group" style="display:none;">
-            <label for="r3d-piece-apertura">Apertura pieza</label>
-            <input type="range" id="r3d-piece-apertura" min="0" max="100" step="1" value="0">
-          </div>
-          <div class="r3d-slider-group" id="r3d-piece-angulo-group" style="display:none;align-items:center;gap:0.35rem;">
-            <label for="r3d-piece-angulo">Ángulo</label>
-            <input type="number" id="r3d-piece-angulo" min="0" max="120" step="5" placeholder="105" style="width:58px;">
-            <span style="font-size:0.75rem;color:#8b949e;">°</span>
-            <span class="r3d-angulo-presets" style="display:inline-flex;gap:0.2rem;">
-              ${[45, 70, 90, 110].map((a) => `<button type="button" class="btn btn--secondary btn--sm r3d-angulo-preset" data-angulo="${a}" style="padding:0.1rem 0.35rem;">${a}°</button>`).join('')}
-              <button type="button" class="btn btn--secondary btn--sm" id="r3d-angulo-auto" style="padding:0.1rem 0.35rem;">Auto</button>
-            </span>
-          </div>
+          ${aperturaControls.html({ aperturaGlobal: state.aperturaGlobal })}
           <div class="r3d-slider-group">
             <label for="r3d-rot-x">Rotación X</label>
             <input type="range" id="r3d-rot-x" min="-60" max="60" step="1" value="${DEFAULT_CAMERA.rotX}">
@@ -309,25 +268,43 @@ export function createRenderer3DView(store) {
         <div class="card__body" style="flex:1;min-height:0;position:relative;padding:0;">
           <div id="r3d-collision-msg" style="display:none;position:absolute;top:0.9rem;left:0.9rem;z-index:5;background:${COLORS.strokeDanger}1a;border:1px solid ${COLORS.strokeDanger};border-radius:6px;padding:0.4rem 0.7rem;font-size:0.78rem;color:${COLORS.strokeDanger};max-width:70%;"></div>
           <div style="display:flex;gap:0.75rem;height:100%;min-height:400px;padding:0.75rem;">
-            <div id="r3d-canvas" class="r3d-canvas" style="flex:1;min-width:0;height:100%;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
-            <aside id="r3d-bom" style="width:240px;flex-shrink:0;overflow-y:auto;background:var(--surface,#161b22);border:1px solid var(--border,#30363d);border-radius:6px;padding:0.5rem;">
-              <h3 style="margin:0 0 0.5rem;font-size:0.8rem;color:#8b949e;text-transform:uppercase;">Piezas (${pieces.length})</h3>
+            <div id="r3d-canvas" class="r3d-canvas" role="img" aria-label="Vista 3D orbital del módulo ${escapeHtml(getModuleLabel(targetModule, state.pieces))}" style="flex:1;min-width:0;height:100%;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
+            <aside id="r3d-bom" style="width:240px;flex-shrink:0;overflow-y:auto;background:var(--surface,${RENDERER3D_THEME.surface});border:1px solid var(--border,${RENDERER3D_THEME.border});border-radius:6px;padding:0.5rem;">
+              <h3 style="margin:0 0 0.5rem;font-size:0.8rem;color:${RENDERER3D_THEME.textSecondary};text-transform:uppercase;">Piezas (${pieces.length})</h3>
               <ul style="list-style:none;margin:0;padding:0;">
                 ${pieces.map((p) => `
                   <li data-piece-id="${escapeHtml(p.id)}" class="r3d-bom__row"
-                      style="padding:0.35rem 0.5rem;border-radius:4px;cursor:pointer;font-size:0.8rem;color:#c9d1d9;border-bottom:1px solid #21262d;">
+                      style="padding:0.35rem 0.5rem;border-radius:4px;cursor:pointer;font-size:0.8rem;color:${RENDERER3D_THEME.textPrimary};border-bottom:1px solid ${RENDERER3D_THEME.rowBorder};">
                     <div style="font-weight:600;">${escapeHtml(p.nombre || p.id)}</div>
-                    <div style="color:#8b949e;">${Number(p.ancho)}×${Number(p.alto)}×${Number(p.espesor)} mm · cantos: ${escapeHtml(p.cantos || '—')} · ×${Number(p.cantidad) || 1}</div>
+                    <div style="color:${RENDERER3D_THEME.textSecondary};">${Number(p.ancho)}×${Number(p.alto)}×${Number(p.espesor)} mm · cantos: ${escapeHtml(p.cantos || '—')} · ×${Number(p.cantidad) || 1}</div>
                   </li>`).join('')}
               </ul>
             </aside>
           </div>
         </div>
-        <div id="r3d-step-panel" class="card__body" style="display:none;padding:0.6rem 1rem;border-top:1px solid var(--border,#30363d);">
-          <div id="r3d-step-instruction" style="font-size:0.85rem;color:#c9d1d9;margin:0 0 0.35rem;line-height:1.4;"></div>
-          <div id="r3d-step-tools" style="font-size:0.75rem;color:#8b949e;"></div>
+        <div id="r3d-step-panel" class="card__body" style="display:none;padding:0.6rem 1rem;border-top:1px solid var(--border,${RENDERER3D_THEME.border});">
+          <div id="r3d-step-instruction" style="font-size:0.85rem;color:${RENDERER3D_THEME.textPrimary};margin:0 0 0.35rem;line-height:1.4;"></div>
+          <div id="r3d-step-tools" style="font-size:0.75rem;color:${RENDERER3D_THEME.textSecondary};"></div>
         </div>
       </div>`;
+
+    aperturaControls = createAperturaControls({
+      prefix: 'r3d',
+      layout: 'group',
+      onAperturaGlobal: setAperturaGlobal,
+      onAperturaPieza: (id, valor) => {
+        // En modo paso, el valor manual es un override que gana sobre la
+        // apertura automática del paso y persiste al navegar.
+        markStepOverride(id, valor);
+        setAperturaPieza(id, valor);
+      },
+      onAnguloPieza: (id, degrees) => {
+        if (degrees == null) clearAnguloPieza(id);
+        else setAnguloPieza(id, degrees);
+      },
+    });
+    aperturaControls.bind(container);
+    gapToggle.bind(container);
 
     canvas = container.querySelector('#r3d-canvas');
     renderer = new Renderer3D(canvas, {
@@ -339,7 +316,7 @@ export function createRenderer3DView(store) {
       onPieceSelect: (id) => {
         selectedPieceId = id;
         syncBomSelection(id);
-        updatePieceAperturaUI(id);
+        syncAperturaControls();
       },
       onPieceDoubleClick: (id) => {
         const piece = lastPieces ? lastPieces.find((p) => p.id === id) : null;
@@ -348,7 +325,7 @@ export function createRenderer3DView(store) {
         renderer.setSelectedId(id);
         selectedPieceId = id;
         syncBomSelection(id);
-        updatePieceAperturaUI(id);
+        syncAperturaControls();
         const actual = store.get().aperturas?.[id];
         const siguiente = decideAperturaToggle(actual);
         markStepOverride(id, siguiente);
@@ -364,8 +341,8 @@ export function createRenderer3DView(store) {
     const bomRows = () => Array.from(container.querySelectorAll('.r3d-bom__row'));
     function syncBomSelection(id) {
       bomRows().forEach((row) => {
-        row.style.background = row.dataset.pieceId === id ? '#2d333b' : 'transparent';
-        row.style.color = row.dataset.pieceId === id ? '#FFD700' : '#c9d1d9';
+        row.style.background = row.dataset.pieceId === id ? RENDERER3D_THEME.rowSelected : 'transparent';
+        row.style.color = row.dataset.pieceId === id ? HIGHLIGHT_COLORS.selection : RENDERER3D_THEME.textPrimary;
       });
     }
     bomRows().forEach((row) => {
@@ -376,7 +353,7 @@ export function createRenderer3DView(store) {
         renderer.setSelectedId(renderer.selectedId === id ? null : id);
         selectedPieceId = renderer.selectedId;
         syncBomSelection(renderer.selectedId);
-        updatePieceAperturaUI(renderer.selectedId);
+        syncAperturaControls();
       });
     });
 
@@ -403,29 +380,6 @@ export function createRenderer3DView(store) {
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));
-    container.querySelector('#r3d-apertura')?.addEventListener('input', (e) => setAperturaGlobal(Number(e.target.value) / 100));
-    container.querySelector('#r3d-piece-apertura')?.addEventListener('input', (e) => {
-      if (!selectedPieceId) return;
-      const valor = Number(e.target.value) / 100;
-      // En modo paso, el valor manual es un override que gana sobre la
-      // apertura automática del paso y persiste al navegar.
-      markStepOverride(selectedPieceId, valor);
-      setAperturaPieza(selectedPieceId, valor);
-    });
-    container.querySelector('#r3d-piece-angulo')?.addEventListener('change', (e) => {
-      if (!selectedPieceId) return;
-      const v = e.target.value;
-      if (v === '' || v == null) clearAnguloPieza(selectedPieceId);
-      else setAnguloPieza(selectedPieceId, Number(v));
-    });
-    container.querySelectorAll('.r3d-angulo-preset').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (selectedPieceId) setAnguloPieza(selectedPieceId, Number(btn.dataset.angulo));
-      });
-    });
-    container.querySelector('#r3d-angulo-auto')?.addEventListener('click', () => {
-      if (selectedPieceId) clearAnguloPieza(selectedPieceId);
-    });
     rotXInput?.addEventListener('input', (e) => renderer.setRotX(e.target.value));
     rotYInput?.addEventListener('input', (e) => renderer.setRotY(e.target.value));
 
@@ -437,14 +391,6 @@ export function createRenderer3DView(store) {
     });
 
     renderer.controls.addChangeListener(updateSlidersFromCamera);
-
-    const gapCheckbox = container.querySelector('#r3d-gap-mode');
-    if (gapCheckbox) {
-      gapCheckbox.addEventListener('change', () => {
-        moduleGapMode = gapCheckbox.checked ? 'projected' : 'compact';
-        renderer.setModuleGapMode?.(moduleGapMode);
-      });
-    }
 
     const sectionAxisSel = container.querySelector('#r3d-section-axis');
     const sectionTInput = container.querySelector('#r3d-section-t');

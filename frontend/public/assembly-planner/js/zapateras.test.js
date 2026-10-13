@@ -21,8 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseCSV } from './csvParser.js';
-import { calculateHardware } from './hardware.js';
+import { parseCSV } from './services/csvParser.js';
+import { calculateHardware } from './services/hardware.js';
 import { inferRole } from './services/classifierService.js';
 import { motionConfigFor } from './services/motionService.js';
 

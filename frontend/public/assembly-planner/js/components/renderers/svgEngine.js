@@ -17,15 +17,15 @@
 // UTILIDADES
 // ═══════════════════════════════════════════════════════════
 
-import { normalizeName } from './utils/normalize.js';
-import { inferRole, detectFamily } from './services/classifierService.js';
-import { ALL_MODULE_ID } from './services/moduleService.js';
+import { normalizeName } from '../../utils/normalize.js';
+import { inferRole, detectFamily } from '../../services/classifierService.js';
+import { ALL_MODULE_ID } from '../../services/moduleService.js';
 import {
   getPieceDims,
   getModuleDimensions,
   calculateShelfPositions,
-} from './services/geometryService.js';
-import { COLORS, ROLE_COLORS, DIMENSION_COLORS } from './core/config.js';
+} from '../../services/geometryService.js';
+import { COLORS, ROLE_COLORS, DIMENSION_COLORS } from '../../core/config.js';
 
 function normalize(s) {
   return normalizeName(s);
@@ -898,10 +898,10 @@ export function buildEngineForModule(pieces, moduleId, options = {}) {
   return router(modulePieces, meta);
 }
 
-export { inferRole, detectFamily } from './services/classifierService.js';
+export { inferRole, detectFamily } from '../../services/classifierService.js';
 export {
   getPieceDims,
   getModuleDimensions,
   calculateShelfPositions,
-} from './services/geometryService.js';
+} from '../../services/geometryService.js';
 export { FamilyRouters };

@@ -68,11 +68,11 @@ Guía orientativa para agentes que trabajan en `/workspace/cutternest-kit`. Ante
 El Assembly Planner se organiza por capas con responsabilidades definidas. Cuando un agente trabaje en él, debe atacar solo la capa correspondiente y no mezclar lógica de presentación con geometría pura ni con servicios de negocio:
 
 - **`js/core/`**: infraestructura transversal (`store.js`, `config.js`). Cambios de estado global, colores, Z-index y thresholds van aquí.
-- **`js/utils/`**: utilidades puras sin DOM (`normalize.js`). No deben importar nada de `views/`, `services/` ni `components/`.
-- **`js/services/`**: lógica de negocio pura y testeable (`classifierService.js`, `moduleService.js`, `geometryService.js`, `isoGeometryService.js`). No deben tocar DOM ni SVG.
-- **`js/components/`**: mini-componentes sin estado propio, reutilizables por las vistas (`graph/graphLayout.js`, `manual/manualExporter.js`, `manual/manualSupportWarnings.js`). Pueden usar DOM si es necesario, pero no deben depender del store.
-- **`js/views/`**: vistas con ciclo de vida `{ mount, destroy }` y suscripción al store (`graphView.js`, `manualView.js`, etc.). Aquí vive la UI y el pegamento con `app.js`.
-- **`js/app.js`**: orquestador global. Expone acciones al store y coordina el renderizado de vistas.
+- **`js/utils/`**: utilidades puras sin DOM (`normalize.js`, `helpers.js`). No deben importar nada de `views/`, `services/` ni `components/`.
+- **`js/services/`**: lógica de negocio pura y testeable (`csvParser.js`, `heuristics.js`, `structural.js`, `instructions.js`, `topologicalSort.js`, `hardware.js`, `classifierService.js`, `geometryService.js`, `isoGeometryService.js`, `assemblyStepService.js`, `collisionService.js`, `railHardwareService.js`). No deben tocar DOM ni SVG.
+- **`js/components/`**: mini-componentes sin estado propio, reutilizables por las vistas (`graph/graphLayout.js`, `manual/manualExporter.js`, `toast.js` para notificaciones, `aperturaControls.js` + `moduleSelector.js` compartidos por las vistas isométrica/3D, `domUtils.js` para helpers DOM, y `renderers/` con `isometricRenderer.js` —orquestador de 16 módulos en `renderers/isometric/`— y `svgEngine.js`). Pueden usar DOM si es necesario, pero no deben depender del store.
+- **`js/views/`**: vistas con ciclo de vida `{ mount, destroy }` y suscripción al store (`csvView.js`, `structuralView.js`, `isometricView.js`, `renderer3DView.js`). Aquí vive la UI y el pegamento con `app.js`. (El grafo de dependencias y el manual viven en el frontend React: `AssemblyPlanner.tsx` y `AssemblyManual.tsx`.)
+- **`js/app.js`**: orquestador global. Expone acciones al store y coordina el renderizado de vistas. Es el único módulo de producción en la raíz de `js/`; la raíz solo contiene además algunos `*.test.js` de integración.
 
 **Regla de oro**: si una función no necesita DOM, no debe vivir en una vista; si una función no necesita SVG, no debe vivir en un renderizador; si una función no necesita conocer el estado global, no debe vivir en `app.js`.
 
