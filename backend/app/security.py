@@ -5,14 +5,21 @@ from typing import List, Optional, Tuple
 import pyotp
 import qrcode
 import qrcode.image.pil
+import bcrypt
 from cryptography.fernet import Fernet, InvalidToken
 import jwt
-from passlib.context import CryptContext
 
 from app.config import get_settings
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+BCRYPT_ROUNDS = 12
+
+
+def _normalize_hash(hash_prefix: str) -> str:
+    """Normaliza el prefijo del hash para bcrypt puro ($2y$ -> $2b$)."""
+    if hash_prefix.startswith("$2y$"):
+        return "$2b$" + hash_prefix[len("$2y$"):]
+    return hash_prefix
 
 
 def _derive_fernet_key(secret: str) -> bytes:
@@ -29,11 +36,14 @@ def get_fernet() -> Fernet:
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode("utf-8")
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return pwd_context.verify(password, hashed)
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), _normalize_hash(hashed).encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def generate_totp_secret() -> str:
@@ -86,7 +96,7 @@ def verify_backup_code(backup_codes: list, code: str):
     Devuelve el objeto BackupCode si coincide y no está usado, o None.
     """
     for bc in backup_codes:
-        if bc.used_at is None and pwd_context.verify(code, bc.code_hash):
+        if bc.used_at is None and verify_password(code, bc.code_hash):
             return bc
     return None
 
@@ -135,4 +145,4 @@ def create_temp_token(user_id: str) -> str:
 
 
 def hash_token(token: str) -> str:
-    return pwd_context.hash(token)
+    return hash_password(token)
