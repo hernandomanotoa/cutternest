@@ -190,3 +190,29 @@ legacy no regenerables se retiraron del catálogo.
 - Fondo externo: `ejemplo-estanteria.csv` (trasera 900×1800) y `ejemplo-closet-zocalo-cajon.csv`
 - Fondo interno: `ejemplo-vanitory.csv` (torre auxiliar, fondo 340×1200)
 - Base interna con zócalo global: `ejemplo-closet-zocalo-cajon.csv` (zócalo-cajón full-width)
+
+## Correspondencia con docs/ (catálogo 1:1)
+
+`data/` es la única fuente de verdad del catálogo del planner (selector, fichas y
+tests de consistencia). Cada `ejemplo-*.csv` tiene además un **gemelo documental**
+en `docs/Ejemplo_CSV_*.csv` con el **mismo contenido** (mismo diseño, nombre legible;
+los regeneradores escriben ambos a la vez). El nombre se deriva del slug:
+
+```
+ejemplo-zapatero-volquete.csv → Ejemplo_CSV_Zapatero_Volquete.csv
+```
+
+Los pares cuyo nombre de docs/ no se deriva del slug (mapeados a mano en
+`scripts/generar-ejemplos-assembly.mjs`) son el MISMO diseño, p. ej.
+`ejemplo-cocina.csv` ↔ `Ejemplo_CSV_Cocina_Modular.csv`,
+`ejemplo-comoda.csv` ↔ `Ejemplo_CSV_Comoda_Chifonier.csv`.
+
+`test/catalogoConsistency.test.mjs` fija esta correspondencia: un CSV nuevo de
+`data/` sin gemelo en docs/, un alias roto o un CSV de docs/ fuera del mapa
+rompe la suite en lugar de degradarse en silencio.
+
+Los CSV de `docs/` **sin gemelo** en `data/` (`Ejemplo_CSV_Estanteria_Modulos.csv`,
+`Ejemplo_CSV_Cajones_Verticales_y_Repisas.csv`, `Ejemplo_CSV_Completo_Cajones_Verticales.csv`,
+`Ejemplo_CSV_Manual_Completo.csv`) son diseños de documentación/manual que no
+forman parte del catálogo del selector; están declarados y justificados como
+extras en `DOCS_SIN_GEMELO` (test/catalogoConsistency.test.mjs).

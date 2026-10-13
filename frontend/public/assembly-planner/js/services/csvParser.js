@@ -4,7 +4,7 @@ import { isHexColor, normalizeColor } from '../utils/helpers.js';
 import { normalizeName, nameIncludes } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
 import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
-import { inferRailType, getRailType } from './railService.js';
+import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight } from './railService.js';
 import { COLORS } from '../core/config.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
@@ -260,23 +260,20 @@ function validateDimensions(pieces, warnings) {
 
       // Coherencia del ancho de las piezas de la caja (fondo, base y cara).
       // Dos modelos válidos:
-      //   - Catálogo por riel (RAIL_TYPES): las piezas miden el INTERIOR de la
-      //     caja — telescópica/ruedas/ligera: round(vano − 2·holgura) − 2·espLat;
+      //   - Catálogo por riel (RAIL_TYPES, vía drawerBoxInteriorWidth):
+      //     telescópica/ruedas/ligera: round(vano − 2·holgura) − 2·espLat;
       //     oculta: vano − interiorDeduction (vano = frente + 2).
-      //   - Clásico derivado del frente: frente − 2·espLat (ejemplos de
-      //     catálogo y volquete/abatible, que no usa corredera).
+      //   - Clásico derivado del frente: frente − 2·espLat (volquete/abatible,
+      //     que no usa corredera).
       // Se advierte solo si el ancho no encaja en ninguno de los dos.
       if (front && subLaterals.length) {
         const espLat = subLaterals[0].espesor;
         const frontText = `${normalizeName(front.nombre)} ${normalizeName(front.id)}`;
-        const rail = getRailType(inferRailType(front));
-        const vano = front.ancho + 2;
         const legacyW = front.ancho - 2 * espLat;
-        const railW = frontText.includes('abatible') || frontText.includes('volquete')
+        const esPivotante = frontText.includes('abatible') || frontText.includes('volquete');
+        const railW = esPivotante
           ? legacyW
-          : Number(rail.interiorDeduction) > 0
-            ? vano - Number(rail.interiorDeduction)
-            : Math.round(vano - 2 * (rail.sideClearance || 0)) - 2 * espLat;
+          : drawerBoxInteriorWidth(front.ancho, espLat, inferRailType(front));
         const encajaModelo = (ancho) =>
           Math.abs(ancho - railW) <= 2 || Math.abs(ancho - legacyW) <= 2;
         const boxParts = [
@@ -287,6 +284,34 @@ function validateDimensions(pieces, warnings) {
         for (const [label, part] of boxParts) {
           if (part && !encajaModelo(part.ancho)) {
             warnings.push(`Módulo ${modId} → ${subId}: ${label} cajón (${part.ancho} mm) no coincide con el interior de caja según riel (≈ ${railW} mm) ni con el modelo clásico (≈ ${legacyW} mm).`);
+          }
+        }
+
+        // Fondo: coherencia de ALTURA según el tipo de riel. Dos construcciones
+        // válidas en todos los tipos: fondo apoyado sobre la base (alto ≈
+        // altura de la caja − espBase, modelo catálogo de 6 piezas) o fondo
+        // embutido a todo lo alto de los laterales (alto ≈ altura de la caja).
+        // En la oculta la altura de la caja además se capa a vano −
+        // maxHeightDeduction (tope de catálogo): un cajón más alto no cabe
+        // bajo el frente. Volquete/abatible queda exento (caja derivada del
+        // frente). El espBase es el de la base PROPIA del cajón (puede ser
+        // distinto del del módulo padre).
+        if (subBack && subLaterals.length && !esPivotante) {
+          const railType = inferRailType(front);
+          const railDef = getRailType(railType);
+          const vanoH = (Number(front.alto) || 0) + 2;
+          const latAlto = Math.min(...subLaterals.map((l) => Number(l.alto) || 0));
+          const subBase = findPiece(subPieces, ['base']);
+          const espBase = Number(subBase?.espesor) || Number(base?.espesor) || espLat;
+          const maxBoxH = drawerBoxMaxHeight(vanoH, railType);
+          if (Number(railDef.maxHeightDeduction) > 0 && latAlto > maxBoxH + 2) {
+            warnings.push(`Módulo ${modId} → ${subId}: laterales de cajón (${latAlto} mm) exceden el alto máximo del riel ${railDef.label} (vano − ${railDef.maxHeightDeduction} = ${maxBoxH} mm).`);
+          }
+          const boxH = Math.min(latAlto, maxBoxH);
+          const encajaAltura = (alto) =>
+            Math.abs(alto - boxH) <= 2 || Math.abs(alto - (boxH - espBase)) <= 2;
+          if (boxH > 0 && !encajaAltura(subBack.alto)) {
+            warnings.push(`Módulo ${modId} → ${subId}: fondo cajón (${subBack.alto} mm) no coincide con el alto de la caja según riel (≈ ${boxH} mm embutido o ≈ ${Math.max(0, boxH - espBase)} mm apoyado sobre la base).`);
           }
         }
       }

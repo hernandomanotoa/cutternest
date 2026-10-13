@@ -57,3 +57,33 @@ export function boxExteriorWidth(frontWidth, espLateral = 0, type = DEFAULT_RAIL
   const clearance = getRailType(type).sideClearance || 0;
   return Math.max(0, frontWidth - 2 * clearance);
 }
+
+/**
+ * Ancho interior esperado de base/fondo/cara del cajón para un frente de
+ * ancho dado (vano = frente + 2), según el tipo de riel (RAIL_TYPES):
+ *   - oculta (interiorDeduction > 0): vano − interiorDeduction —la deducción
+ *     es del ancho INTERIOR (Blum Tandem/Häfele Matrix UM);
+ *   - telescópica/ruedas/ligera: round(vano − 2·sideClearance) − 2·espLateral
+ *     —la caja mide el interior entre laterales.
+ * No aplica a volquetes/abatibles: su caja se deriva del frente (modelo
+ * clásico, ver csvParser.js).
+ */
+export function drawerBoxInteriorWidth(frontWidth, espLateral = 0, type = DEFAULT_RAIL_TYPE) {
+  const rail = getRailType(type);
+  const vano = frontWidth + 2;
+  if (Number(rail.interiorDeduction) > 0) {
+    return Math.max(0, vano - Number(rail.interiorDeduction));
+  }
+  return Math.max(0, Math.round(vano - 2 * (rail.sideClearance || 0)) - 2 * espLateral);
+}
+
+/**
+ * Altura máxima de la caja del cajón (laterales y fondo) para un vano de
+ * altura dada (vano = frente + 2), según el tipo de riel. La oculta capa el
+ * cajón a vano − maxHeightDeduction (tope de catálogo); los demás tipos no
+ * imponen tope más allá del propio vano.
+ */
+export function drawerBoxMaxHeight(vanoHeight, type = DEFAULT_RAIL_TYPE) {
+  const rail = getRailType(type);
+  return Math.max(0, vanoHeight - (Number(rail.maxHeightDeduction) || 0));
+}

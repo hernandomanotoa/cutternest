@@ -187,6 +187,92 @@ describe('parseCSV - zapatera-cajón (submódulo mínimo)', () => {
   });
 });
 
+describe('parseCSV - fondo de cajón por tipo de riel', () => {
+  // Módulo + un cajón con laterales de alto 100 mm y base de 15 mm:
+  // el fondo bien construido mide 85 mm (apoyado sobre la base). El ancho
+  // de caja sigue el riel del frente: 411 telescópica / 424 oculta / 434
+  // volquete (frente − 2·espLat).
+  const drawerConFondo = (
+    nombreFrente,
+    { latAlto = 100, fondoAlto = 85, frenteAlto = 129, anchoCaja = 411 } = {}
+  ) => [
+    ...MODULE_CSV,
+    `11-frente,${nombreFrente},464,${frenteAlto},1,no,#FFFFFF,15,"T,B,L,R",m11,`,
+    `11-lat,Lateral cajon 11,350,${latAlto},1,no,#FFFFFF,15,"T,B,L",m11,`,
+    `11-lat2,Lateral cajon der 11,350,${latAlto},1,no,#FFFFFF,15,"T,B,R",m11,`,
+    `11-base,Base cajon 11,${anchoCaja},350,1,no,#FFFFFF,15,"T,B,L,R",m11,`,
+    `11-fondo,Fondo cajon 11,${anchoCaja},${fondoAlto},1,no,#FFFFFF,15,,m11,`,
+  ].join('\n');
+
+  it('acepta el fondo apoyado sobre la base (alto = lateral − base)', () => {
+    const result = parseCSV(drawerConFondo('Frente cajon M1'));
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('fondo cajón')),
+      false,
+      `warning de fondo inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('advierte cuando el fondo no coincide con lateral − base', () => {
+    const result = parseCSV(drawerConFondo('Frente cajon M1', { fondoAlto: 200 }));
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.ok(
+      result.warnings.some((w) => w.includes('fondo cajón (200 mm)')),
+      `se esperaba warning de alto de fondo: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('aplica el tope de alto del riel oculto (vano − maxHeightDeduction)', () => {
+    // vano = 287 + 2 = 289 → tope oculto = 289 − 23 = 266; ancho caja = 466 − 42 = 424.
+    // Laterales de 280 mm exceden el tope; fondo coherente con el tope: 266 − 15 = 251.
+    const ok = parseCSV(
+      drawerConFondo('Frente cajon oculto M1', { latAlto: 266, fondoAlto: 251, frenteAlto: 287, anchoCaja: 424 })
+    );
+    assert.equal(ok.ok, true, `errores inesperados: ${ok.errors.join(' | ')}`);
+    assert.equal(
+      ok.warnings.some((w) => w.includes('alto máximo')),
+      false,
+      `warning de tope inesperado: ${ok.warnings.join(' | ')}`
+    );
+
+    const excedido = parseCSV(
+      drawerConFondo('Frente cajon oculto M1', { latAlto: 280, fondoAlto: 251, frenteAlto: 287, anchoCaja: 424 })
+    );
+    assert.equal(excedido.ok, true, `errores inesperados: ${excedido.errors.join(' | ')}`);
+    assert.ok(
+      excedido.warnings.some((w) => w.includes('exceden el alto máximo')),
+      `se esperaba warning de tope oculto: ${excedido.warnings.join(' | ')}`
+    );
+  });
+
+  it('no aplica tope de catálogo a la telescópica (sin maxHeightDeduction)', () => {
+    // Mismas medidas que el caso oculto excedido: en telescópica son válidas
+    // (fondo = 280 − 15 = 265 apoyado sobre la base).
+    const result = parseCSV(drawerConFondo('Frente cajon M1', { latAlto: 280, fondoAlto: 265, frenteAlto: 287 }));
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('alto máximo')),
+      false,
+      `warning de tope inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('exime el volquete/abatible (caja derivada del frente, sin corredera)', () => {
+    // Ancho de caja clásico (434) pero fondo deliberadamente desfasado en
+    // alto: no debe saltar la validación de fondo por riel.
+    const result = parseCSV(
+      drawerConFondo('Frente cajon abatible M1', { fondoAlto: 200, anchoCaja: 434 })
+    );
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('alto de la caja según riel')),
+      false,
+      `warning de fondo inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+});
+
 describe('parseCSV - zócalo-cajón global (modelo sin base global)', () => {
   // Dos módulos 600×700×450 con base propia → suma de anchos = 1200.
   // Los laterales del zócalo se listan ANTES del frente a propósito: su ancho
