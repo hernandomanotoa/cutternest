@@ -52,6 +52,13 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A39 | Tipos de riel con holguras reales (Häfele/Blum) | Guardian | ✅ Completado | S1 `RAIL_TYPES`+`railService` (telescópica 12,7 mm/lado, oculta vano−42, ruedas 12,5, ligera 10; extracción 1,0/0,75) y holgura bilateral en geometría; S2 herrajes/instrucciones por tipo; S3 ejemplo 23 correderas ocultas. 453 tests OK, 85 CSV 0/0/0. Deuda: validación de fondo de cajón es telescópica-específica. |
 | A40 | Refactor por capas del planner completo | Guardian | ✅ Completado | Todos los módulos de la raíz de `js/` movidos a su capa: `services/` (csvParser, heuristics, structural, instructions, topologicalSort, hardware), `components/renderers/` (isometricRenderer como orquestador de 16 módulos en `renderers/isometric/`, svgEngine), `utils/helpers.js`. Nuevos componentes: `toast.js`, `aperturaControls.js`, `moduleSelector.js`, `domUtils.js`. `vendor/` con html2canvas+jspdf (manual PDF en cliente). Tests DOM de vistas con happy-dom (`test/views/*.dom.test.js`, runner aparte `pnpm test:dom`). 748 tests node --test + 9 DOM OK, 85 CSV 0/0/0. |
 | A41 | Infra de tests frontend React + CI | Guardian | ✅ Completado | Vitest excluye `e2e/` (Playwright aparte), nuevos componentes `OtpInput` y `ConfirmDialog` con tests, ajustes en páginas auth/proyectos, `vite.config.ts`. Workflow `.github/workflows/ci.yml` con 3 jobs: backend pytest, frontend (install + test + build), planner (node --test + validate-examples). 86 tests Vitest OK, build OK. Pendiente: generar `pnpm-lock.yaml` con red para que `pnpm install --frozen-lockfile` funcione en CI. |
+| A42 | Migración passlib→bcrypt (backend) | backend-agent | ✅ Completado | `security.py` usa `bcrypt` puro (gensalt rounds=12, normaliza `$2y$→$2b$`, hashes inválidos → False). Eliminado passlib de requirements; desaparece DeprecationWarning de `crypt` (Python 3.13). 43 tests OK. Deuda: warning PydanticDeprecatedSince20 en `config.py` (sin tocar). |
+| A43 | Code-splitting: three/charts fuera del bundle inicial | frontend-agent | ✅ Completado | `manualChunks` fija react/react-dom/scheduler/zustand en `vendor` estático (Rollup los hoisteara dentro de `three`/`charts` y los hacía carga inicial). `Assembly3DV2` lazy con Suspense; `getModuleColor` extraído a `moduleColor.ts` libre de three. Carga inicial ~1567 kB (gzip 440) → ~285 kB (gzip 94), −82 %. 97 tests Vitest OK, build OK. |
+| A44 | Cobertura React: Optimizer/Inventario/Cotización | test-agent | ✅ Completado | 11 tests nuevos: OptimizerPage (7: render, empty, agregar pieza, submit con prompt+loading, 3 errores vía toast mockeado), InventoryPage (+2 errores), QuotePage (+2 errores). No existe QuotesPage: la página es `cotizacion/QuotePage.tsx`. 97 tests OK. |
+| A45 | Tests DOM isométrica/3D + fix bug real | assembly-planner-agent | ✅ Completado | 9 tests DOM nuevos (18 total). Bug encontrado: `aperturaControls` usado en template HTML antes de su creación (`TypeError` en mount con piezas); fix mínimo en `renderer3DView.js`. `setup.mjs` añade global `CSS` (happy-dom). 18/18 DOM, 772 node --test OK. |
+| A46 | Multi-módulo en vista 3D con gap 20 mm | assembly-planner-agent | ✅ Completado | Servicio puro `moduleLayout.js` (`ensureModuleGap`, gap exacto, nunca reduce gap mayor). `renderer3D.js` en `ALL_MODULE_ID` aplica gap y deriva `moduleW`/centro/perspDistance de la caja envolvente real. 8 tests nuevos. Selector "Vista completa" ya existía; explode/transparencia/selección siguen por pieza. |
+| A47 | Deuda catálogo + validación fondo por tipo de riel | assembly-planner-agent | ✅ Completado | (a) Catálogo docs↔data: 45 gemelos byte-idénticos verificados por test nuevo (`catalogoConsistency.test.mjs`); correspondencia documentada en `data/README.md`. (b) `railService.js`: helpers `drawerBoxInteriorWidth`/`drawerBoxMaxHeight` por tipo de riel (telescópica 12,7/lado, ruedas 12,5, ligera 10, oculta vano−42 / vano−23 alto); `csvParser.js` valida ancho y altura de fondo (embutido o apoyado), volquete exento. 94 CSV 0/0/0. |
+| A48 | Specs E2E Playwright ampliadas | test-agent | ✅ Completado | `planner-examples.spec.ts` (9 tests: 3 ejemplos × iso+3D con screenshots a `e2e/screenshots/`, ignorado por git) y `app-guest-pin.spec.ts` (3 tests con skip condicional por URLs de entorno). NO ejecutables en este entorno offline (sin browsers); listos para CI con `playwright install chromium`. |
 
 ## Leyenda estados
 
@@ -76,16 +83,19 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Métricas actuales
 
-- Tests backend: 43 passed.
-- Tests frontend (React): 86 passed (Vitest, 20 archivos); build de producción OK.
-- Tests Assembly Planner: 748 passed (node --test) + 9 tests DOM de vistas (happy-dom, `pnpm test:dom`).
-- Ejemplos CSV: 85 archivos validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI).
+- Tests backend: 43 passed (bcrypt puro desde A42; sin deprecation de crypt).
+- Tests frontend (React): 97 passed (Vitest, 21 archivos); build de producción OK con three/charts lazy (carga inicial −82 %, A43).
+- Tests Assembly Planner: 772 passed (node --test) + 18 tests DOM de vistas (happy-dom, `pnpm test:dom`).
+- Ejemplos CSV: 94 archivos validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI); correspondencia docs↔data verificada por test (A47).
+- E2E: 12 specs Playwright nuevos (planner con screenshots + guest PIN), no ejecutables en este entorno offline — requieren `playwright install chromium` (A48).
 - CI: `.github/workflows/ci.yml` corre pytest, Vitest + build y la suite completa del planner en cada push/PR (requiere `pnpm-lock.yaml`, pendiente de generar con red).
 - Docker Compose MVP: frontend y backend validados por separado.
 - Bugs críticos abiertos: 0.
 - Agentes DevHive activos: 9 + 4 plugins.
 
 ## Hotfixes recientes (Assembly Planner)
+
+- **Vista 3D en blanco en Docker (2026-10-13)**: el contenedor `cutternest-frontend` servía una versión obsoleta de `renderer3DView.js`/`renderer3D.js` (imagen construida antes del fix A45 del bug `aperturaControls`), por lo que la pestaña 3D crasheaba al montar con piezas. No era un bug nuevo del código: el working tree ya tenía el fix y los tests DOM lo cubren (4/5 fallan con la versión vieja, 5/5 pasan con la actual). Fix operativo: `docker compose up -d --build frontend` y verificación de hashes servidos vs working tree. Lección: tras cambios en el planner, siempre comparar `md5sum` de los archivos servidos dentro del contenedor antes de asumir un bug de código.
 
 - **App no cargaba (2026-09-10)**: `SyntaxError` en `js/views/isometricView.js` introducido por de3d811 — un `}` desplazado cerró `renderView` antes de tiempo y dejó el resto del cuerpo huérfano a nivel de módulo; el planner entero quedaba en blanco (seleccionar mueble/cargar sin efecto). El gate `node --test` no lo detectó porque ningún test importaba las vistas. Fix estructural + nuevo `js/smoke.test.js` que importa todos los módulos y simula seleccionar→cargar→render, cerrando la brecha.
 
