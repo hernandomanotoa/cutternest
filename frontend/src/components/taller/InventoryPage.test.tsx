@@ -17,6 +17,15 @@ vi.mock('../../utils/catalog', () => ({
   fetchCatalog: vi.fn().mockResolvedValue({ board_formats: [], materials: [], colors: [] }),
 }))
 
+vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+import toast from 'react-hot-toast'
+
 afterEach(() => cleanup())
 
 const mockItems: InventoryItem[] = [
@@ -127,6 +136,42 @@ describe('InventoryPage', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(`/inventory/${mockItems[0].id}/movements`))
     expect(await screen.findByText('Compra inicial')).toBeInTheDocument()
     expect(screen.getByText('salida')).toBeInTheDocument()
+  })
+
+  it('muestra error cuando falla la carga del inventario', async () => {
+    vi.mocked(api.get).mockRejectedValue({ response: { data: { detail: 'Error de conexión' } } })
+
+    render(
+      <MemoryRouter>
+        <InventoryPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Error de conexión'))
+    expect(screen.queryByText('2440×1220 mm')).not.toBeInTheDocument()
+  })
+
+  it('muestra error cuando falla la carga de alertas', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/inventory/alerts') {
+        return Promise.reject({ response: { data: { detail: 'No se pudieron cargar las alertas' } } })
+      }
+      return Promise.resolve({ data: mockItems })
+    })
+
+    render(
+      <MemoryRouter>
+        <InventoryPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => expect(screen.getByText('2440×1220 mm')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alertas' }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('No se pudieron cargar las alertas')
+    )
   })
 
   it('restocks an item inline and refreshes the list', async () => {

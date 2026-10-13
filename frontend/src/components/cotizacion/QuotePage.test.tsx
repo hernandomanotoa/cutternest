@@ -20,6 +20,15 @@ vi.mock('../../utils/catalog', () => ({
   }),
 }))
 
+vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+import toast from 'react-hot-toast'
+
 afterEach(() => cleanup())
 
 const mockProject: Project = {
@@ -154,6 +163,47 @@ describe('QuotePage', () => {
     const table = screen.getByRole('table')
     expect(await within(table).findByDisplayValue('Bisagra cazoleta 35mm')).toBeInTheDocument()
     expect(within(table).getByDisplayValue('1.2')).toBeInTheDocument()
+  })
+
+  it('muestra error cuando falla la generación de la cotización', async () => {
+    vi.mocked(api.post).mockRejectedValue({ response: { data: { detail: 'No se pudo generar el PDF' } } })
+
+    render(
+      <MemoryRouter initialEntries={['/quote/p1']}>
+        <Routes>
+          <Route path='/quote/:projectId' element={<QuotePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    const generateButton = screen.getByRole('button', { name: 'Generar PDF' })
+    await waitFor(() => expect(generateButton).toBeInTheDocument())
+    fireEvent.click(generateButton)
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('No se pudo generar el PDF')
+    )
+  })
+
+  it('muestra error cuando falla la carga del proyecto', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === `/projects/${mockProject.id}`) {
+        return Promise.reject({ response: { data: { detail: 'Proyecto no encontrado' } } })
+      }
+      return Promise.resolve({ data: {} })
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/quote/p1']}>
+        <Routes>
+          <Route path='/quote/:projectId' element={<QuotePage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('Proyecto no encontrado')
+    )
   })
 
   it('shows project quote history and opens the PDF', async () => {
