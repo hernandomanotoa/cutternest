@@ -38,16 +38,21 @@ import {
   addZocalo,
   addShelf,
   addHangerRail,
+  addDoubleRail,
   addDrawer,
   nextModuleId,
   nextContentIndex,
   countRootModules,
+  duplicateModulePieces,
 } from './services/closetBuilderService.js';
 import {
   saveVersion,
   loadVersion,
   deleteVersion,
   deleteAllVersions,
+  renameVersion,
+  duplicateVersion,
+  versionCsv,
 } from './services/projectVersionsService.js';
 
 export const GLOBAL_MODULE_ID = 'global';
@@ -332,35 +337,67 @@ export function addEmptyPiece() {
 
 // ── Constructor de closets (closetBuilderService) ─────────────────
 
-// Agrega un modulo nuevo (casco + zocalo opcional) al mueble actual.
-// config: { ancho, alto, prof, espesor?, colorCuerpo?, conZocalo? }.
-// Devuelve { ok, moduleId? } — la vista muestra errors via setStatus.
+// Preset aplicado en memoria a los muebles creados en el Constructor
+// (mismos valores que GAP_PRESETS['ejemplo-closet-abierto-modular.csv']).
+// No se persiste: solo reactiva las posiciones verticales del closet.
+const CONSTRUCTOR_PRESET = { hangerRailHeight: 1800, stackGap: 25, topInset: 60 };
+
+function applyConstructorPreset() {
+  setActivePreset(CONSTRUCTOR_PRESET);
+  getStore().set({ userConfig: loadUserConfig() });
+}
+
+// Re-parsea el mueble completo en silencio para recuperar los warnings del
+// validador (luz de repisas, cobertura de frentes, etc.) tras un cambio del
+// constructor. La vista los muestra como toast informativo (mejora #19).
+function validatePiecesQuiet(pieces) {
+  try {
+    const result = parseCSV(piecesToCSV(pieces));
+    return Array.isArray(result.warnings) ? result.warnings : [];
+  } catch {
+    return [];
+  }
+}
+
+// Agrega uno o mas modulos nuevos (casco + zocalo opcional) al mueble.
+// config: { ancho, alto, prof, espesor?, colorCuerpo?, conZocalo?,
+// alturaZocalo?, cantidad? }. Con zocalo la base se genera INTERNA para
+// apoyarse sobre el (modelo zocalo-cajon). Devuelve { ok, moduleIds? }.
 export function addModuleFromBuilder(config) {
   const store = getStore();
   const state = store.get();
-  const moduleId = nextModuleId(state.pieces);
-  const result = createModule({
-    ancho: Number(config.ancho),
-    alto: Number(config.alto),
-    prof: Number(config.prof),
-    espesor: config.espesor ?? 15,
-    colorCuerpo: config.colorCuerpo || '#C19A6B',
-    modulo: moduleId,
-  });
-  if (!result.ok) return result;
+  const cantidad = Math.max(1, Math.min(12, Number(config.cantidad) || 1));
+  const alturaZocalo = Number(config.alturaZocalo) > 0 ? Number(config.alturaZocalo) : 150;
+  const nuevas = [];
+  const moduleIds = [];
 
-  const nuevas = [...result.pieces];
-  if (config.conZocalo) {
-    const z = addZocalo(moduleId, {
+  for (let i = 0; i < cantidad; i++) {
+    const moduleId = nextModuleId([...state.pieces, ...nuevas]);
+    const result = createModule({
       ancho: Number(config.ancho),
-      alto: 150,
+      alto: Number(config.alto),
+      prof: Number(config.prof),
       espesor: config.espesor ?? 15,
-      color: config.colorCuerpo || '#C19A6B',
+      colorCuerpo: config.colorCuerpo || '#C19A6B',
+      modulo: moduleId,
+      baseInterna: !!config.conZocalo,
     });
-    if (!z.ok) return z;
-    nuevas.push(...z.pieces);
+    if (!result.ok) return { ok: false, errors: result.errors };
+    nuevas.push(...result.pieces);
+    if (config.conZocalo) {
+      const z = addZocalo(moduleId, {
+        ancho: Number(config.ancho),
+        alto: alturaZocalo,
+        espesor: config.espesor ?? 15,
+        color: config.colorCuerpo || '#C19A6B',
+      });
+      if (!z.ok) return { ok: false, errors: z.errors };
+      nuevas.push(...z.pieces);
+    }
+    moduleIds.push(moduleId);
   }
 
+  applyConstructorPreset();
   const allPieces = [...state.pieces, ...nuevas];
   store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
   recalculateAll();
@@ -369,29 +406,42 @@ export function addModuleFromBuilder(config) {
     getStore().set({ currentModule: 'all' });
     recalculateAll();
   }
-  return { ok: true, moduleId };
+  return { ok: true, moduleId: moduleIds[moduleIds.length - 1], moduleIds, warnings: validatePiecesQuiet(allPieces) };
 }
 
-// Agrega contenido a un modulo existente. kind: shelf|rail|zocalo|drawer|
-// shoeRack. Las dimensiones del modulo se derivan de sus piezas de casco
-// (base/laterales). opts.altoVano aplica a drawer/shoeRack (default 200).
+// Derive las dimensiones reales del modulo desde su casco. Ancho/profundidad
+// se leen de la TAPA (siempre externa); si falta, de la base ajustando el
+// montaje (base interna = modulo - 2E). Alto del lateral.
+function moduleDims(modPieces, moduleId) {
+  const tapa = modPieces.find((p) => p.id === `m${moduleId}-tapa`);
+  const base = modPieces.find((p) => p.id === `m${moduleId}-base`);
+  const lateral = modPieces.find((p) => p.id === `m${moduleId}-lateral-izq`);
+  if (!base && !tapa) return null;
+  const espesor = Number((base || tapa).espesor) || 15;
+  const baseEsInterna = base && tapa ? Number(base.ancho) < Number(tapa.ancho) : false;
+  const anchoModulo = tapa ? Number(tapa.ancho)
+    : baseEsInterna || !tapa ? Number(base.ancho) + 2 * espesor : Number(base.ancho);
+  const profModulo = tapa ? Number(tapa.alto)
+    : Number(base.alto) + (baseEsInterna ? 2 * espesor : 0);
+  return { anchoModulo, profModulo, altoModulo: lateral ? Number(lateral.alto) : null, espesor, colorCuerpo: (base || tapa).color || '#C19A6B' };
+}
+
+// Agrega contenido a un modulo existente. kind: shelf|rail|doubleRail|
+// zocalo|drawer|shoeRack. opts.altoVano aplica a drawer/shoeRack;
+// opts.tipo 'corredera'|'volquete'; opts.colorFrente para cajones/zapateras;
+// opts.alturaZocalo para zocalo (default 150).
 export function addContentToModule(moduleId, kind, opts = {}) {
   const store = getStore();
   const state = store.get();
   const modPieces = state.pieces.filter((p) => String(p.modulo) === String(moduleId));
-  const base = modPieces.find((p) => p.id === `m${moduleId}-base`);
-  const lateral = modPieces.find((p) => p.id === `m${moduleId}-lateral-izq`);
-  if (!base || !lateral) {
-    return { ok: false, errors: [`El modulo ${moduleId} no tiene casco (base/lateral)`] };
-  }
-  const anchoModulo = Number(base.ancho);
-  const profModulo = Number(base.alto); // la base se dibuja ancho x prof
-  const espesor = Number(base.espesor) || 15;
+  const dims = moduleDims(modPieces, moduleId);
+  if (!dims) return { ok: false, errors: [`El modulo ${moduleId} no tiene casco (base/tapa)`] };
+  const { anchoModulo, profModulo, espesor, colorCuerpo } = dims;
   const anchoUtil = anchoModulo - 2 * espesor;
   const profUtil = profModulo - 2 * espesor;
-  const colorCuerpo = base.color || '#C19A6B';
 
   let result = null;
+  let piecesMutadas = null;
   if (kind === 'shelf') {
     result = addShelf(moduleId, {
       anchoUtil, profReal: profUtil, espesor,
@@ -402,8 +452,26 @@ export function addContentToModule(moduleId, kind, opts = {}) {
     result = addHangerRail(moduleId, {
       anchoUtil, index: nextContentIndex(state.pieces, moduleId, 'rail'),
     });
+  } else if (kind === 'doubleRail') {
+    result = addDoubleRail(moduleId, { anchoUtil, index: nextContentIndex(state.pieces, moduleId, 'rail') });
   } else if (kind === 'zocalo') {
-    result = addZocalo(moduleId, { ancho: anchoModulo, alto: 150, espesor, color: colorCuerpo });
+    result = addZocalo(moduleId, {
+      ancho: anchoModulo,
+      alto: Number(opts.alturaZocalo) > 0 ? Number(opts.alturaZocalo) : 150,
+      espesor, color: colorCuerpo,
+    });
+    // Primer zocalo del modulo: convertir la base a interna para que se
+    // apoye sobre el (si aun es externa).
+    const tieneZocalo = state.pieces.some((p) => p.id === `m${moduleId}-zocalo`);
+    const tapa = modPieces.find((p) => p.id === `m${moduleId}-tapa`);
+    const base = modPieces.find((p) => p.id === `m${moduleId}-base`);
+    if (result.ok && !tieneZocalo && base && tapa && Number(base.ancho) >= Number(tapa.ancho)) {
+      piecesMutadas = state.pieces.map((p) => (
+        p.id === base.id
+          ? { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - 2 * espesor }
+          : p
+      ));
+    }
   } else if (kind === 'drawer' || kind === 'shoeRack') {
     result = addDrawer(moduleId, nextContentIndex(state.pieces, moduleId, kind), {
       anchoModulo, profundidadModulo: profModulo,
@@ -418,8 +486,50 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   }
 
   if (!result.ok) return result;
-  const allPieces = [...state.pieces, ...result.pieces];
+  const basePieces = piecesMutadas || state.pieces;
+  const allPieces = [...basePieces, ...result.pieces];
   store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
+  recalculateAll();
+  return { ok: true, warnings: validatePiecesQuiet(allPieces) };
+}
+
+// Duplica un modulo (casco + contenido + submodulos) con id nuevo.
+export function duplicateModule(moduleId) {
+  const store = getStore();
+  const state = store.get();
+  const newId = nextModuleId(state.pieces);
+  const copias = duplicateModulePieces(state.pieces, moduleId, newId);
+  if (!copias.length) return { ok: false, errors: [`El modulo ${moduleId} no existe`] };
+  const allPieces = [...state.pieces, ...copias];
+  store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
+  recalculateAll();
+  return { ok: true, moduleId: newId };
+}
+
+// Recolorea el casco de un modulo (base/tapa/laterales/zocalo).
+export function recolorModule(moduleId, color) {
+  const store = getStore();
+  const state = store.get();
+  if (!/^#[0-9A-Fa-f]{6}$/.test(String(color || ''))) {
+    return { ok: false, errors: [`Color invalido "${color}"`] };
+  }
+  const cascoIds = new Set([
+    `m${moduleId}-base`, `m${moduleId}-tapa`,
+    `m${moduleId}-lateral-izq`, `m${moduleId}-lateral-der`,
+    `m${moduleId}-zocalo`,
+  ]);
+  const pieces = state.pieces.map((p) => (
+    cascoIds.has(String(p.id)) ? { ...p, color: String(color) } : p
+  ));
+  store.set({ pieces });
+  recalculateAll();
+  return { ok: true };
+}
+
+// Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.
+export function clearAllPieces() {
+  const store = getStore();
+  store.set({ pieces: [], dependencies: [], warnings: [], currentModule: 'global', currentStep: 0 });
   recalculateAll();
   return { ok: true };
 }
@@ -444,15 +554,33 @@ export function removeModule(moduleId) {
 
 // ── Versiones de diseno (projectVersionsService) ──────────────────
 
+// Hash barato (djb2) del CSV de piezas: alimenta el badge "sin guardar".
+let lastSavedHash = null;
+function piecesHash(pieces) {
+  const csv = piecesToCSV(pieces || []);
+  let h = 5381;
+  for (let i = 0; i < csv.length; i++) h = ((h << 5) + h + csv.charCodeAt(i)) | 0;
+  return String(h);
+}
+
+// true cuando las piezas actuales difieren de la ultima version guardada
+// o cargada (null al inicio de sesion = sin baseline).
+export function isDesignDirty() {
+  if (lastSavedHash === null) return false;
+  return piecesHash(getStore().get().pieces) !== lastSavedHash;
+}
+
 export function saveCurrentVersion(name) {
   const state = getStore().get();
-  return saveVersion(name, { pieces: state.pieces, dependencies: state.dependencies });
+  const result = saveVersion(name, { pieces: state.pieces, dependencies: state.dependencies });
+  if (result.ok) lastSavedHash = piecesHash(state.pieces);
+  return result;
 }
 
 export function loadVersionById(id) {
   const result = loadVersion(id);
   if (!result.ok) return result;
-  setActivePreset({});
+  setActivePreset(CONSTRUCTOR_PRESET);
   getStore().set({
     userConfig: loadUserConfig(),
     pieces: result.pieces,
@@ -463,6 +591,7 @@ export function loadVersionById(id) {
     currentStep: 0,
     ...(countRootModules(result.pieces) > 1 ? { currentModule: 'all' } : {}),
   });
+  lastSavedHash = piecesHash(result.pieces);
   recalculateAll();
   return { ok: true, name: result.name };
 }
@@ -473,6 +602,32 @@ export function deleteVersionById(id) {
 
 export function deleteAllVersionsAction() {
   return deleteAllVersions();
+}
+
+export function renameVersionById(id, name) {
+  return renameVersion(id, name);
+}
+
+export function duplicateVersionById(id) {
+  return duplicateVersion(id);
+}
+
+// Exporta una version guardada a archivo CSV.
+export function exportVersionCsv(id) {
+  const csv = versionCsv(id);
+  if (!csv) return { ok: false, error: 'Version no encontrada' };
+  const name = loadVersion(id)?.name || 'version';
+  const slug = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  downloadText(`cutternest-${slug || 'version'}.csv`, csv, 'text/csv');
+  return { ok: true };
+}
+
+// Exporta el mueble actual a archivo CSV.
+export function exportCurrentCsv() {
+  const state = getStore().get();
+  if (!state.pieces.length) return { ok: false, error: 'No hay piezas que exportar' };
+  downloadText('cutternest-piezas.csv', piecesToCSV(state.pieces), 'text/csv');
+  return { ok: true };
 }
 
 export function addDependency(from, to, type = 'estructural') {
