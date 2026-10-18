@@ -36,6 +36,7 @@ import {
   sortModuleIds,
 } from './isometric/moduleGeometry.js';
 import { buildGlobalGeometries } from './isometric/globalGeometry.js';
+import { MODULE_GAP_MM } from '../../renderer3d/moduleLayout.js';
 import { buildSeatingGeometries } from './isometric/seatingGeometry.js';
 import { buildFrontPanelGeometries } from './isometric/frontPanelGeometry.js';
 import { buildDrawerGeometries } from './isometric/drawerGeometry.js';
@@ -186,7 +187,9 @@ export class IsometricRenderer {
         subGeometries.forEach((g) => { g.x += offsetX; });
         subGeometries.forEach((g) => { g.moduleSeq = idx; });
         geometries.push(...subGeometries);
-        const extraGap = useProjection ? dims.thickness : 0;
+        // En 'compact' los módulos quedaban pegados (gap 0); se aplica el
+        // mismo gap mínimo de 20 mm que la vista 3D (MODULE_GAP_MM).
+        const extraGap = useProjection ? dims.thickness : MODULE_GAP_MM;
         offsetX += moduleVisualWidth + extraGap;
       });
       if (globalPieces.length) {
