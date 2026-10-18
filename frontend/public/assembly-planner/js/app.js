@@ -25,11 +25,13 @@ import { createIsometricView } from './views/isometricView.js';
 import { createRenderer3DView } from './views/renderer3DView.js';
 import { calculateHardware } from './services/hardware.js';
 import { getStore, setStore, createStore } from './core/store.js';
-import { VERTICAL_POSITIONS } from './core/config.js';
 import {
   saveUserConfig,
   resetUserConfig as resetUserConfigService,
+  setActivePreset,
+  loadUserConfig,
 } from './services/userConfigService.js';
+import { getGapPreset } from './core/gapPresets.js';
 
 export const GLOBAL_MODULE_ID = 'global';
 
@@ -275,16 +277,21 @@ function activateFocusedTab(event) {
 export function loadExample(url) {
   fetch(url)
     .then((res) => res.text())
-    .then((text) => loadCSV(text))
+    .then((text) => loadCSV(text, getGapPreset(url)))
     .catch(() => setStatus('No se pudo cargar el ejemplo.', 'alert--danger'));
 }
 
-export function loadCSV(text) {
+// `preset` (opcional): defaults del mueble (js/core/gapPresets.js). Se activa
+// ANTES de fijar las piezas para que la primera render ya use los defaults del
+// mueble; las ediciones del usuario se aplican encima vía loadUserConfig().
+export function loadCSV(text, preset = null) {
   const result = parseCSV(text);
   if (!result.ok) {
     setStatus(`Errores: ${result.errors.slice(0, 3).join('; ')}`, 'alert--danger');
     return;
   }
+  setActivePreset(preset || {});
+  getStore().set({ userConfig: loadUserConfig() });
   getStore().set({
     pieces: result.pieces,
     dependencies: sugerirDependencias(result.pieces),
@@ -440,8 +447,8 @@ export function clearFichaCorrections() {
 
 export function resetUserConfig() {
   const store = getStore();
-  store.set({ userConfig: { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} } });
   resetUserConfigService();
+  store.set({ userConfig: loadUserConfig() });
 }
 
 function init() {

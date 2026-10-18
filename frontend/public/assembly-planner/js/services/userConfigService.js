@@ -5,6 +5,28 @@ import { VERTICAL_POSITIONS } from '../core/config.js';
 
 const STORAGE_KEY = 'cn-assembly-config';
 
+// Preset activo del mueble cargado (js/core/gapPresets.js). El diff persistido
+// se calcula contra los defaults efectivos (VERTICAL_POSITIONS + preset), así
+// el usuario puede revertir un valor al default del mueble, no solo al global.
+let activePreset = {};
+
+export function setActivePreset(preset = {}) {
+  activePreset = { ...preset };
+}
+
+export function getActivePreset() {
+  return { ...activePreset };
+}
+
+function effectiveDefaults() {
+  const base = { ...VERTICAL_POSITIONS };
+  for (const key of Object.keys(VERTICAL_POSITIONS)) {
+    const value = Number(activePreset[key]);
+    if (Number.isFinite(value)) base[key] = value;
+  }
+  return base;
+}
+
 function getStorage() {
   if (typeof localStorage === 'undefined') return null;
   try {
@@ -15,7 +37,8 @@ function getStorage() {
 }
 
 export function loadUserConfig() {
-  const config = { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} };
+  const defaults = effectiveDefaults();
+  const config = { ...defaults, pieceOffsets: {}, fichaCorrections: {} };
   const storage = getStorage();
   if (!storage) return config;
 
@@ -55,13 +78,14 @@ export function saveUserConfig(overrides) {
   if (!storage) return;
 
   try {
+    const defaults = effectiveDefaults();
     const diff = {};
     for (const key of Object.keys(VERTICAL_POSITIONS)) {
       const value = overrides?.[key];
       if (
         Object.prototype.hasOwnProperty.call(overrides || {}, key) &&
         Number.isFinite(value) &&
-        value !== VERTICAL_POSITIONS[key]
+        value !== defaults[key]
       ) {
         diff[key] = value;
       }

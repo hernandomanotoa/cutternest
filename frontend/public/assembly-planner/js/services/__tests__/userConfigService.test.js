@@ -5,6 +5,8 @@ import {
   loadUserConfig,
   saveUserConfig,
   resetUserConfig,
+  setActivePreset,
+  getActivePreset,
 } from '../userConfigService.js';
 
 function createMockStorage(initial = {}) {
@@ -31,6 +33,44 @@ describe('userConfigService', () => {
   beforeEach(() => {
     storage = createMockStorage();
     globalThis.localStorage = storage;
+    setActivePreset({});
+  });
+
+  describe('gap presets', () => {
+    it('loadUserConfig aplica el preset como default', () => {
+      setActivePreset({ stackGap: 25, hangerRailHeight: 1800 });
+      const config = loadUserConfig();
+      assert.equal(config.stackGap, 25);
+      assert.equal(config.hangerRailHeight, 1800);
+      // Claves sin preset conservan el default global.
+      assert.equal(config.drawerFrontGap, VERTICAL_POSITIONS.drawerFrontGap);
+    });
+
+    it('las ediciones del usuario tienen prioridad sobre el preset', () => {
+      setActivePreset({ stackGap: 25 });
+      storage.setItem('cn-assembly-config', JSON.stringify({ stackGap: 40 }));
+      const config = loadUserConfig();
+      assert.equal(config.stackGap, 40);
+    });
+
+    it('saveUserConfig difiere contra el default efectivo (preset incluido)', () => {
+      setActivePreset({ stackGap: 25 });
+      // 25 = default del preset → no se persiste (no es una edición).
+      saveUserConfig({ ...VERTICAL_POSITIONS, stackGap: 25 });
+      let saved = JSON.parse(storage.getItem('cn-assembly-config'));
+      assert.equal('stackGap' in saved, false);
+      // 40 difiere del preset → se persiste.
+      saveUserConfig({ ...VERTICAL_POSITIONS, stackGap: 40 });
+      saved = JSON.parse(storage.getItem('cn-assembly-config'));
+      assert.equal(saved.stackGap, 40);
+    });
+
+    it('getActivePreset devuelve copia defensiva', () => {
+      setActivePreset({ stackGap: 25 });
+      const preset = getActivePreset();
+      preset.stackGap = 99;
+      assert.equal(getActivePreset().stackGap, 25);
+    });
   });
 
   describe('loadUserConfig', () => {
