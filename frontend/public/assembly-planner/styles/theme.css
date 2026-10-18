@@ -978,3 +978,61 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
+
+/* Constructor de closets (vista constructor) */
+.cn-constructor__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cn-constructor__check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: end;
+  padding-bottom: 0.4rem;
+}
+
+.cn-constructor__module {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.6rem;
+  background: var(--bg-primary);
+}
+
+.cn-constructor__module-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.cn-constructor__spacer {
+  flex: 1;
+}
+
+.cn-constructor__content-btns {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.cn-constructor__version-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cn-constructor__version-form input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.cn-constructor__actions {
+  display: flex;
+  gap: 0.35rem;
+}

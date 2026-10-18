@@ -21,6 +21,7 @@ import { sugerirDependencias } from './services/heuristics.js';
 import { topologicalLevels, buildSteps } from './services/topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
 import { createStructuralView } from './views/structuralView.js';
+import { createConstructorView } from './views/constructorView.js';
 import { createIsometricView } from './views/isometricView.js';
 import { createRenderer3DView } from './views/renderer3DView.js';
 import { calculateHardware } from './services/hardware.js';
@@ -32,11 +33,28 @@ import {
   loadUserConfig,
 } from './services/userConfigService.js';
 import { getGapPreset } from './core/gapPresets.js';
+import {
+  createModule,
+  addZocalo,
+  addShelf,
+  addHangerRail,
+  addDrawer,
+  nextModuleId,
+  nextContentIndex,
+  countRootModules,
+} from './services/closetBuilderService.js';
+import {
+  saveVersion,
+  loadVersion,
+  deleteVersion,
+  deleteAllVersions,
+} from './services/projectVersionsService.js';
 
 export const GLOBAL_MODULE_ID = 'global';
 
 const viewFactories = {
   csv: createCSVView,
+  constructor: createConstructorView,
   estructural: createStructuralView,
   isometric: createIsometricView,
   renderer3d: createRenderer3DView,
@@ -297,6 +315,8 @@ export function loadCSV(text, preset = null) {
     dependencies: sugerirDependencias(result.pieces),
     warnings: result.warnings,
     currentStep: 0,
+    // Mueble multi-modulo: arrancar en Vista completa (todas las piezas).
+    ...(countRootModules(result.pieces) > 1 ? { currentModule: 'all' } : {}),
   });
   recalculateAll();
   setStatus(`CSV cargado: ${result.pieces.length} piezas, ${getStore().get().dependencies.length} dependencias.`, 'alert--success');
@@ -308,6 +328,151 @@ export function addEmptyPiece() {
   const count = state.pieces.filter((p) => p.id.startsWith('pieza-')).length + 1;
   store.set({ pieces: [...state.pieces, createEmptyPiece(count + state.pieces.length)] });
   recalculateAll();
+}
+
+// ── Constructor de closets (closetBuilderService) ─────────────────
+
+// Agrega un modulo nuevo (casco + zocalo opcional) al mueble actual.
+// config: { ancho, alto, prof, espesor?, colorCuerpo?, conZocalo? }.
+// Devuelve { ok, moduleId? } — la vista muestra errors via setStatus.
+export function addModuleFromBuilder(config) {
+  const store = getStore();
+  const state = store.get();
+  const moduleId = nextModuleId(state.pieces);
+  const result = createModule({
+    ancho: Number(config.ancho),
+    alto: Number(config.alto),
+    prof: Number(config.prof),
+    espesor: config.espesor ?? 15,
+    colorCuerpo: config.colorCuerpo || '#C19A6B',
+    modulo: moduleId,
+  });
+  if (!result.ok) return result;
+
+  const nuevas = [...result.pieces];
+  if (config.conZocalo) {
+    const z = addZocalo(moduleId, {
+      ancho: Number(config.ancho),
+      alto: 150,
+      espesor: config.espesor ?? 15,
+      color: config.colorCuerpo || '#C19A6B',
+    });
+    if (!z.ok) return z;
+    nuevas.push(...z.pieces);
+  }
+
+  const allPieces = [...state.pieces, ...nuevas];
+  store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
+  recalculateAll();
+  // Segundo (y siguientes) modulo: saltar a Vista completa automaticamente.
+  if (countRootModules(getStore().get().pieces) > 1) {
+    getStore().set({ currentModule: 'all' });
+    recalculateAll();
+  }
+  return { ok: true, moduleId };
+}
+
+// Agrega contenido a un modulo existente. kind: shelf|rail|zocalo|drawer|
+// shoeRack. Las dimensiones del modulo se derivan de sus piezas de casco
+// (base/laterales). opts.altoVano aplica a drawer/shoeRack (default 200).
+export function addContentToModule(moduleId, kind, opts = {}) {
+  const store = getStore();
+  const state = store.get();
+  const modPieces = state.pieces.filter((p) => String(p.modulo) === String(moduleId));
+  const base = modPieces.find((p) => p.id === `m${moduleId}-base`);
+  const lateral = modPieces.find((p) => p.id === `m${moduleId}-lateral-izq`);
+  if (!base || !lateral) {
+    return { ok: false, errors: [`El modulo ${moduleId} no tiene casco (base/lateral)`] };
+  }
+  const anchoModulo = Number(base.ancho);
+  const profModulo = Number(base.alto); // la base se dibuja ancho x prof
+  const espesor = Number(base.espesor) || 15;
+  const anchoUtil = anchoModulo - 2 * espesor;
+  const profUtil = profModulo - 2 * espesor;
+  const colorCuerpo = base.color || '#C19A6B';
+
+  let result = null;
+  if (kind === 'shelf') {
+    result = addShelf(moduleId, {
+      anchoUtil, profReal: profUtil, espesor,
+      color: opts.color || '#D9C2A3',
+      index: nextContentIndex(state.pieces, moduleId, 'shelf'),
+    });
+  } else if (kind === 'rail') {
+    result = addHangerRail(moduleId, {
+      anchoUtil, index: nextContentIndex(state.pieces, moduleId, 'rail'),
+    });
+  } else if (kind === 'zocalo') {
+    result = addZocalo(moduleId, { ancho: anchoModulo, alto: 150, espesor, color: colorCuerpo });
+  } else if (kind === 'drawer' || kind === 'shoeRack') {
+    result = addDrawer(moduleId, nextContentIndex(state.pieces, moduleId, kind), {
+      anchoModulo, profundidadModulo: profModulo,
+      altoVano: Number(opts.altoVano) > 0 ? Number(opts.altoVano) : 200,
+      tipo: opts.tipo || 'corredera',
+      vocabulario: kind === 'shoeRack' ? 'zapatera' : 'cajon',
+      colorFrente: opts.colorFrente || '#8B5A2B',
+      colorLateral: opts.colorLateral || '#D9C2A3',
+    });
+  } else {
+    return { ok: false, errors: [`Contenido "${kind}" no soportado`] };
+  }
+
+  if (!result.ok) return result;
+  const allPieces = [...state.pieces, ...result.pieces];
+  store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
+  recalculateAll();
+  return { ok: true };
+}
+
+// Elimina un modulo: quita las piezas cuyo modulo raiz coincide (incluye
+// submodulos tipo '11' al borrar '1').
+export function removeModule(moduleId) {
+  const store = getStore();
+  const state = store.get();
+  const id = String(moduleId);
+  const pieces = state.pieces.filter((p) => {
+    const mod = String(p.modulo || '');
+    if (mod === id) return false;
+    // Submodulo concatenado ('11' pertenece a '1') o dotted ('1.2').
+    if (/^\d+$/.test(id) && (mod.startsWith(id) || mod.startsWith(`${id}.`))) return false;
+    return true;
+  });
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  recalculateAll();
+  return { ok: true };
+}
+
+// ── Versiones de diseno (projectVersionsService) ──────────────────
+
+export function saveCurrentVersion(name) {
+  const state = getStore().get();
+  return saveVersion(name, { pieces: state.pieces, dependencies: state.dependencies });
+}
+
+export function loadVersionById(id) {
+  const result = loadVersion(id);
+  if (!result.ok) return result;
+  setActivePreset({});
+  getStore().set({
+    userConfig: loadUserConfig(),
+    pieces: result.pieces,
+    dependencies: result.dependencies.length
+      ? result.dependencies
+      : sugerirDependencias(result.pieces),
+    warnings: result.warnings || [],
+    currentStep: 0,
+    ...(countRootModules(result.pieces) > 1 ? { currentModule: 'all' } : {}),
+  });
+  recalculateAll();
+  return { ok: true, name: result.name };
+}
+
+export function deleteVersionById(id) {
+  return deleteVersion(id);
+}
+
+export function deleteAllVersionsAction() {
+  return deleteAllVersions();
 }
 
 export function addDependency(from, to, type = 'estructural') {
