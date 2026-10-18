@@ -166,10 +166,7 @@ export function createIsometricView(store) {
 
     const fichaHost = container.querySelector('#iso-config-host');
     createFurnitureFicha().mount(fichaHost, store);
-    const offsetsRoot = createPieceOffsetsConfig().mount(fichaHost, store);
-    // Ambos paneles comparten el host flotante: se apilan en columna
-    // anulando el posicionamiento absoluto de .iso-config-panel.
-    if (offsetsRoot) offsetsRoot.style.position = 'relative';
+    createPieceOffsetsConfig().mount(fichaHost, store);
 
     container.querySelector('#btn-iso-zoom-in')?.addEventListener('click', () => {
       scale = Math.min(scale * 1.2, 0.5);

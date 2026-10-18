@@ -106,8 +106,6 @@ export function createPieceOffsetsConfig() {
 
     const root = document.createElement('div');
     root.className = `iso-config-panel cn-piece-offsets-panel${collapsed ? ' is-collapsed' : ''}`;
-    root.style.width = '460px';
-    root.style.maxWidth = 'calc(100vw - 2rem)';
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
     root.style.overflow = 'hidden';
@@ -119,7 +117,7 @@ export function createPieceOffsetsConfig() {
           <button class="btn btn--secondary btn--sm" data-reset>Restaurar defaults</button>
         </div>
       </div>
-      <div class="iso-config-panel__body" style="display:block;overflow:hidden;">
+      <div class="iso-config-panel__body" style="display:block;">
         ${renderPanel(groups, activePieces, state.userConfig, ui)}
       </div>
     `;

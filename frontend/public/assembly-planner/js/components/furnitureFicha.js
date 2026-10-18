@@ -105,9 +105,6 @@ export function createFurnitureFicha() {
 
     const root = document.createElement('div');
     root.className = `iso-config-panel cn-furniture-ficha-panel${collapsed ? ' is-collapsed' : ''}`;
-    root.style.width = '340px';
-    root.style.maxWidth = 'calc(100vw - 2rem)';
-    root.style.position = 'relative';
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
     root.style.overflow = 'hidden';
@@ -170,7 +167,7 @@ function renderPanel(pieces, clasificacion, corrections, correcting, collapsed) 
           <button class="btn btn--icon btn--sm" data-toggle title="Ocultar/mostrar ficha">${collapsed ? '▶' : '▼'}</button>
         </div>
       </div>
-      <div class="iso-config-panel__body" style="display:block;overflow:hidden;">
+      <div class="iso-config-panel__body" style="display:block;">
         <p class="empty-state" style="padding:0.75rem;">Carga un CSV o ejemplo para ver la ficha técnica.</p>
       </div>
     `;
@@ -185,7 +182,7 @@ function renderPanel(pieces, clasificacion, corrections, correcting, collapsed) 
         <button class="btn btn--icon btn--sm" data-toggle title="Ocultar/mostrar ficha">${collapsed ? '▶' : '▼'}</button>
       </div>
     </div>
-    <div class="iso-config-panel__body" style="display:block;overflow:hidden;">
+    <div class="iso-config-panel__body" style="display:block;">
       ${renderClasificacion(clasificacion, corrections)}
       ${renderFichaTipo(clasificacion)}
       ${renderMedidasProyecto(pieces)}

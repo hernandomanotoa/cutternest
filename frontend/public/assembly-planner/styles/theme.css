@@ -779,6 +779,42 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   top: 1rem;
   right: 1rem;
   z-index: 100;
+  /* Los paneles se apilan en columna con scroll propio; el ancho lo controla
+     el host para que ambos paneles queden alineados. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(460px, calc(100vw - 2rem));
+  max-height: calc(100% - 2rem);
+  pointer-events: none;
+}
+
+.iso-config-host > * {
+  pointer-events: auto;
+}
+
+.iso-config-host .iso-config-panel {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.iso-config-host .iso-config-panel__header {
+  flex-shrink: 0;
+}
+
+.iso-config-host .iso-config-panel__body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .iso-config-panel {
