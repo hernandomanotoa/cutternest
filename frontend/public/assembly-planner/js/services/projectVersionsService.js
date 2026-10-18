@@ -120,6 +120,48 @@ export function deleteAllVersions() {
   return { ok: true };
 }
 
+// Renombra una version (trim + max 80 chars, igual que saveVersion).
+export function renameVersion(id, name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return { ok: false, error: 'El nombre de la version es obligatorio' };
+  const container = readContainer();
+  const found = container.versions.find((v) => v.id === id);
+  if (!found) return { ok: false, error: 'Version no encontrada' };
+  found.name = trimmed.slice(0, 80);
+  writeContainer(container);
+  return { ok: true, version: publicVersion(found) };
+}
+
+// Duplica una version (mismo payload, id y fecha nuevos, nombre + ' copia').
+export function duplicateVersion(id) {
+  const container = readContainer();
+  const found = container.versions.find((v) => v.id === id);
+  if (!found) return { ok: false, error: 'Version no encontrada' };
+  const copy = {
+    ...found,
+    id: generateId(),
+    name: `${found.name} copia`.slice(0, 80),
+    savedAt: new Date().toISOString(),
+  };
+  container.versions.unshift(copy);
+  let evicted = null;
+  if (container.versions.length > MAX_VERSIONS) evicted = container.versions.pop();
+  writeContainer(container);
+  return { ok: true, version: publicVersion(copy), evicted: evicted ? publicVersion(evicted) : null };
+}
+
+// Nombre sugerido para la siguiente version: 'Closet v{N}' con N = count+1.
+export function suggestedVersionName(prefix = 'Closet') {
+  return `${prefix} v${countVersions() + 1}`;
+}
+
+// CSV crudo de una version (para exportar a archivo).
+export function versionCsv(id) {
+  const found = readContainer().versions.find((v) => v.id === id);
+  if (!found) return null;
+  return found.csv;
+}
+
 export function countVersions() {
   return readContainer().versions.length;
 }

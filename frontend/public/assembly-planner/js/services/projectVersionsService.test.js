@@ -8,6 +8,10 @@ import {
   deleteVersion,
   deleteAllVersions,
   countVersions,
+  renameVersion,
+  duplicateVersion,
+  suggestedVersionName,
+  versionCsv,
 } from './projectVersionsService.js';
 import { createModule, addDrawer } from './closetBuilderService.js';
 
@@ -114,5 +118,40 @@ describe('projectVersionsService', () => {
 
   it('loadVersion de id inexistente no lanza', () => {
     assert.equal(loadVersion('nope').ok, false);
+  });
+
+  it('renameVersion renombra y valida', () => {
+    const s = saveVersion('Original', { pieces: muebleDePrueba() });
+    const r = renameVersion(s.version.id, '  Nuevo nombre  ');
+    assert.ok(r.ok);
+    assert.equal(r.version.name, 'Nuevo nombre');
+    assert.equal(loadVersion(s.version.id).name, 'Nuevo nombre');
+    assert.equal(renameVersion(s.version.id, '').ok, false);
+    assert.equal(renameVersion('nope', 'X').ok, false);
+  });
+
+  it('duplicateVersion copia payload con nombre + copia', () => {
+    const s = saveVersion('Base', { pieces: muebleDePrueba() });
+    const r = duplicateVersion(s.version.id);
+    assert.ok(r.ok);
+    assert.equal(r.version.name, 'Base copia');
+    assert.equal(countVersions(), 2);
+    const loaded = loadVersion(r.version.id);
+    assert.ok(loaded.ok);
+    assert.equal(loaded.pieces.length, muebleDePrueba().length);
+  });
+
+  it('suggestedVersionName numera secuencialmente', () => {
+    assert.equal(suggestedVersionName(), 'Closet v1');
+    saveVersion('A', { pieces: muebleDePrueba() });
+    assert.equal(suggestedVersionName(), 'Closet v2');
+    assert.equal(suggestedVersionName('Vestidor'), 'Vestidor v2');
+  });
+
+  it('versionCsv devuelve el CSV o null', () => {
+    const s = saveVersion('CSV', { pieces: muebleDePrueba() });
+    const csv = versionCsv(s.version.id);
+    assert.ok(csv.includes('id,nombre,ancho'));
+    assert.equal(versionCsv('nope'), null);
   });
 });
