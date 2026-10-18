@@ -68,7 +68,12 @@ function piece(id, nombre, ancho, alto, opts = {}) {
 // Casco completo: base + tapa + 2 laterales + fondo (modelo
 // baseTapaLateralesFondo de cajonModel.mjs). Las piezas interiores
 // (repisas/cajones) usan el ancho util = ancho - 2*espesor.
-export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#C19A6B', modulo }) {
+// `baseInterna: true` genera la base de ancho/prof internos (ancho−2E ×
+// prof−2E): el renderer (classifyTopBottomMount → 'internal') la apoya
+// sobre el zocalo (bottomPanelOffset = altura del zocalo) en vez de en el
+// suelo — modelo zocalo-cajon del catalogo (cascoZocaloCajon). Usar SOLO
+// cuando el modulo lleva zocalo.
+export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#C19A6B', modulo, baseInterna = false }) {
   const errors = [];
   validateDimension(ancho, 'ancho', errors, { min: 100 });
   validateDimension(alto, 'alto', errors, { min: 100 });
@@ -79,8 +84,10 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
   if (errors.length) return { ok: false, errors };
 
   const E = espesor;
+  const baseW = baseInterna ? ancho - 2 * E : ancho;
+  const baseD = baseInterna ? prof - 2 * E : prof;
   const pieces = [
-    piece(`m${modulo}-base`, `Base modulo M${modulo}`, ancho, prof, { rotate: 'si', color, espesor: E, cantos: 'T,B,L,R', modulo }),
+    piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rotate: 'si', color, espesor: E, cantos: 'T,B,L,R', modulo }),
     piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rotate: 'si', color, espesor: E, cantos: 'T,B,L,R', modulo }),
     piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, prof, alto, { color, espesor: E, cantos: 'T,B,L', modulo }),
     piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, prof, alto, { color, espesor: E, cantos: 'T,B,R', modulo }),
@@ -126,7 +133,7 @@ export function addShelf(moduleId, { anchoUtil, profReal, espesor = 15, color = 
 }
 
 // Barra colgadora (riel). index numera la barra dentro del modulo.
-export function addHangerRail(moduleId, { anchoUtil, index = 1, color = '#A0A0A0' }) {
+export function addHangerRail(moduleId, { anchoUtil, index = 1, color = '#A0A0A0', pos_z = null } = {}) {
   const errors = [];
   validateDimension(anchoUtil, 'anchoUtil', errors, { min: 50 });
   const c = validateColor(color, errors);
@@ -134,9 +141,60 @@ export function addHangerRail(moduleId, { anchoUtil, index = 1, color = '#A0A0A0
   return {
     ok: true,
     pieces: [
-      piece(`m${moduleId}-barra-${index}`, `Barra colgadora ${index} M${moduleId}`, anchoUtil, 25, { rotate: 'si', color: c, espesor: 25, cantos: '', modulo: moduleId }),
+      piece(`m${moduleId}-barra-${index}`, `Barra colgadora ${index} M${moduleId}`, anchoUtil, 25, { rotate: 'si', color: c, espesor: 25, cantos: '', modulo: moduleId, ...(pos_z != null ? { pos_z } : {}) }),
     ],
   };
+}
+
+// Doble colgado: barra alta (pos_z 2100, colgado corto) + barra baja
+// (pos_z 1000). pos_z ancla explicitamente la barra (columna 11 del CSV).
+export function addDoubleRail(moduleId, { anchoUtil, index = 1, color = '#A0A0A0' } = {}) {
+  const errors = [];
+  validateDimension(anchoUtil, 'anchoUtil', errors, { min: 50 });
+  if (errors.length) return { ok: false, errors };
+  return {
+    ok: true,
+    pieces: [
+      piece(`m${moduleId}-barra-alta-${index}`, `Barra alta ${index} M${moduleId}`, anchoUtil, 25, { rotate: 'si', color: validateColor(color, errors) || '#A0A0A0', espesor: 25, cantos: '', modulo: moduleId, pos_z: 2100 }),
+      piece(`m${moduleId}-barra-baja-${index}`, `Barra baja ${index} M${moduleId}`, anchoUtil, 25, { rotate: 'si', color: validateColor(color, errors) || '#A0A0A0', espesor: 25, cantos: '', modulo: moduleId, pos_z: 1000 }),
+    ],
+  };
+}
+
+// Duplica las piezas de un modulo (casco + contenido + submodulos) con un
+// id de modulo nuevo. Renombra ids y modulos aplicando el prefijo
+// m{old}→m{new} (submodulos '11'→'22' incluidos). Puro: el caller fija el
+// id destino con nextModuleId().
+export function duplicateModulePieces(pieces, moduleId, newModuleId) {
+  const oldPref = `m${moduleId}`;
+  const newPref = `m${newModuleId}`;
+  const renames = [];
+  for (const p of pieces || []) {
+    const mod = String(p?.modulo || '');
+    const esDelModulo = mod === String(moduleId)
+      || (/^\d+$/.test(moduleId) && (mod.startsWith(String(moduleId)) || mod.startsWith(`${moduleId}.`)));
+    if (!esDelModulo) continue;
+    const nuevoModulo = mod.split('.').length > 1
+      ? mod.replace(/^\d+/, String(newModuleId))
+      : String(newModuleId) + mod.slice(String(moduleId).length);
+    let nuevoId = String(p.id);
+    if (nuevoId.startsWith(oldPref)) nuevoId = newPref + nuevoId.slice(oldPref.length);
+    renames.push([String(p.id), nuevoId]);
+  }
+  const idMap = new Map(renames);
+  const resultado = [];
+  for (const p of pieces || []) {
+    if (!idMap.has(String(p.id))) continue;
+    resultado.push({ ...p, id: idMap.get(String(p.id)), modulo: moduloDestino(p, moduleId, newModuleId) });
+  }
+  return resultado;
+}
+
+function moduloDestino(pieceObj, moduleId, newModuleId) {
+  const mod = String(pieceObj.modulo || '');
+  if (mod === String(moduleId)) return String(newModuleId);
+  // Submodulo concatenado ('11') o dotted ('1.2').
+  return String(newModuleId) + mod.slice(String(moduleId).length);
 }
 
 // ── Cajón / zapatera ──────────────────────────────────────────────
@@ -217,29 +275,48 @@ export function addDrawer(moduleId, index, {
 
 // ── Utilidades ────────────────────────────────────────────────────
 
-// Siguiente id de modulo libre: maximo id raiz numerico + 1. Los
-// submodulos ('1.2') y globales ('estructura'/'global', ids glb-*) no
-// consumen numeros de modulo.
-export function nextModuleId(pieces) {
-  let max = 0;
+// Raices de modulos: ids de modulo que NO son submodulos de otro. Soporta
+// ambas convenciones: concatenada ('11' es hijo de '1') y dotted ('1.2' de
+// '1'). Los globales ('estructura'/'global') quedan fuera.
+export function rootModuleIds(pieces) {
+  const mods = new Set();
   for (const p of pieces || []) {
     const mod = String(p?.modulo || '').trim();
     if (!mod || mod === 'estructura' || mod === 'global') continue;
-    const root = mod.split('.')[0];
+    mods.add(mod);
+  }
+  const roots = new Set();
+  for (const m of mods) {
+    if (m.includes('.')) {
+      // Dotted: hijo si su raiz existe; si es huerfano, se trata como raiz.
+      const head = m.split('.')[0];
+      if (mods.has(head)) continue;
+      roots.add(head);
+      continue;
+    }
+    // Concatenado: hijo si OTRO modulo numerico es prefijo suyo ('1' de '11').
+    let esHijo = false;
+    for (const other of mods) {
+      if (other !== m && /^\d+$/.test(other) && m.startsWith(other)) { esHijo = true; break; }
+    }
+    if (!esHijo) roots.add(m);
+  }
+  return roots;
+}
+
+// Siguiente id de modulo libre: maximo id RAIZ numerico + 1. Los submodulos
+// ('11', '1.2') y globales no consumen numeros de modulo.
+export function nextModuleId(pieces) {
+  let max = 0;
+  for (const root of rootModuleIds(pieces)) {
     if (/^\d+$/.test(root)) max = Math.max(max, Number(root));
   }
   return String(max + 1);
 }
 
-// Cuenta piezas por modulo raiz (para decidir default 'Vista completa').
+// Cuenta modulos raiz (para decidir default 'Vista completa' y el resumen).
 export function countRootModules(pieces) {
-  const roots = new Set();
-  for (const p of pieces || []) {
-    const mod = String(p?.modulo || '').trim();
-    if (!mod || mod === 'estructura' || mod === 'global') continue;
-    roots.add(mod.split('.')[0]);
-  }
-  return roots.size;
+  return rootModuleIds(pieces).size;
 }
 
 // Siguiente indice libre de contenido dentro de un modulo (repisa 1, 2...;

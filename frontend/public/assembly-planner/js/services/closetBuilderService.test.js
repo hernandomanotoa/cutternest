@@ -11,13 +11,18 @@ import {
   addZocalo,
   addShelf,
   addHangerRail,
+  addDoubleRail,
   addDrawer,
   nextModuleId,
   countRootModules,
+  rootModuleIds,
+  nextContentIndex,
+  duplicateModulePieces,
   buildCloset,
 } from './closetBuilderService.js';
 import { parseCSV, piecesToCSV } from './csvParser.js';
 import { inferRole } from './classifierService.js';
+import * as geometryService from './geometryService.js';
 
 // Serializa piezas del builder y las re-parsea: devuelve { pieces, result }
 // para verificar que el parser acepta lo que el builder produce.
@@ -48,6 +53,22 @@ describe('createModule', () => {
     assert.equal(r.pieces.length, 5);
     assert.equal(r.interiorWidth, 820);
     assert.equal(r.interiorDepth, 570);
+    const { result } = reparse(r.pieces);
+    assert.equal(result.ok, true, result.errors?.join('; '));
+  });
+
+  it('baseInterna genera la base de ancho/prof internos (apoyada sobre zocalo)', () => {
+    const r = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1', baseInterna: true });
+    assert.ok(r.ok);
+    const base = r.pieces.find((p) => p.id === 'm1-base');
+    const tapa = r.pieces.find((p) => p.id === 'm1-tapa');
+    assert.equal(base.ancho, 820);  // 850 - 2*15
+    assert.equal(base.alto, 570);   // 600 - 2*15
+    assert.equal(tapa.ancho, 850);  // la tapa sigue externa
+    // El renderer debe clasificar la base como 'internal' → bottomPanelOffset
+    // = altura del zocalo (se apoya sobre el, no en el suelo).
+    const { classifyTopBottomMount } = geometryService;
+    assert.equal(classifyTopBottomMount(base, 850, 600, 15), 'internal');
     const { result } = reparse(r.pieces);
     assert.equal(result.ok, true, result.errors?.join('; '));
   });
@@ -166,6 +187,42 @@ describe('nextModuleId / countRootModules', () => {
   it('countRootModules cuenta raices, no submodulos', () => {
     assert.equal(countRootModules([{ modulo: '1' }, { modulo: '1.1' }, { modulo: '2' }]), 2);
     assert.equal(countRootModules([{ modulo: 'estructura' }]), 0);
+  });
+});
+
+describe('rootModuleIds / duplicateModulePieces / addDoubleRail', () => {
+  it('rootModuleIds distingue raices de submodulos en ambas convenciones', () => {
+    const piezas = [
+      { modulo: '1' }, { modulo: '11' }, { modulo: '12' },
+      { modulo: '2' }, { modulo: '2.1' }, { modulo: 'estructura' },
+    ];
+    assert.deepEqual([...rootModuleIds(piezas)].sort(), ['1', '2']);
+    assert.equal(nextModuleId(piezas), '3');
+    assert.equal(countRootModules(piezas), 2);
+  });
+
+  it('duplicateModulePieces renombra ids, modulos y submodulos', () => {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    const cajon = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    const copias = duplicateModulePieces([...casco.pieces, ...cajon.pieces], '1', '2');
+    assert.equal(copias.length, 12);
+    assert.ok(copias.every((p) => String(p.modulo) === '2' || String(p.modulo) === '21'));
+    assert.ok(copias.every((p) => String(p.id).startsWith('m2')));
+    // Sin colisiones con los originales.
+    const origIds = new Set([...casco.pieces, ...cajon.pieces].map((p) => p.id));
+    assert.ok(copias.every((p) => !origIds.has(p.id)));
+    const { result } = reparse(copias);
+    assert.equal(result.ok, true, result.errors?.join('; '));
+  });
+
+  it('addDoubleRail crea barra alta (2100) y baja (1000) ancladas con pos_z', () => {
+    const r = addDoubleRail('1', { anchoUtil: 820 });
+    assert.ok(r.ok);
+    assert.equal(r.pieces.length, 2);
+    assert.deepEqual(r.pieces.map((p) => p.pos_z).sort((a, b) => a - b), [1000, 2100]);
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    const { result } = reparse([...casco.pieces, ...r.pieces]);
+    assert.equal(result.ok, true, result.errors?.join('; '));
   });
 });
 
