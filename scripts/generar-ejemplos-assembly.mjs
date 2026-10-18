@@ -11,6 +11,7 @@ import {
   baseTapaLateralesFondo,
   header,
   zocaloCajon,
+  zocaloModulo,
   cascoZocaloCajon,
 } from './lib/cajonModel.mjs';
 
@@ -681,22 +682,22 @@ function cajonOculto(parent, index, opts) {
   examples.push({ name: 'Ejemplo_CSV_Base_Cama_Cajones.csv', dataName: 'ejemplo-base-cama-cajones.csv', lines });
 }
 
-// 36. Clóset abierto modular 3400×2400 (vestidor): zócalo-cajón corrido + tapa
-// corrida y 4 módulos de 850 (3400 = 4×850, 100% modular) con base propia:
-// doble colgado, cajonera, zapatera y colgador simple con repisas.
+// 36. Clóset abierto modular 3400×2400 (vestidor): 100% modular, sin piezas
+// globales — cada uno de los 4 módulos de 850 lleva su propio zócalo
+// inferior (frente 850×150) y su propio casco (base/tapa/laterales/fondo).
+// Doble colgado, cajonera, zapatera y colgador simple con repisas.
 {
   const lines = [];
-  lines.push(header('Ejemplo de closet abierto modular', 'Closet abierto modular 3400×2400×600 sin puertas, melamina 15 mm, 100% modular (4 modulos de 850): zocalo-cajon corrido 150 + tapa corrida y 4 modulos con base propia. Alturas ergonomicas: barras dobles a 2100/1000 mm (colgado corto por nivel) y barra camisera a 1800 mm (colgado largo). M1 doble colgado (2 barras cromadas + repisa superior), M2 cajonera con frentes mixtos (delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres; caja 30 mm mas baja que el frente y holgura de rieles 12.7 mm/lado), M3 zapatera por tipo de calzado (bandejas extraibles frente 180 planos, 200 tenis y 220 tacones/botines, vano abierto 450 para botas altas) y M4 colgador camisero (barra a 1800 + 3 repisas). Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm (melamina 15 mm). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
-  lines.push('# --- Estructura global: zocalo-cajon corrido (sin base global) ---');
-  lines.push(...zocaloCajon('closet abierto modular', 3400, 600, 150, '#C19A6B'));
-  lines.push(line('glb-tapa', 'Tapa corrida closet abierto modular', 3400, 600, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 'estructura'));
+  lines.push(header('Ejemplo de closet abierto modular', 'Closet abierto modular 3400×2400×600 sin puertas, melamina 15 mm, 100% modular (4 modulos de 850) SIN piezas globales: cada modulo lleva su propio zocalo inferior INTERNO (frente 820×150, embutido entre laterales) y su propio casco completo (base interna + tapa + laterales + fondo). Alturas ergonomicas: barras dobles a 2100/1000 mm (colgado corto por nivel) y barra camisera a 1800 mm (colgado largo). M1 doble colgado (2 barras cromadas + repisa superior), M2 cajonera con frentes mixtos (delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres; caja 30 mm mas baja que el frente y holgura de rieles 12.7 mm/lado), M3 zapatera por tipo de calzado (bandejas extraibles frente 180 planos, 200 tenis y 220 tacones/botines, vano abierto 450 para botas altas) y M4 colgador camisero (barra a 1800 + 3 repisas). Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm (melamina 15 mm). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
 
-  // Modulos de 850×2400×600 (altura TOTAL incluye zocalo de 150), base propia
-  // interna apoyada sobre el zocalo (cascoZocaloCajon). Vano util por modulo:
+  // Modulos de 850×2400×600 (altura TOTAL incluye zocalo de 150): casco propio
+  // (cascoZocaloCajon) + zocalo frontal INTERNO propio (zocaloModulo: frente
+  // 820 = 850 − 2·15, embutido entre laterales). Vano util por modulo:
   // 2400 − 150 (zocalo) − 15 (tapa) = 2235.
 
   lines.push('# --- Modulo 1: doble colgado (2 barras a dos alturas + repisa superior) ---');
   lines.push(...cascoZocaloCajon(1, 1, 850, 2400, 600, '#C19A6B'));
+  lines.push(...zocaloModulo(1, 1, 850, 150, '#C19A6B'));
   lines.push(line('m1-repisa-superior', 'Repisa superior M1', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
   lines.push(line('m1-refuerzo-repisa', 'Refuerzo repisa superior M1', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
   lines.push(line('m1-barra-alta', 'Barra colgadora alta M1', 820, 25, 1, 'si', '#A0A0A0', 25, '', 1));
@@ -708,6 +709,7 @@ function cajonOculto(parent, index, opts) {
   lines.push('# sabanas). La caja de cada cajon queda 30 mm mas baja que el frente');
   lines.push('# (evita choque con el armazon) y usa holgura de rieles de 12.7 mm/lado.');
   lines.push(...cascoZocaloCajon(2, 2, 850, 2400, 600, '#8B5A2B'));
+  lines.push(...zocaloModulo(2, 2, 850, 150, '#8B5A2B'));
   lines.push(line('m2-repisa-superior', 'Repisa superior M2', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
   lines.push(line('m2-refuerzo-repisa', 'Refuerzo repisa superior M2', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 2));
   lines.push(...cajon(2, 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 130, colorFrente: '#C19A6B', colorLateral: '#D9C2A3', suffix: 'accesorios' }));
@@ -722,6 +724,7 @@ function cajonOculto(parent, index, opts) {
   lines.push('# frente 200 (luz util ~170: tenis) y frente 220 (luz util ~190: tacones');
   lines.push('# y botines); vano abierto de 450 para botas altas (luz util 350-450).');
   lines.push(...cascoZocaloCajon(3, 3, 850, 2400, 600, '#C19A6B'));
+  lines.push(...zocaloModulo(3, 3, 850, 150, '#C19A6B'));
   lines.push(line('m3-bandeja-zapatero', 'Bandeja zapatero M3', 820, 450, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-refuerzo-bandeja', 'Refuerzo bandeja zapatero M3', 820, 100, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 3));
   lines.push(...cajon(3, 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 180, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'planos', vocabulario: 'zapatera' }));
@@ -735,6 +738,7 @@ function cajonOculto(parent, index, opts) {
 
   lines.push('# --- Modulo 4: colgador simple con 3 repisas ---');
   lines.push(...cascoZocaloCajon(4, 4, 850, 2400, 600, '#8B5A2B'));
+  lines.push(...zocaloModulo(4, 4, 850, 150, '#8B5A2B'));
   lines.push(line('m4-repisa-superior', 'Repisa superior M4', 820, 400, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 4));
   lines.push(line('m4-refuerzo-repisa-superior', 'Refuerzo repisa superior M4', 820, 100, 1, 'si', '#8B5A2B', 15, 'T,B,L,R', 4));
   lines.push(line('m4-barra', 'Barra colgadora M4', 820, 25, 1, 'si', '#A0A0A0', 25, '', 4));

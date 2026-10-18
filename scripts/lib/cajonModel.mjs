@@ -121,6 +121,18 @@ export function zocaloCajon(nombre, anchoTotal, profundidad, altoZocalo, color) 
   ];
 }
 
+// Zócalo inferior por módulo (modelo 100% modular sin piezas globales):
+// frente de zócalo INTERNO (embutido entre los laterales, ancho−2t): el
+// renderer lo clasifica como 'plinth' con montaje 'internal'
+// (classifyPlinthMount: ancho ≈ moduleW − 2·espesor) y lo dibuja retranqueado
+// entre las caras interiores de los laterales.
+export function zocaloModulo(mod, parent, ancho, altoZocalo, color) {
+  const E = 15;
+  return [
+    line(`m${mod}-zocalo`, `Zocalo M${parent}`, ancho - 2 * E, altoZocalo, 1, 'si', color, 15, 'T,B,L,R', mod),
+  ];
+}
+
 // Casco de módulo para el modelo zócalo-cajón: base INTERNA (ancho−2t × prof−2t)
 // apoyada sobre el zócalo y laterales de altura TOTAL del mueble (zócalo incluido).
 export function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerpo) {

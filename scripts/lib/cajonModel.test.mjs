@@ -14,7 +14,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { cajon, baseTapaLateralesFondo, header } from './cajonModel.mjs';
-import { parseCSV } from '../../frontend/public/assembly-planner/js/csvParser.js';
+import { parseCSV } from '../../frontend/public/assembly-planner/js/services/csvParser.js';
 
 // PRNG mulberry32: determinista (misma semilla → mismos casos en cada run).
 function mulberry32(seed) {
