@@ -306,9 +306,15 @@ export function createConstructorView(store) {
 function renderModuleCard(group, allPieces) {
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
+  // Contar por tipo en TODO el mueble (las piezas de caja viven en
+  // submodulos '11'/'12', fuera del modulo raiz). Cajón/zapatera: solo el
+  // frente (1 por caja); repisa/barra: cada pieza.
   const countByKind = (kind) => {
     const pref = { shelf: `m${moduleId}-repisa-`, drawer: `m${moduleId}cajon`, shoeRack: `m${moduleId}zapatera`, rail: `m${moduleId}-barra-` }[kind];
-    return piezas.filter((p) => String(p.id).startsWith(pref)).length;
+    const matches = allPieces.filter((p) => String(p.id).startsWith(pref));
+    return (kind === 'drawer' || kind === 'shoeRack')
+      ? matches.filter((p) => p.id.endsWith('-frente')).length
+      : matches.length;
   };
   const altoModulo = piezas.find((p) => p.id.endsWith('lateral-izq'))?.alto || null;
   const tieneZocalo = piezas.some((p) => p.id === `m${moduleId}-zocalo`);
