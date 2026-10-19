@@ -139,6 +139,21 @@ test('nuevo mueble con doble confirmación vacía las piezas', () => {
   view.destroy();
 });
 
+test('orden de agregado intercalado: cajón→zapatera→cajón→zapatera = submódulos 11,12,13,14', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+
+  const frentes = store.get().pieces.filter((p) => p.id.includes('-frente'));
+  assert.deepEqual(frentes.map((p) => p.modulo), ['11', '12', '13', '14']);
+  // Sin colisiones de submódulo (antes cajón 1 y zapatera 1 compartían '11').
+  assert.equal(new Set(frentes.map((p) => p.modulo)).size, 4);
+  view.destroy();
+});
+
 test('doble barra crea 2 barras ancladas con pos_z', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');

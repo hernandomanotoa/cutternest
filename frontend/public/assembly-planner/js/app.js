@@ -473,7 +473,15 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       ));
     }
   } else if (kind === 'drawer' || kind === 'shoeRack') {
-    result = addDrawer(moduleId, nextContentIndex(state.pieces, moduleId, kind), {
+    // Contador UNIFICADO cajón+zapatera: submódulos secuenciales según el
+    // orden de inserción (11, 12, 13...). Con contadores separados, cajón 1
+    // y zapatera 1 colisionaban en el mismo submódulo ('11') y el
+    // emparejamiento de cajas (matchDrawerBoxParts) podía cruzarlas.
+    const idx = Math.max(
+      nextContentIndex(state.pieces, moduleId, 'drawer'),
+      nextContentIndex(state.pieces, moduleId, 'shoeRack'),
+    );
+    result = addDrawer(moduleId, idx, {
       anchoModulo, profundidadModulo: profModulo,
       altoVano: Number(opts.altoVano) > 0 ? Number(opts.altoVano) : 200,
       tipo: opts.tipo || 'corredera',

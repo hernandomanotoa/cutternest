@@ -164,11 +164,17 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
   const bottomPieceOverride = bottom
     ? renderer.verticalPositionOverrides?.pieceOffsets?.[bottom?.originalId || bottom?.id]?.offset
     : undefined;
+  // Jerarquía: override por pieza > regla geométrica (base interna apoyada
+  // sobre el zócalo) > override global > default. El override global NO puede
+  // hundir la base dentro del zócalo: bottomPanelOffset=0 (default de
+  // userConfig) quedaría bajo el frente del plinth tapando los cajones.
   const bottomPanelOffset = Number.isFinite(bottomPieceOverride)
     ? bottomPieceOverride
-    : (Number.isFinite(bottomPanelOverride)
-      ? bottomPanelOverride
-      : (baseAxes.width === 'internal' ? effectiveZocaloHeight : VERTICAL_POSITIONS.bottomPanelOffset));
+    : (baseAxes.width === 'internal' && effectiveZocaloHeight > 0
+      ? effectiveZocaloHeight
+      : (Number.isFinite(bottomPanelOverride)
+        ? bottomPanelOverride
+        : VERTICAL_POSITIONS.bottomPanelOffset));
   const topPanelOverride = renderer.verticalPositionOverrides?.topPanelOffset;
   const topPanelOffset = Number.isFinite(topPanelOverride)
     ? topPanelOverride

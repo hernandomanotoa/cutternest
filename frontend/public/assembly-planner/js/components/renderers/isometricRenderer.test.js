@@ -387,11 +387,36 @@ describe('IsometricRenderer top/bottom mounting', () => {
     });
   });
 
-  it('respects bottomPanelOffset override even with internal base', () => {
+  it('base internal sobre zocalo ignora el override global (no puede hundirse en el plinth)', () => {
+    // Contrato: el override global bottomPanelOffset NO puede colocar la base
+    // DENTRO del zocalo. La regla geométrica (base apoyada sobre el plinth)
+    // gana sobre el override global; el ajuste fino va por override de pieza.
     const renderer = new IsometricRenderer({ innerHTML: '' }, { verticalPositionOverrides: { bottomPanelOffset: 150 } });
     const geoms = renderer._buildModuleGeometries(internalBasePieces(), 800, 550, 2300, 15, 'cabinet', 100, 0);
     const base = geoms.find((g) => g.role === 'bottom_panel');
-    assert.equal(base.z, 150, 'internal base should respect user override');
+    assert.equal(base.z, 100, 'base interna se apoya sobre el zocalo (regla geometrica)');
+  });
+
+  it('override global aplica cuando NO hay zocalo local', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { verticalPositionOverrides: { bottomPanelOffset: 60 } });
+    const geoms = renderer._buildModuleGeometries(internalBasePieces(), 800, 550, 2300, 15, 'cabinet', 0, 0);
+    const base = geoms.find((g) => g.role === 'bottom_panel');
+    assert.equal(base.z, 60, 'sin zocalo el override global manda');
+  });
+
+  it('override por pieza gana siempre, incluso con zocalo', () => {
+    const pieces = internalBasePieces().map((p) => (
+      p.role === 'bottom_panel' ? { ...p, originalId: p.id } : p
+    ));
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {
+      verticalPositionOverrides: {
+        bottomPanelOffset: 0,
+        pieceOffsets: { 'm1-base': { offset: 200 } },
+      },
+    });
+    const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2300, 15, 'cabinet', 100, 0);
+    const base = geoms.find((g) => g.role === 'bottom_panel');
+    assert.equal(base.z, 200, 'override por pieza tiene maxima prioridad');
   });
 });
 
