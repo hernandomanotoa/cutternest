@@ -26,6 +26,14 @@ function mountView() {
   return { store, view, container };
 }
 
+
+// Elige 'Personalizado' en el selector de tipo para que el vano libre del
+// input mande (por defecto el tipo del catálogo tiene prioridad).
+function usarVanoPersonalizado(container, moduleId = '1') {
+  const sel = container.querySelector(`[data-module-scoped="${moduleId}"] [data-tipo-drawer]`);
+  sel.value = 'personalizado';
+}
+
 function click(container, selector) {
   const el = container.querySelector(selector);
   assert.ok(el, `no existe ${selector}`);
@@ -69,6 +77,7 @@ test('agregar cajón a un módulo con zócalo: dims derivadas de la tapa, no de 
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
 
+  usarVanoPersonalizado(container);
   const select = container.querySelector('[data-module-scoped="1"] [data-alto-vano]');
   select.value = '280';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
@@ -193,6 +202,7 @@ test('editar dimensiones reajusta casco Y contenido interior al nuevo vano', () 
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
   // Fijar el vano explicitamente (happy-dom no aplica el atributo selected).
+  usarVanoPersonalizado(container);
   container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '200';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   click(container, '[data-action="add-content"][data-kind="shelf"]');
@@ -282,6 +292,55 @@ test('editar dimensiones conserva el anclaje vertical (pos_z) de los cajones', (
   view.destroy();
 });
 
+test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  const scoped = '[data-module-scoped="1"]';
+  // Elegir el tipo botas (frente completo 450) y una estándar para comparar.
+  const sel = container.querySelector(`${scoped} [data-tipo-zapatera]`);
+  sel.value = 'tenis';
+  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+
+  const z1frente = store.get().pieces.find((p) => p.id === 'm1zapatera1-frente');
+  assert.equal(z1frente.alto, 197, 'tenis: vano 200 → frente 197');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1zapatera1-cara'), 'frente bajo: lleva cara');
+  const z1lat = store.get().pieces.find((p) => p.id === 'm1zapatera1-lateral-izq');
+  assert.equal(z1lat.alto, 100, 'lateral bajo: cubre solo la riel (100 mm)');
+
+  const sel2 = container.querySelector(`${scoped} [data-tipo-zapatera]`);
+  sel2.value = 'botas';
+  sel2.dispatchEvent(new window.Event('change', { bubbles: true }));
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+
+  const z2frente = store.get().pieces.find((p) => p.id === 'm1zapatera2-frente');
+  assert.equal(z2frente.alto, 447, 'botas: vano 450 → frente 447 (frente completo)');
+  assert.ok(!store.get().pieces.some((p) => p.id === 'm1zapatera2-cara'), 'frente completo: SIN cara');
+  const z2 = store.get().pieces.find((p) => p.id === 'm1zapatera2-lateral-izq');
+  assert.equal(z2.alto, 100, 'lateral sigue bajo (riel) aun con frente completo');
+  // Apilado: botas (sin gap) arranca justo donde termina el frente anterior.
+  const pos1 = Number(store.get().pieces.find((p) => p.id === 'm1zapatera1-frente').pos_z);
+  const pos2 = Number(z2frente.pos_z);
+  assert.equal(pos2, Math.round((pos1 + 197 + 2.5) * 10) / 10, 'apilado: tenis(con gap) + botas(flush)');
+  view.destroy();
+});
+
+test('tipo de cajón del catálogo: delgado 130 / estándar 200 / profundo 280', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  const scoped = '[data-module-scoped="1"]';
+  for (const [tipo, esperado] of [['delgado', 127], ['estandar', 197], ['profundo', 277]]) {
+    const sel = container.querySelector(`${scoped} [data-tipo-drawer]`);
+    sel.value = tipo;
+    sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+    click(container, '[data-action="add-content"][data-kind="drawer"]');
+    const idx = { delgado: 1, estandar: 2, profundo: 3 }[tipo];
+    const frente = store.get().pieces.find((p) => p.id === `m1cajon${idx}-frente`);
+    assert.equal(frente.alto, esperado, `tipo ${tipo}: frente ${esperado}`);
+  }
+  view.destroy();
+});
+
 test('doble barra crea 2 barras ancladas con pos_z', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
@@ -295,7 +354,7 @@ test('doble barra crea 2 barras ancladas con pos_z', () => {
 test('cajón volquete: sin pieza de cara', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  const sel = container.querySelector('[data-module-scoped="1"] [data-tipo-cajon]');
+  const sel = container.querySelector('[data-module-scoped="1"] [data-mecanismo]');
   sel.value = 'volquete';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   const cajon = store.get().pieces.filter((p) => p.modulo === '11');
@@ -499,6 +558,7 @@ test('panel de avisos: sin avisos muestra OK, con repisa al aire muestra warning
 test('vano de cajón libre: acepta valor arbitrario (ej. 250)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
+  usarVanoPersonalizado(container);
   container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '250';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   const frente = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');

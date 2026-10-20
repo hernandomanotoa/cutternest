@@ -5,6 +5,8 @@
 // Todas las funciones devuelven { ok: true, pieces } o { ok: false, errors }
 // y nunca lanzan: la vista muestra los errors en un toast.
 
+import { RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
+
 const ESPESORES_VALIDOS = [15, 18, 25];
 const HOLGURA_CORREDERA = 12.7; // mm por lado (RAIL_TYPES.telescopica)
 const CAJA_MAS_BAJA_QUE_FRENTE = 30; // la caja queda 30 mm mas baja que el frente
@@ -305,6 +307,72 @@ export function rootModuleIds(pieces) {
     if (!esHijo) roots.add(m);
   }
   return roots;
+}
+
+// Bandeja zapatera extraíble: laterales BAJOS que solo cubren la riel
+// (RAIL_SIDE_HEIGHT, ver js/core/contentTypes.js) para ver y sacar el
+// calzado, y frente VARIABLE:
+//   - frenteCompleto=false (planos/tenis/tacones): frente bajo + cara
+//     (frente interior) + gaps de apilado, como el cajón.
+//   - frenteCompleto=true (botas): el frente cubre todo el vano y va SIN
+//     cara ni gaps: se integra a la bandeja y cierra la abertura entera.
+// Mismas fórmulas de vano/corredera que addDrawer (W, holgura 12.7 mm/lado).
+export function addShoeTray(moduleId, index, {
+  anchoModulo,
+  profundidadModulo,
+  altoVano,
+  frenteCompleto = false,
+  altoLateral = RAIL_SIDE_HEIGHT,
+  colorFrente = '#8B5A2B',
+  colorLateral = '#D9C2A3',
+}) {
+  const errors = [];
+  validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
+  validateDimension(profundidadModulo, 'profundidadModulo', errors, { min: 100 });
+  validateDimension(altoVano, 'altoVano', errors, { min: 50 });
+  validateDimension(altoLateral, 'altoLateral', errors, { min: 40 });
+  const cf = validateColor(colorFrente, errors, 'colorFrente');
+  const cl = validateColor(colorLateral, errors, 'colorLateral');
+  if (errors.length) return { ok: false, errors };
+
+  const E = 15;
+  const ESP_LAT = 15;
+  const ESP_BASE = 15;
+  const W = anchoModulo - 2 * E;
+  const D = profundidadModulo - E - E;
+  const frenteAncho = W - 2;
+  const frenteAlto = altoVano - 3;
+  const profBandeja = D - 25; // corredera telescópica
+  const latAlto = Math.min(altoLateral, frenteAlto - 2 * ESP_BASE); // lateral bajo
+  const interior = Math.round((W - 2 * HOLGURA_CORREDERA)) - 2 * ESP_LAT;
+
+  if (interior <= 0) {
+    return { ok: false, errors: [`zapatera: vano de ${anchoModulo} mm demasiado estrecho`] };
+  }
+
+  const sub = `${moduleId}${index}`;
+  const num = ` ${index}`;
+  const pieces = [
+    piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: 15, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior, Math.max(20, latAlto - ESP_BASE), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
+  ];
+  if (!frenteCompleto) {
+    // Frente bajo: la cara cierra la abertura sobre la bandeja (como cajón).
+    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, `Cara zapatera extraible${num} M${moduleId}`, interior, Math.max(20, frenteAlto - 2 * ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+  }
+  pieces.push(
+    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior, profBandeja, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-tirador`, `Tirador zapatera extraible${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
+  );
+  return {
+    ok: true,
+    pieces,
+    submodulo: sub,
+    frenteCompleto,
+    frente: { ancho: frenteAncho, alto: frenteAlto },
+  };
 }
 
 // Siguiente id de modulo libre: maximo id RAIZ numerico + 1. Los submodulos

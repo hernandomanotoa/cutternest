@@ -39,6 +39,7 @@ import {
   loadUserConfig,
 } from './services/userConfigService.js';
 import { getGapPreset, GAP_PRESETS } from './core/gapPresets.js';
+import { getContentType, RAIL_SIDE_HEIGHT } from './core/contentTypes.js';
 import {
   createModule,
   addZocalo,
@@ -46,6 +47,7 @@ import {
   addHangerRail,
   addDoubleRail,
   addDrawer,
+  addShoeTray,
   nextModuleId,
   nextContentIndex,
   countRootModules,
@@ -569,14 +571,28 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       nextContentIndex(state.pieces, moduleId, 'drawer'),
       nextContentIndex(state.pieces, moduleId, 'shoeRack'),
     );
-    result = addDrawer(moduleId, idx, {
-      anchoModulo, profundidadModulo: profModulo,
-      altoVano: Number(opts.altoVano) > 0 ? Number(opts.altoVano) : 200,
-      tipo: opts.tipo || 'corredera',
-      vocabulario: kind === 'shoeRack' ? 'zapatera' : 'cajon',
-      colorFrente: opts.colorFrente || '#8B5A2B',
-      colorLateral: opts.colorLateral || '#D9C2A3',
-    });
+    const tipo = opts.tipo ? getContentType(kind, opts.tipo) : null;
+    const altoVano = Number(opts.altoVano) > 0 ? Number(opts.altoVano) : (tipo?.altoVano ?? 200);
+    if (kind === 'shoeRack') {
+      // Bandeja zapatera: laterales bajos (cubren la riel) y frente variable
+      // (completo = sin cara ni gaps; bajo = cara + gaps como el cajón).
+      result = addShoeTray(moduleId, idx, {
+        anchoModulo, profundidadModulo: profModulo,
+        altoVano,
+        frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
+        colorFrente: opts.colorFrente || '#8B5A2B',
+        colorLateral: opts.colorLateral || '#D9C2A3',
+      });
+    } else {
+      result = addDrawer(moduleId, idx, {
+        anchoModulo, profundidadModulo: profModulo,
+        altoVano,
+        tipo: opts.tipoCorredera || 'corredera',
+        vocabulario: 'cajon',
+        colorFrente: opts.colorFrente || '#8B5A2B',
+        colorLateral: opts.colorLateral || '#D9C2A3',
+      });
+    }
   } else {
     return { ok: false, errors: [`Contenido "${kind}" no soportado`] };
   }
@@ -602,7 +618,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
 // (pos_z) del modulo y devuelve la Z libre mas alta. Las repisas aportan su
 // espesor; los frentes su alto. Sin anclas, arranca sobre la cara superior
 // de la base (zocalo + espesor + offset de montaje).
-function cursorInsercion(pieces, moduleId, stackGap) {
+function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
   const zocalo = pieces.find((p) => p.id === `m${moduleId}-zocalo`);
   const base = pieces.find((p) => p.id === `m${moduleId}-base`);
   const baseTop = (zocalo ? Number(zocalo.alto) || 0 : 0) + (Number(base?.espesor) || 15);
@@ -613,15 +629,25 @@ function cursorInsercion(pieces, moduleId, stackGap) {
     const esDelModulo = mod === String(moduleId)
       || (/^\d+$/.test(String(moduleId)) && (mod.startsWith(String(moduleId)) || mod.startsWith(`${moduleId}.`)));
     if (!esDelModulo) continue;
-    const ocupada = /-frente$/.test(String(p.id)) ? (Number(p.alto) || 0) : (Number(p.espesor) || 15);
-    cursor = Math.max(cursor, Number(p.pos_z) + ocupada + stackGap);
+    // El avance replica EXACTAMENTE como se apiló en su momento (asignarPosZ
+    // Insercion): frentes con gap de frente (o sin gap si eran frente
+    // completo: se detecta porque su caja no tiene cara), resto con stackGap.
+    if (/-frente$/.test(String(p.id))) {
+      const sinGap = !(pieces || []).some((q) => {
+        const pref = String(p.id).slice(0, -'-frente'.length);
+        return String(q.id).startsWith(pref) && q.id.endsWith('-cara');
+      });
+      cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
+    } else {
+      cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.espesor) || 15) + stackGap);
+    }
   }
   return cursor;
 }
 
 // Asigna pos_z a las piezas recien agregadas segun el cursor del modulo.
 function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap }) {
-  let cursor = cursorInsercion(piecesActuales, moduleId, stackGap);
+  let cursor = cursorInsercion(piecesActuales, moduleId, stackGap, drawerFrontGap);
   const fijar = (pieza, avance) => {
     if (!pieza) return;
     pieza.pos_z = Math.round(cursor * 10) / 10;
@@ -636,7 +662,10 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
     fijar(piezasNuevas[0], 25 + stackGap);
   } else if (kind === 'drawer' || kind === 'shoeRack') {
     const frente = piezasNuevas.find((p) => p.id.endsWith('-frente'));
-    fijar(frente, (Number(frente?.alto) || 0) + drawerFrontGap);
+    // Frente completo (zapatera botas): cubre todo el vano y va sin gaps —
+    // apilado flush, sin drawerFrontGap. Frente bajo: apila con gap.
+    const sinGap = kind === 'shoeRack' && !piezasNuevas.some((p) => p.id.endsWith('-cara'));
+    fijar(frente, (Number(frente?.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
   }
   // doubleRail trae pos_z absolutos ergonomicos (2100/1000); zocalo no ancla.
 }
@@ -807,18 +836,28 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     if (!frente) continue; // submodulo sin frente: no es una caja de cajon
     const textoFrente = `${frente.nombre} ${frente.id}`.toLowerCase();
     const esZapatera = textoFrente.includes('zapatera');
-    const esVolquete = !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara')
-      || textoFrente.includes('abatible');
+    const esVolquete = !esZapatera && (!piezasGrupo.some((p) => sufijoDe(p.id) === 'cara')
+      || textoFrente.includes('abatible'));
     const lateral = piezasGrupo.find((p) => sufijoDe(p.id) === 'lateral-izq');
-    const regenerado = addDrawer(moduleId, 1, {
-      anchoModulo: dims.ancho,
-      profundidadModulo: dims.prof,
-      altoVano: (Number(frente.alto) || 200) + 3, // frente.alto = vano - 3
-      tipo: esVolquete ? 'volquete' : 'corredera',
-      vocabulario: esZapatera ? 'zapatera' : 'cajon',
-      colorFrente: frente.color || '#8B5A2B',
-      colorLateral: lateral?.color || '#D9C2A3',
-    });
+    const regenerado = esZapatera
+      ? addShoeTray(moduleId, 1, {
+        anchoModulo: dims.ancho,
+        profundidadModulo: dims.prof,
+        altoVano: (Number(frente.alto) || 200) + 3,
+        frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
+        altoLateral: Math.max(40, Number(lateral?.alto) || RAIL_SIDE_HEIGHT),
+        colorFrente: frente.color || '#8B5A2B',
+        colorLateral: lateral?.color || '#D9C2A3',
+      })
+      : addDrawer(moduleId, 1, {
+        anchoModulo: dims.ancho,
+        profundidadModulo: dims.prof,
+        altoVano: (Number(frente.alto) || 200) + 3, // frente.alto = vano - 3
+        tipo: esVolquete ? 'volquete' : 'corredera',
+        vocabulario: 'cajon',
+        colorFrente: frente.color || '#8B5A2B',
+        colorLateral: lateral?.color || '#D9C2A3',
+      });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${frente.nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
     }

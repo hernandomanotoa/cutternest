@@ -38,6 +38,7 @@ import {
   focusModule,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
+import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
 
 const ALTO_VANO_OPCIONES = [130, 180, 200, 220, 280];
 const TIPOS_CAJON = [
@@ -145,6 +146,17 @@ export function createConstructorView(store) {
   }
 
   function onChange(e) {
+    // Tipo de cajón/zapatera: llena el vano con la altura ergonómica del
+    // tipo elegido (los tipos del catálogo). 'personalizado' deja el valor.
+    if (e.target.matches('[data-tipo-drawer], [data-tipo-zapatera]')) {
+      const catalog = e.target.matches('[data-tipo-drawer]') ? DRAWER_TYPES : SHOE_RACK_TYPES;
+      const tipo = catalog.find((t) => t.id === e.target.value);
+      if (tipo) {
+        const scoped = e.target.closest('[data-module-scoped]');
+        const vano = scoped?.querySelector('[data-alto-vano]');
+        if (vano) vano.value = String(tipo.altoVano);
+      }
+    }
     // Nombre del mueble: persiste y alimenta el nombre sugerido de versiones.
     if (e.target.matches('[data-furniture-name]')) {
       setFurnitureName(e.target.value.trim());
@@ -249,10 +261,18 @@ export function createConstructorView(store) {
       const moduleId = btn.dataset.module;
       const kind = btn.dataset.kind;
       const scoped = `[data-module-scoped="${CSS.escape(moduleId)}"]`;
-      const altoVano = Number(container.querySelector(`${scoped} [data-alto-vano]`)?.value) || 200;
-      const tipo = container.querySelector(`${scoped} [data-tipo-cajon]`)?.value || 'corredera';
+      const altoVanoInput = Number(container.querySelector(`${scoped} [data-alto-vano]`)?.value) || 0;
+      // Tipo ergonomico (contentTypes.js): cajon por prenda, zapatera por
+      // calzado. 'personalizado' => se toma el vano libre del input.
+      const tipo = kind === 'shoeRack'
+        ? container.querySelector(`${scoped} [data-tipo-zapatera]`)?.value
+        : container.querySelector(`${scoped} [data-tipo-drawer]`)?.value;
+      // Con tipo del catálogo, el tipo manda sobre el input (altoVano=0 =>
+      // addContentToModule usa tipo.altoVano).
+      const altoVano = tipo && tipo !== 'personalizado' ? 0 : altoVanoInput;
+      const tipoCorredera = container.querySelector(`${scoped} [data-mecanismo]`)?.value || 'corredera';
       const colorFrente = container.querySelector(`${scoped} [data-color-frente]`)?.value || '#8B5A2B';
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo, colorFrente });
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -556,14 +576,26 @@ function renderModuleCard(group, allPieces) {
         <strong>${escapeHtml(group.label)}</strong>
         ${vanoInfo ? `<span class="badge ${vanoInfo.pct > 90 ? 'badge--danger' : vanoInfo.pct > 70 ? 'badge--warning' : 'badge--secondary'}">vano ${vanoInfo.usado}/${vanoInfo.util} mm (${vanoInfo.pct}%)</span>` : ''}
         <span class="cn-constructor__spacer"></span>
-        <label class="form-group" style="margin:0;" title="Altura del vano del cajón en mm (valor libre; las opciones son sugerencias)">Vano cajón (mm)
+        <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de la izquierda lo llenan automáticamente)">Vano (mm)
           <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="200" min="50" max="600" step="10" />
           <datalist id="cn-vanos-sugeridos">
             ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}"></option>`).join('')}
           </datalist>
         </label>
-        <label class="form-group" style="margin:0;">Tipo
-          <select data-tipo-cajon>
+        <label class="form-group" style="margin:0;" title="Tipo de cajón por prenda (alturas ergonómicas del catálogo)">Tipo cajón
+          <select data-tipo-drawer>
+            ${DRAWER_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
+            <option value="personalizado">Personalizado (usar vano libre)</option>
+          </select>
+        </label>
+        <label class="form-group" style="margin:0;" title="Tipo de zapatera por calzado. Botas = frente completo (sin cara ni gaps)">Tipo zapatera
+          <select data-tipo-zapatera>
+            ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
+            <option value="personalizado">Personalizada (usar vano libre)</option>
+          </select>
+        </label>
+        <label class="form-group" style="margin:0;">Mecanismo
+          <select data-mecanismo>
             ${TIPOS_CAJON.map((t) => `<option value="${t.value}">${t.label}</option>`).join('')}
           </select>
         </label>
