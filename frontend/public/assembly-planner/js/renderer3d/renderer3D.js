@@ -174,7 +174,14 @@ export class Renderer3D {
       (this.width * 0.75) / Math.max(contentW, 1),
       (this.height * 0.75) / Math.max(contentH, 1)
     );
-    const scale = Math.min(DEFAULT_CAMERA.scale * 1.5, Math.max(0.03, targetScale));
+    // Tope anti-zoom excesivo que escala con el viewport: a 900×600 (o menos)
+    // conserva el comportamiento histórico exacto (0.21); en pantalla
+    // completa crece por la dimensión limitante, de modo que el mueble
+    // ocupa la MISMA fracción de pantalla que en tamaño normal (mismo
+    // encuadre, solo más grande) — igual que la isométrica en fullscreen.
+    const viewportFactor = Math.max(1, Math.min(this.width / 900, this.height / 600));
+    const maxScale = DEFAULT_CAMERA.scale * 1.5 * viewportFactor;
+    const scale = Math.min(maxScale, Math.max(0.03, targetScale));
 
     this.controls.setState({
       offsetX: this.width / 2 - (minX + maxX) / 2,

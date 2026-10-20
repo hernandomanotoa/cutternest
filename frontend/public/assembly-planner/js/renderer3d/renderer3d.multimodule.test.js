@@ -193,6 +193,32 @@ describe('Renderer3D multi-módulo (vista completa)', () => {
     assert.equal(renderer.needsRender, false);
   });
 
+  it('resize() en pantalla completa conserva el encuadre relativo del mueble', () => {
+    const container = createContainer();
+    const renderer = new Renderer3D(container, { width: 900, height: 600 });
+    renderer.load('all', allPieces);
+    const scaleNormal = renderer.controls.getState().scale;
+
+    // Pantalla completa 16:9: el tope de escala crece por la dimensión
+    // limitante, así el mueble se ve DEL MISMO TAMAÑO que en viewport normal
+    // (no se queda chico en una esquina como antes del ResizeObserver).
+    renderer.resize(1920, 1080);
+    const scaleFull = renderer.controls.getState().scale;
+    assert.ok(
+      scaleFull > scaleNormal * 1.5,
+      `scale fullscreen (${scaleFull.toFixed(3)}) debe crecer respecto al normal (${scaleNormal.toFixed(3)})`
+    );
+    const factor = Math.max(1, Math.min(1920 / 900, 1080 / 600));
+    assert.ok(
+      scaleFull <= 0.14 * 1.5 * factor + 1e-9,
+      'scale no debe superar el tope proporcional al viewport'
+    );
+
+    // Al volver al tamaño normal, el encuadre histórico se restaura.
+    renderer.resize(900, 600);
+    assert.equal(renderer.controls.getState().scale, scaleNormal);
+  });
+
   it('renderiza piezas de todos los módulos con explode y permite seleccionar por pieza', () => {
     rafCallbacks = [];
     const container = createContainer();
