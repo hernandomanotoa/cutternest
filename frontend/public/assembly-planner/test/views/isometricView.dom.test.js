@@ -84,3 +84,42 @@ test('destroy desuscribe y no lanza', () => {
   store.setField('pieces', []);
   assert.equal(container.innerHTML, htmlAfterMount, 'el contenedor quedó congelado tras destroy');
 });
+
+// ── Pestañas del host de paneles (UI/UX: un panel visible a la vez) ────────
+
+test('paneles en pestañas: solo el activo está montado, cambiar intercambia', () => {
+  const pieces = loadExamplePieces();
+  const store = createStore({ pieces });
+  const view = createIsometricView(store);
+  const container = createContainer();
+
+  view.mount(container);
+
+  const tabs = container.querySelectorAll('.iso-config-tab');
+  assert.equal(tabs.length, 2, 'dos pestañas: ficha y offsets');
+  // Default: ficha activa → SOLO la ficha montada (un panel a la vez).
+  assert.ok(container.querySelector('.cn-furniture-ficha-panel'), 'ficha montada por defecto');
+  assert.equal(container.querySelector('.cn-piece-offsets-panel'), null, 'offsets NO montado');
+  const activa = [...tabs].find((t) => t.classList.contains('is-active'));
+  assert.ok(activa, 'hay pestaña activa');
+
+  // Cambiar a offsets: intercambia el panel sin tocar el canvas.
+  const canvasAntes = container.querySelector('#iso-canvas svg')?.outerHTML;
+  container.querySelector('[data-iso-tab="offsets"]').click();
+  assert.ok(container.querySelector('.cn-piece-offsets-panel'), 'panel de offsets montado tras el click');
+  assert.ok(container.querySelector('#iso-canvas svg'), 'canvas intacto tras cambiar de pestaña');
+  assert.equal(activoEs('offsets', container), true, 'offsets queda activa');
+
+  // Cambiar de vuelta a ficha.
+  container.querySelector('[data-iso-tab="ficha"]').click();
+  assert.equal(container.querySelector('.cn-piece-offsets-panel'), null, 'offsets desmontado');
+  assert.ok(container.querySelector('.cn-furniture-ficha-panel'), 'ficha montada');
+  void canvasAntes;
+
+  view.destroy();
+});
+
+function activoEs(tab, container) {
+  const t = container.querySelector(`[data-iso-tab="${tab}"]`);
+  return !!t && t.classList.contains('is-active') && t.getAttribute('aria-selected') === 'true';
+}

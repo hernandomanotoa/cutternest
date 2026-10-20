@@ -20,6 +20,13 @@ export function createIsometricView(store) {
   let container = null;
   let canvas = null;
   let selectedPieceId = null;
+  // Pestana activa del host de paneles (ficha|offsets): persiste en sesion.
+  let activePanel = 'ficha';
+  try {
+    activePanel = localStorage.getItem('cn-assembly-iso-panel') === 'offsets' ? 'offsets' : 'ficha';
+  } catch {
+    // sin storage: default ficha
+  }
   let scale = 0.12;
   let explodeFactor = 0;
   let drawerGap = 15;
@@ -164,9 +171,10 @@ export function createIsometricView(store) {
       setAperturaPieza(id, decideAperturaToggle(actual));
     });
 
-    const fichaHost = container.querySelector('#iso-config-host');
-    createFurnitureFicha().mount(fichaHost, store);
-    createPieceOffsetsConfig().mount(fichaHost, store);
+    // Host de paneles con PESTAÑAS (patron estandar, ver AGENTS.md): un solo
+    // panel visible a la vez — la mitad de huella que dos paneles apilados,
+    // sin doble scroll. La pestaña activa persiste en localStorage.
+    mountIsoPanels(container.querySelector('#iso-config-host'));
 
     container.querySelector('#btn-iso-zoom-in')?.addEventListener('click', () => {
       scale = Math.min(scale * 1.2, 0.5);
@@ -216,6 +224,42 @@ export function createIsometricView(store) {
 
   // Sincroniza slider global y controles de apertura/ángulo de la pieza
   // seleccionada a través del componente compartido.
+  // Renderiza la barra de pestanas y monta SOLO el panel activo. Un panel
+  // visible a la vez: la mitad de huella que dos paneles apilados y sin
+  // doble scroll (diagnostico UI/UX: los paneles son herramientas secundarias
+  // sobre el lienzo, que es la tarea primaria). La seleccion persiste.
+  function mountIsoPanels(host) {
+    if (!host) return;
+    host.innerHTML = `
+      <div class="iso-config-tabs" role="tablist" aria-label="Paneles de configuración">
+        <button type="button" class="iso-config-tab${activePanel === 'ficha' ? ' is-active' : ''}" role="tab"
+          data-iso-tab="ficha" aria-selected="${activePanel === 'ficha'}" title="Clasificación y medidas del mueble">📋 Ficha técnica</button>
+        <button type="button" class="iso-config-tab${activePanel === 'offsets' ? ' is-active' : ''}" role="tab"
+          data-iso-tab="offsets" aria-selected="${activePanel === 'offsets'}" title="Offsets y gaps por pieza">📏 Offsets y gaps</button>
+      </div>
+      <div class="iso-config-panel-slot"></div>
+    `;
+    host.querySelectorAll('[data-iso-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        if (tab.dataset.isoTab === activePanel) return;
+        activePanel = tab.dataset.isoTab;
+        try {
+          localStorage.setItem('cn-assembly-iso-panel', activePanel);
+        } catch {
+          // sin storage: vale solo para la sesion
+        }
+        // Solo intercambia el panel: no hace falta re-renderizar el lienzo.
+        mountIsoPanels(host);
+      });
+    });
+    const slot = host.querySelector('.iso-config-panel-slot');
+    if (activePanel === 'offsets') {
+      createPieceOffsetsConfig().mount(slot, store);
+    } else {
+      createFurnitureFicha().mount(slot, store);
+    }
+  }
+
   function syncAperturaControls() {
     if (!container) return;
     const state = store.get();

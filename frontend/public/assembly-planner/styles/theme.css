@@ -800,6 +800,51 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   pointer-events: auto;
 }
 
+.iso-config-host .iso-config-panel-slot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Barra de pestanas del host flotante: control segmentado (patron estandar
+   de paneles de herramientas: un panel visible a la vez). */
+.iso-config-tabs {
+  display: flex;
+  gap: 0.15rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem;
+  box-shadow: var(--shadow);
+  flex: 0 0 auto;
+}
+
+.iso-config-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  border-radius: calc(var(--radius-sm) - 3px);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iso-config-tab:hover {
+  color: var(--text-primary);
+}
+
+.iso-config-tab.is-active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
 .iso-config-host .iso-config-panel {
   position: relative;
   top: auto;
