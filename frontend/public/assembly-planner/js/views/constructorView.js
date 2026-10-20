@@ -541,6 +541,15 @@ export function createConstructorView(store) {
 // Lista de contenido agregado al modulo (cajones, zapateras, repisas,
 // barras, zocalo) con boton de eliminacion individual. El orden de la
 // lista es el de insercion (orden del array de piezas).
+// Icono + estilo por tipo de contenido (chips del listado por modulo).
+const CONTENT_ICON = {
+  zocalo: '▬',
+  shelf: '▔',
+  drawer: '▤',
+  shoeRack: '👟',
+  rail: '⚡',
+};
+
 function renderContentList(moduleId, allPieces) {
   const items = [];
   for (const p of allPieces) {
@@ -551,28 +560,47 @@ function renderContentList(moduleId, allPieces) {
       // al 11 (greedy \d+ toma todos los digitos del prefijo).
       const root = id.match(/^m(\d+)/)?.[1];
       if (root === String(moduleId) && /(cajon|zapatera)\d+-frente$/.test(id)) {
-        match = { refId: id, label: p.nombre, key: id };
+        const kind = id.includes('zapatera') ? 'shoeRack' : 'drawer';
+        match = { refId: id, label: p.nombre, key: id, kind };
       }
     } else if (/-repisa-\d+$/.test(id) && id.startsWith(`m${moduleId}-repisa-`)) {
-      match = { refId: id, label: p.nombre, key: id };
+      match = { refId: id, label: p.nombre, key: id, kind: 'shelf' };
     } else if (/-barra-(alta|baja)?-?\d*$/.test(id) && id.startsWith(`m${moduleId}-barra-`)) {
       // Solo listar la barra alta (o la simple): la baja va en pareja.
-      if (!id.includes('-barra-baja')) match = { refId: id, label: p.nombre, key: id };
+      if (!id.includes('-barra-baja')) match = { refId: id, label: p.nombre, key: id, kind: 'rail' };
     } else if (id === `m${moduleId}-zocalo`) {
-      match = { refId: id, label: p.nombre, key: id };
+      match = { refId: id, label: p.nombre, key: id, kind: 'zocalo' };
     }
     if (match && !items.some((i) => i.key === match.key)) items.push(match);
   }
   if (!items.length) return '';
+  // CHIPS en una sola fila que fluye (no una lista vertical): cada chip lleva
+  // icono por tipo, nombre corto, altura real en el tooltip y el ✕ integrado.
+  // El orden de izquierda a derecha es el orden de apilado (abajo -> arriba).
   return `
-    <ul class="cn-constructor__content-list">
-      ${items.map((i) => `
-        <li>
-          <span>${escapeHtml(i.label)}</span>
-          <button class="btn btn--danger btn--sm" data-action="remove-content" data-ref="${escapeHtml(i.refId)}" title="Eliminar">✕</button>
-        </li>`).join('')}
-    </ul>
+    <div class="cn-constructor__chips" role="list" aria-label="Contenido del módulo">
+      ${items.map((i) => {
+        const piece = allPieces.find((p) => p.id === i.refId);
+        const altura = Number.isFinite(piece?.pos_z) ? ` · z=${Math.round(piece.pos_z)} mm` : '';
+        return `
+        <span class="cn-chip cn-chip--${i.kind}" role="listitem" title="${escapeHtml(i.label)}${altura}">
+          <span class="cn-chip__icon" aria-hidden="true">${CONTENT_ICON[i.kind] || '·'}</span>
+          <span class="cn-chip__label">${escapeHtml(nombreCorto(i.label))}</span>
+          <button class="cn-chip__remove" data-action="remove-content" data-ref="${escapeHtml(i.refId)}" title="Eliminar ${escapeHtml(i.label)}" aria-label="Eliminar ${escapeHtml(i.label)}">✕</button>
+        </span>`;
+      }).join('')}
+    </div>
   `;
+}
+
+// "Frente zapatera extraible 2 M1" -> "Zapatera 2"; "Repisa 3 M1" -> "Repisa 3";
+// "Barra colgadora 1 M1" -> "Barra 1". El tooltip conserva el nombre completo.
+function nombreCorto(nombre) {
+  let out = String(nombre || '');
+  out = out.replace(/^Frente (cajon|zapatera extraible)( abatible)?/i, (m, g) => (g.toLowerCase().includes('zapatera') ? 'Zapatera' : 'Cajón'));
+  out = out.replace(/^Barra (colgadora|alta|baja)/i, 'Barra');
+  out = out.replace(/\s*M\d+\s*$/, '');
+  return out.trim();
 }
 
 function renderModuleCard(group, allPieces) {

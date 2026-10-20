@@ -1089,26 +1089,6 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   gap: 0.35rem;
 }
 
-.cn-constructor__content-list {
-  list-style: none;
-  margin: 0 0 0.5rem;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.cn-constructor__content-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  font-size: 0.78rem;
-}
 
 .cn-constructor__edit-form {
   display: flex;
@@ -1159,3 +1139,57 @@ input[type="search"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* Chips de contenido por modulo (reemplaza la lista vertical): una fila que
+   fluye, icono por tipo, nombre corto, tooltip con la altura real y ✕ propio. */
+.cn-constructor__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 0.5rem;
+}
+
+.cn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.3rem 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  max-width: 100%;
+}
+
+.cn-chip__icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.cn-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cn-chip__remove {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 0.2rem;
+  border-radius: 50%;
+  line-height: 1.4;
+}
+
+.cn-chip__remove:hover {
+  color: var(--danger);
+}
+
+.cn-chip--drawer, .cn-chip--shoeRack { border-left: 3px solid var(--accent); }
+.cn-chip--shelf { border-left: 3px solid var(--info); }
+.cn-chip--rail { border-left: 3px solid var(--warning); }
+.cn-chip--zocalo { border-left: 3px solid var(--text-secondary); }

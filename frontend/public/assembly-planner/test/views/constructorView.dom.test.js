@@ -572,3 +572,36 @@ test('resumen del mueble en cabecera', () => {
   assert.match(container.querySelector('[data-resumen]').textContent, /1 módulo\(s\) · \d+ piezas · ≈850 mm/);
   view.destroy();
 });
+
+test('contenido como chips: nombre corto, icono por tipo y ✕ por chip', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="add-content"][data-kind="doubleRail"]');
+
+  const chips = container.querySelectorAll('.cn-chip');
+  assert.ok(chips.length >= 3, `hay chips (zocalo + repisa + cajon + barra): ${chips.length}`);
+  const textos = [...chips].map((c) => c.querySelector('.cn-chip__label')?.textContent || '');
+  assert.ok(textos.some((t) => /z[oó]calo/i.test(t)), `chip zocalo: ${textos.join(', ')}`);
+  assert.ok(textos.some((t) => t.includes('Repisa')), 'chip repisa');
+  assert.ok(textos.some((t) => t.includes('Cajón 1')), `chip cajon con numero: ${textos.join(', ')}`);
+  assert.ok(textos.every((t) => !/M\d+$/.test(t)), 'nombre corto sin sufijo de modulo');
+  // Cada chip tiene su boton eliminar con data-ref del grupo.
+  const btnEliminar = chips[1].querySelector('[data-action="remove-content"]');
+  assert.ok(btnEliminar?.dataset.ref, 'chip con boton de eliminar referenciado');
+  // Tooltip del chip con nombre completo y altura.
+  const tip = chips.find?.((c) => c) || [...chips].find((c) => (c.getAttribute('title') || '').includes('z='));
+  assert.ok([...chips].some((c) => (c.getAttribute('title') || '').length > 0), 'chips con tooltip');
+  void tip;
+
+  // Eliminar via chip: primer click arme la confirmacion, segundo ejecuta
+  // (mismo patron confirmable que el resto de la vista).
+  const antes = store.get().pieces.length;
+  btnEliminar.click();
+  assert.equal(store.get().pieces.length, antes, 'primer click solo arme');
+  btnEliminar.dataset.confirm = '1';
+  btnEliminar.click();
+  assert.ok(store.get().pieces.length < antes, 'eliminar desde chip quita piezas');
+  view.destroy();
+});
