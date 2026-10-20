@@ -21,6 +21,7 @@ export function createRenderer3DView(store) {
   let container = null;
   let canvas = null;
   let renderer = null;
+  let resizeObserver = null;
   let renderLoopId = null;
   let moduleGapMode = 'compact';
   let detachFullscreen = null;
@@ -158,6 +159,10 @@ export function createRenderer3DView(store) {
     if (detachFullscreen) {
       detachFullscreen();
       detachFullscreen = null;
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
     }
     aperturaControls?.destroy();
     gapToggle.destroy();
@@ -379,6 +384,19 @@ export function createRenderer3DView(store) {
       container.querySelector('#r3d-fullscreen'),
       container.querySelector('.card'),
     );
+    // Pantalla completa / redimensionar ventana: el lienzo 3D es SVG con
+    // tamaño fijo (900×600) — sin esto, al entrar a fullscreen el canvas se
+    // queda chico en una esquina (en la isometrica el SVG escala solo con
+    // CSS). ResizeObserver re-encuadra el contenido al nuevo tamaño real.
+    if (typeof ResizeObserver !== 'undefined' && canvas) {
+      resizeObserver = new ResizeObserver((entries) => {
+        const box = entries[0]?.contentRect;
+        if (box && renderer && (box.width > 10 || box.height > 10)) {
+          renderer.resize(Math.round(box.width), Math.round(box.height));
+        }
+      });
+      resizeObserver.observe(canvas);
+    }
     container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));

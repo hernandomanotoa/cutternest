@@ -183,6 +183,19 @@ export class Renderer3D {
     });
   }
 
+  // Redimensiona el lienzo del renderer (p. ej. pantalla completa o cambio
+  // de tamaño de la ventana) y re-encuadra el contenido. El loop de render
+  // (needsRender) se encarga de repintar.
+  resize(width, height) {
+    const w = Math.round(Number(width)) || this.width;
+    const h = Math.round(Number(height)) || this.height;
+    if (w === this.width && h === this.height) return;
+    this.width = w;
+    this.height = h;
+    if (this.geometries.length) this._fitCameraToModule();
+    this.needsRender = true;
+  }
+
   applyViewPreset(name) {
     const presets = {
       iso: { rotX: 30, rotY: 45, label: 'Isométrica' },

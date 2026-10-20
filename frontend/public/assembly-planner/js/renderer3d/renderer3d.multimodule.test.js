@@ -172,6 +172,27 @@ describe('Renderer3D multi-módulo (vista completa)', () => {
     );
   });
 
+  it('resize() actualiza el lienzo y re-encuadra el contenido (fullscreen)', () => {
+    const container = createContainer();
+    const renderer = new Renderer3D(container, { width: 900, height: 600 });
+    renderer.load('all', allPieces);
+
+    renderer.resize(1920, 1080);
+    assert.equal(renderer.width, 1920);
+    assert.equal(renderer.height, 1080);
+    assert.equal(renderer.needsRender, true, 'debe repintar tras resize');
+
+    // El re-encuadre centra el contenido en el nuevo lienzo.
+    const state = renderer.controls.getState();
+    assert.ok(state.offsetX > 0 && state.offsetX <= 1920, 'offsetX dentro del lienzo nuevo');
+    assert.ok(state.offsetY > 0 && state.offsetY <= 1080, 'offsetY dentro del lienzo nuevo');
+
+    // resize con el mismo tamaño es no-op (no fuerza repaint innecesario).
+    renderer.needsRender = false;
+    renderer.resize(1920, 1080);
+    assert.equal(renderer.needsRender, false);
+  });
+
   it('renderiza piezas de todos los módulos con explode y permite seleccionar por pieza', () => {
     rafCallbacks = [];
     const container = createContainer();
