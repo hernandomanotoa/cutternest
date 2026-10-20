@@ -194,8 +194,11 @@ function validateDimensions(pieces, warnings) {
     // Cobertura del vano por una torre de cajones: si el módulo es
     // esencialmente una torre (≥3 frentes de cajón, sin colgador ni puertas)
     // y los frentes suman menos del 35% del alto útil, lo más probable es un
-    // vano mal calculado o cajones sin declarar. Las torres de bandejas
-    // zapateras quedan exentas: ahí el hueco lo ocupa el calzado, no madera.
+    // vano mal calculado o cajones sin declarar. Exenciones (criterio de
+    // taller): torres de bandejas zapateras (el hueco lo ocupa el calzado, no
+    // madera) y módulos con ≥2 repisas (cajones abajo + repisas arriba es una
+    // combinación válida: el vano superior está fraccionado y aprovechado, no
+    // es un hueco vacío).
     const drawerFaces = pieces.filter(
       (p) => String(p.modulo).startsWith(modId) && inferRole(p) === 'drawer_face'
     );
@@ -205,7 +208,11 @@ function validateDimensions(pieces, warnings) {
           String(p.modulo).startsWith(modId) && ['hanger_rail', 'door'].includes(inferRole(p))
       );
       const allZapatera = drawerFaces.every((f) => normalizeName(f.nombre).includes('zapatera'));
-      if (!hasHangerOrDoor && !allZapatera && base && top && laterals.length) {
+      const shelfCount = pieces.filter(
+        (p) => String(p.modulo).startsWith(modId) && inferRole(p) === 'shelf'
+      ).length;
+      const fraccionadoConRepisas = shelfCount >= 2;
+      if (!hasHangerOrDoor && !allZapatera && !fraccionadoConRepisas && base && top && laterals.length) {
         const usableH = Math.max(0, moduleBox.height - (Number(base.espesor) || 0) - (Number(top.espesor) || 0));
         const frontsH = drawerFaces.reduce((s, f) => s + (Number(f.alto) || 0), 0);
         if (usableH > 0 && frontsH / usableH < 0.35) {

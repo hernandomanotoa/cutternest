@@ -100,6 +100,36 @@ describe('parseCSV - cobertura de vano en torres de cajones', () => {
       `warning de cobertura inesperado: ${result.warnings.join(' | ')}`
     );
   });
+
+  it('exime cuando hay >=2 repisas fraccionando el vano (cajones abajo + repisas arriba)', () => {
+    // Misma torre de frentes bajos (32%) pero con 2 repisas en el módulo
+    // raíz: el vano superior está fraccionado y aprovechado, no es un hueco.
+    const repisas = [
+      'rep-1,Repisa superior,564,464,1,si,#FFFFFF,15,"T,B,L,R",m1,',
+      'rep-2,Repisa media,564,464,1,si,#FFFFFF,15,"T,B,L,R",m1,',
+    ];
+    const csv = [...MODULE_CSV, ...repisas, ...tower('Frente cajon', 70)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.some((w) => w.includes('sobra vano')),
+      false,
+      `warning de cobertura inesperado con repisas: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('sí avisa con frentes bajos y UNA sola repisa (el vano queda mayormente vacío)', () => {
+    const repisas = [
+      'rep-1,Repisa superior,564,464,1,si,#FFFFFF,15,"T,B,L,R",m1,',
+    ];
+    const csv = [...MODULE_CSV, ...repisas, ...tower('Frente cajon', 70)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.ok(
+      result.warnings.some((w) => w.includes('sobra vano')),
+      `se esperaba warning de cobertura: ${result.warnings.join(' | ')}`
+    );
+  });
 });
 
 describe('parseCSV - pandeo', () => {

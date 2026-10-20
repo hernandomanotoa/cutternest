@@ -23,6 +23,7 @@ import {
   deleteCloudVersion,
 } from './services/designVersionsClient.js';
 import { sugerirDependencias } from './services/heuristics.js';
+import { inferRole } from './services/classifierService.js';
 import { topologicalLevels, buildSteps } from './services/topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
 import { createStructuralView } from './views/structuralView.js';
@@ -728,32 +729,62 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   const baseEsInterna = state.pieces.some((p) => p.id === `m${moduleId}-zocalo`)
     && state.pieces.find((p) => p.id === `m${moduleId}-base`)?.ancho < tapa.ancho;
 
-  // 1. Detectar los grupos de cajon/zapatera del modulo y pre-validar que
-  //    caben en el nuevo ancho ANTES de mutar nada.
-  const grupos = [];
-  const frenteRe = new RegExp(`^m${moduleId}(cajon|zapatera)(\\d+)-frente$`);
+  // 1. Detectar los grupos de cajon/zapatera del modulo por ROL + submodulo
+  //    (agnostico a la convencion de ids: el builder genera 'm1cajon1-frente'
+  //    y el catalogo 'm21-cajon-frente'). Un grupo = las piezas de un
+  //    submodulo del modulo que contienen un frente (rol drawer_face). Las
+  //    piezas regeneradas se RENOMBRAN a los ids viejos (mismo sufijo) para
+  //    conservar la convencion y las dependencias por id.
+  const SUFIJOS = ['lateral-izq', 'lateral-der', 'frente', 'fondo', 'cara', 'base', 'tirador'];
+  const sufijoDe = (id) => SUFIJOS.find((s) => String(id).endsWith(`-${s}`));
+  const esSubmoduloDe = (mod) => {
+    const m = String(mod || '');
+    return m !== String(moduleId) && /^\d+$/.test(String(moduleId))
+      && (m.startsWith(String(moduleId)) || m.startsWith(`${moduleId}.`));
+  };
+  const porSubmodulo = new Map();
   for (const p of state.pieces) {
-    const m = String(p.id).match(frenteRe);
-    if (!m) continue;
-    const idp = m[1];
-    const idx = Number(m[2]);
-    const prefijo = `m${moduleId}${idp}${idx}`;
-    const frente = p;
-    const lateral = state.pieces.find((x) => x.id === `${prefijo}-lateral-izq`);
-    const tieneCara = state.pieces.some((x) => x.id === `${prefijo}-cara`);
-    const regenerado = addDrawer(moduleId, idx, {
+    if (!esSubmoduloDe(p.modulo)) continue;
+    if (!porSubmodulo.has(String(p.modulo))) porSubmodulo.set(String(p.modulo), []);
+    porSubmodulo.get(String(p.modulo)).push(p);
+  }
+
+  const grupos = [];
+  for (const piezasGrupo of porSubmodulo.values()) {
+    const frente = piezasGrupo.find((p) => inferRole(p) === 'drawer_face');
+    if (!frente) continue; // submodulo sin frente: no es una caja de cajon
+    const textoFrente = `${frente.nombre} ${frente.id}`.toLowerCase();
+    const esZapatera = textoFrente.includes('zapatera');
+    const esVolquete = !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara')
+      || textoFrente.includes('abatible');
+    const lateral = piezasGrupo.find((p) => sufijoDe(p.id) === 'lateral-izq');
+    const regenerado = addDrawer(moduleId, 1, {
       anchoModulo: dims.ancho,
       profundidadModulo: dims.prof,
       altoVano: (Number(frente.alto) || 200) + 3, // frente.alto = vano - 3
-      tipo: tieneCara ? 'corredera' : 'volquete',
-      vocabulario: idp === 'zapatera' ? 'zapatera' : 'cajon',
+      tipo: esVolquete ? 'volquete' : 'corredera',
+      vocabulario: esZapatera ? 'zapatera' : 'cajon',
       colorFrente: frente.color || '#8B5A2B',
       colorLateral: lateral?.color || '#D9C2A3',
     });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${frente.nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
     }
-    grupos.push({ prefijo, piezasNuevas: regenerado.pieces });
+    // Renombrar piezas regeneradas a los ids viejos (par por sufijo):
+    // conserva la convencion del catalogo/builder y las dependencias por id.
+    const viejaPorSufijo = new Map(piezasGrupo.map((p) => [sufijoDe(p.id), p]));
+    const renombradas = regenerado.pieces.map((np) => {
+      const vieja = viejaPorSufijo.get(sufijoDe(np.id));
+      return vieja ? { ...np, id: vieja.id, modulo: vieja.modulo } : np;
+    });
+    // Pieza nueva sin par viejo (tirador faltante en un CSV manual): id
+    // derivado del submodulo viejo para no colisionar con otros modulos.
+    for (const np of renombradas) {
+      if (piezasGrupo.some((v) => v.id === np.id)) continue;
+      const s = sufijoDe(np.id);
+      np.id = `${piezasGrupo[0].modulo}-extra-${s || 'pieza'}`;
+    }
+    grupos.push({ viejas: new Set(piezasGrupo.map((p) => p.id)), piezasNuevas: renombradas });
   }
 
   // 2. Casco redimensionado.
@@ -766,25 +797,21 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   };
 
   // 3. Aplicar: casco + contenido interior adaptado.
-  const reemplazos = new Map(); // id -> pieza nueva (cajones regenerados)
-  for (const g of grupos) for (const np of g.piezasNuevas) reemplazos.set(np.id, np);
+  const reemplazos = new Map(); // id viejo -> pieza nueva (cajones regenerados)
   const idsGrupoViejo = new Set();
   for (const g of grupos) {
-    for (const p of state.pieces) {
-      if (String(p.id).startsWith(g.prefijo)) idsGrupoViejo.add(p.id);
-    }
+    for (const np of g.piezasNuevas) reemplazos.set(np.id, np);
+    for (const id of g.viejas) idsGrupoViejo.add(id);
   }
 
-  const prefRepisa = `m${moduleId}-repisa-`;
-  const prefRefuerzo = `m${moduleId}-refuerzo-repisa-`;
-  const prefBarra = `m${moduleId}-barra-`;
+  const esDelModuloRaiz = (p) => String(p.modulo) === String(moduleId);
   const pieces = [];
   for (const p of state.pieces) {
     const id = String(p.id);
-    // 1) Pieza regenerada (cajon/zapatera): entra SU reemplazo. El chequeo
-    //    va ANTES que idsGrupoViejo porque comparten id con la vieja.
+    // 1) Pieza regenerada (cajon/zapatera): entra SU reemplazo (mismo id
+    //    viejo renombrado). El chequeo va ANTES que idsGrupoViejo.
     if (reemplazos.has(id)) { pieces.push(reemplazos.get(id)); continue; }
-    // 2) Pieza vieja de un grupo regenerado: se descarta (ya entró arriba).
+    // 2) Pieza vieja de un grupo regenerado sin par (no debería pasar): sale.
     if (idsGrupoViejo.has(id)) continue;
     // Casco.
     let cascoMatch = null;
@@ -792,20 +819,17 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
       if (id === cid) cascoMatch = [w, h];
     }
     if (cascoMatch) { pieces.push({ ...p, ancho: cascoMatch[0], alto: cascoMatch[1] }); continue; }
-    // Repisas/refuerzos: ancho util (la repisa mide prof en su campo alto).
-    if (id.startsWith(prefRepisa)) { pieces.push({ ...p, ancho: anchoUtil, alto: profUtil }); continue; }
-    if (id.startsWith(prefRefuerzo)) { pieces.push({ ...p, ancho: anchoUtil }); continue; }
-    // Barras: ancho util.
-    if (id.startsWith(prefBarra)) { pieces.push({ ...p, ancho: anchoUtil }); continue; }
-    // Zocalo: ancho util.
-    if (id === `m${moduleId}-zocalo`) { pieces.push({ ...p, ancho: anchoUtil }); continue; }
-    pieces.push(p);
-  }
-  // Las piezas regeneradas cuyo id no existia antes (volquete sin cara, etc.)
-  for (const g of grupos) {
-    for (const np of g.piezasNuevas) {
-      if (!state.pieces.some((p) => p.id === np.id)) pieces.push(np);
+    // Contenido interior del modulo RAIZ, por ROL (agnóstico a ids de
+    // catálogo: 'm2-repisa-superior' o 'm2-repisa-1' son rol 'shelf').
+    if (esDelModuloRaiz(p)) {
+      const rol = inferRole(p);
+      if (rol === 'shelf') { pieces.push({ ...p, ancho: anchoUtil, alto: profUtil }); continue; }
+      if (rol === 'brace' || rol === 'hanger_rail' || rol === 'plinth') {
+        pieces.push({ ...p, ancho: anchoUtil });
+        continue;
+      }
     }
+    pieces.push(p);
   }
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();

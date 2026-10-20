@@ -154,6 +154,41 @@ test('orden de agregado intercalado: cajón→zapatera→cajón→zapatera = sub
   view.destroy();
 });
 
+test('editar catálogo (ids m21-cajon-*) regenera cajones conservando ids y vanos', async () => {
+  const { store, view, container } = mountView();
+  // Cargar el CSV del catálogo (convención de ids distinta al builder).
+  const fs = await import('node:fs');
+  const texto = fs.readFileSync('data/ejemplo-closet-abierto-modular.csv', 'utf8');
+  const app = await import('../../js/app.js');
+  app.loadCSV(texto);
+
+  const frentesAntes = store.get().pieces.filter((p) => p.id.endsWith('-frente') && String(p.modulo).startsWith('2'));
+  assert.ok(frentesAntes.length >= 6, 'el catálogo trae la cajonera M2');
+  assert.equal(frentesAntes[0].id, 'm21-cajon-frente', 'convención de ids del catálogo');
+
+  const scoped2 = '[data-module-scoped="2"]';
+  container.querySelector(`${scoped2} [data-action="edit-module"]`).click();
+  container.querySelector(`${scoped2} [data-edit-ancho]`).value = '700';
+  container.querySelector(`${scoped2} [data-edit-prof]`).value = '500';
+  container.querySelector(`${scoped2} [data-action="apply-edit-module"]`).click();
+
+  const pieces = store.get().pieces;
+  const frentes = pieces.filter((p) => p.id.endsWith('-frente') && String(p.modulo).startsWith('2'));
+  assert.equal(frentes.length, frentesAntes.length, 'misma cantidad de frentes');
+  for (const f of frentes) {
+    assert.equal(f.ancho, 668, `frente ${f.id} adaptado al vano nuevo (700−2·15−2)`);
+    assert.ok(/-frente$/.test(f.id), 'id de catálogo conservado');
+  }
+  // Altos de vano conservados (accesorios 130 → frente 127, etc.).
+  const f1 = frentes.find((p) => p.id === 'm21-cajon-frente');
+  assert.equal(f1.alto, 127, 'alto de vano del cajón 1 conservado');
+  const repisa = pieces.find((p) => p.id === 'm2-repisa-superior');
+  assert.equal(repisa.ancho, 670, 'repisa del catálogo adaptada al ancho útil');
+  const refuerzo = pieces.find((p) => p.id === 'm2-refuerzo-repisa');
+  assert.equal(refuerzo.ancho, 670, 'refuerzo adaptado');
+  view.destroy();
+});
+
 test('editar dimensiones reajusta casco Y contenido interior al nuevo vano', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
