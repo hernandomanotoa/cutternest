@@ -582,11 +582,63 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   }
 
   if (!result.ok) return result;
+  // Anclar el contenido nuevo con pos_z (orden de insercion = orden vertical):
+  // el renderizador apila por ZONAS (todas las repisas juntas, luego todos los
+  // frentes), asi que sin ancla, agregar una repisa DESPUES de unos cajones la
+  // dibujaba debajo de ellos. Con pos_z cada pieza queda donde el usuario la
+  // agrego, de abajo hacia arriba (como se arma en el taller).
+  asignarPosZInsercion(state.pieces, result.pieces, moduleId, kind, {
+    stackGap: state.userConfig?.stackGap ?? 20,
+    drawerFrontGap: state.userConfig?.drawerFrontGap ?? 2.5,
+  });
   const basePieces = piecesMutadas || state.pieces;
   const allPieces = [...basePieces, ...result.pieces];
   store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
   recalculateAll();
   return { ok: true, warnings: validatePiecesQuiet(allPieces) };
+}
+
+// Cursor acumulativo de insercion por modulo: recorre las piezas ya ancladas
+// (pos_z) del modulo y devuelve la Z libre mas alta. Las repisas aportan su
+// espesor; los frentes su alto. Sin anclas, arranca sobre la cara superior
+// de la base (zocalo + espesor + offset de montaje).
+function cursorInsercion(pieces, moduleId, stackGap) {
+  const zocalo = pieces.find((p) => p.id === `m${moduleId}-zocalo`);
+  const base = pieces.find((p) => p.id === `m${moduleId}-base`);
+  const baseTop = (zocalo ? Number(zocalo.alto) || 0 : 0) + (Number(base?.espesor) || 15);
+  let cursor = baseTop + 10; // drawerBaseOffset
+  for (const p of pieces || []) {
+    if (!Number.isFinite(p.pos_z)) continue;
+    const mod = String(p.modulo || '');
+    const esDelModulo = mod === String(moduleId)
+      || (/^\d+$/.test(String(moduleId)) && (mod.startsWith(String(moduleId)) || mod.startsWith(`${moduleId}.`)));
+    if (!esDelModulo) continue;
+    const ocupada = /-frente$/.test(String(p.id)) ? (Number(p.alto) || 0) : (Number(p.espesor) || 15);
+    cursor = Math.max(cursor, Number(p.pos_z) + ocupada + stackGap);
+  }
+  return cursor;
+}
+
+// Asigna pos_z a las piezas recien agregadas segun el cursor del modulo.
+function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap }) {
+  let cursor = cursorInsercion(piecesActuales, moduleId, stackGap);
+  const fijar = (pieza, avance) => {
+    if (!pieza) return;
+    pieza.pos_z = Math.round(cursor * 10) / 10;
+    cursor += avance;
+  };
+  if (kind === 'shelf') {
+    const repisa = piezasNuevas.find((p) => /-repisa-\d+$/.test(p.id));
+    const refuerzo = piezasNuevas.find((p) => /-refuerzo-repisa-\d+$/.test(p.id));
+    fijar(repisa, (Number(repisa?.espesor) || 15) + stackGap);
+    if (refuerzo) refuerzo.pos_z = repisa?.pos_z ?? refuerzo.pos_z;
+  } else if (kind === 'rail') {
+    fijar(piezasNuevas[0], 25 + stackGap);
+  } else if (kind === 'drawer' || kind === 'shoeRack') {
+    const frente = piezasNuevas.find((p) => p.id.endsWith('-frente'));
+    fijar(frente, (Number(frente?.alto) || 0) + drawerFrontGap);
+  }
+  // doubleRail trae pos_z absolutos ergonomicos (2100/1000); zocalo no ancla.
 }
 
 // Duplica un modulo (casco + contenido + submodulos) con id nuevo.
@@ -775,7 +827,15 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     const viejaPorSufijo = new Map(piezasGrupo.map((p) => [sufijoDe(p.id), p]));
     const renombradas = regenerado.pieces.map((np) => {
       const vieja = viejaPorSufijo.get(sufijoDe(np.id));
-      return vieja ? { ...np, id: vieja.id, modulo: vieja.modulo } : np;
+      if (!vieja) return np;
+      const out = { ...np, id: vieja.id, modulo: vieja.modulo };
+      // Conservar el anclaje vertical (pos_z) de la pieza vieja: sin esto,
+      // al editar dimensiones los cajones perden su posicion y el renderer
+      // los re-apila por zonas, rompiendo el orden de insercion.
+      if (sufijoDe(np.id) === 'frente' && Number.isFinite(vieja.pos_z)) {
+        out.pos_z = vieja.pos_z;
+      }
+      return out;
     });
     // Pieza nueva sin par viejo (tirador faltante en un CSV manual): id
     // derivado del submodulo viejo para no colisionar con otros modulos.

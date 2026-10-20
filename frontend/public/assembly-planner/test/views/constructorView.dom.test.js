@@ -233,6 +233,55 @@ test('editar a ancho donde el cajon no cabe aborta sin cambios', () => {
   view.destroy();
 });
 
+test('orden de inserción define el orden vertical (repisa entre cajones se respeta)', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  const add = (kind) => click(container, `[data-action="add-content"][data-kind="${kind}"]`);
+  add('shelf');
+  add('shelf');
+  add('shoeRack');
+  add('shoeRack');
+  add('shelf'); // repisa 3 DESPUES de las zapateras
+  add('drawer');
+  add('shelf'); // repisa 4 DESPUES del cajon
+
+  // Cada pieza anclada con pos_z segun el orden de insercion.
+  const z = (idSuffix) => {
+    const p = store.get().pieces.find((x) => x.id.includes(idSuffix));
+    return Number(p?.pos_z);
+  };
+  const orden = [
+    z('repisa-1'), z('zapatera1-frente'), z('zapatera2-frente'),
+    z('repisa-3'), z('cajon3-frente'), z('repisa-4'),
+  ];
+  assert.deepEqual(orden.map((v) => Number.isFinite(v)), [true, true, true, true, true, true], 'todas ancladas con pos_z');
+  for (let i = 1; i < orden.length; i++) {
+    assert.ok(orden[i] > orden[i - 1], `pos_z creciente: ${orden.map((v) => Math.round(v)).join(' < ')}`);
+  }
+  // La repisa 3 queda SOBRE las zapateras (zona de la columna que le toca).
+  assert.ok(z('repisa-3') > z('zapatera2-frente'), 'repisa agregada despues de las zapateras queda arriba');
+  view.destroy();
+});
+
+test('editar dimensiones conserva el anclaje vertical (pos_z) de los cajones', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const posAntes = Number(store.get().pieces.find((p) => p.id === 'm1cajon1-frente').pos_z);
+  assert.ok(Number.isFinite(posAntes), 'cajon anclado tras agregar');
+
+  const scoped = '[data-module-scoped="1"]';
+  container.querySelector(`${scoped} [data-action="edit-module"]`).click();
+  container.querySelector(`${scoped} [data-edit-ancho]`).value = '700';
+  container.querySelector(`${scoped} [data-action="apply-edit-module"]`).click();
+
+  const frente = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.equal(frente.pos_z, posAntes, 'pos_z conservado tras editar dimensiones');
+  assert.equal(frente.ancho, 668, 'frente regenerado al nuevo vano');
+  view.destroy();
+});
+
 test('doble barra crea 2 barras ancladas con pos_z', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
