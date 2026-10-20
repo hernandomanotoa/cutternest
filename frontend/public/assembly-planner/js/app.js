@@ -17,6 +17,11 @@ import {
   isGlobalPiece,
 } from './utils/helpers.js';
 import { parseCSV, piecesToCSV, createEmptyPiece } from './services/csvParser.js';
+import {
+  saveCloudVersion,
+  getCloudVersion,
+  deleteCloudVersion,
+} from './services/designVersionsClient.js';
 import { sugerirDependencias } from './services/heuristics.js';
 import { topologicalLevels, buildSteps } from './services/topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
@@ -32,7 +37,7 @@ import {
   setActivePreset,
   loadUserConfig,
 } from './services/userConfigService.js';
-import { getGapPreset } from './core/gapPresets.js';
+import { getGapPreset, GAP_PRESETS } from './core/gapPresets.js';
 import {
   createModule,
   addZocalo,
@@ -43,6 +48,7 @@ import {
   nextModuleId,
   nextContentIndex,
   countRootModules,
+  rootModuleIds,
   duplicateModulePieces,
 } from './services/closetBuilderService.js';
 import {
@@ -337,10 +343,11 @@ export function addEmptyPiece() {
 
 // ── Constructor de closets (closetBuilderService) ─────────────────
 
-// Preset aplicado en memoria a los muebles creados en el Constructor
-// (mismos valores que GAP_PRESETS['ejemplo-closet-abierto-modular.csv']).
-// No se persiste: solo reactiva las posiciones verticales del closet.
-const CONSTRUCTOR_PRESET = { hangerRailHeight: 1800, stackGap: 25, topInset: 60 };
+// Preset aplicado en memoria a los muebles creados en el Constructor: los
+// mismos valores versionados en GAP_PRESETS para el closet abierto modular
+// (fuente unica; si se editan alli, el constructor los hereda). No se
+// persiste: solo reactiva las posiciones verticales del closet.
+const CONSTRUCTOR_PRESET = GAP_PRESETS['ejemplo-closet-abierto-modular.csv'];
 
 function applyConstructorPreset() {
   setActivePreset(CONSTRUCTOR_PRESET);
@@ -535,6 +542,115 @@ export function recolorModule(moduleId, color) {
 }
 
 // Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.
+// Elimina un contenido individual de un modulo. ref = el indice de la pieza
+// (p. ej. 'm1cajon2-frente' para un cajon, 'm1-repisa-1' para una repisa,
+// 'm1-barra-alta-1' para una barra). Quita TODAS las piezas del grupo
+// (caja completa, refuerzo incluido).
+export function removeContentPiece(refId) {
+  const store = getStore();
+  const state = store.get();
+  const ref = String(refId);
+  // Prefijo del grupo: sin el sufijo final ('-frente', '-lateral-izq'...).
+  // Para ids tipo 'm1cajon2-frente' el grupo es 'm1cajon2-'; para
+  // 'm1-repisa-1' es 'm1-repisa-1' (pieza unica, mas su refuerzo).
+  let groupPrefix = ref.slice(0, ref.lastIndexOf('-') + 1);
+  if (groupPrefix === 'm') groupPrefix = ref; // seguridad: sin guiones
+  const esRepisa = /-repisa-\d+$/.test(ref);
+  const pieces = state.pieces.filter((p) => {
+    const id = String(p.id);
+    if (id === ref) return false;
+    if (id.startsWith(groupPrefix) && /-(frente|lateral|fondo|cara|base|tirador)$/.test(id)) return false;
+    // La repisa arranca su refuerzo asociado.
+    if (esRepisa && id === ref.replace('-repisa-', '-refuerzo-repisa-')) return false;
+    return true;
+  });
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  recalculateAll();
+  return { ok: true };
+}
+
+// Reordena un modulo: 'izq' intercambia su posicion con el modulo raiz
+// numerico anterior, 'der' con el siguiente. Renumerar ids es invasivo
+// (cambia ids/submodulos de piezas y dependencias), asi que se implementa
+// como intercambio de numeros de modulo entre los dos afectados.
+export function moveModule(moduleId, direction) {
+  const store = getStore();
+  const state = store.get();
+  const roots = [...rootModuleIds(state.pieces)].sort((a, b) => Number(a) - Number(b));
+  const idx = roots.indexOf(String(moduleId));
+  const swapWith = direction === 'izq' ? idx - 1 : idx + 1;
+  if (idx === -1 || swapWith < 0 || swapWith >= roots.length) {
+    return { ok: false, errors: ['No hay modulo con que intercambiar'] };
+  }
+  const a = roots[idx];
+  const b = roots[swapWith];
+  // Renombrar a→tmp, b→a, tmp→b con un prefijo temporal no numerico.
+  let pieces = renameModulePrefix(state.pieces, a, `x${a}`);
+  pieces = renameModulePrefix(pieces, b, a);
+  pieces = renameModulePrefix(pieces, `x${a}`, b);
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  recalculateAll();
+  return { ok: true, moduleId: b };
+}
+
+// Renombra el prefijo de modulo de todas las piezas de un modulo raiz:
+// ids 'm{old}...' → 'm{new}...' y modulos raiz/submodulo acordes.
+function renameModulePrefix(pieces, oldId, newId) {
+  const oldPref = `m${oldId}`;
+  const newPref = `m${newId}`;
+  const pertenece = (mod) => {
+    const m = String(mod || '');
+    return m === String(oldId) || (m.startsWith(String(oldId)) && /^\d+$/.test(oldId));
+  };
+  return pieces.map((p) => {
+    const mod = String(p.modulo || '');
+    if (!pertenece(mod)) return p;
+    const nuevoModulo = mod === String(oldId)
+      ? String(newId)
+      : String(newId) + mod.slice(String(oldId).length);
+    const nuevoId = String(p.id).startsWith(oldPref)
+      ? newPref + String(p.id).slice(oldPref.length)
+      : String(p.id);
+    const nuevoOriginalId = p.originalId && String(p.originalId).startsWith(oldPref)
+      ? newPref + String(p.originalId).slice(oldPref.length)
+      : p.originalId;
+    return { ...p, id: nuevoId, modulo: nuevoModulo, originalId: nuevoOriginalId };
+  });
+}
+
+// Edita las dimensiones del casco de un modulo existente. Solo el casco
+// (base/tapa/laterales/fondo); el contenido agregado se conserva tal cual.
+export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
+  const store = getStore();
+  const state = store.get();
+  const dims = { ancho: Number(ancho), alto: Number(alto), prof: Number(prof) };
+  if (!(dims.ancho >= 100 && dims.alto >= 100 && dims.prof >= 100)) {
+    return { ok: false, errors: ['Las dimensiones deben ser >= 100 mm'] };
+  }
+  const tapa = state.pieces.find((p) => p.id === `m${moduleId}-tapa`);
+  if (!tapa) return { ok: false, errors: [`El modulo ${moduleId} no tiene casco`] };
+  const espesor = Number(tapa.espesor) || 15;
+  const baseEsInterna = state.pieces.some((p) => p.id === `m${moduleId}-zocalo`)
+    && state.pieces.find((p) => p.id === `m${moduleId}-base`)?.ancho < tapa.ancho;
+  const cascoIds = {
+    base: [`m${moduleId}-base`, baseEsInterna ? dims.ancho - 2 * espesor : dims.ancho, baseEsInterna ? dims.prof - 2 * espesor : dims.prof],
+    tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
+    'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
+    'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],
+    fondo: [`m${moduleId}-fondo`, dims.ancho - 2 * espesor, dims.alto - 2 * espesor],
+  };
+  const pieces = state.pieces.map((p) => {
+    for (const [, [id, w, h]] of Object.entries(cascoIds)) {
+      if (p.id === id) return { ...p, ancho: w, alto: h };
+    }
+    return p;
+  });
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  recalculateAll();
+  return { ok: true };
+}
+
+// Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.
 export function clearAllPieces() {
   const store = getStore();
   store.set({ pieces: [], dependencies: [], warnings: [], currentModule: 'global', currentStep: 0 });
@@ -636,6 +752,41 @@ export function exportCurrentCsv() {
   if (!state.pieces.length) return { ok: false, error: 'No hay piezas que exportar' };
   downloadText('cutternest-piezas.csv', piecesToCSV(state.pieces), 'text/csv');
   return { ok: true };
+}
+
+// ── Versiones en la nube (designVersionsClient) ───────────────────
+
+export async function saveCurrentVersionToCloud(name) {
+  const state = getStore().get();
+  if (!state.pieces.length) return { ok: false, error: 'No hay piezas que guardar' };
+  const trimmed = String(name || '').trim() || `Closet ${new Date().toLocaleDateString('es-ES')}`;
+  return saveCloudVersion(trimmed, {
+    csv: piecesToCSV(state.pieces),
+    pieceCount: state.pieces.length,
+  });
+}
+
+export async function loadCloudVersionById(id) {
+  const r = await getCloudVersion(id);
+  if (!r.ok) return r;
+  const result = parseCSV(r.csv);
+  if (!result.ok) return { ok: false, error: 'CSV corrupto en la version de nube' };
+  setActivePreset(CONSTRUCTOR_PRESET);
+  getStore().set({
+    userConfig: loadUserConfig(),
+    pieces: result.pieces,
+    dependencies: sugerirDependencias(result.pieces),
+    warnings: result.warnings || [],
+    currentStep: 0,
+    ...(countRootModules(result.pieces) > 1 ? { currentModule: 'all' } : {}),
+  });
+  lastSavedHash = piecesHash(result.pieces);
+  recalculateAll();
+  return { ok: true, name: r.name };
+}
+
+export async function deleteCloudVersionById(id) {
+  return deleteCloudVersion(id);
 }
 
 export function addDependency(from, to, type = 'estructural') {

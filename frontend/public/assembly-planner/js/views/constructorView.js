@@ -15,6 +15,9 @@ import {
   duplicateModule,
   recolorModule,
   clearAllPieces,
+  removeContentPiece,
+  moveModule,
+  editModuleDimensions,
   saveCurrentVersion,
   loadVersionById,
   deleteVersionById,
@@ -25,7 +28,11 @@ import {
   exportCurrentCsv,
   isDesignDirty,
   switchTab,
+  saveCurrentVersionToCloud,
+  loadCloudVersionById,
+  deleteCloudVersionById,
 } from '../app.js';
+import { listCloudVersions } from '../services/designVersionsClient.js';
 
 const ALTO_VANO_OPCIONES = [130, 180, 200, 220, 280];
 const TIPOS_CAJON = [
@@ -36,6 +43,10 @@ const TIPOS_CAJON = [
 export function createConstructorView(store) {
   let unsubscribe = null;
   let container = null;
+  // Versiones en la nube: null = no cargadas aun, {auth:false} = sin sesion,
+  // {versions: [...]} = cargadas. Se refrescan con el boton o tras subir.
+  let cloud = null;
+  let cloudLoading = false;
 
   function mount(parent) {
     container = parent;
@@ -63,6 +74,50 @@ export function createConstructorView(store) {
     if (container) render();
   }
 
+  async function refreshCloud() {
+    if (cloudLoading) return;
+    cloudLoading = true;
+    const r = await listCloudVersions();
+    cloud = r.ok ? { versions: r.versions || [] } : { auth: r.auth === false, error: r.error };
+    cloudLoading = false;
+    refresh();
+  }
+
+  // Seccion de versiones en la nube (null = no cargadas aun).
+  function renderCloudVersions() {
+    if (cloudLoading) return '<p class="empty-state">Cargando versiones de la nube…</p>';
+    if (!cloud) return '';
+    if (cloud.auth) {
+      return '<p class="empty-state">☁ Iniciá sesión en la app para sincronizar versiones con la nube.</p>';
+    }
+    if (cloud.error) {
+      return `<p class="empty-state">☁ Nube: ${escapeHtml(cloud.error)}</p>`;
+    }
+    const versions = cloud.versions || [];
+    if (!versions.length) {
+      return '<p class="empty-state">☁ No hay versiones en la nube. Usá el botón "☁ Nube" para subir la actual.</p>';
+    }
+    return `
+      <div class="table-container" style="margin-bottom:0.75rem;">
+        <table>
+          <thead><tr><th>☁ Nube</th><th>Piezas</th><th>Fecha</th><th>Acciones</th></tr></thead>
+          <tbody>
+            ${versions.map((v) => `
+              <tr>
+                <td>${escapeHtml(v.name)}</td>
+                <td>${v.pieceCount}</td>
+                <td>${formatFecha(v.savedAt)}</td>
+                <td class="cn-constructor__actions">
+                  <button class="btn btn--secondary btn--sm" data-action="load-cloud" data-id="${escapeHtml(v.id)}">Cargar</button>
+                  <button class="btn btn--danger btn--sm" data-action="delete-cloud" data-id="${escapeHtml(v.id)}">Eliminar</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function onKeydown(e) {
     // Enter en el nombre de version guarda (mejora #12).
     if (e.key === 'Enter' && e.target.matches('[data-version-name]')) {
@@ -71,14 +126,27 @@ export function createConstructorView(store) {
     }
   }
 
-  function saveVersionFromInput() {
+  function saveVersionFromInput(alsoCloud = false) {
     const name = container.querySelector('[data-version-name]')?.value?.trim();
     const r = saveCurrentVersion(name);
     if (r.ok) {
       toast(`Versión "${r.version.name}" guardada`, { type: 'success' });
       refresh();
+      if (alsoCloud) saveCurrentVersionCloud(name);
     } else {
       toast(r.error || 'No se pudo guardar', { type: 'error' });
+    }
+  }
+
+  async function saveCurrentVersionCloud(name) {
+    const r = await saveCurrentVersionToCloud(name);
+    if (r.ok) {
+      toast(`Versión "${r.version.name}" subida a la nube`, { type: 'success' });
+      refreshCloud();
+    } else if (r.auth) {
+      toast(`Nube: ${r.error}. Iniciá sesión para sincronizar.`, { type: 'info', durationMs: 6000 });
+    } else {
+      toast(`Nube: ${r.error}`, { type: 'error' });
     }
   }
 
@@ -97,7 +165,7 @@ export function createConstructorView(store) {
     }
   }
 
-  function onClick(e) {
+  async function onClick(e) {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
@@ -144,6 +212,29 @@ export function createConstructorView(store) {
       const r = duplicateModule(btn.dataset.module);
       if (r.ok) toast(`Módulo duplicado como ${r.moduleId}`, { type: 'success' });
       else toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'remove-content') {
+      confirmable(btn, '¿Seguro?', () => {
+        removeContentPiece(btn.dataset.ref);
+        toast('Contenido eliminado', { type: 'info' });
+      });
+    } else if (action === 'move-module') {
+      const r = moveModule(btn.dataset.module, btn.dataset.dir);
+      if (!r.ok) toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'edit-module') {
+      const row = btn.closest('[data-module-scoped]');
+      const form = row?.querySelector('[data-edit-form]');
+      if (form) form.classList.toggle('is-hidden');
+    } else if (action === 'apply-edit-module') {
+      const moduleId = btn.dataset.module;
+      const scoped = `[data-module-scoped="${CSS.escape(moduleId)}"]`;
+      const dims = {
+        ancho: Number(container.querySelector(`${scoped} [data-edit-ancho]`)?.value),
+        alto: Number(container.querySelector(`${scoped} [data-edit-alto]`)?.value),
+        prof: Number(container.querySelector(`${scoped} [data-edit-prof]`)?.value),
+      };
+      const r = editModuleDimensions(moduleId, dims);
+      if (r.ok) toast(`Módulo ${moduleId} actualizado`, { type: 'success' });
+      else toast(r.errors.join('; '), { type: 'error' });
     } else if (action === 'recolor-module') {
       const color = container.querySelector(`[data-module-scoped="${CSS.escape(btn.dataset.module)}"] [data-color-cuerpo]`)?.value;
       const r = recolorModule(btn.dataset.module, color);
@@ -156,6 +247,20 @@ export function createConstructorView(store) {
       });
     } else if (action === 'save-version') {
       saveVersionFromInput();
+    } else if (action === 'save-cloud') {
+      saveVersionFromInput(true);
+    } else if (action === 'refresh-cloud') {
+      refreshCloud();
+    } else if (action === 'load-cloud') {
+      const r = await loadCloudVersionById(btn.dataset.id);
+      if (r.ok) toast(`Versión de nube "${r.name}" cargada`, { type: 'success' });
+      else toast(r.error || 'No se pudo cargar', { type: 'error' });
+    } else if (action === 'delete-cloud') {
+      confirmable(btn, '¿Seguro?', async () => {
+        const r = await deleteCloudVersionById(btn.dataset.id);
+        if (r.ok) { toast('Versión de nube eliminada', { type: 'info' }); refreshCloud(); }
+        else toast(r.error, { type: 'error' });
+      });
     } else if (action === 'load-version') {
       const r = loadVersionById(btn.dataset.id);
       if (r.ok) toast(`Versión "${r.name}" cargada`, { type: 'success' });
@@ -268,9 +373,12 @@ export function createConstructorView(store) {
         <div class="card__header"><h2 class="card__title">Versiones del diseño</h2></div>
         <div class="card__body">
           <div class="cn-constructor__version-form">
-            <input type="text" data-version-name placeholder="${escapeHtml(suggestedVersionName())}" maxlength="80" />
+            <input type="text" data-version-name placeholder="${escapeHtml(suggestedVersionName())}" maxlength="80" aria-label="Nombre de la versión" />
             <button class="btn btn--primary" data-action="save-version">Guardar versión</button>
+            <button class="btn btn--secondary" data-action="save-cloud" title="Guardar tambien en la nube (requiere sesion)">☁ Nube</button>
+            <button class="btn btn--secondary" data-action="refresh-cloud" title="Listar versiones de la nube">Actualizar nube</button>
           </div>
+          ${renderCloudVersions()}
           ${versions.length === 0
             ? '<p class="empty-state">No hay versiones guardadas todavía.</p>'
             : `<div class="table-container"><table>
@@ -301,6 +409,43 @@ export function createConstructorView(store) {
   }
 
   return { mount, destroy };
+}
+
+// Lista de contenido agregado al modulo (cajones, zapateras, repisas,
+// barras, zocalo) con boton de eliminacion individual. El orden de la
+// lista es el de insercion (orden del array de piezas).
+function renderContentList(moduleId, allPieces) {
+  const items = [];
+  for (const p of allPieces) {
+    const id = String(p.id);
+    let match = null;
+    if (id.endsWith('-frente')) {
+      // El frente 'm1cajon2-frente' pertenece al modulo 1; 'm11cajon1-...'
+      // al 11 (greedy \d+ toma todos los digitos del prefijo).
+      const root = id.match(/^m(\d+)/)?.[1];
+      if (root === String(moduleId) && /(cajon|zapatera)\d+-frente$/.test(id)) {
+        match = { refId: id, label: p.nombre, key: id };
+      }
+    } else if (/-repisa-\d+$/.test(id) && id.startsWith(`m${moduleId}-repisa-`)) {
+      match = { refId: id, label: p.nombre, key: id };
+    } else if (/-barra-(alta|baja)?-?\d*$/.test(id) && id.startsWith(`m${moduleId}-barra-`)) {
+      // Solo listar la barra alta (o la simple): la baja va en pareja.
+      if (!id.includes('-barra-baja')) match = { refId: id, label: p.nombre, key: id };
+    } else if (id === `m${moduleId}-zocalo`) {
+      match = { refId: id, label: p.nombre, key: id };
+    }
+    if (match && !items.some((i) => i.key === match.key)) items.push(match);
+  }
+  if (!items.length) return '';
+  return `
+    <ul class="cn-constructor__content-list">
+      ${items.map((i) => `
+        <li>
+          <span>${escapeHtml(i.label)}</span>
+          <button class="btn btn--danger btn--sm" data-action="remove-content" data-ref="${escapeHtml(i.refId)}" title="Eliminar">✕</button>
+        </li>`).join('')}
+    </ul>
+  `;
 }
 
 function renderModuleCard(group, allPieces) {
@@ -342,10 +487,14 @@ function renderModuleCard(group, allPieces) {
         <label class="form-group" style="margin:0;">Cuerpo
           <input type="color" data-color-cuerpo value="#c19a6b" />
         </label>
-        <button class="btn btn--secondary btn--sm" data-action="recolor-module" data-module="${escapeHtml(moduleId)}">Aplicar color</button>
+        <button class="btn btn--secondary btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}">Editar</button>
+        <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="izq" title="Mover a la izquierda">◀</button>
+        <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="der" title="Mover a la derecha">▶</button>
+        <button class="btn btn--secondary btn--sm" data-action="recolor-module" data-module="${escapeHtml(moduleId)}">Color</button>
         <button class="btn btn--secondary btn--sm" data-action="duplicate-module" data-module="${escapeHtml(moduleId)}">Duplicar</button>
         <button class="btn btn--danger btn--sm" data-action="remove-module" data-module="${escapeHtml(moduleId)}">Eliminar módulo</button>
       </div>
+      ${renderContentList(moduleId, allPieces)}
       <div class="cn-constructor__content-btns">
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
@@ -354,6 +503,30 @@ function renderModuleCard(group, allPieces) {
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="doubleRail">+ Doble barra</button>
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="zocalo">+ Zócalo</button>
       </div>
+      ${renderEditForm(moduleId, piezas)}
+    </div>
+  `;
+}
+
+// Formulario oculto de edicion de dimensiones del casco (M3). Solo casco:
+// el contenido agregado se conserva; el usuario lo reajusta si quiere.
+function renderEditForm(moduleId, piezas) {
+  const tapa = piezas.find((p) => p.id.endsWith('-tapa'));
+  const lateral = piezas.find((p) => p.id.endsWith('-lateral-izq'));
+  if (!tapa || !lateral) return '';
+  return `
+    <div class="cn-constructor__edit-form is-hidden" data-edit-form>
+      <label class="form-group" style="margin:0;">Ancho
+        <input type="number" data-edit-ancho value="${Number(tapa.ancho)}" min="100" step="10" />
+      </label>
+      <label class="form-group" style="margin:0;">Alto
+        <input type="number" data-edit-alto value="${Number(lateral.alto)}" min="100" step="10" />
+      </label>
+      <label class="form-group" style="margin:0;">Prof.
+        <input type="number" data-edit-prof value="${Number(tapa.alto)}" min="100" step="10" />
+      </label>
+      <button class="btn btn--primary btn--sm" data-action="apply-edit-module" data-module="${escapeHtml(moduleId)}">Aplicar</button>
+      <small>Se redimensiona solo el casco; el contenido se conserva.</small>
     </div>
   `;
 }
@@ -363,11 +536,15 @@ function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
   const espesor = 15;
   const util = altoModulo - (tieneZocalo ? altoZocalo : 0) - espesor; // tapa
   const prefFrentes = [`m${moduleId}cajon`, `m${moduleId}zapatera`];
+  const prefRepisa = `m${moduleId}-repisa-`;
   let usado = 0;
   for (const p of pieces) {
     const id = String(p.id);
-    if (!id.endsWith('-frente')) continue;
-    if (prefFrentes.some((pref) => id.startsWith(pref))) usado += Number(p.alto) + 3; // altoVano ≈ frente + 3
+    if (id.endsWith('-frente') && prefFrentes.some((pref) => id.startsWith(pref))) {
+      usado += Number(p.alto) + 3; // altoVano ≈ frente + 3
+    } else if (id.startsWith(prefRepisa)) {
+      usado += espesor + 20; // repisa: espesor + gap de apilamiento aprox.
+    }
   }
   const pct = util > 0 ? Math.min(100, Math.round((usado / util) * 100)) : 0;
   return { usado, util, pct };

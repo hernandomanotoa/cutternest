@@ -1036,3 +1036,39 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   display: flex;
   gap: 0.35rem;
 }
+
+.cn-constructor__content-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cn-constructor__content-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  font-size: 0.78rem;
+}
+
+.cn-constructor__edit-form {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.cn-constructor__edit-form small {
+  color: var(--text-secondary);
+}
