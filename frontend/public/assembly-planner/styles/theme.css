@@ -298,6 +298,13 @@ html, body {
   min-height: 0;
   overflow: auto;
 }
+/* La barra de sliders de la vista 3D comparte la clase .card__body pero NO
+   debe crecer en fullscreen: si hereda flex:1 le roba la mitad del alto al
+   lienzo del render (los controles se "estiran" en lugar del mueble). */
+.card:fullscreen .r3d-sliders {
+  flex: 0 0 auto;
+  overflow: visible;
+}
 .card:fullscreen .card__body > svg {
   width: 100%;
   height: 100%;
