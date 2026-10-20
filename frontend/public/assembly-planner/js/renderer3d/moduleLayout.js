@@ -9,7 +9,10 @@
 // adyacentes sin alterar el layout interior de cada módulo.
 
 // Separación estándar entre módulos en la vista 3D multi-módulo (mm).
-export const MODULE_GAP_MM = 20;
+// La constante vive en js/core/config.js (capa core); se re-exporta aquí
+// para no romper los imports existentes.
+export { MODULE_GAP_MM } from '../core/config.js';
+import { MODULE_GAP_MM } from '../core/config.js';
 
 /**
  * Garantiza al menos `gapMm` de separación en X entre grupos de geometrías

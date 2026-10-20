@@ -36,7 +36,7 @@ import {
   sortModuleIds,
 } from './isometric/moduleGeometry.js';
 import { buildGlobalGeometries } from './isometric/globalGeometry.js';
-import { MODULE_GAP_MM } from '../../renderer3d/moduleLayout.js';
+import { MODULE_GAP_MM } from '../../core/config.js';
 import { buildSeatingGeometries } from './isometric/seatingGeometry.js';
 import { buildFrontPanelGeometries } from './isometric/frontPanelGeometry.js';
 import { buildDrawerGeometries } from './isometric/drawerGeometry.js';

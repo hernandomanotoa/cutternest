@@ -264,3 +264,8 @@ export const VERTICAL_POSITIONS = {
   dividerBaseOffset: 0,      // distancia desde la cara superior de la base al borde inferior del divisor
   dividerTopInset: 0,        // distancia desde la cara inferior de la tapa/repisa superior al borde superior del divisor
 };
+
+// Separación estándar entre módulos en la vista multi-módulo (mm). Vive en
+// core (no en renderer3d/) porque la usa tanto la vista 3D como la
+// isométrica ('Vista completa'). moduleLayout.js lo re-exporta por compat.
+export const MODULE_GAP_MM = 20;

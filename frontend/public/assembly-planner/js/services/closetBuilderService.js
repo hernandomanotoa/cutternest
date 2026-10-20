@@ -257,18 +257,21 @@ export function addDrawer(moduleId, index, {
   const ladoIzq = esZapatera ? ' izq' : '';
   const ladoDer = esZapatera ? ' der' : '';
 
+  // El indice de insercion va en el nombre para distinguir frentes en la
+  // tabla de offsets y en el manual (antes todos decian "Frente cajon M1").
+  const num = ` ${index}`;
   const pieces = [
-    piece(`m${moduleId}${idp}${index}-frente`, `Frente ${frenteVocab} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: 15, cantos: 'T,B,L,R', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${ladoIzq} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${ladoDer} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab} M${moduleId}`, interior, latAlto - ESP_BASE, { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-frente`, `Frente ${frenteVocab}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: 15, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, interior, latAlto - ESP_BASE, { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
   ];
   if (!volquete) {
-    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, `Cara ${vocab} M${moduleId}`, interior, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, `Cara ${vocab}${num} M${moduleId}`, interior, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
-    piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab} M${moduleId}`, interior, profCajon, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-tirador`, `Tirador ${vocab} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab}${num} M${moduleId}`, interior, profCajon, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-tirador`, `Tirador ${vocab}${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
   );
   return { ok: true, pieces, submodulo: sub, frente: { ancho: frenteAncho, alto: frenteAlto } };
 }
