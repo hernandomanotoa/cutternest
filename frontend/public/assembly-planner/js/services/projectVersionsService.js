@@ -116,8 +116,21 @@ export function deleteVersion(id) {
 }
 
 export function deleteAllVersions() {
-  writeContainer({ schema: SCHEMA, versions: [] });
-  return { ok: true };
+  const container = readContainer();
+  // Las versiones fijadas (📌) sobreviven al "eliminar todas".
+  const kept = container.versions.filter((v) => v.pinned);
+  writeContainer({ schema: SCHEMA, versions: kept });
+  return { ok: true, kept: kept.length };
+}
+
+// Fija/suelta una version (protegida de "eliminar todas" y con prioridad visual).
+export function togglePinVersion(id) {
+  const container = readContainer();
+  const found = container.versions.find((v) => v.id === id);
+  if (!found) return { ok: false, error: 'Version no encontrada' };
+  found.pinned = !found.pinned;
+  writeContainer(container);
+  return { ok: true, pinned: !!found.pinned };
 }
 
 // Renombra una version (trim + max 80 chars, igual que saveVersion).
@@ -172,5 +185,6 @@ function publicVersion(v) {
     name: v.name,
     savedAt: v.savedAt,
     pieceCount: v.pieceCount,
+    pinned: !!v.pinned,
   };
 }

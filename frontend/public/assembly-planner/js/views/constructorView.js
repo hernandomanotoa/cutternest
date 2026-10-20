@@ -6,7 +6,8 @@
 
 import { getModuleGroups, escapeHtml } from '../utils/helpers.js';
 import { countRootModules } from '../services/closetBuilderService.js';
-import { listVersions, suggestedVersionName } from '../services/projectVersionsService.js';
+import { listVersions, suggestedVersionName, togglePinVersion } from '../services/projectVersionsService.js';
+import { parseCSV, piecesToCSV } from '../services/csvParser.js';
 import { toast } from '../components/toast.js';
 import {
   addModuleFromBuilder,
@@ -31,6 +32,10 @@ import {
   saveCurrentVersionToCloud,
   loadCloudVersionById,
   deleteCloudVersionById,
+  undoLast,
+  canUndo,
+  duplicateAllModules,
+  focusModule,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 
@@ -39,6 +44,25 @@ const TIPOS_CAJON = [
   { value: 'corredera', label: 'Corredera' },
   { value: 'volquete', label: 'Volquete' },
 ];
+
+const FURNITURE_NAME_KEY = 'cn-assembly-furniture-name';
+
+function getFurnitureName() {
+  try {
+    return localStorage.getItem(FURNITURE_NAME_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setFurnitureName(name) {
+  try {
+    if (name) localStorage.setItem(FURNITURE_NAME_KEY, String(name));
+    else localStorage.removeItem(FURNITURE_NAME_KEY);
+  } catch {
+    // sin storage: el nombre vive solo en la sesion
+  }
+}
 
 export function createConstructorView(store) {
   let unsubscribe = null;
@@ -53,6 +77,7 @@ export function createConstructorView(store) {
     unsubscribe = store.subscribe('state:changed', render);
     container.addEventListener('click', onClick);
     container.addEventListener('keydown', onKeydown);
+    container.addEventListener('change', onChange);
     render();
   }
 
@@ -64,6 +89,7 @@ export function createConstructorView(store) {
     if (container) {
       container.removeEventListener('click', onClick);
       container.removeEventListener('keydown', onKeydown);
+      container.removeEventListener('change', onChange);
     }
     container = null;
   }
@@ -118,12 +144,42 @@ export function createConstructorView(store) {
     `;
   }
 
+  function onChange(e) {
+    // Nombre del mueble: persiste y alimenta el nombre sugerido de versiones.
+    if (e.target.matches('[data-furniture-name]')) {
+      setFurnitureName(e.target.value.trim());
+      refresh();
+    }
+    // Ancho total + reparto: calcula el ancho por modulo y lo precarga.
+    if (e.target.matches('[data-cfg="ancho-total"], [data-cfg="reparto"]')) {
+      const root = container;
+      const total = Number(root.querySelector('[data-cfg="ancho-total"]')?.value) || 0;
+      const reparto = Math.max(1, Number(root.querySelector('[data-cfg="reparto"]')?.value) || 1);
+      const anchoInput = root.querySelector('[data-cfg="ancho"]');
+      if (total >= 100 && anchoInput) {
+        anchoInput.value = Math.floor(total / reparto);
+        toast(`Ancho por módulo: ${anchoInput.value} mm (${total} ÷ ${reparto})`, { type: 'info' });
+      }
+    }
+  }
+
   function onKeydown(e) {
     // Enter en el nombre de version guarda (mejora #12).
     if (e.key === 'Enter' && e.target.matches('[data-version-name]')) {
       e.preventDefault();
       saveVersionFromInput();
     }
+    // Ctrl/Cmd+Z deshace la ultima accion estructural del Constructor.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.target.matches('input, select, textarea')) {
+      e.preventDefault();
+      doUndo();
+    }
+  }
+
+  function doUndo() {
+    const r = undoLast();
+    if (r.ok) toast(`Deshacer: ${r.label}`, { type: 'info' });
+    else toast(r.error, { type: 'info' });
   }
 
   function saveVersionFromInput(alsoCloud = false) {
@@ -245,6 +301,20 @@ export function createConstructorView(store) {
         clearAllPieces();
         toast('Mueble nuevo: piezas eliminadas', { type: 'info' });
       });
+    } else if (action === 'undo') {
+      doUndo();
+    } else if (action === 'duplicate-all') {
+      const r = duplicateAllModules();
+      if (r.ok) toast(`Mueble duplicado: ${r.count} módulo(s) nuevos`, { type: 'success' });
+      else toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'focus-module') {
+      focusModule(btn.dataset.module);
+    } else if (action === 'pin-version') {
+      const r = togglePinVersion(btn.dataset.id);
+      if (r.ok) { toast(r.pinned ? 'Versión fijada 📌' : 'Versión desfijada', { type: 'info' }); refresh(); }
+    } else if (action === 'furniture-name') {
+      // El change del input lo maneja onChange abajo; este branch no aplica.
+      void btn;
     } else if (action === 'save-version') {
       saveVersionFromInput();
     } else if (action === 'save-cloud') {
@@ -315,10 +385,21 @@ export function createConstructorView(store) {
       <div class="card mb-2">
         <div class="card__header">
           <h2 class="card__title">Constructor de clóset — agregar módulo</h2>
-          <span class="cn-constructor__summary" data-resumen>${resumenMueble(pieces)}</span>
+          <span class="cn-constructor__summary" data-resumen>${resumenMueble(pieces, state)}</span>
           ${dirty ? '<span class="badge badge--secondary" title="Hay cambios sin guardar en una versión">● sin guardar</span>' : ''}
         </div>
         <div class="card__body">
+          <div class="cn-constructor__grid">
+            <label class="form-group">Nombre del mueble
+              <input type="text" data-furniture-name value="${escapeHtml(getFurnitureName())}" placeholder="Clóset dormitorio" maxlength="60" />
+            </label>
+            <label class="form-group">Ancho total (mm)
+              <input type="number" data-cfg="ancho-total" placeholder="3400" min="100" step="10" />
+            </label>
+            <label class="form-group">Repartir en
+              <input type="number" data-cfg="reparto" value="4" min="1" max="12" />
+            </label>
+          </div>
           <div class="cn-constructor__grid">
             <label class="form-group">Ancho (mm)
               <input type="number" data-cfg="ancho" value="850" min="100" step="10" />
@@ -352,11 +433,14 @@ export function createConstructorView(store) {
           </div>
           <div class="cn-constructor__content-btns">
             <button class="btn btn--primary" data-action="add-module">+ Agregar módulo(s)</button>
+            <button class="btn btn--secondary" data-action="undo" ${canUndo() ? '' : 'disabled'} title="Deshacer última acción (Ctrl+Z)">↩ Deshacer</button>
+            <button class="btn btn--secondary" data-action="duplicate-all" ${pieces.length ? '' : 'disabled'}>Duplicar mueble</button>
             <button class="btn btn--secondary" data-action="export-current" ${pieces.length ? '' : 'disabled'}>Exportar CSV</button>
             <button class="btn btn--secondary" data-action="goto-view" data-view="isometric" ${pieces.length ? '' : 'disabled'}>Ver isométrica</button>
             <button class="btn btn--secondary" data-action="goto-view" data-view="renderer3d" ${pieces.length ? '' : 'disabled'}>Ver 3D</button>
             <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
           </div>
+          ${renderWarningsPanel(pieces)}
         </div>
       </div>
 
@@ -373,7 +457,7 @@ export function createConstructorView(store) {
         <div class="card__header"><h2 class="card__title">Versiones del diseño</h2></div>
         <div class="card__body">
           <div class="cn-constructor__version-form">
-            <input type="text" data-version-name placeholder="${escapeHtml(suggestedVersionName())}" maxlength="80" aria-label="Nombre de la versión" />
+            <input type="text" data-version-name placeholder="${escapeHtml(suggestedVersionName(getFurnitureName() || 'Closet'))}" maxlength="80" aria-label="Nombre de la versión" />
             <button class="btn btn--primary" data-action="save-version">Guardar versión</button>
             <button class="btn btn--secondary" data-action="save-cloud" title="Guardar tambien en la nube (requiere sesion)">☁ Nube</button>
             <button class="btn btn--secondary" data-action="refresh-cloud" title="Listar versiones de la nube">Actualizar nube</button>
@@ -387,6 +471,7 @@ export function createConstructorView(store) {
                   ${versions.map((v) => `
                     <tr>
                       <td>
+                        <button class="btn btn--icon btn--sm" data-action="pin-version" data-id="${escapeHtml(v.id)}" title="${v.pinned ? 'Desfijar (queda protegida de "Eliminar todas")' : 'Fijar versión'}">${v.pinned ? '📌' : '📍'}</button>
                         <span data-name>${escapeHtml(v.name)}</span>
                         <input type="text" class="is-hidden" data-rename-input value="${escapeHtml(v.name)}" maxlength="80" />
                       </td>
@@ -471,10 +556,11 @@ function renderModuleCard(group, allPieces) {
         <strong>${escapeHtml(group.label)}</strong>
         ${vanoInfo ? `<span class="badge ${vanoInfo.pct > 90 ? 'badge--danger' : vanoInfo.pct > 70 ? 'badge--warning' : 'badge--secondary'}">vano ${vanoInfo.usado}/${vanoInfo.util} mm (${vanoInfo.pct}%)</span>` : ''}
         <span class="cn-constructor__spacer"></span>
-        <label class="form-group" style="margin:0;">Vano cajón
-          <select data-alto-vano>
-            ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}" ${h === 200 ? 'selected' : ''}>${h} mm</option>`).join('')}
-          </select>
+        <label class="form-group" style="margin:0;" title="Altura del vano del cajón en mm (valor libre; las opciones son sugerencias)">Vano cajón (mm)
+          <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="200" min="50" max="600" step="10" />
+          <datalist id="cn-vanos-sugeridos">
+            ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}"></option>`).join('')}
+          </datalist>
         </label>
         <label class="form-group" style="margin:0;">Tipo
           <select data-tipo-cajon>
@@ -487,6 +573,7 @@ function renderModuleCard(group, allPieces) {
         <label class="form-group" style="margin:0;">Cuerpo
           <input type="color" data-color-cuerpo value="#c19a6b" />
         </label>
+        <button class="btn btn--secondary btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica">👁 Ver</button>
         <button class="btn btn--secondary btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}">Editar</button>
         <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="izq" title="Mover a la izquierda">◀</button>
         <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="der" title="Mover a la derecha">▶</button>
@@ -550,11 +637,51 @@ function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
   return { usado, util, pct };
 }
 
-function resumenMueble(pieces) {
+function resumenMueble(pieces, state = {}) {
   const modulos = countRootModules(pieces);
   if (!modulos) return 'Sin módulos';
   const ancho = anchoTotal(pieces);
-  return `${modulos} módulo(s) · ${pieces.length} piezas · ≈${ancho} mm ancho`;
+  const nombre = getFurnitureName();
+  const hardware = resumenHardware(state.hardware || []);
+  return `${nombre ? escapeHtml(nombre) + ' · ' : ''}${modulos} módulo(s) · ${pieces.length} piezas · ≈${ancho} mm${hardware ? ' · ' + hardware : ''}`;
+}
+
+// Cuenta herrajes clave del state.hardware (calculateHardware ya corre en
+// recalculateAll): correderas, tiradores, barras y bisagras.
+function resumenHardware(hardware) {
+  const pick = (re) => hardware.filter((h) => re.test(h.nombre)).reduce((n, h) => n + (h.cantidad || 0), 0);
+  const partes = [];
+  const correderas = pick(/corredera/i);
+  const tiradores = pick(/tirador/i);
+  const barras = pick(/barra|riel/i);
+  if (correderas) partes.push(`${correderas} correderas`);
+  if (tiradores) partes.push(`${tiradores} tiradores`);
+  if (barras) partes.push(`${barras} barras`);
+  return partes.join(', ');
+}
+
+// Panel de avisos del validador: re-parsea el mueble en silencio y muestra
+// los warnings (luz de repisas, cobertura de frentes) de forma persistente.
+function renderWarningsPanel(pieces) {
+  if (!pieces.length) return '';
+  let warnings = [];
+  try {
+    const result = parseCSV(piecesToCSV(pieces));
+    warnings = result.warnings || [];
+  } catch {
+    return '';
+  }
+  if (!warnings.length) {
+    return '<p class="cn-constructor__warnings cn-constructor__warnings--ok">✓ Sin avisos de diseño</p>';
+  }
+  const mostrados = warnings.slice(0, 4);
+  const extra = warnings.length > 4 ? `<li>… y ${warnings.length - 4} aviso(s) más</li>` : '';
+  return `
+    <div class="cn-constructor__warnings" role="status">
+      <strong>⚠ ${warnings.length} aviso(s) de diseño:</strong>
+      <ul>${mostrados.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}${extra}</ul>
+    </div>
+  `;
 }
 
 function anchoTotal(pieces) {

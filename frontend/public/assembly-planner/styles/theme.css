@@ -1072,3 +1072,24 @@ tbody.is-collapsed tr:not(.cn-group-header) {
 .cn-constructor__edit-form small {
   color: var(--text-secondary);
 }
+
+/* Panel de avisos de diseno del Constructor */
+.cn-constructor__warnings {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--warning, #fbbf24);
+  border-radius: var(--radius-sm);
+  background: rgba(251, 191, 36, 0.08);
+  font-size: 0.78rem;
+}
+
+.cn-constructor__warnings ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.cn-constructor__warnings--ok {
+  border-color: var(--success, #10b981);
+  background: rgba(16, 185, 129, 0.08);
+  margin-bottom: 0;
+}

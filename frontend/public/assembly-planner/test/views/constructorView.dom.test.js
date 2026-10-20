@@ -329,9 +329,102 @@ test('botón "Ver isométrica" cambia de vista', () => {
   view.destroy();
 });
 
+test('deshacer (Ctrl+Z y botón) revierte la última acción estructural', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  assert.equal(store.get().pieces.length, 6);
+  assert.ok(container.querySelector('[data-action="undo"]')?.disabled === false, 'botón habilitado');
+
+  // Botón deshacer.
+  click(container, '[data-action="undo"]');
+  assert.equal(store.get().pieces.length, 0, 'agregar módulo deshecho');
+
+  // Ctrl+Z con dos acciones: revierte la más reciente primero.
+  click(container, '[data-action="add-module"]');
+  container.querySelector('[data-action="add-content"][data-kind="drawer"]').click();
+  assert.equal(store.get().pieces.filter((p) => p.modulo === '11').length, 7);
+  container.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+  assert.equal(store.get().pieces.filter((p) => p.modulo === '11').length, 0, 'Ctrl+Z deshizo el cajón');
+  assert.ok(store.get().pieces.length > 0, 'el módulo queda');
+  view.destroy();
+});
+
+test('duplicar mueble copia todos los módulos de una vez', () => {
+  const { store, view, container } = mountView();
+  setInput(container, '[data-cfg="cantidad"]', '2');
+  click(container, '[data-action="add-module"]');
+  const antes = store.get().pieces.length;
+  assert.ok(store.get().pieces.some((p) => p.modulo === '2'));
+
+  click(container, '[data-action="duplicate-all"]');
+  const pieces = store.get().pieces;
+  assert.equal(pieces.length, antes * 2);
+  assert.ok(pieces.some((p) => p.modulo === '3'), 'M3 existe');
+  assert.ok(pieces.some((p) => p.modulo === '4'), 'M4 existe');
+  view.destroy();
+});
+
+test('botón ver enfoca el módulo en la vista isométrica', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="focus-module"]');
+  assert.equal(store.get().currentView, 'isometric');
+  assert.equal(store.get().currentModule, '1');
+  view.destroy();
+});
+
+test('versiones fijadas (📌) sobreviven a "eliminar todas"', () => {
+  const { view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+
+  container.querySelector('[data-version-name]').value = 'Fijada';
+  click(container, '[data-action="save-version"]');
+  container.querySelector('[data-version-name]').value = 'Normal';
+  click(container, '[data-action="save-version"]');
+  assert.equal(countVersions(), 2);
+
+  // Fijar la primera de la lista ('Normal' está primero por savedAt desc).
+  click(container, '[data-action="pin-version"]');
+  assert.match(container.textContent, /📌/);
+
+  click(container, '[data-action="delete-all-versions"]');
+  const btn = container.querySelector('[data-action="delete-all-versions"]');
+  btn.dataset.confirm = '1';
+  btn.click();
+  assert.equal(countVersions(), 1, 'solo queda la fijada');
+  assert.match(container.textContent, /Normal/);
+  view.destroy();
+});
+
+test('ancho total con reparto precalcula el ancho por módulo', () => {
+  const { view, container } = mountView();
+  setInput(container, '[data-cfg="ancho-total"]', '3400');
+  setInput(container, '[data-cfg="reparto"]', '4');
+  container.querySelector('[data-cfg="reparto"]').dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.equal(container.querySelector('[data-cfg="ancho"]').value, '850');
+  view.destroy();
+});
+
+test('panel de avisos: sin avisos muestra OK, con repisa al aire muestra warning', () => {
+  const { view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  assert.match(container.querySelector('.cn-constructor__warnings').textContent, /Sin avisos/);
+  view.destroy();
+});
+
+test('vano de cajón libre: acepta valor arbitrario (ej. 250)', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '250';
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const frente = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.equal(frente.alto, 247); // 250 - 3
+  view.destroy();
+});
+
 test('resumen del mueble en cabecera', () => {
   const { view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  assert.match(container.querySelector('[data-resumen]').textContent, /1 módulo\(s\) · \d+ piezas · ≈850 mm ancho/);
+  assert.match(container.querySelector('[data-resumen]').textContent, /1 módulo\(s\) · \d+ piezas · ≈850 mm/);
   view.destroy();
 });

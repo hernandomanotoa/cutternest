@@ -198,10 +198,14 @@ export function recalculateAll() {
 export function updateSummary() {
   const state = getStore().get();
   const activePieces = getActivePieces(state);
-  $('#summary-module').textContent = getModuleLabel(state.currentModule, state.pieces);
-  $('#summary-pieces').textContent = activePieces.length;
-  $('#summary-steps').textContent = state.steps.length;
-  $('#summary-alerts').textContent = state.alerts.length;
+  const summaryModule = $('#summary-module');
+  if (summaryModule) summaryModule.textContent = getModuleLabel(state.currentModule, state.pieces);
+  const summaryPieces = $('#summary-pieces');
+  if (summaryPieces) summaryPieces.textContent = activePieces.length;
+  const summarySteps = $('#summary-steps');
+  if (summarySteps) summarySteps.textContent = state.steps.length;
+  const summaryAlerts = $('#summary-alerts');
+  if (summaryAlerts) summaryAlerts.textContent = state.alerts.length;
   const graphStatus = $('#summary-graph');
   if (graphStatus) {
     graphStatus.textContent = state.cycle ? 'Ciclo' : state.pieces.length ? 'Válido' : 'Vacío';
@@ -209,6 +213,7 @@ export function updateSummary() {
   }
 
   const hardwareList = $('#hardware-list');
+  if (!hardwareList) return;
   if (state.hardware.length === 0) {
     hardwareList.innerHTML = '<p class="empty-state">Importa un CSV para ver la lista.</p>';
     return;
@@ -343,6 +348,78 @@ export function addEmptyPiece() {
 
 // ── Constructor de closets (closetBuilderService) ─────────────────
 
+// Pila de deshacer: snapshots de {pieces, dependencies, currentModule}
+// tomados ANTES de cada accion estructural del Constructor. Limite acotado
+// (memoria) y sin duplicados consecutivos (misma referencia de pieces).
+const UNDO_LIMIT = 25;
+const undoStack = [];
+let undoRestoring = false;
+
+function snapshotUndo(label) {
+  if (undoRestoring) return;
+  const state = getStore().get();
+  const last = undoStack[undoStack.length - 1];
+  if (last && last.pieces === state.pieces) return;
+  undoStack.push({
+    label,
+    pieces: state.pieces,
+    dependencies: state.dependencies,
+    currentModule: state.currentModule,
+  });
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+}
+
+// Deshace la ultima accion estructural. Devuelve { ok, label? }.
+export function undoLast() {
+  const snap = undoStack.pop();
+  if (!snap) return { ok: false, error: 'No hay nada que deshacer' };
+  undoRestoring = true;
+  getStore().set({
+    pieces: snap.pieces,
+    dependencies: snap.dependencies,
+    currentModule: snap.currentModule,
+    currentStep: 0,
+  });
+  recalculateAll();
+  undoRestoring = false;
+  return { ok: true, label: snap.label };
+}
+
+export function canUndo() {
+  return undoStack.length > 0;
+}
+
+// Enfoca un modulo concreto en la vista isometrica/3D (boton "ver" del
+// Constructor): fija currentModule y cambia de pestana.
+export function focusModule(moduleId) {
+  const store = getStore();
+  store.set({ currentModule: String(moduleId) });
+  recalculateAll();
+  switchTab('isometric');
+  return { ok: true };
+}
+
+// Duplica TODOS los modulos del mueble (con su contenido) de una vez.
+export function duplicateAllModules() {
+  const store = getStore();
+  const state = store.get();
+  const roots = [...rootModuleIds(state.pieces)].sort((a, b) => Number(a) - Number(b));
+  if (!roots.length) return { ok: false, errors: ['No hay modulos que duplicar'] };
+  snapshotUndo('Duplicar mueble');
+  let pieces = state.pieces;
+  const nuevosIds = [];
+  for (const r of roots) {
+    const newId = nextModuleId(pieces);
+    const copias = duplicateModulePieces(pieces, r, newId);
+    if (!copias.length) return { ok: false, errors: [`El modulo ${r} no existe`] };
+    pieces = [...pieces, ...copias];
+    nuevosIds.push(newId);
+  }
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  recalculateAll();
+  return { ok: true, count: roots.length, moduleIds: nuevosIds };
+}
+
 // Preset aplicado en memoria a los muebles creados en el Constructor: los
 // mismos valores versionados en GAP_PRESETS para el closet abierto modular
 // (fuente unica; si se editan alli, el constructor los hereda). No se
@@ -371,6 +448,7 @@ function validatePiecesQuiet(pieces) {
 // alturaZocalo?, cantidad? }. Con zocalo la base se genera INTERNA para
 // apoyarse sobre el (modelo zocalo-cajon). Devuelve { ok, moduleIds? }.
 export function addModuleFromBuilder(config) {
+  snapshotUndo("Agregar modulo");
   const store = getStore();
   const state = store.get();
   const cantidad = Math.max(1, Math.min(12, Number(config.cantidad) || 1));
@@ -438,6 +516,7 @@ function moduleDims(modPieces, moduleId) {
 // opts.tipo 'corredera'|'volquete'; opts.colorFrente para cajones/zapateras;
 // opts.alturaZocalo para zocalo (default 150).
 export function addContentToModule(moduleId, kind, opts = {}) {
+  snapshotUndo("Agregar contenido");
   const store = getStore();
   const state = store.get();
   const modPieces = state.pieces.filter((p) => String(p.modulo) === String(moduleId));
@@ -510,6 +589,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
 
 // Duplica un modulo (casco + contenido + submodulos) con id nuevo.
 export function duplicateModule(moduleId) {
+  snapshotUndo("Duplicar modulo");
   const store = getStore();
   const state = store.get();
   const newId = nextModuleId(state.pieces);
@@ -523,6 +603,7 @@ export function duplicateModule(moduleId) {
 
 // Recolorea el casco de un modulo (base/tapa/laterales/zocalo).
 export function recolorModule(moduleId, color) {
+  snapshotUndo("Recolorear modulo");
   const store = getStore();
   const state = store.get();
   if (!/^#[0-9A-Fa-f]{6}$/.test(String(color || ''))) {
@@ -547,6 +628,7 @@ export function recolorModule(moduleId, color) {
 // 'm1-barra-alta-1' para una barra). Quita TODAS las piezas del grupo
 // (caja completa, refuerzo incluido).
 export function removeContentPiece(refId) {
+  snapshotUndo("Eliminar contenido");
   const store = getStore();
   const state = store.get();
   const ref = String(refId);
@@ -574,6 +656,7 @@ export function removeContentPiece(refId) {
 // (cambia ids/submodulos de piezas y dependencias), asi que se implementa
 // como intercambio de numeros de modulo entre los dos afectados.
 export function moveModule(moduleId, direction) {
+  snapshotUndo("Reordenar modulo");
   const store = getStore();
   const state = store.get();
   const roots = [...rootModuleIds(state.pieces)].sort((a, b) => Number(a) - Number(b));
@@ -626,6 +709,7 @@ function renameModulePrefix(pieces, oldId, newId) {
 //    (los ids se mantienen: mismo modulo + mismo indice).
 // Si algun cajon no cabe en el nuevo ancho, la operacion aborta sin cambios.
 export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
+  snapshotUndo("Editar dimensiones");
   const store = getStore();
   const state = store.get();
   const dims = { ancho: Number(ancho), alto: Number(alto), prof: Number(prof) };
@@ -729,6 +813,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
 
 // Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.
 export function clearAllPieces() {
+  snapshotUndo("Nuevo mueble");
   const store = getStore();
   store.set({ pieces: [], dependencies: [], warnings: [], currentModule: 'global', currentStep: 0 });
   recalculateAll();
@@ -738,6 +823,7 @@ export function clearAllPieces() {
 // Elimina un modulo: quita las piezas cuyo modulo raiz coincide (incluye
 // submodulos tipo '11' al borrar '1').
 export function removeModule(moduleId) {
+  snapshotUndo("Eliminar modulo");
   const store = getStore();
   const state = store.get();
   const id = String(moduleId);
