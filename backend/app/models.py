@@ -326,3 +326,23 @@ class AssemblyState(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     project = relationship("Project")
+
+
+class PlannerDesignVersion(Base):
+    """Version de diseno del Assembly Planner (CSV del mueble completo).
+
+    Persiste las versiones del Constructor en el servidor (ademas del
+    localStorage del navegador): sobreviven limpieza de cache y se
+    comparten entre dispositivos del mismo usuario.
+    """
+
+    __tablename__ = "planner_design_versions"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    user_id = Column(VARCHAR(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(80), nullable=False)
+    csv = Column(Text, nullable=False)
+    piece_count = Column(Integer, nullable=False, default=0)
+    saved_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    owner = relationship("User")

@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.limiter import limiter
 from app.models import BackupCode, Base
-from app.routers import assembly_planner, auth, catalog, optimizer, inventory, offcuts, projects, quotes, templates
+from app.routers import assembly_planner, auth, catalog, optimizer, inventory, offcuts, planner_design_versions, projects, quotes, templates
 
 settings = get_settings()
 
@@ -227,4 +227,5 @@ app.include_router(projects.router, prefix='/api/v1/projects', tags=['projects']
 app.include_router(quotes.router, prefix='/api/v1/quotes', tags=['quotes'])
 app.include_router(templates.router, prefix='/api/v1/templates', tags=['templates'])
 app.include_router(assembly_planner.router, prefix='/api/v1/assembly-planner', tags=['assembly-planner'])
+app.include_router(planner_design_versions.router, prefix='/api/v1/planner-design-versions', tags=['planner-design-versions'])
 app.mount('/exports', StaticFiles(directory='/app/data/exports'), name='exports')
