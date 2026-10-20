@@ -154,6 +154,50 @@ test('orden de agregado intercalado: cajón→zapatera→cajón→zapatera = sub
   view.destroy();
 });
 
+test('editar dimensiones reajusta casco Y contenido interior al nuevo vano', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // Fijar el vano explicitamente (happy-dom no aplica el atributo selected).
+  container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '200';
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  const totalAntes = store.get().pieces.length;
+
+  click(container, '[data-action="edit-module"]');
+  const scoped = '[data-module-scoped="1"]';
+  container.querySelector(`${scoped} [data-edit-ancho]`).value = '700';
+  container.querySelector(`${scoped} [data-edit-prof]`).value = '500';
+  click(container, '[data-action="apply-edit-module"]');
+
+  const pieces = store.get().pieces;
+  assert.equal(pieces.length, totalAntes, 'misma cantidad de piezas (regeneración 1:1)');
+  // Casco: tapa externa al nuevo ancho, base/zocalo internos.
+  assert.equal(pieces.find((p) => p.id === 'm1-tapa').ancho, 700);
+  assert.equal(pieces.find((p) => p.id === 'm1-zocalo').ancho, 670); // 700 - 2*15
+  // Contenido adaptado al nuevo vano util (670).
+  const frente = pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.equal(frente.ancho, 668); // W(670) - 2
+  assert.equal(frente.alto, 197, 'alto de vano conservado');
+  const repisa = pieces.find((p) => p.id === 'm1-repisa-1');
+  assert.equal(repisa.ancho, 670);
+  assert.equal(repisa.alto, 470, 'profundidad util 500 - 2*15');
+  view.destroy();
+});
+
+test('editar a ancho donde el cajon no cabe aborta sin cambios', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const anchoAntes = store.get().pieces.find((p) => p.id === 'm1-tapa').ancho;
+
+  click(container, '[data-action="edit-module"]');
+  container.querySelector('[data-module-scoped="1"] [data-edit-ancho]').value = '80'; // vano 50 < min
+  click(container, '[data-action="apply-edit-module"]');
+
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-tapa').ancho, anchoAntes, 'sin cambios tras abort');
+  view.destroy();
+});
+
 test('doble barra crea 2 barras ancladas con pos_z', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');

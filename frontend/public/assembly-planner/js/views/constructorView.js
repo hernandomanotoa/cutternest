@@ -526,7 +526,7 @@ function renderEditForm(moduleId, piezas) {
         <input type="number" data-edit-prof value="${Number(tapa.alto)}" min="100" step="10" />
       </label>
       <button class="btn btn--primary btn--sm" data-action="apply-edit-module" data-module="${escapeHtml(moduleId)}">Aplicar</button>
-      <small>Se redimensiona solo el casco; el contenido se conserva.</small>
+      <small>Casco y contenido interior (cajones, repisas, barras) se adaptan al nuevo vano.</small>
     </div>
   `;
 }

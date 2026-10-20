@@ -618,8 +618,13 @@ function renameModulePrefix(pieces, oldId, newId) {
   });
 }
 
-// Edita las dimensiones del casco de un modulo existente. Solo el casco
-// (base/tapa/laterales/fondo); el contenido agregado se conserva tal cual.
+// Edita las dimensiones del casco de un modulo existente Y reajusta el
+// contenido interior al nuevo vano:
+//  - Repisas/refuerzos/barras/zocalo: nuevo ancho util (ancho - 2E).
+//  - Cajones/zapateras: se REGENERAN con addDrawer() usando el nuevo ancho/
+//    profundidad del modulo, conservando su alto de vano, colores y tipo
+//    (los ids se mantienen: mismo modulo + mismo indice).
+// Si algun cajon no cabe en el nuevo ancho, la operacion aborta sin cambios.
 export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   const store = getStore();
   const state = store.get();
@@ -630,21 +635,93 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   const tapa = state.pieces.find((p) => p.id === `m${moduleId}-tapa`);
   if (!tapa) return { ok: false, errors: [`El modulo ${moduleId} no tiene casco`] };
   const espesor = Number(tapa.espesor) || 15;
+  const anchoUtil = dims.ancho - 2 * espesor;
+  const profUtil = dims.prof - 2 * espesor;
+  if (anchoUtil < 50 || profUtil < 50) {
+    return { ok: false, errors: [`Vano interior demasiado pequeño (${anchoUtil}×${profUtil} mm) para ${dims.ancho}×${dims.prof} con espesor ${espesor}`] };
+  }
   const baseEsInterna = state.pieces.some((p) => p.id === `m${moduleId}-zocalo`)
     && state.pieces.find((p) => p.id === `m${moduleId}-base`)?.ancho < tapa.ancho;
+
+  // 1. Detectar los grupos de cajon/zapatera del modulo y pre-validar que
+  //    caben en el nuevo ancho ANTES de mutar nada.
+  const grupos = [];
+  const frenteRe = new RegExp(`^m${moduleId}(cajon|zapatera)(\\d+)-frente$`);
+  for (const p of state.pieces) {
+    const m = String(p.id).match(frenteRe);
+    if (!m) continue;
+    const idp = m[1];
+    const idx = Number(m[2]);
+    const prefijo = `m${moduleId}${idp}${idx}`;
+    const frente = p;
+    const lateral = state.pieces.find((x) => x.id === `${prefijo}-lateral-izq`);
+    const tieneCara = state.pieces.some((x) => x.id === `${prefijo}-cara`);
+    const regenerado = addDrawer(moduleId, idx, {
+      anchoModulo: dims.ancho,
+      profundidadModulo: dims.prof,
+      altoVano: (Number(frente.alto) || 200) + 3, // frente.alto = vano - 3
+      tipo: tieneCara ? 'corredera' : 'volquete',
+      vocabulario: idp === 'zapatera' ? 'zapatera' : 'cajon',
+      colorFrente: frente.color || '#8B5A2B',
+      colorLateral: lateral?.color || '#D9C2A3',
+    });
+    if (!regenerado.ok) {
+      return { ok: false, errors: [`${frente.nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
+    }
+    grupos.push({ prefijo, piezasNuevas: regenerado.pieces });
+  }
+
+  // 2. Casco redimensionado.
   const cascoIds = {
-    base: [`m${moduleId}-base`, baseEsInterna ? dims.ancho - 2 * espesor : dims.ancho, baseEsInterna ? dims.prof - 2 * espesor : dims.prof],
+    base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? profUtil : dims.prof],
     tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
     'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
     'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],
-    fondo: [`m${moduleId}-fondo`, dims.ancho - 2 * espesor, dims.alto - 2 * espesor],
+    fondo: [`m${moduleId}-fondo`, anchoUtil, dims.alto - 2 * espesor],
   };
-  const pieces = state.pieces.map((p) => {
-    for (const [, [id, w, h]] of Object.entries(cascoIds)) {
-      if (p.id === id) return { ...p, ancho: w, alto: h };
+
+  // 3. Aplicar: casco + contenido interior adaptado.
+  const reemplazos = new Map(); // id -> pieza nueva (cajones regenerados)
+  for (const g of grupos) for (const np of g.piezasNuevas) reemplazos.set(np.id, np);
+  const idsGrupoViejo = new Set();
+  for (const g of grupos) {
+    for (const p of state.pieces) {
+      if (String(p.id).startsWith(g.prefijo)) idsGrupoViejo.add(p.id);
     }
-    return p;
-  });
+  }
+
+  const prefRepisa = `m${moduleId}-repisa-`;
+  const prefRefuerzo = `m${moduleId}-refuerzo-repisa-`;
+  const prefBarra = `m${moduleId}-barra-`;
+  const pieces = [];
+  for (const p of state.pieces) {
+    const id = String(p.id);
+    // 1) Pieza regenerada (cajon/zapatera): entra SU reemplazo. El chequeo
+    //    va ANTES que idsGrupoViejo porque comparten id con la vieja.
+    if (reemplazos.has(id)) { pieces.push(reemplazos.get(id)); continue; }
+    // 2) Pieza vieja de un grupo regenerado: se descarta (ya entró arriba).
+    if (idsGrupoViejo.has(id)) continue;
+    // Casco.
+    let cascoMatch = null;
+    for (const [, [cid, w, h]] of Object.entries(cascoIds)) {
+      if (id === cid) cascoMatch = [w, h];
+    }
+    if (cascoMatch) { pieces.push({ ...p, ancho: cascoMatch[0], alto: cascoMatch[1] }); continue; }
+    // Repisas/refuerzos: ancho util (la repisa mide prof en su campo alto).
+    if (id.startsWith(prefRepisa)) { pieces.push({ ...p, ancho: anchoUtil, alto: profUtil }); continue; }
+    if (id.startsWith(prefRefuerzo)) { pieces.push({ ...p, ancho: anchoUtil }); continue; }
+    // Barras: ancho util.
+    if (id.startsWith(prefBarra)) { pieces.push({ ...p, ancho: anchoUtil }); continue; }
+    // Zocalo: ancho util.
+    if (id === `m${moduleId}-zocalo`) { pieces.push({ ...p, ancho: anchoUtil }); continue; }
+    pieces.push(p);
+  }
+  // Las piezas regeneradas cuyo id no existia antes (volquete sin cara, etc.)
+  for (const g of grupos) {
+    for (const np of g.piezasNuevas) {
+      if (!state.pieces.some((p) => p.id === np.id)) pieces.push(np);
+    }
+  }
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
   return { ok: true };
