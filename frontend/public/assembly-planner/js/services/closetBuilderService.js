@@ -362,9 +362,14 @@ export function buildCloset(config) {
   let autoId = 1;
   modules.forEach((mod, i) => {
     const moduleId = String(mod.moduleId ?? autoId++);
+    // Con zocalo en el contenido, la base debe ser INTERNA (apoyada sobre
+    // el) igual que addModuleFromBuilder(conZocalo); si no, la base externa
+    // quedaria a nivel del suelo pisando el plinth.
+    const conZocalo = (mod.contenido || []).some((item) => item.kind === 'zocalo');
     const casco = createModule({
       ancho: mod.ancho, alto: mod.alto, prof: mod.prof,
       espesor: mod.espesor ?? 15, colorCuerpo: mod.colorCuerpo ?? '#C19A6B', modulo: moduleId,
+      baseInterna: conZocalo,
     });
     if (!casco.ok) {
       errors.push(...casco.errors.map((e) => `modulo ${i + 1}: ${e}`));

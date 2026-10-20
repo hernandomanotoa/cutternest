@@ -324,6 +324,7 @@ export function loadCSV(text, preset = null) {
     setStatus(`Errores: ${result.errors.slice(0, 3).join('; ')}`, 'alert--danger');
     return;
   }
+  snapshotUndo('Cargar CSV');
   setActivePreset(preset || {});
   getStore().set({ userConfig: loadUserConfig() });
   getStore().set({
@@ -867,6 +868,7 @@ export function saveCurrentVersion(name) {
 export function loadVersionById(id) {
   const result = loadVersion(id);
   if (!result.ok) return result;
+  snapshotUndo('Cargar version');
   setActivePreset(CONSTRUCTOR_PRESET);
   getStore().set({
     userConfig: loadUserConfig(),
@@ -932,6 +934,7 @@ export async function saveCurrentVersionToCloud(name) {
 export async function loadCloudVersionById(id) {
   const r = await getCloudVersion(id);
   if (!r.ok) return r;
+  snapshotUndo('Cargar version de nube');
   const result = parseCSV(r.csv);
   if (!result.ok) return { ok: false, error: 'CSV corrupto en la version de nube' };
   setActivePreset(CONSTRUCTOR_PRESET);
