@@ -133,14 +133,14 @@ export function createIsometricView(store) {
         <div class="card__header">
           <h2 class="card__title">Vista isométrica 3D — ${getModuleLabel(targetModule, state.pieces)}</h2>
           <div class="isometric-controls flex gap-1 flex-wrap">
-            <button id="btn-iso-zoom-in" class="btn btn--secondary btn--sm">Zoom +</button>
-            <button id="btn-iso-zoom-out" class="btn btn--secondary btn--sm">Zoom −</button>
-            <button id="btn-iso-reset" class="btn btn--secondary btn--sm">Reset</button>
-            <button id="btn-iso-explode" class="btn btn--secondary btn--sm">Explodida</button>
-            <button id="btn-iso-flip" class="btn btn--secondary btn--sm">↔ Invertir perspectiva</button>
+            <button id="btn-iso-zoom-in" class="btn btn--secondary btn--sm" title="Acercar la vista isométrica" aria-label="Acercar la vista isométrica">Zoom +</button>
+            <button id="btn-iso-zoom-out" class="btn btn--secondary btn--sm" title="Alejar la vista isométrica" aria-label="Alejar la vista isométrica">Zoom −</button>
+            <button id="btn-iso-reset" class="btn btn--secondary btn--sm" title="Restablecer zoom, perspectiva y aperturas" aria-label="Restablecer zoom, perspectiva y aperturas">Reset</button>
+            <button id="btn-iso-explode" class="btn btn--secondary btn--sm" title="Separar las piezas para ver el interior (vista explodida)" aria-label="Separar las piezas para ver el interior (vista explodida)">Explodida</button>
+            <button id="btn-iso-flip" class="btn btn--secondary btn--sm" title="Invertir la perspectiva (ver el otro lateral)" aria-label="Invertir la perspectiva (ver el otro lateral)">↔ Invertir perspectiva</button>
             ${aperturaControls.html({ aperturaGlobal: state.aperturaGlobal, pieces, selectedPieceId })}
-            <button id="btn-iso-export" class="btn btn--primary btn--sm">Exportar SVG</button>
-            <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
+            <button id="btn-iso-export" class="btn btn--primary btn--sm" title="Descargar el dibujo isométrico como archivo SVG" aria-label="Descargar el dibujo isométrico como archivo SVG">Exportar SVG</button>
+            <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm" title="Ver la vista isométrica en pantalla completa" aria-label="Ver la vista isométrica en pantalla completa">⛶ Pantalla completa</button>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
           </div>
         </div>

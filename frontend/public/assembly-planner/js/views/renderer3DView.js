@@ -293,8 +293,11 @@ export function createRenderer3DView(store) {
           <div id="r3d-collision-msg" style="display:none;position:absolute;top:0.9rem;left:0.9rem;z-index:5;background:${COLORS.strokeDanger}1a;border:1px solid ${COLORS.strokeDanger};border-radius:6px;padding:0.4rem 0.7rem;font-size:0.78rem;color:${COLORS.strokeDanger};max-width:70%;"></div>
           <div style="display:flex;gap:0.75rem;height:100%;min-height:400px;padding:0.75rem;">
             <div id="r3d-canvas" class="r3d-canvas" role="img" aria-label="Vista 3D orbital del módulo ${escapeHtml(getModuleLabel(targetModule, state.pieces))}" style="flex:1;min-width:0;height:100%;background:${COLORS.background};border-radius:6px;overflow:hidden;"></div>
-            <aside id="r3d-bom" style="width:240px;flex-shrink:0;overflow-y:auto;background:var(--surface,${RENDERER3D_THEME.surface});border:1px solid var(--border,${RENDERER3D_THEME.border});border-radius:6px;padding:0.5rem;">
-              <h3 style="margin:0 0 0.5rem;font-size:0.8rem;color:${RENDERER3D_THEME.textSecondary};text-transform:uppercase;">Piezas (${pieces.length})</h3>
+            <aside id="r3d-bom" class="r3d-bom" style="width:240px;flex-shrink:0;overflow-y:auto;background:var(--surface,${RENDERER3D_THEME.surface});border:1px solid var(--border,${RENDERER3D_THEME.border});border-radius:6px;padding:0.5rem;">
+              <h3 style="margin:0 0 0.5rem;font-size:0.8rem;color:${RENDERER3D_THEME.textSecondary};text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;gap:0.4rem;">
+                <span>Piezas (${pieces.length})</span>
+                <button type="button" id="r3d-bom-toggle" class="btn btn--secondary btn--sm" title="Ocultar/mostrar la lista de piezas" aria-label="Ocultar o mostrar la lista de piezas" style="padding:0.1rem 0.4rem;">◀</button>
+              </h3>
               <ul style="list-style:none;margin:0;padding:0;">
                 ${pieces.map((p) => `
                   <li data-piece-id="${escapeHtml(p.id)}" class="r3d-bom__row"
@@ -397,7 +400,26 @@ export function createRenderer3DView(store) {
       });
       resizeObserver.observe(canvas);
     }
-    container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
+        // BOM colapsable: libera 240px de lienzo cuando la lista no se usa.
+    // Estado persistido en localStorage (cn-assembly-r3d-bom).
+    const bomToggle = container.querySelector('#r3d-bom-toggle');
+    const bom = container.querySelector('#r3d-bom');
+    if (bomToggle && bom) {
+      let bomVisible = true;
+      try { bomVisible = localStorage.getItem('cn-assembly-r3d-bom') !== '0'; } catch { /* default visible */ }
+      const aplicarBom = () => {
+        bom.style.display = bomVisible ? '' : 'none';
+        bomToggle.textContent = bomVisible ? '◀' : '▶';
+        bomToggle.title = bomVisible ? 'Ocultar la lista de piezas' : 'Mostrar la lista de piezas';
+      };
+      aplicarBom();
+      bomToggle.addEventListener('click', () => {
+        bomVisible = !bomVisible;
+        try { localStorage.setItem('cn-assembly-r3d-bom', bomVisible ? '1' : '0'); } catch { /* noop */ }
+        aplicarBom();
+      });
+    }
+container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));

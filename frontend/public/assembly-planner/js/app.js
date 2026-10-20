@@ -1235,6 +1235,25 @@ function init() {
     recalculateAll();
   });
 
+  // Buscador del catálogo: filtra las opciones del selector de ejemplos por
+  // texto (nombre visible y valor), ocultando los optgroups vacíos.
+  $('#example-filter')?.addEventListener('input', (e) => {
+    const term = String(e.target.value || '').trim().toLowerCase();
+    const select = $('#example-selector');
+    if (!select) return;
+    select.querySelectorAll('optgroup').forEach((group) => {
+      let visibles = 0;
+      group.querySelectorAll('option').forEach((opt) => {
+        const match = !term
+          || opt.textContent.toLowerCase().includes(term)
+          || String(opt.value).toLowerCase().includes(term);
+        opt.hidden = !match;
+        if (match) visibles += 1;
+      });
+      group.hidden = visibles === 0;
+    });
+  });
+
   $('#btn-load-example')?.addEventListener('click', () => {
     const select = $('#example-selector');
     const path = select?.value;

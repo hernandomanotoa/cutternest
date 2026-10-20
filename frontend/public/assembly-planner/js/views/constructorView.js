@@ -186,6 +186,12 @@ export function createConstructorView(store) {
       e.preventDefault();
       doUndo();
     }
+    // Ctrl/Cmd+S: atajo universal de guardar -> guarda version (con nombre
+    // sugerido si el input esta vacio). Bloquea el dialogo del navegador.
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveVersionFromInput();
+    }
   }
 
   function doUndo() {
@@ -194,27 +200,43 @@ export function createConstructorView(store) {
     else toast(r.error, { type: 'info' });
   }
 
-  function saveVersionFromInput(alsoCloud = false) {
-    const name = container.querySelector('[data-version-name]')?.value?.trim();
+  function saveVersionFromInput(alsoCloud = false, cloudBtn = null) {
+    // Con input vacio (p. ej. Ctrl+S directo) usa el nombre sugerido.
+    const name = container.querySelector('[data-version-name]')?.value?.trim()
+      || suggestedVersionName(getFurnitureName() || 'Closet');
     const r = saveCurrentVersion(name);
     if (r.ok) {
       toast(`Versión "${r.version.name}" guardada`, { type: 'success' });
       refresh();
-      if (alsoCloud) saveCurrentVersionCloud(name);
+      if (alsoCloud) saveCurrentVersionCloud(name, cloudBtn);
     } else {
       toast(r.error || 'No se pudo guardar', { type: 'error' });
     }
   }
 
-  async function saveCurrentVersionCloud(name) {
-    const r = await saveCurrentVersionToCloud(name);
-    if (r.ok) {
-      toast(`Versión "${r.version.name}" subida a la nube`, { type: 'success' });
-      refreshCloud();
-    } else if (r.auth) {
-      toast(`Nube: ${r.error}. Iniciá sesión para sincronizar.`, { type: 'info', durationMs: 6000 });
-    } else {
-      toast(`Nube: ${r.error}`, { type: 'error' });
+  async function saveCurrentVersionCloud(name, btn = null) {
+    // Estado de progreso: el boton se deshabilita y avisa mientras dura el
+    // fetch (antes no habia indicador y parecia que no pasaba nada).
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.labelOriginal = btn.textContent;
+      btn.textContent = '☁ Subiendo…';
+    }
+    try {
+      const r = await saveCurrentVersionToCloud(name);
+      if (r.ok) {
+        toast(`Versión "${r.version.name}" subida a la nube`, { type: 'success' });
+        refreshCloud();
+      } else if (r.auth) {
+        toast(`Nube: ${r.error}. Iniciá sesión para sincronizar.`, { type: 'info', durationMs: 6000 });
+      } else {
+        toast(`Nube: ${r.error}`, { type: 'error' });
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.labelOriginal || '☁ Nube';
+      }
     }
   }
 
@@ -338,7 +360,7 @@ export function createConstructorView(store) {
     } else if (action === 'save-version') {
       saveVersionFromInput();
     } else if (action === 'save-cloud') {
-      saveVersionFromInput(true);
+      saveVersionFromInput(true, btn);
     } else if (action === 'refresh-cloud') {
       refreshCloud();
     } else if (action === 'load-cloud') {
