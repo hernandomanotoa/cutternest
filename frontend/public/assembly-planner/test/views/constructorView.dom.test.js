@@ -650,3 +650,47 @@ test('editar altura desde el chip: ✎ abre input inline y aplica al grupo', () 
   assert.equal(store.get().pieces.find((p) => p.id === 'm1-repisa-1').pos_z, 900, 'fuera de rango no aplica');
   view.destroy();
 });
+
+test('reordenar contenido: chips ◀ ▶ intercambian el apilado y renombran repisas', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+
+  const pos = (id) => store.get().pieces.find((p) => p.id === id).pos_z;
+  const nombre = (id) => store.get().pieces.find((p) => p.id === id).nombre;
+  assert.ok(pos('m1-repisa-2') > pos('m1-repisa-1'), 'repisa2 arriba de repisa1');
+  assert.equal(nombre('m1-repisa-2'), 'Repisa superior M1', 'la mas alta es superior');
+
+  // Subir la repisa 1: intercambia con la repisa 2.
+  container.querySelector('[data-action="move-content"][data-dir="up"][data-ref="m1-repisa-1"]').click();
+  assert.ok(pos('m1-repisa-1') > pos('m1-repisa-2'), 'repisa1 ahora arriba');
+  assert.equal(nombre('m1-repisa-1'), 'Repisa superior M1', 'renombrada a superior');
+  assert.equal(nombre('m1-repisa-2'), 'Repisa 1 M1', 'la otra renumerada');
+
+  // Bajar el cajon: intercambia con su vecina inferior (repisa 1, la del
+  // medio del apilado: repisa2 < cajon < repisa1 tras el primer swap).
+  container.querySelector('[data-action="move-content"][data-dir="down"][data-ref="m1cajon1-frente"]').click();
+  assert.ok(pos('m1cajon1-frente') < pos('m1-repisa-1'), 'cajon quedo debajo de la repisa 1');
+  assert.ok(pos('m1cajon1-frente') > pos('m1-repisa-2'), 'cajon quedo arriba de la repisa 2');
+
+  // El refuerzo sigue a su repisa tras reordenar.
+  const rep = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
+  const ref = store.get().pieces.find((p) => p.id === 'm1-refuerzo-repisa-1');
+  assert.equal(ref.pos_z, rep.pos_z, 'refuerzo solidario al reordenar');
+  view.destroy();
+});
+
+test('reordenar modulos (◀ ▶) sigue funcionando tras los cambios', () => {
+  const { store, view, container } = mountView();
+  setInput(container, '[data-cfg="cantidad"]', '2');
+  click(container, '[data-action="add-module"]');
+  assert.ok(store.get().pieces.some((p) => p.modulo === '2'));
+  // Mover M2 a la izquierda: intercambia numeracion con M1.
+  container.querySelector('[data-action="move-module"][data-module="2"][data-dir="izq"]').click();
+  const mods = [...new Set(store.get().pieces.filter((p) => /^\d+$/.test(String(p.modulo))).map((p) => String(p.modulo)))].sort();
+  assert.deepEqual(mods, ['1', '2'], 'siguen dos modulos');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1-tapa'), 'ids renumerados coherentes');
+  view.destroy();
+});

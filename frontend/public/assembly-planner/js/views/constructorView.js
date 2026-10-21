@@ -35,6 +35,7 @@ import {
   undoLast,
   canUndo,
   updateContentPosZ,
+  moveContent,
   duplicateAllModules,
   focusModule,
 } from '../app.js';
@@ -312,6 +313,9 @@ export function createConstructorView(store) {
       const r = duplicateModule(btn.dataset.module);
       if (r.ok) toast(`Módulo duplicado como ${r.moduleId}`, { type: 'success' });
       else toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'move-content') {
+      const r = moveContent(btn.dataset.ref, btn.dataset.dir);
+      if (!r.ok) toast(r.errors.join('; '), { type: 'info' });
     } else if (action === 'edit-posz') {
       // Edicion inline de la altura: el label del chip se convierte en un
       // input numerico con el pos_z actual. Enter/blur confirma, Escape
@@ -621,7 +625,10 @@ function renderContentList(moduleId, allPieces) {
         <span class="cn-chip cn-chip--${i.kind}" role="listitem" title="${escapeHtml(i.label)}${altura}">
           <span class="cn-chip__icon" aria-hidden="true">${CONTENT_ICON[i.kind] || '·'}</span>
           <span class="cn-chip__label"${Number.isFinite(piece?.pos_z) ? ` data-posz="${Math.round(piece.pos_z)}"` : ''}>${escapeHtml(nombreCorto(i.label))}</span>
-          ${i.kind === 'zocalo' ? '' : `<button class="cn-chip__edit" data-action="edit-posz" data-ref="${escapeHtml(i.refId)}" title="Cambiar altura (pos_z) de ${escapeHtml(i.label)}" aria-label="Cambiar altura de ${escapeHtml(i.label)}">✎</button>`}
+          ${i.kind === 'zocalo' ? '' : `
+            <button class="cn-chip__move" data-action="move-content" data-dir="down" data-ref="${escapeHtml(i.refId)}" title="Bajar en el apilado (queda antes / mas abajo)" aria-label="Bajar ${escapeHtml(i.label)}">◀</button>
+            <button class="cn-chip__move" data-action="move-content" data-dir="up" data-ref="${escapeHtml(i.refId)}" title="Subir en el apilado (queda despues / mas arriba)" aria-label="Subir ${escapeHtml(i.label)}">▶</button>
+            <button class="cn-chip__edit" data-action="edit-posz" data-ref="${escapeHtml(i.refId)}" title="Cambiar altura (pos_z) de ${escapeHtml(i.label)}" aria-label="Cambiar altura de ${escapeHtml(i.label)}">✎</button>`}
           <button class="cn-chip__remove" data-action="remove-content" data-ref="${escapeHtml(i.refId)}" title="Eliminar ${escapeHtml(i.label)}" aria-label="Eliminar ${escapeHtml(i.label)}">✕</button>
         </span>`;
       }).join('')}

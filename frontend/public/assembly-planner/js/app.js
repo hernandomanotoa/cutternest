@@ -609,7 +609,8 @@ export function addContentToModule(moduleId, kind, opts = {}) {
     separacion: Number(opts.separacion) > 0 ? Number(opts.separacion) : 0,
   });
   const basePieces = piecesMutadas || state.pieces;
-  const allPieces = [...basePieces, ...result.pieces];
+  let allPieces = [...basePieces, ...result.pieces];
+  allPieces = renombrarRepisas(allPieces, moduleId);
   store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
   recalculateAll();
   return { ok: true, warnings: validatePiecesQuiet(allPieces) };
@@ -644,6 +645,89 @@ export function caraSuperiorPila(pieces, moduleId) {
   return top;
 }
 
+
+
+// Resuelve el modulo RAIZ de una pieza: los frentes viven en submodulos
+// ('11'), y split('.') no basta — '11'.split('.')[0] es '11', no '1'. Usa
+// rootModuleIds para encontrar la raiz que contiene al submodulo.
+function rootDePieza(pieces, pieza) {
+  const mod = String(pieza?.modulo || '');
+  const roots = [...rootModuleIds(pieces || [])];
+  const directa = roots.find((r) => r === mod);
+  if (directa) return directa;
+  const prefijo = roots.find((r) => /^(\d+)$/.test(r) && mod.startsWith(r));
+  return prefijo || mod;
+}
+
+// Renombra las repisas de un modulo segun su posicion en el apilado: la MAS
+// ALTA es "Repisa superior M{n}" (convencion del catalogo); las demas se
+// numeran de abajo hacia arriba. Define superior/inferior por posicion, no
+// por orden de creacion. Devuelve las piezas renombradas (nueva referencia).
+function renombrarRepisas(pieces, moduleId) {
+  const prefijo = `m${moduleId}-repisa-`;
+  const repisas = pieces
+    .filter((p) => String(p.id).startsWith(prefijo) && Number.isFinite(p.pos_z))
+    .sort((a, b) => a.pos_z - b.pos_z);
+  if (!repisas.length) return pieces;
+  const nombreSuperior = `Repisa superior M${moduleId}`;
+  return pieces.map((p) => {
+    const idx = repisas.findIndex((r) => r.id === p.id);
+    if (idx === -1) return p;
+    if (idx === repisas.length - 1) {
+      return p.nombre === nombreSuperior ? p : { ...p, nombre: nombreSuperior };
+    }
+    const nombre = `Repisa ${idx + 1} M${moduleId}`;
+    return p.nombre === nombre ? p : { ...p, nombre };
+  });
+}
+
+// Reordena el contenido de un modulo en el apilado: intercambia el pos_z de
+// la pieza (frente/repisa/barra) con su vecina inmediata arriba ('up') o
+// abajo ('down'). El refuerzo sigue a su repisa. Define superior/inferior
+// por posicion; tras el cambio renombra las repisas (la mas alta = superior).
+export function moveContent(refId, direction) {
+  const store = getStore();
+  const state = store.get();
+  const ref = String(refId);
+  const pieza = state.pieces.find((p) => p.id === ref);
+  if (!pieza) return { ok: false, errors: ['Pieza no encontrada'] };
+  const modulo = rootDePieza(state.pieces, pieza);
+  const pertenece = (p) => {
+    const mod = String(p.modulo || '');
+    return mod === modulo || (/^\d+$/.test(modulo) && (mod.startsWith(modulo) || mod.startsWith(`${modulo}.`)));
+  };
+  // Anclas apilables: frentes (cajon/zapatera), repisas y barras del modulo.
+  const esAncla = (p) => Number.isFinite(p.pos_z) && pertenece(p) && (
+    /-frente$/.test(p.id)
+    // Prefijo exacto: el regex '-repisa-\d+$' tambien matchea los REFUERZOS
+    // ('m1-refuerzo-repisa-1') y duplicaba cada repisa en la pila.
+    || p.id.startsWith(`m${modulo}-repisa-`)
+    || (p.id.startsWith(`m${modulo}-barra-`) && !p.id.includes('-barra-baja'))
+  );
+  const anclas = state.pieces.filter(esAncla).sort((a, b) => a.pos_z - b.pos_z);
+  const idx = anclas.findIndex((p) => p.id === ref);
+  const swapIdx = direction === 'up' ? idx + 1 : idx - 1;
+  if (idx === -1 || swapIdx < 0 || swapIdx >= anclas.length) {
+    return { ok: false, errors: ['No hay pieza con la que intercambiar'] };
+  }
+  snapshotUndo('Reordenar contenido');
+  const a = anclas[idx];
+  const b = anclas[swapIdx];
+  const za = a.pos_z;
+  const zb = b.pos_z;
+  const idsA = new Set([a.id, a.id.replace('-repisa-', '-refuerzo-repisa-')]);
+  const idsB = new Set([b.id, b.id.replace('-repisa-', '-refuerzo-repisa-')]);
+  let pieces = state.pieces.map((p) => {
+    if (idsA.has(p.id)) return { ...p, pos_z: zb };
+    if (idsB.has(p.id)) return { ...p, pos_z: za };
+    return p;
+  });
+  pieces = renombrarRepisas(pieces, modulo);
+  store.set({ pieces });
+  recalculateAll();
+  return { ok: true };
+}
+
 // Fija la altura (pos_z) de una pieza de contenido del Constructor. refId es
 // el id de referencia del chip (frente, repisa, barra o zocalo). El cambio
 // aplica al GRUPO: el frente arrastra su caja (la geometria de cajon posiciona
@@ -659,7 +743,7 @@ export function updateContentPosZ(refId, posZ) {
   }
   const pieza = state.pieces.find((p) => p.id === ref);
   if (!pieza) return { ok: false, errors: ['Pieza no encontrada'] };
-  const modulo = String(pieza.modulo).split('.')[0];
+  const modulo = rootDePieza(state.pieces, pieza);
   const altoModulo = Number(state.pieces.find((p) => p.id === `m${modulo}-lateral-izq`)?.alto) || null;
   if (altoModulo != null && objetivo + (Number(pieza.alto) || 15) > altoModulo) {
     return { ok: false, errors: [`Altura ${objetivo} mm fuera del modulo (${altoModulo} mm util)`] };
