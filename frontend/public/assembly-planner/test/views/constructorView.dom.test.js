@@ -605,3 +605,48 @@ test('contenido como chips: nombre corto, icono por tipo y ✕ por chip', () => 
   assert.ok(store.get().pieces.length < antes, 'eliminar desde chip quita piezas');
   view.destroy();
 });
+
+test('separacion personalizada: repisa a 300 mm de la anterior (desde su cara superior)', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // Primera repisa: NO pegada a la base (gap por defecto baseTop+10).
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  const r1 = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
+  assert.equal(r1.pos_z, 175, 'primera repisa con gap, no pegada a la base');
+  // Segunda con separacion 300.
+  container.querySelector('[data-module-scoped="1"] [data-separacion]').value = '300';
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  const r2 = store.get().pieces.find((p) => p.id === 'm1-repisa-2');
+  assert.equal(r2.pos_z, 490, '175 (top repisa1) + 15 (espesor) + 300 (separacion)');
+  view.destroy();
+});
+
+test('editar altura desde el chip: ✎ abre input inline y aplica al grupo', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+
+  const btnEdit = container.querySelector('[data-action="edit-posz"][data-ref="m1-repisa-1"]');
+  assert.ok(btnEdit, 'boton ✎ en el chip de la repisa');
+  assert.equal(container.querySelector('[data-action="edit-posz"][data-ref="m1-zocalo"]'), null, 'zocalo sin edicion (altura fija al suelo)');
+  btnEdit.click();
+  const input = container.querySelector('.cn-chip input[type="number"]');
+  assert.ok(input, 'input inline abierto con el pos_z actual');
+  assert.equal(Number(input.value), 175);
+
+  input.value = '900';
+  input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  const repisa = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
+  const refuerzo = store.get().pieces.find((p) => p.id === 'm1-refuerzo-repisa-1');
+  assert.equal(repisa.pos_z, 900, 'repisa a 900 mm');
+  assert.equal(refuerzo.pos_z, 900, 'refuerzo sigue a la repisa');
+
+  // Fuera de rango: no aplica.
+  const r = [...container.querySelectorAll('[data-action="edit-posz"]')].find((b) => b.dataset.ref === 'm1-repisa-1');
+  r.click();
+  const input2 = container.querySelector('.cn-chip input[type="number"]');
+  input2.value = '5000';
+  input2.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-repisa-1').pos_z, 900, 'fuera de rango no aplica');
+  view.destroy();
+});

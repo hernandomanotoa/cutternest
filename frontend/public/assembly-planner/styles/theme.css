@@ -1193,3 +1193,18 @@ input[type="search"]:focus-visible {
 .cn-chip--shelf { border-left: 3px solid var(--info); }
 .cn-chip--rail { border-left: 3px solid var(--warning); }
 .cn-chip--zocalo { border-left: 3px solid var(--text-secondary); }
+
+.cn-chip__edit {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 0.15rem;
+  line-height: 1.4;
+}
+
+.cn-chip__edit:hover {
+  color: var(--accent);
+}

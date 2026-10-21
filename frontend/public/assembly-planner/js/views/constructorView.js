@@ -34,6 +34,7 @@ import {
   deleteCloudVersionById,
   undoLast,
   canUndo,
+  updateContentPosZ,
   duplicateAllModules,
   focusModule,
 } from '../app.js';
@@ -294,7 +295,8 @@ export function createConstructorView(store) {
       const altoVano = tipo && tipo !== 'personalizado' ? 0 : altoVanoInput;
       const tipoCorredera = container.querySelector(`${scoped} [data-mecanismo]`)?.value || 'corredera';
       const colorFrente = container.querySelector(`${scoped} [data-color-frente]`)?.value || '#8B5A2B';
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente });
+      const separacion = Number(container.querySelector(`${scoped} [data-separacion]`)?.value) || 0;
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -310,6 +312,39 @@ export function createConstructorView(store) {
       const r = duplicateModule(btn.dataset.module);
       if (r.ok) toast(`Módulo duplicado como ${r.moduleId}`, { type: 'success' });
       else toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'edit-posz') {
+      // Edicion inline de la altura: el label del chip se convierte en un
+      // input numerico con el pos_z actual. Enter/blur confirma, Escape
+      // cancela. La pieza afectada se resuelve por data-ref del chip.
+      const chip = btn.closest('.cn-chip');
+      if (!chip || chip.querySelector('input')) return;
+      const label = chip.querySelector('.cn-chip__label');
+      const valorActual = label?.dataset.posz || '';
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '10';
+      input.value = valorActual;
+      input.setAttribute('aria-label', 'Altura desde el suelo (mm)');
+      input.style.cssText = 'width:5.5rem;font-size:0.75rem;padding:0.05rem 0.3rem;';
+      label.replaceChildren(input);
+      input.focus();
+      input.select();
+      let cerrado = false;
+      const cerrar = (aplicar) => {
+        if (cerrado) return;
+        cerrado = true;
+        if (aplicar) {
+          const r = updateContentPosZ(btn.dataset.ref, Number(input.value));
+          if (!r.ok) toast(r.errors.join('; '), { type: 'error' });
+        }
+        render(); // re-render de la vista (el store ya emitio state:changed si aplico)
+      };
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); cerrar(true); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); cerrar(false); }
+      });
+      input.addEventListener('blur', () => cerrar(true));
     } else if (action === 'remove-content') {
       confirmable(btn, '¿Seguro?', () => {
         removeContentPiece(btn.dataset.ref);
@@ -585,7 +620,8 @@ function renderContentList(moduleId, allPieces) {
         return `
         <span class="cn-chip cn-chip--${i.kind}" role="listitem" title="${escapeHtml(i.label)}${altura}">
           <span class="cn-chip__icon" aria-hidden="true">${CONTENT_ICON[i.kind] || '·'}</span>
-          <span class="cn-chip__label">${escapeHtml(nombreCorto(i.label))}</span>
+          <span class="cn-chip__label"${Number.isFinite(piece?.pos_z) ? ` data-posz="${Math.round(piece.pos_z)}"` : ''}>${escapeHtml(nombreCorto(i.label))}</span>
+          ${i.kind === 'zocalo' ? '' : `<button class="cn-chip__edit" data-action="edit-posz" data-ref="${escapeHtml(i.refId)}" title="Cambiar altura (pos_z) de ${escapeHtml(i.label)}" aria-label="Cambiar altura de ${escapeHtml(i.label)}">✎</button>`}
           <button class="cn-chip__remove" data-action="remove-content" data-ref="${escapeHtml(i.refId)}" title="Eliminar ${escapeHtml(i.label)}" aria-label="Eliminar ${escapeHtml(i.label)}">✕</button>
         </span>`;
       }).join('')}
@@ -626,6 +662,9 @@ function renderModuleCard(group, allPieces) {
         <strong>${escapeHtml(group.label)}</strong>
         ${vanoInfo ? `<span class="badge ${vanoInfo.pct > 90 ? 'badge--danger' : vanoInfo.pct > 70 ? 'badge--warning' : 'badge--secondary'}">vano ${vanoInfo.usado}/${vanoInfo.util} mm (${vanoInfo.pct}%)</span>` : ''}
         <span class="cn-constructor__spacer"></span>
+        <label class="form-group" style="margin:0;" title="Distancia desde la cara superior de la pieza anterior (0 o vacio = gap por defecto)">Sep. anterior (mm)
+          <input type="number" data-separacion placeholder="auto" min="0" max="2000" step="10" />
+        </label>
         <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de la izquierda lo llenan automáticamente)">Vano (mm)
           <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="200" min="50" max="600" step="10" />
           <datalist id="cn-vanos-sugeridos">

@@ -606,6 +606,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   asignarPosZInsercion(state.pieces, result.pieces, moduleId, kind, {
     stackGap: state.userConfig?.stackGap ?? 20,
     drawerFrontGap: state.userConfig?.drawerFrontGap ?? 2.5,
+    separacion: Number(opts.separacion) > 0 ? Number(opts.separacion) : 0,
   });
   const basePieces = piecesMutadas || state.pieces;
   const allPieces = [...basePieces, ...result.pieces];
@@ -618,6 +619,65 @@ export function addContentToModule(moduleId, kind, opts = {}) {
 // (pos_z) del modulo y devuelve la Z libre mas alta. Las repisas aportan su
 // espesor; los frentes su alto. Sin anclas, arranca sobre la cara superior
 // de la base (zocalo + espesor + offset de montaje).
+
+// Cara superior mas alta de las piezas ancladas del modulo (SIN gap de
+// apilado): zocalo+base si no hay nada. Sirve para ubicar el contenido nuevo
+// a una separacion personalizada de la pieza anterior ("a 300 mm de la
+// repisa de abajo").
+export function caraSuperiorPila(pieces, moduleId) {
+  const zocalo = (pieces || []).find((p) => p.id === `m${moduleId}-zocalo`);
+  const base = (pieces || []).find((p) => p.id === `m${moduleId}-base`);
+  let top = (zocalo ? Number(zocalo.alto) || 0 : 0) + (Number(base?.espesor) || 15);
+  for (const p of pieces || []) {
+    if (!Number.isFinite(p.pos_z)) continue;
+    const mod = String(p.modulo || '');
+    const esDelModulo = mod === String(moduleId)
+      || (/^\d+$/.test(String(moduleId)) && (mod.startsWith(String(moduleId)) || mod.startsWith(`${moduleId}.`)));
+    if (!esDelModulo) continue;
+    // Solo las piezas "portantes" de la pila: frentes y repisas/barras/zocalo
+    // del modulo raiz. Las piezas de caja (laterales/fondo/cara/base/tirador)
+    // siguen a su frente: no cuentan.
+    if (/-(lateral|fondo|cara|base|tirador)-?$/.test(String(p.id)) && mod !== String(moduleId)) continue;
+    const alto = /-frente$/.test(String(p.id)) ? (Number(p.alto) || 0) : (Number(p.espesor) || 15);
+    top = Math.max(top, Number(p.pos_z) + alto);
+  }
+  return top;
+}
+
+// Fija la altura (pos_z) de una pieza de contenido del Constructor. refId es
+// el id de referencia del chip (frente, repisa, barra o zocalo). El cambio
+// aplica al GRUPO: el frente arrastra su caja (la geometria de cajon posiciona
+// laterales/fondo/cara/base respecto al frente) y la repisa arrastra su
+// refuerzo. Valida que quepa dentro del modulo.
+export function updateContentPosZ(refId, posZ) {
+  const store = getStore();
+  const state = store.get();
+  const ref = String(refId);
+  const objetivo = Number(posZ);
+  if (!Number.isFinite(objetivo) || objetivo < 0) {
+    return { ok: false, errors: ['La altura debe ser un numero >= 0 mm'] };
+  }
+  const pieza = state.pieces.find((p) => p.id === ref);
+  if (!pieza) return { ok: false, errors: ['Pieza no encontrada'] };
+  const modulo = String(pieza.modulo).split('.')[0];
+  const altoModulo = Number(state.pieces.find((p) => p.id === `m${modulo}-lateral-izq`)?.alto) || null;
+  if (altoModulo != null && objetivo + (Number(pieza.alto) || 15) > altoModulo) {
+    return { ok: false, errors: [`Altura ${objetivo} mm fuera del modulo (${altoModulo} mm util)`] };
+  }
+  snapshotUndo('Cambiar altura');
+  const esFrente = ref.endsWith('-frente');
+  const esRepisa = /-repisa-\d+$/.test(ref);
+  const pieces = state.pieces.map((p) => {
+    if (p.id === ref) return { ...p, pos_z: objetivo };
+    if (esRepisa && p.id === ref.replace('-repisa-', '-refuerzo-repisa-')) return { ...p, pos_z: objetivo };
+    return p;
+  });
+  void esFrente; // la caja sigue al frente por geometria de cajon: nada mas que tocar
+  store.set({ pieces });
+  recalculateAll();
+  return { ok: true };
+}
+
 function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
   const zocalo = pieces.find((p) => p.id === `m${moduleId}-zocalo`);
   const base = pieces.find((p) => p.id === `m${moduleId}-base`);
@@ -646,8 +706,12 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
 }
 
 // Asigna pos_z a las piezas recien agregadas segun el cursor del modulo.
-function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap }) {
-  let cursor = cursorInsercion(piecesActuales, moduleId, stackGap, drawerFrontGap);
+function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap, separacion = 0 }) {
+  // Separacion personalizada desde la pieza anterior ("a N mm de la de
+  // abajo"): arranca la pila desde la cara superior SIN el gap por defecto.
+  let cursor = separacion > 0
+    ? caraSuperiorPila(piecesActuales, moduleId) + separacion
+    : cursorInsercion(piecesActuales, moduleId, stackGap, drawerFrontGap);
   const fijar = (pieza, avance) => {
     if (!pieza) return;
     pieza.pos_z = Math.round(cursor * 10) / 10;
