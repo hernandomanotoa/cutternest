@@ -694,3 +694,37 @@ test('reordenar modulos (◀ ▶) sigue funcionando tras los cambios', () => {
   assert.ok(store.get().pieces.some((p) => p.id === 'm1-tapa'), 'ids renumerados coherentes');
   view.destroy();
 });
+
+test('inset desde tapa: repisa a 50 mm de la cara inferior de la tapa', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  container.querySelector('[data-module-scoped="1"] [data-inset-tapa]').value = '50';
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  // techo = 2400 - 150 (zocalo) - 15 (tapa) = 2235; z = 2235 - 50 - 15 = 2170.
+  const repisa = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
+  assert.equal(repisa.pos_z, 2170, 'repisa con alzamiento de 50 mm bajo la tapa');
+  assert.equal(repisa.nombre, 'Repisa superior M1', 'es la unica: queda como superior');
+  view.destroy();
+});
+
+test('inset imposible se rechaza sin agregar nada', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]'); // pila a 2185
+  const total = store.get().pieces.length;
+  container.querySelector('[data-module-scoped="1"] [data-inset-tapa]').value = '3000';
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  assert.equal(store.get().pieces.length, total, 'no se agrego nada');
+  view.destroy();
+});
+
+test('barra simple va a altura ergonomica (1800), no apilada', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]'); // pila baja
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  click(container, '[data-action="add-content"][data-kind="rail"]');
+  const barra = store.get().pieces.find((p) => p.id === 'm1-barra-1');
+  assert.equal(barra.pos_z, 1800, 'barra camisera a 1800 (preset), no sobre la pila');
+  view.destroy();
+});

@@ -297,7 +297,8 @@ export function createConstructorView(store) {
       const tipoCorredera = container.querySelector(`${scoped} [data-mecanismo]`)?.value || 'corredera';
       const colorFrente = container.querySelector(`${scoped} [data-color-frente]`)?.value || '#8B5A2B';
       const separacion = Number(container.querySelector(`${scoped} [data-separacion]`)?.value) || 0;
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion });
+      const insetTapa = Number(container.querySelector(`${scoped} [data-inset-tapa]`)?.value) || 0;
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -669,6 +670,9 @@ function renderModuleCard(group, allPieces) {
         <strong>${escapeHtml(group.label)}</strong>
         ${vanoInfo ? `<span class="badge ${vanoInfo.pct > 90 ? 'badge--danger' : vanoInfo.pct > 70 ? 'badge--warning' : 'badge--secondary'}">vano ${vanoInfo.usado}/${vanoInfo.util} mm (${vanoInfo.pct}%)</span>` : ''}
         <span class="cn-constructor__spacer"></span>
+        <label class="form-group" style="margin:0;" title="Distancia desde la cara inferior de la tapa (alzamiento/maletero; gana sobre Sep. anterior)">Inset tapa (mm)
+          <input type="number" data-inset-tapa placeholder="auto" min="0" max="2000" step="10" />
+        </label>
         <label class="form-group" style="margin:0;" title="Distancia desde la cara superior de la pieza anterior (0 o vacio = gap por defecto)">Sep. anterior (mm)
           <input type="number" data-separacion placeholder="auto" min="0" max="2000" step="10" />
         </label>

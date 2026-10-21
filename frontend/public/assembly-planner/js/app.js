@@ -603,11 +603,14 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   // frentes), asi que sin ancla, agregar una repisa DESPUES de unos cajones la
   // dibujaba debajo de ellos. Con pos_z cada pieza queda donde el usuario la
   // agrego, de abajo hacia arriba (como se arma en el taller).
-  asignarPosZInsercion(state.pieces, result.pieces, moduleId, kind, {
+  const errorAncla = asignarPosZInsercion(state.pieces, result.pieces, moduleId, kind, {
     stackGap: state.userConfig?.stackGap ?? 20,
     drawerFrontGap: state.userConfig?.drawerFrontGap ?? 2.5,
     separacion: Number(opts.separacion) > 0 ? Number(opts.separacion) : 0,
+    insetTapa: Number(opts.insetTapa) > 0 ? Number(opts.insetTapa) : 0,
+    hangerRailHeight: state.userConfig?.hangerRailHeight ?? 1700,
   });
+  if (errorAncla) return { ok: false, errors: [errorAncla] };
   const basePieces = piecesMutadas || state.pieces;
   let allPieces = [...basePieces, ...result.pieces];
   allPieces = renombrarRepisas(allPieces, moduleId);
@@ -790,12 +793,42 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
 }
 
 // Asigna pos_z a las piezas recien agregadas segun el cursor del modulo.
-function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap, separacion = 0 }) {
-  // Separacion personalizada desde la pieza anterior ("a N mm de la de
-  // abajo"): arranca la pila desde la cara superior SIN el gap por defecto.
-  let cursor = separacion > 0
-    ? caraSuperiorPila(piecesActuales, moduleId) + separacion
-    : cursorInsercion(piecesActuales, moduleId, stackGap, drawerFrontGap);
+function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap, separacion = 0, insetTapa = 0, hangerRailHeight = 1700 }) {
+  // Geometria vertical del modulo: cara inferior de la tapa (techo del vano
+  // util) y cara superior de la base (piso).
+  const altoModulo = Number(piecesActuales.find((p) => p.id === `m${moduleId}-lateral-izq`)?.alto) || 0;
+  const zocalo = piecesActuales.find((p) => p.id === `m${moduleId}-zocalo`);
+  const tapa = piecesActuales.find((p) => p.id === `m${moduleId}-tapa`);
+  const techo = altoModulo - (zocalo ? Number(zocalo.alto) || 0 : 0) - (Number(tapa?.espesor) || 15);
+  let cursor;
+  let error = null;
+  if (kind === 'rail') {
+    // Barra colgadora simple: altura ergonomica fija (como el catalogo:
+    // camisera a 1800 del preset), NO apilada. Ajustable luego con el ✎ del
+    // chip. Clamp: nunca a menos de 60 mm bajo la tapa.
+    cursor = Math.min(hangerRailHeight, Math.max(0, techo - 60));
+  } else if (insetTapa > 0) {
+    // Inset desde la cara inferior de la tapa (topInset del catalogo:
+    // alzamiento/maletero). Gana sobre la separacion si ambos estan.
+    const ancla = piezasNuevas.find((p) => p.id.endsWith('-frente'))
+      || piezasNuevas.find((p) => /-repisa-\d+$/.test(p.id))
+      || piezasNuevas[0];
+    const altoPieza = ancla
+      ? (ancla.id.endsWith('-frente') ? (Number(ancla.alto) || 0) : (Number(ancla.espesor) || 15))
+      : 15;
+    cursor = techo - insetTapa - altoPieza;
+    const pisoReal = caraSuperiorPila(piecesActuales, moduleId); // tope de la pila existente
+    if (cursor < pisoReal) {
+      error = `Inset ${insetTapa} mm desde la tapa no cabe: quedaria bajo la pila (vano util ${Math.round(techo)} mm)`;
+      cursor = pisoReal;
+    }
+  } else if (separacion > 0) {
+    // Separacion personalizada desde la pieza anterior ("a N mm de la de
+    // abajo"): arranca la pila desde la cara superior SIN el gap por defecto.
+    cursor = caraSuperiorPila(piecesActuales, moduleId) + separacion;
+  } else {
+    cursor = cursorInsercion(piecesActuales, moduleId, stackGap, drawerFrontGap);
+  }
   const fijar = (pieza, avance) => {
     if (!pieza) return;
     pieza.pos_z = Math.round(cursor * 10) / 10;
@@ -816,6 +849,7 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
     fijar(frente, (Number(frente?.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
   }
   // doubleRail trae pos_z absolutos ergonomicos (2100/1000); zocalo no ancla.
+  return error;
 }
 
 // Duplica un modulo (casco + contenido + submodulos) con id nuevo.
