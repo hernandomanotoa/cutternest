@@ -298,7 +298,9 @@ export function createConstructorView(store) {
       const colorFrente = container.querySelector(`${scoped} [data-color-frente]`)?.value || '#8B5A2B';
       const separacion = Number(container.querySelector(`${scoped} [data-separacion]`)?.value) || 0;
       const insetTapa = Number(container.querySelector(`${scoped} [data-inset-tapa]`)?.value) || 0;
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa });
+      const nPorFila = Number(container.querySelector(`${scoped} [data-n-por-fila]`)?.value) || 1;
+      const espesorFrente = Number(container.querySelector(`${scoped} [data-espesor-frente]`)?.value) || 15;
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -588,6 +590,7 @@ const CONTENT_ICON = {
   drawer: '▤',
   shoeRack: '👟',
   rail: '⚡',
+  divider: '╫',
 };
 
 function renderContentList(moduleId, allPieces) {
@@ -610,6 +613,8 @@ function renderContentList(moduleId, allPieces) {
       if (!id.includes('-barra-baja')) match = { refId: id, label: p.nombre, key: id, kind: 'rail' };
     } else if (id === `m${moduleId}-zocalo`) {
       match = { refId: id, label: p.nombre, key: id, kind: 'zocalo' };
+    } else if (/^m\d+-divisor-\d+$/.test(id) && id.startsWith(`m${moduleId}-divisor-`)) {
+      match = { refId: id, label: p.nombre, key: id, kind: 'divider' };
     }
     if (match && !items.some((i) => i.key === match.key)) items.push(match);
   }
@@ -626,7 +631,7 @@ function renderContentList(moduleId, allPieces) {
         <span class="cn-chip cn-chip--${i.kind}" role="listitem" title="${escapeHtml(i.label)}${altura}">
           <span class="cn-chip__icon" aria-hidden="true">${CONTENT_ICON[i.kind] || '·'}</span>
           <span class="cn-chip__label"${Number.isFinite(piece?.pos_z) ? ` data-posz="${Math.round(piece.pos_z)}"` : ''}>${escapeHtml(nombreCorto(i.label))}</span>
-          ${i.kind === 'zocalo' ? '' : `
+          ${i.kind === 'zocalo' || i.kind === 'divider' ? '' : `
             <button class="cn-chip__move" data-action="move-content" data-dir="down" data-ref="${escapeHtml(i.refId)}" title="Bajar en el apilado (queda antes / mas abajo)" aria-label="Bajar ${escapeHtml(i.label)}">◀</button>
             <button class="cn-chip__move" data-action="move-content" data-dir="up" data-ref="${escapeHtml(i.refId)}" title="Subir en el apilado (queda despues / mas arriba)" aria-label="Subir ${escapeHtml(i.label)}">▶</button>
             <button class="cn-chip__edit" data-action="edit-posz" data-ref="${escapeHtml(i.refId)}" title="Cambiar altura (pos_z) de ${escapeHtml(i.label)}" aria-label="Cambiar altura de ${escapeHtml(i.label)}">✎</button>`}
@@ -654,7 +659,7 @@ function renderModuleCard(group, allPieces) {
   // submodulos '11'/'12', fuera del modulo raiz). Cajón/zapatera: solo el
   // frente (1 por caja); repisa/barra: cada pieza.
   const countByKind = (kind) => {
-    const pref = { shelf: `m${moduleId}-repisa-`, drawer: `m${moduleId}cajon`, shoeRack: `m${moduleId}zapatera`, rail: `m${moduleId}-barra-` }[kind];
+    const pref = { shelf: `m${moduleId}-repisa-`, drawer: `m${moduleId}cajon`, shoeRack: `m${moduleId}zapatera`, rail: `m${moduleId}-barra-`, divider: `m${moduleId}-divisor-` }[kind];
     const matches = allPieces.filter((p) => String(p.id).startsWith(pref));
     return (kind === 'drawer' || kind === 'shoeRack')
       ? matches.filter((p) => p.id.endsWith('-frente')).length
@@ -699,6 +704,19 @@ function renderModuleCard(group, allPieces) {
             ${TIPOS_CAJON.map((t) => `<option value="${t.value}">${t.label}</option>`).join('')}
           </select>
         </label>
+        <label class="form-group" style="margin:0;" title="Cajones por fila: 2 divide el ancho del vano en dos frentes (modulos anchos)">N por fila
+          <select data-n-por-fila>
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+          </select>
+        </label>
+        <label class="form-group" style="margin:0;" title="Espesor del frente decorativo (puede diferir del cuerpo: frente 18 con cuerpo 15 es lo mas comun)">Esp. frente
+          <select data-espesor-frente>
+            <option value="15" selected>15 mm</option>
+            <option value="18">18 mm</option>
+            <option value="25">25 mm</option>
+          </select>
+        </label>
         <label class="form-group" style="margin:0;">Frente
           <input type="color" data-color-frente value="#8b5a2b" />
         </label>
@@ -721,6 +739,7 @@ function renderModuleCard(group, allPieces) {
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="rail">+ Barra (${countByKind('rail')})</button>
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="doubleRail">+ Doble barra</button>
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="zocalo">+ Zócalo</button>
+        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="divider" title="Divisor vertical de bahias (span completo del vano)">+ Divisor (${countByKind('divider')})</button>
       </div>
       ${renderEditForm(moduleId, piezas)}
     </div>
@@ -751,22 +770,50 @@ function renderEditForm(moduleId, piezas) {
 }
 
 // Alto util estimado del modulo y vano ocupado por frentes de cajon.
+// Alto util ocupado calculado sobre los spans reales (pos_z + alto) de las
+// piezas ancladas: unión de intervalos, sin solapamientos. Antes se estimaba
+// sumando frentes + espesores fijos, lo que subestimaba el % cuando habia
+// separaciones grandes (Sep. anterior) o piezas editadas con ✎.
 function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
   const espesor = 15;
   const util = altoModulo - (tieneZocalo ? altoZocalo : 0) - espesor; // tapa
   const prefFrentes = [`m${moduleId}cajon`, `m${moduleId}zapatera`];
   const prefRepisa = `m${moduleId}-repisa-`;
-  let usado = 0;
+  const spans = [];
+  let estimado = 0; // fallback para piezas sin pos_z (CSV del catalogo)
+  let haySpans = false;
   for (const p of pieces) {
     const id = String(p.id);
-    if (id.endsWith('-frente') && prefFrentes.some((pref) => id.startsWith(pref))) {
-      usado += Number(p.alto) + 3; // altoVano ≈ frente + 3
-    } else if (id.startsWith(prefRepisa)) {
-      usado += espesor + 20; // repisa: espesor + gap de apilamiento aprox.
+    const esFrente = id.endsWith('-frente') && prefFrentes.some((pref) => id.startsWith(pref));
+    const esRepisa = id.startsWith(prefRepisa);
+    if (!esFrente && !esRepisa) continue;
+    const alto = esFrente ? (Number(p.alto) || 0) + 3 : espesor;
+    if (Number.isFinite(p.pos_z)) {
+      haySpans = true;
+      spans.push([Number(p.pos_z), Number(p.pos_z) + alto]);
+    } else {
+      estimado += esFrente ? alto : espesor + 20;
     }
   }
+  let usado;
+  if (haySpans) {
+    // Union de intervalos ordenados: suma solo la cobertura real.
+    spans.sort((x, y) => x[0] - y[0]);
+    usado = 0;
+    let curStart = null;
+    let curEnd = null;
+    for (const [s, e] of spans) {
+      if (curStart === null) { curStart = s; curEnd = e; continue; }
+      if (s <= curEnd) curEnd = Math.max(curEnd, e);
+      else { usado += curEnd - curStart; curStart = s; curEnd = e; }
+    }
+    if (curStart !== null) usado += curEnd - curStart;
+    usado = Math.max(usado, estimado);
+  } else {
+    usado = estimado;
+  }
   const pct = util > 0 ? Math.min(100, Math.round((usado / util) * 100)) : 0;
-  return { usado, util, pct };
+  return { usado: Math.round(usado), util, pct };
 }
 
 function resumenMueble(pieces, state = {}) {

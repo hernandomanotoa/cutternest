@@ -48,6 +48,7 @@ import {
   addDoubleRail,
   addDrawer,
   addShoeTray,
+  addDivider,
   nextModuleId,
   nextContentIndex,
   countRootModules,
@@ -580,6 +581,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         anchoModulo, profundidadModulo: profModulo,
         altoVano,
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
+        espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
       });
@@ -589,10 +591,22 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         altoVano,
         tipo: opts.tipoCorredera || 'corredera',
         vocabulario: 'cajon',
+        nPorFila: Number(opts.nPorFila) === 2 ? 2 : 1,
+        espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
       });
     }
+  } else if (kind === 'divider') {
+    // Divisor vertical: span completo del vano util (zocalo -> tapa).
+    const altoModulo = Number(modPieces.find((p) => p.id.endsWith('lateral-izq'))?.alto) || 0;
+    const altoZocalo = state.pieces.find((p) => p.id === `m${moduleId}-zocalo`)?.alto || 0;
+    result = addDivider(moduleId, {
+      altoUtil: altoModulo - altoZocalo - espesor,
+      espesor,
+      color: colorCuerpo,
+      index: nextContentIndex(state.pieces, moduleId, 'divider'),
+    });
   } else {
     return { ok: false, errors: [`Contenido "${kind}" no soportado`] };
   }
@@ -716,13 +730,33 @@ export function moveContent(refId, direction) {
   snapshotUndo('Reordenar contenido');
   const a = anclas[idx];
   const b = anclas[swapIdx];
-  const za = a.pos_z;
-  const zb = b.pos_z;
-  const idsA = new Set([a.id, a.id.replace('-repisa-', '-refuerzo-repisa-')]);
-  const idsB = new Set([b.id, b.id.replace('-repisa-', '-refuerzo-repisa-')]);
+  // Re-apilado (no swap crudo de pos_z): el swap de valores crudos dejaba
+  // SOLAPADAS piezas de distinta altura (repisa 15 mm vs frente 197 mm).
+  // Se re-apilan las dos desde la posicion del que queda abajo, con la
+  // altura y el gap propios de cada una.
+  const stackGap = state.userConfig?.stackGap ?? 20;
+  const drawerFrontGap = state.userConfig?.drawerFrontGap ?? 2.5;
+  const altoDe = (p) => (/-frente$/.test(p.id) ? (Number(p.alto) || 0) : (Number(p.espesor) || 15));
+  const tieneCara = (p) => state.pieces.some((q) => {
+    const pref = String(p.id).slice(0, -'-frente'.length);
+    return String(q.id).startsWith(pref) && q.id.endsWith('-cara');
+  });
+  const gapDe = (p) => {
+    if (/-frente$/.test(p.id)) return tieneCara(p) ? drawerFrontGap : 0;
+    return stackGap;
+  };
+  // Tras el swap, el que queda ABAJO arranca donde empezaba el mas bajo de
+  // los dos; el de arriba se apila sobre el con su gap.
+  const lower = direction === 'up' ? b : a;
+  const upper = direction === 'up' ? a : b;
+  const zBase = Math.min(a.pos_z, b.pos_z);
+  const zLower = zBase;
+  const zUpper = zLower + altoDe(lower) + gapDe(upper);
+  const idsLower = new Set([lower.id, lower.id.replace('-repisa-', '-refuerzo-repisa-')]);
+  const idsUpper = new Set([upper.id, upper.id.replace('-repisa-', '-refuerzo-repisa-')]);
   let pieces = state.pieces.map((p) => {
-    if (idsA.has(p.id)) return { ...p, pos_z: zb };
-    if (idsB.has(p.id)) return { ...p, pos_z: za };
+    if (idsLower.has(p.id)) return { ...p, pos_z: Math.round(zLower * 10) / 10 };
+    if (idsUpper.has(p.id)) return { ...p, pos_z: Math.round(zUpper * 10) / 10 };
     return p;
   });
   pieces = renombrarRepisas(pieces, modulo);
@@ -834,7 +868,16 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
     pieza.pos_z = Math.round(cursor * 10) / 10;
     cursor += avance;
   };
-  if (kind === 'shelf') {
+  if (kind === 'divider') {
+    // Span completo: anclado al PISO del vano (zocalo + base), no al tope de
+    // la pila. No participa del cursor de apilado.
+    const divisor = piezasNuevas[0];
+    if (divisor) {
+      const z = piecesActuales.find((p) => p.id === `m${moduleId}-zocalo`);
+      const b = piecesActuales.find((p) => p.id === `m${moduleId}-base`);
+      divisor.pos_z = (z ? Number(z.alto) || 0 : 0) + (Number(b?.espesor) || 15);
+    }
+  } else if (kind === 'shelf') {
     const repisa = piezasNuevas.find((p) => /-repisa-\d+$/.test(p.id));
     const refuerzo = piezasNuevas.find((p) => /-refuerzo-repisa-\d+$/.test(p.id));
     fijar(repisa, (Number(repisa?.espesor) || 15) + stackGap);

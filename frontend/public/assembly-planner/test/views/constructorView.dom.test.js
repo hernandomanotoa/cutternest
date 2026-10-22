@@ -728,3 +728,66 @@ test('barra simple va a altura ergonomica (1800), no apilada', () => {
   assert.equal(barra.pos_z, 1800, 'barra camisera a 1800 (preset), no sobre la pila');
   view.destroy();
 });
+
+test('Lote B: divisor vertical span completo, cajones 2 por fila y espesor de frente', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // B1: divisor
+  click(container, '[data-action="add-content"][data-kind="divider"]');
+  const div = store.get().pieces.find((p) => p.id === 'm1-divisor-1');
+  assert.ok(div, 'divisor creado');
+  assert.equal(div.alto, 2235, 'span completo del vano util');
+  assert.equal(div.pos_z, 165, 'anclado al piso del vano (zocalo+base)');
+  assert.match(div.nombre, /Divisor 1 M1/);
+  // B2: cajon 2 por fila (frente mitad de ancho)
+  container.querySelector('[data-module-scoped="1"] [data-n-por-fila]').value = '2';
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const frente = store.get().pieces.find((p) => p.id.endsWith('-frente'));
+  assert.equal(frente.ancho, 407, 'frente a la mitad del vano (2 por fila)');
+  // B3: frente de 18 con cuerpo de 15
+  container.querySelector('[data-module-scoped="1"] [data-n-por-fila]').value = '1';
+  container.querySelector('[data-module-scoped="1"] [data-espesor-frente]').value = '18';
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const frentes = store.get().pieces.filter((p) => p.id.endsWith('-frente'));
+  assert.equal(frentes[frentes.length - 1].espesor, 18, 'frente de 18 mm');
+  view.destroy();
+});
+
+test('A1: reordenar piezas de distinta altura NO las deja solapadas', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');   // repisa 15
+  click(container, '[data-action="add-content"][data-kind="drawer"]');  // frente 197
+  container.querySelector('[data-action="move-content"][data-dir="up"][data-ref="m1-repisa-1"]').click();
+  const r = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
+  const f = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
+  // Dimensiones reales: el alto del frente depende del tipo de cajon
+  // (delgado/estandar/personalizado) y no es fijo.
+  const espRepisa = Number(r.espesor) || 15;
+  const altoFrente = Number(f.alto) || 0;
+  const solape = f.pos_z < r.pos_z + espRepisa && r.pos_z < f.pos_z + altoFrente;
+  assert.ok(!solape, `sin solapamiento (repisa ${r.pos_z}-${r.pos_z + espRepisa}, cajon ${f.pos_z}-${f.pos_z + altoFrente})`);
+  assert.ok(f.pos_z < r.pos_z, 'orden correcto: cajon abajo, repisa arriba');
+  view.destroy();
+});
+
+test('A2: badge de vano calculado con spans reales de pos_z', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  const badgeRepisa = container.querySelector('.cn-constructor__module .badge')?.textContent || '';
+  // Con spans: una repisa ocupa solo su espesor (15 mm), no la estimacion
+  // antigua (espesor + 20 de gap).
+  assert.match(badgeRepisa, /vano 15\/\d+ mm/);
+  // Al agregar un cajon, el vano usado suma el span REAL del frente
+  // (alto + 3 mm de holgura), sin solaparse con la repisa.
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const f = store.get().pieces.find((p) => p.id.endsWith('-frente'));
+  const esperado = 15 + (Number(f.alto) || 0) + 3;
+  const badgeCajon = container.querySelector('.cn-constructor__module .badge')?.textContent || '';
+  const m = badgeCajon.match(/vano (\d+)\/(\d+) mm \((\d+)%\)/);
+  assert.ok(m, `badge legible: ${badgeCajon}`);
+  assert.equal(Number(m[1]), esperado, `vano usado = repisa 15 + frente ${f.alto}+3`);
+  assert.ok(Number(m[3]) > 0);
+  view.destroy();
+});

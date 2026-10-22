@@ -220,6 +220,7 @@ export function addDrawer(moduleId, index, {
   colorLateral = '#D9C2A3',
   nPorFila = 1,
   altBandeja = 150,
+  espesorFrente = 15,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -263,7 +264,7 @@ export function addDrawer(moduleId, index, {
   // tabla de offsets y en el manual (antes todos decian "Frente cajon M1").
   const num = ` ${index}`;
   const pieces = [
-    piece(`m${moduleId}${idp}${index}-frente`, `Frente ${frenteVocab}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: 15, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-frente`, `Frente ${frenteVocab}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, interior, latAlto - ESP_BASE, { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
@@ -323,6 +324,7 @@ export function addShoeTray(moduleId, index, {
   altoVano,
   frenteCompleto = false,
   altoLateral = RAIL_SIDE_HEIGHT,
+  espesorFrente = 15,
   colorFrente = '#8B5A2B',
   colorLateral = '#D9C2A3',
 }) {
@@ -353,7 +355,7 @@ export function addShoeTray(moduleId, index, {
   const sub = `${moduleId}${index}`;
   const num = ` ${index}`;
   const pieces = [
-    piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: 15, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior, Math.max(20, latAlto - ESP_BASE), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
@@ -372,6 +374,23 @@ export function addShoeTray(moduleId, index, {
     submodulo: sub,
     frenteCompleto,
     frente: { ancho: frenteAncho, alto: frenteAlto },
+  };
+}
+
+
+// Divisor vertical entre bahias (convencion del catalogo: la pieza guarda
+// ancho=espesor y alto=alto util; el renderer lo clasifica 'divider' y lo
+// dibuja como panel vertical entre repisas). Span completo del vano.
+export function addDivider(moduleId, { altoUtil, espesor = 15, color = '#C19A6B', index = 1 } = {}) {
+  const errors = [];
+  validateDimension(altoUtil, 'altoUtil', errors, { min: 100 });
+  const c = validateColor(color, errors);
+  if (errors.length) return { ok: false, errors };
+  return {
+    ok: true,
+    pieces: [
+      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, espesor, altoUtil, { color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
+    ],
   };
 }
 
@@ -400,6 +419,7 @@ export function nextContentIndex(pieces, moduleId, kind) {
     shoeRack: `m${moduleId}zapatera`,
     rail: `m${moduleId}-barra-`,
     zocalo: `m${moduleId}-zocalo`,
+    divider: `m${moduleId}-divisor-`,
   };
   const prefix = prefixes[kind];
   if (!prefix) return 1;
