@@ -18,6 +18,7 @@ import { buildAssemblySequence } from '../services/assemblyStepService.js';
 import { escapeHtml, getModuleLabel } from '../utils/helpers.js';
 import { buildStandaloneHtml, download } from './manual/manualExporter.js';
 import { updateFichaCorrections, clearFichaCorrections } from '../app.js';
+import { plinthAssemblyPlan, plinthLayoutFromPieces } from '../services/plinthFrameService.js';
 
 const COLLAPSE_KEY = 'cn-assembly-ficha-collapsed';
 
@@ -69,7 +70,7 @@ function inferThickness(pieces) {
 // z: la vista 3D no está activa, se usa el orden por palabra clave) y
 // tiempo default de 10 min por paso, igual que buildSteps en app.js.
 // Devuelve { filename, html } listo para download().
-function buildFichaExport(pieces, clasificacion, currentModule) {
+function buildFichaExport(pieces, clasificacion, currentModule, obraCfg = {}) {
   const piecesById = Object.fromEntries(pieces.map((p) => [p.id, p]));
   const moduleLabel = getModuleLabel(currentModule, pieces);
   const { steps } = buildAssemblySequence(pieces);
@@ -78,6 +79,10 @@ function buildFichaExport(pieces, clasificacion, currentModule) {
     clasificacion,
     medidasProyecto: getModuleDimensions(pieces, inferThickness(pieces)),
   };
+  const plinthPlan = plinthAssemblyPlan(pieces, {
+    hTecho: Number(obraCfg.obraHTecho) || 0,
+    margenSeg: Number(obraCfg.obraMargenSeg) || 20,
+  });
   const slug = String(moduleLabel || '')
     .toLowerCase()
     .normalize('NFD')
@@ -86,7 +91,7 @@ function buildFichaExport(pieces, clasificacion, currentModule) {
     .replace(/^-+|-+$/g, '');
   return {
     filename: `ficha-tecnica-${slug || 'mueble'}.html`,
-    html: buildStandaloneHtml(stepsConTiempo, piecesById, moduleLabel, ficha),
+    html: buildStandaloneHtml(stepsConTiempo, piecesById, moduleLabel, ficha, plinthPlan),
   };
 }
 
@@ -108,7 +113,7 @@ export function createFurnitureFicha() {
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
     root.style.overflow = 'hidden';
-    root.innerHTML = renderPanel(pieces, clasificacion, corrections, correcting, collapsed);
+    root.innerHTML = renderPanel(pieces, clasificacion, corrections, correcting, collapsed, state.userConfig || {});
 
     const toggleBtn = root.querySelector('[data-toggle]');
     toggleBtn?.addEventListener('click', () => {
@@ -129,7 +134,7 @@ export function createFurnitureFicha() {
     // exportado refleja lo que el usuario ve en el panel.
     root.querySelector('[data-export-ficha]')?.addEventListener('click', () => {
       if (!pieces.length) return;
-      const { filename, html } = buildFichaExport(pieces, clasificacion, state.currentModule);
+      const { filename, html } = buildFichaExport(pieces, clasificacion, state.currentModule, state.userConfig || {});
       download(filename, new Blob([html], { type: 'text/html' }));
     });
 
@@ -158,7 +163,7 @@ export function createFurnitureFicha() {
   return { mount };
 }
 
-function renderPanel(pieces, clasificacion, corrections, correcting, collapsed) {
+function renderPanel(pieces, clasificacion, corrections, correcting, collapsed, cfg = {}) {
   if (!pieces.length) {
     return `
       <div class="iso-config-panel__header">
@@ -186,9 +191,44 @@ function renderPanel(pieces, clasificacion, corrections, correcting, collapsed) 
       ${renderClasificacion(clasificacion, corrections)}
       ${renderFichaTipo(clasificacion)}
       ${renderMedidasProyecto(pieces)}
+      ${renderObra(pieces, cfg)}
       <div data-ficha-correction style="display:${correcting ? '' : 'none'};">
         ${renderCorreccion(clasificacion)}
       </div>
+    </div>
+  `;
+}
+
+// Datos de obra y levantamiento: resumen del zócalo estructural (sub-zócalos
+// y niveladores) y, con H techo cargada, la verificación de la diagonal por
+// módulo. Comparte computeLiftCheck con la tarjeta del Constructor.
+function renderObra(pieces, cfg = {}) {
+  const plan = plinthAssemblyPlan(pieces, {
+    hTecho: Number(cfg.obraHTecho) || 0,
+    margenSeg: Number(cfg.obraMargenSeg) || 20,
+  });
+  const layout = plinthLayoutFromPieces(pieces);
+  if (!plan && !layout.length) return '';
+  const zocalo = plan
+    ? `${plan.segments.length} sub-zócalo(s) a marco · ${plan.niveladores} niveladores ocultos M8/M10`
+    : '';
+  let lev = '';
+  if (plan?.levantamiento && !plan.levantamiento.skipped) {
+    const r = plan.levantamiento;
+    lev = `
+      <div style="font-size:0.78rem;color:${r.levantamientoOk ? COLORS.textDark : '#B3261E'};">
+        Levantamiento en vertical (H techo ${Number(cfg.obraHTecho)} mm):
+        diagonal ${r.diagonal.toFixed(0)} mm, holgura ${r.holgura.toFixed(0)} mm
+        ${r.levantamientoOk ? '✓' : '✕ NO cabe'}
+      </div>`;
+  } else if (Number(cfg.obraHTecho) > 0) {
+    lev = `<div style="font-size:0.78rem;color:${COLORS.textSecondary};">Cargue los datos de obra (H techo) también en el Constructor para verificar la diagonal.</div>`;
+  }
+  return `
+    <div style="margin-bottom:0.5rem;">
+      <div style="font-size:0.72rem;font-weight:700;color:${COLORS.textSecondary};text-transform:uppercase;margin-bottom:0.25rem;">Zócalo y obra</div>
+      ${zocalo ? `<div style="font-size:0.8rem;">${escapeHtml(zocalo)}</div>` : ''}
+      ${lev}
     </div>
   `;
 }

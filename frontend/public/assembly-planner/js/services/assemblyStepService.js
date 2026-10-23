@@ -149,6 +149,20 @@ function accessoryRank(piece) {
   return 4;
 }
 
+// Clave de orden físico para las piezas del zócalo estructural a marco
+// (ids `glb-zocalo-s{k}-*`): el marco es la plataforma sobre la que se
+// arman los módulos, así que sus pasos van PRIMERO en la secuencia. Dentro
+// de cada sub-zócalo se ensambla como cajón en el piso: trasero como
+// referencia, costados (tarugos), divisores internos y frente al cierre.
+// Devuelve null para cualquier otra pieza.
+function marcoStepKey(piece) {
+  const m = String(piece.id || '').match(/^glb-zocalo-s(\d+)-(trasero|costado-izq|costado-der|divisor-\d+|frente)$/);
+  if (!m) return null;
+  const orden = { trasero: 0, 'costado-izq': 1, 'costado-der': 2, frente: 3 };
+  const parte = m[2].startsWith('divisor-') ? 2.5 : orden[m[2]];
+  return [Number(m[1]), parte];
+}
+
 /**
  * Ancho físico de la pieza en plano (rotate=si intercambia ancho/alto,
  * como en buildPiece3D). Null si no hay medidas válidas.
@@ -254,6 +268,18 @@ export function buildAssemblySequence(pieces, positions = null) {
   const moduleInfo = analyzeModules(pieces);
   const interiorKeys = buildInteriorKeys(pieces, positions, moduleInfo);
   const sorted = [...pieces].sort((a, b) => {
+    // Zócalo estructural a marco: primero en la secuencia (plataforma de
+    // armado en el piso), ordenado por sub-zócalo y pieza.
+    const ka = marcoStepKey(a);
+    const kb = marcoStepKey(b);
+    if (ka && kb) {
+      if (ka[0] !== kb[0]) return ka[0] - kb[0];
+      if (ka[1] !== kb[1]) return ka[1] - kb[1];
+      return String(a.id).localeCompare(String(b.id));
+    }
+    if (ka) return -1;
+    if (kb) return 1;
+
     const ga = isGlobalPiece(a) ? 1 : 0;
     const gb = isGlobalPiece(b) ? 1 : 0;
     if (ga !== gb) return ga - gb;

@@ -155,6 +155,16 @@ export function plinthLayoutFromPieces(pieces) {
   return layout;
 }
 
+// True si el marco ya no coincide con los módulos (el usuario editó anchos
+// o agregó/eliminó módulos tras generarlo): hay que regenerarlo.
+export function marcoDesactualizado(pieces) {
+  const layout = plinthLayoutFromPieces(pieces);
+  if (!layout.length) return false;
+  const totalMarco = layout.reduce((s, g) => s + g.width, 0);
+  const totalModulos = rootModuleDims(pieces).reduce((s, d) => s + (d.ancho || 0), 0);
+  return totalModulos > 0 && Math.abs(totalMarco - totalModulos) > 2;
+}
+
 // Niveladores ocultos por sub-zócalo: 2, o 4 si el segmento supera 600 mm.
 export function levelerCountForSegment(segWidth) {
   return segWidth > PLINTH_MAX_LEVELER_SPAN ? 4 : 2;
@@ -162,6 +172,34 @@ export function levelerCountForSegment(segWidth) {
 
 export function totalLevelers(layout) {
   return (layout || []).reduce((n, seg) => n + levelerCountForSegment(seg.width), 0);
+}
+
+// Plan de ensamble del zócalo a marco para el manual: orden de armado de
+// cada sub-zócalo, uniones entre adyacentes, niveladores y (si hay datos
+// de obra) la verificación de levantamiento en vertical. Null si no hay
+// marco. Puro: sin DOM.
+export function plinthAssemblyPlan(pieces, { hTecho = 0, margenSeg = 20 } = {}) {
+  const layout = plinthLayoutFromPieces(pieces);
+  if (!layout.length) return null;
+  const frente0 = (pieces || []).find((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)));
+  const altoZocalo = Number(frente0?.alto) || 0;
+  const segments = layout.map((seg) => ({ ...seg, niveladores: levelerCountForSegment(seg.width) }));
+  const uniones = [];
+  for (let i = 1; i < layout.length; i += 1) {
+    uniones.push({ x: layout[i].x0, entre: [layout[i - 1].index, layout[i].index] });
+  }
+  let levantamiento = null;
+  if (Number(hTecho) > 0) {
+    const dims = rootModuleDims(pieces);
+    levantamiento = computeLiftCheck({
+      altoModulo: Math.max(0, ...dims.map((d) => d.alto || 0)),
+      altoZocalo,
+      profundidad: Math.max(0, ...dims.map((d) => d.profundidad || 0)),
+      hTecho: Number(hTecho),
+      margenSeg: Number(margenSeg) || 20,
+    });
+  }
+  return { segments, uniones, niveladores: totalLevelers(layout), altoZocalo, levantamiento };
 }
 
 // Verificación de levantamiento en vertical (restricción de diagonal con el

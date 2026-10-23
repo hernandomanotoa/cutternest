@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifySequenceRole, buildAssemblySequence, buildAssemblyLevels } from './assemblyStepService.js';
+import { computePlinthSegments, plinthFramePieces } from './plinthFrameService.js';
 
 const mk = (id, nombre, modulo = '1', pos_z = '') => ({ id, nombre, modulo, pos_z });
 
@@ -400,5 +401,37 @@ describe('assemblyStepService/base interna vs externa', () => {
     ];
     const { steps } = buildAssemblySequence(mod);
     assert.deepEqual(steps.map((s) => s.piezas[0]), ['b', 'l', 't']);
+  });
+});
+
+describe('assemblyStepService/zócalo estructural a marco', () => {
+  it('el marco va primero en la secuencia, ordenado por sub-zócalo y pieza', () => {
+    const segs = computePlinthSegments([850]).segments;
+    const { pieces: marco } = plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 });
+    const modulos = [
+      mk('m1-base', 'Base modulo M1'),
+      mk('m1-tapa', 'Tapa modulo M1'),
+      mk('m1-lat-izq', 'Lateral izquierdo M1'),
+    ];
+    const { steps } = buildAssemblySequence([...modulos, ...marco]);
+    const primerosIds = steps.slice(0, marco.length).map((s) => s.piezas[0]);
+    // Orden físico: trasero → costados → divisor → frente, por sub-zócalo.
+    assert.deepEqual(primerosIds.slice(0, 5), [
+      'glb-zocalo-s1-trasero',
+      'glb-zocalo-s1-costado-izq',
+      'glb-zocalo-s1-costado-der',
+      'glb-zocalo-s1-divisor-1',
+      'glb-zocalo-s1-frente',
+    ]);
+    assert.equal(steps[5].piezas[0], 'glb-zocalo-s2-trasero', 'S2 tras los pasos de S1');
+    // Los módulos siguen al marco (plataforma primero).
+    assert.equal(steps[marco.length].piezas[0], 'm1-base', 'el casco arranca tras el marco');
+  });
+
+  it('sin marco la secuencia no cambia (piezas globales al final)', () => {
+    const global = mk('glb-zocalo', 'Zocalo global', 'estructura');
+    const modulos = [mk('m1-base', 'Base modulo M1'), mk('m1-tapa', 'Tapa modulo M1')];
+    const { steps } = buildAssemblySequence([...modulos, global]);
+    assert.equal(steps[steps.length - 1].piezas[0], 'glb-zocalo');
   });
 });

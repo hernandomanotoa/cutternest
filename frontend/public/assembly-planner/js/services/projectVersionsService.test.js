@@ -14,6 +14,7 @@ import {
   versionCsv,
 } from './projectVersionsService.js';
 import { createModule, addDrawer } from './closetBuilderService.js';
+import { computePlinthSegments, plinthFramePieces, plinthLayoutFromPieces } from './plinthFrameService.js';
 
 function createMockStorage(initial = {}) {
   const data = { ...initial };
@@ -153,5 +154,33 @@ describe('projectVersionsService', () => {
     const csv = versionCsv(s.version.id);
     assert.ok(csv.includes('id,nombre,ancho'));
     assert.equal(versionCsv('nope'), null);
+  });
+});
+
+describe('projectVersionsService/zócalo estructural a marco', () => {
+  beforeEach(() => {
+    globalThis.localStorage = createMockStorage();
+  });
+
+  it('round-trip: el layout segmentado del marco sobrevive al CSV de la versión', () => {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    const segs = computePlinthSegments([850]).segments;
+    const marco = plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 });
+    const pieces = [...casco.pieces, ...marco.pieces];
+    const layoutAntes = plinthLayoutFromPieces(pieces);
+    assert.equal(layoutAntes.length, 2);
+
+    const saved = saveVersion('Closet con marco', { pieces });
+    assert.ok(saved.ok, saved.error);
+    const loaded = loadVersion(saved.version.id);
+    assert.ok(loaded.ok, loaded.error);
+
+    const layoutDespues = plinthLayoutFromPieces(loaded.pieces);
+    assert.deepEqual(layoutDespues, layoutAntes, 'segmentos, posiciones y divisores derivables tras cargar');
+    // El validador no debe quejarse de la suma de bases tras el round-trip.
+    assert.ok(
+      !(loaded.warnings || []).some((w) => w.includes('no coincide con suma de bases')),
+      `aviso espurio: ${(loaded.warnings || []).join(' | ')}`
+    );
   });
 });

@@ -58,7 +58,39 @@ function renderFichaSection(ficha) {
   `;
 }
 
-export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest', ficha = null) {
+// Sección "Plano de ensamble del zócalo" (solo con zócalo estructural a
+// marco): orden de armado en el piso, uniones entre sub-zócalos, niveladores
+// y verificación de levantamiento en vertical.
+function renderPlinthPlanSection(plan) {
+  if (!plan) return '';
+  const sub = plan.segments.map((s) => `
+    <li><strong>Sub-zócalo S${s.index}</strong> (${s.width} mm de ancho): ensamblar trasero,
+    2 costados y frente a escuadra con tarugos${s.dividers.length ? `; fijar ${s.dividers.length} divisor(es) interno(s)` : ''}.
+    Instalar ${s.niveladores} niveladores ocultos M8/M10 (±25 mm) en el interior del marco.</li>`).join('');
+  const uniones = plan.uniones.length
+    ? `<p>Unión entre sub-zócalos: ${plan.uniones.map((u) => `S${u.entre[0]}–S${u.entre[1]} (a ${u.x} mm del origen)`).join('; ')}:
+    tarugos o tornillos cada 150 mm a través de los costados compartidos.</p>`
+    : '<p>El marco queda a lo ancho de un solo sub-zócalo; no hay uniones entre sub-zócalos.</p>';
+  const lev = plan.levantamiento;
+  const levantamiento = lev
+    ? (lev.skipped
+      ? ''
+      : `<p><strong>Levantamiento en vertical:</strong> diagonal del cuerpo ${lev.diagonal.toFixed(0)} mm
+      + margen de seguridad vs techo → holgura <strong>${lev.holgura.toFixed(0)} mm</strong>
+      (${lev.levantamientoOk ? '✓ cabe' : '✕ NO cabe, reducir alto del cuerpo'}).</p>`)
+    : '';
+  return `
+    <section style="page-break-after: always; margin-bottom: 2rem;">
+      <h2>Plano de ensamble del zócalo</h2>
+      <p>El mueble se arma en el piso sobre el zócalo y se levanta en vertical dentro de la habitación.</p>
+      <ol>${sub}</ol>
+      ${uniones}
+      ${levantamiento}
+    </section>
+  `;
+}
+
+export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest', ficha = null, plinthPlan = null) {
   const body = steps.map((s) => {
     const completed = new Set();
     for (let i = 0; i < steps.indexOf(s); i++) completed.add(steps[i].paso);
@@ -87,6 +119,7 @@ section { margin-bottom: 2rem; }
 <body>
 <h1>Manual de Ensamblaje — ${moduleLabel}</h1>
 ${renderFichaSection(ficha)}
+${renderPlinthPlanSection(plinthPlan)}
 ${body}
 </body>
 </html>`;
