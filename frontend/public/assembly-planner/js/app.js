@@ -1101,19 +1101,33 @@ export function applyStructuralPlinth(opts = {}) {
     ...frame.pieces,
   ];
   // Altura del mueble fija: los fondos de los módulos se reajustan al Z del
-  // marco (los cascos pueden haberse generado con otro alto de zócalo).
+  // marco (los cascos pueden haberse generado con otro alto de zócalo), y
+  // las bases externas se convierten a internas (apoyadas sobre el marco).
   const altoLateral = new Map();
+  const anchoTapa = new Map();
+  const profLateral = new Map();
   pieces.forEach((p) => {
     const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
-    if (ml) altoLateral.set(ml[1], Number(p.alto) || 0);
+    if (ml) { altoLateral.set(ml[1], Number(p.alto) || 0); profLateral.set(ml[1], Number(p.ancho) || 0); }
+    const mt = String(p.id).match(/^m(\d+)-tapa$/);
+    if (mt) anchoTapa.set(mt[1], Number(p.ancho) || 0);
   });
   const piecesFinales = pieces.map((p) => {
-    const mf = String(p.id).match(/^m(\d+)-fondo$/);
-    if (!mf) return p;
-    const altoMod = altoLateral.get(mf[1]);
+    const mm = String(p.id).match(/^m(\d+)-(fondo|base)$/);
+    if (!mm) return p;
+    const altoMod = altoLateral.get(mm[1]);
     if (!altoMod) return p;
     const e = Number(p.espesor) || 15;
-    return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+    if (mm[2] === 'fondo') {
+      return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+    }
+    // Base externa (ancho ≈ tapa): pasa a interna, apoyada sobre el marco.
+    const tapaW = anchoTapa.get(mm[1]) || 0;
+    const prof = profLateral.get(mm[1]) || 0;
+    if (tapaW && Number(p.ancho) >= tapaW - 2 && prof) {
+      return { ...p, ancho: tapaW - 2 * e, alto: prof - 2 * e };
+    }
+    return p;
   });
   saveUserConfig({ plinthFrontRecess: retraso });
   store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });

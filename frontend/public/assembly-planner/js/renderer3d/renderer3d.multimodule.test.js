@@ -241,3 +241,21 @@ describe('Renderer3D multi-módulo (vista completa)', () => {
     assert.ok(highlighted >= 6, 'la selección debe resaltar las caras de la pieza de M2');
   });
 });
+
+describe('ensureModuleGap con zócalo global (glb-*)', () => {
+  it('no desplaza las piezas globales: el zócalo queda bajo la fila de módulos', () => {
+    // Dos módulos con gap < 20 (el zócalo global llega con moduleSeq propio).
+    const input = [
+      { id: 'm1-tapa', x: 0, w: 850, cx: 425, moduleSeq: 0 },
+      { id: 'm2-tapa', x: 860, w: 850, cx: 1285, moduleSeq: 1 },
+      { id: 'glb-zocalo-frente', x: 15, w: 1685, cx: 857, moduleSeq: 2, raw: { modulo: 'estructura' } },
+      { id: 'glb-zocalo-costado-der', x: 1715, w: 15, cx: 1722, moduleSeq: 2, raw: { modulo: 'estructura' } },
+    ];
+    const out = ensureModuleGap(input, MODULE_GAP_MM);
+    const byId = Object.fromEntries(out.map((g) => [g.id, g]));
+    // Los módulos sí respetan el gap mínimo; el zócalo NO se mueve.
+    assert.equal(byId['glb-zocalo-frente'].x, 15, 'frente del zócalo en su sitio');
+    assert.equal(byId['glb-zocalo-costado-der'].x, 1715, 'costado del zócalo en su sitio');
+    assert.ok(byId['m2-tapa'].x - (byId['m1-tapa'].x + byId['m1-tapa'].w) >= MODULE_GAP_MM - 1e-6);
+  });
+});

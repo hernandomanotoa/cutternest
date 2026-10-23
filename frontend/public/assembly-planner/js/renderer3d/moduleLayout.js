@@ -25,8 +25,16 @@ import { MODULE_GAP_MM } from '../core/config.js';
 export function ensureModuleGap(geometries, gapMm = MODULE_GAP_MM) {
   if (!geometries.length) return [];
 
+  // Piezas globales (zócalo a marco, fondo/corona globales, id `glb-*` o
+  // módulo 'estructura'): NO son módulos — no se agrupan ni se desplazan.
+  // El zócalo ya viene posicionado bajo la fila (mapa de spans de
+  // computeGeometries); tratarlo como un grupo más lo empujaba a un costado.
+  const esGlobal = (g) => String(g.id || '').startsWith('glb-')
+    || g.raw?.modulo === 'estructura'
+    || g.raw?.modulo === 'global';
   const bySeq = new Map();
   geometries.forEach((g, idx) => {
+    if (esGlobal(g)) return;
     const key = g.moduleSeq ?? 0;
     if (!bySeq.has(key)) bySeq.set(key, []);
     bySeq.get(key).push(idx);

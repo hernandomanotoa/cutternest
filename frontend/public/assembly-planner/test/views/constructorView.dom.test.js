@@ -960,3 +960,19 @@ test('Altura fija del mueble: el fondo descuenta el zócalo y se apoya sobre la 
   assert.equal(fondoRestaurado.alto, 2400 - 100 - 2 * 15, 'fondo consistente con el frente restaurado');
   view.destroy();
 });
+
+test('Marco sobre módulo sin "con zócalo": la base externa pasa a interna', () => {
+  const { store, view, container } = mountView();
+  // Desmarcar "Con zócalo" antes de agregar: casco con base EXTERNA.
+  const chk = container.querySelector('[data-cfg="zocalo"]');
+  chk.checked = false;
+  click(container, '[data-action="add-module"]');
+  const baseExterna = store.get().pieces.find((p) => p.id === 'm1-base');
+  assert.equal(baseExterna.ancho, 850, 'base externa (= ancho del módulo)');
+  // Al aplicar el marco, la base se convierte a interna y queda apoyada.
+  click(container, '[data-action="apply-plinth"]');
+  const base = store.get().pieces.find((p) => p.id === 'm1-base');
+  assert.equal(base.ancho, 850 - 2 * 15, 'base interna (apoyada sobre el marco)');
+  assert.equal(base.alto, 600 - 2 * 15, 'profundidad interna');
+  view.destroy();
+});
