@@ -9,6 +9,7 @@ import { createStore, setStore } from '../../js/core/store.js';
 import { createConstructorView } from '../../js/views/constructorView.js';
 import { createContainer, resetDocument } from './setup.mjs';
 import { countVersions, deleteAllVersions } from '../../js/services/projectVersionsService.js';
+import { plinthLayoutFromPieces } from '../../js/services/plinthFrameService.js';
 
 beforeEach(() => {
   resetDocument();
@@ -827,10 +828,76 @@ test('Datos de obra: lift-check con altura de techo', () => {
   assert.ok(check, 'lift-check renderizado');
   assert.match(check.textContent, /M1/);
   assert.match(check.textContent, /✕/);
+  // El aviso también llega al panel persistente de avisos de diseño.
+  assert.ok(
+    container.textContent.includes('No cabe en vertical'),
+    'aviso de levantamiento en el panel persistente'
+  );
   // 2400 techo: holgura ~3 mm → ✓
   setHtecho(2400);
   check = container.querySelector('.cn-constructor__liftcheck');
   assert.match(check.textContent, /✓/);
   assert.match(check.textContent, /holgura/);
+  view.destroy();
+});
+
+test('B1: marco desactualizado tras editar un módulo, con regeneración en un clic', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // 850
+  click(container, '[data-action="apply-plinth"]');
+  assert.ok(!container.textContent.includes('desactualizado'), 'marco al día tras generar');
+  // Editar el ancho del módulo a 900: el marco queda viejo.
+  container.querySelector('[data-module-scoped="1"] [data-edit-ancho]').value = '900';
+  click(container, '[data-action="apply-edit-module"][data-module="1"]');
+  assert.ok(container.textContent.includes('desactualizado'), 'aviso de marco desactualizado');
+  assert.match(container.textContent, /Regenerar marco/);
+  // Regenerar: el aviso desaparece y el marco cubre los 900 mm.
+  click(container, '[data-action="apply-plinth"]');
+  assert.ok(!container.textContent.includes('desactualizado'), 'marco al día tras regenerar');
+  const total = plinthLayoutFromPieces(store.get().pieces).reduce((s, g) => s + g.width, 0);
+  assert.equal(total, 900);
+  view.destroy();
+});
+
+test('B2: módulo nuevo sin frente simple cuando hay marco; el marco se regenera solo', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // M1 850 → 2 sub-zócalos
+  click(container, '[data-action="apply-plinth"]');
+  click(container, '[data-action="add-module"]'); // M2 850 (con zócalo chequeado por defecto)
+  const pieces = store.get().pieces;
+  assert.equal(pieces.some((p) => p.id === 'm2-zocalo'), false, 'sin frente simple en el módulo nuevo');
+  assert.equal(plinthLayoutFromPieces(pieces).length, 4, 'marco regenerado: 850+850 → 4 sub-zócalos');
+  assert.ok(!container.textContent.includes('desactualizado'), 'el marco regenerado está al día');
+  view.destroy();
+});
+
+test('B3: quitar el marco restaura los frentes simples por módulo', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="apply-plinth"]');
+  assert.equal(store.get().pieces.some((p) => p.id === 'm1-zocalo'), false);
+  click(container, '[data-action="remove-plinth"]');
+  const pieces = store.get().pieces;
+  assert.equal(plinthLayoutFromPieces(pieces).length, 0, 'sin marco');
+  const zocalo = pieces.find((p) => p.id === 'm1-zocalo');
+  assert.ok(zocalo, 'frente simple restaurado');
+  assert.equal(zocalo.alto, 100, 'mismo alto Z configurado (plinthAltoZocalo default)');
+  view.destroy();
+});
+
+test('C2: retraso mayor que la profundidad útil se rechaza', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // prof 600, e 15 → máx 570
+  const setRetraso = (v) => {
+    const el = container.querySelector('[data-obra="retraso"]');
+    el.value = String(v);
+    el.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  setRetraso(600);
+  click(container, '[data-action="apply-plinth"]');
+  assert.equal(store.get().pieces.some((p) => /^glb-zocalo-s/.test(p.id)), false, 'sin marco con retraso inválido');
+  setRetraso(50);
+  click(container, '[data-action="apply-plinth"]');
+  assert.ok(store.get().pieces.some((p) => /^glb-zocalo-s/.test(p.id)), 'marco generado con retraso válido');
   view.destroy();
 });

@@ -465,6 +465,11 @@ export function addModuleFromBuilder(config) {
   const state = store.get();
   const cantidad = Math.max(1, Math.min(12, Number(config.cantidad) || 1));
   const alturaZocalo = Number(config.alturaZocalo) > 0 ? Number(config.alturaZocalo) : 150;
+  // Con el zócalo estructural a marco activo, el módulo nuevo no lleva
+  // frente simple (el marco lo reemplaza); la base sigue interna y el marco
+  // se regenera abajo para incluir el módulo.
+  const marcoActivo = plinthLayoutFromPieces(state.pieces).length > 0;
+  const conZocalo = !!config.conZocalo && !marcoActivo;
   const nuevas = [];
   const moduleIds = [];
 
@@ -477,11 +482,11 @@ export function addModuleFromBuilder(config) {
       espesor: config.espesor ?? 15,
       colorCuerpo: config.colorCuerpo || '#C19A6B',
       modulo: moduleId,
-      baseInterna: !!config.conZocalo,
+      baseInterna: conZocalo || marcoActivo,
     });
     if (!result.ok) return { ok: false, errors: result.errors };
     nuevas.push(...result.pieces);
-    if (config.conZocalo) {
+    if (conZocalo) {
       const z = addZocalo(moduleId, {
         ancho: Number(config.ancho),
         alto: alturaZocalo,
@@ -498,6 +503,16 @@ export function addModuleFromBuilder(config) {
   const allPieces = [...state.pieces, ...nuevas];
   store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
   recalculateAll();
+  if (marcoActivo) {
+    // Regenerar el marco para incluir los módulos nuevos (sin segundo
+    // paso de undo: la acción completa es un solo "Agregar módulo").
+    const cfg = getStore().get().userConfig || {};
+    applyStructuralPlinth({
+      altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
+      retraso: Number(cfg.plinthFrontRecess) || 0,
+      skipUndo: true,
+    });
+  }
   // Segundo (y siguientes) modulo: saltar a Vista completa automaticamente.
   if (countRootModules(getStore().get().pieces) > 1) {
     getStore().set({ currentModule: 'all' });
@@ -1031,8 +1046,9 @@ function renameModulePrefix(pieces, oldId, newId) {
 // Genera (o regenera) el zócalo estructural a marco: N sub-zócalos cajón
 // de 4 lados alineados a las juntas entre módulos, con divisores internos
 // cuando un tramo supera 800 mm. Reemplaza las piezas `glb-zocalo-s*`
-// previas. opts: { altoZocalo, retraso, maxSpan?, splitLight? }. El retraso
-// del frente persiste en userConfig.plinthFrontRecess (lo lee el renderer).
+// previas. opts: { altoZocalo, retraso, maxSpan?, splitLight?, skipUndo? }.
+// El retraso del frente persiste en userConfig.plinthFrontRecess (lo lee el
+// renderer).
 export function applyStructuralPlinth(opts = {}) {
   const store = getStore();
   const state = store.get();
@@ -1047,11 +1063,16 @@ export function applyStructuralPlinth(opts = {}) {
   if (!segResult.ok) return { ok: false, errors: segResult.errors };
   const profundidad = Math.max(...dims.map((d) => d.profundidad || 0));
   if (!profundidad) return { ok: false, errors: ['No se pudo determinar la profundidad del mueble (falta el lateral)'] };
+  const espesor = dims[0].espesor || 15;
+  // C2: el frente retrasado no puede quedar detrás del trasero del marco.
+  if (retraso > profundidad - 2 * espesor) {
+    return { ok: false, errors: [`Retraso de ${retraso} mm inválido: el frente quedaría detrás del trasero del marco (máximo ${profundidad - 2 * espesor} mm para ${profundidad} mm de profundidad)`] };
+  }
   const frame = plinthFramePieces(segResult.segments, {
-    profundidad, altoZocalo, espesor: dims[0].espesor || 15,
+    profundidad, altoZocalo, espesor,
   });
   if (!frame.ok) return { ok: false, errors: frame.errors };
-  snapshotUndo('Zocalo estructural a marco');
+  if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');
   // El marco reemplaza al frente simple de cada módulo (el apilado se
   // ancla al marco vía cursorInsercion).
   const pieces = [
@@ -1077,9 +1098,26 @@ export function removeStructuralPlinth() {
   const remaining = state.pieces.filter((p) => !/^glb-zocalo-s\d+-/.test(String(p.id)));
   if (remaining.length === state.pieces.length) return { ok: false, errors: ['No hay zócalo estructural'] };
   snapshotUndo('Quitar zócalo estructural');
-  store.set({ pieces: remaining, dependencies: sugerirDependencias(remaining) });
+  // Restaurar el frente simple en los módulos que se quedaron sin él
+  // (se eliminaron al generar el marco). Mismo alto Z configurado.
+  const cfg = state.userConfig || {};
+  const altoZocalo = Number(cfg.plinthAltoZocalo) || 100;
+  const restauradas = [];
+  for (const d of rootModuleDims(remaining)) {
+    if (remaining.some((p) => p.id === `m${d.id}-zocalo`)) continue;
+    const tapa = remaining.find((p) => p.id === `m${d.id}-tapa`);
+    const z = addZocalo(d.id, {
+      ancho: d.ancho,
+      alto: altoZocalo,
+      espesor: Number(tapa?.espesor) || d.espesor || 15,
+      color: tapa?.color || '#C19A6B',
+    });
+    if (z.ok) restauradas.push(...z.pieces);
+  }
+  const pieces = [...remaining, ...restauradas];
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
-  return { ok: true };
+  return { ok: true, restored: restauradas.length };
 }
 
 export function editModuleDimensions(moduleId, { ancho, alto, prof }) {

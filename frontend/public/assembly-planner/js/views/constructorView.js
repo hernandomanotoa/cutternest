@@ -49,6 +49,7 @@ import {
   plinthLayoutFromPieces,
   rootModuleDims,
   totalLevelers,
+  marcoDesactualizado,
 } from '../services/plinthFrameService.js';
 
 const ALTO_VANO_OPCIONES = [130, 180, 200, 220, 280];
@@ -517,7 +518,7 @@ export function createConstructorView(store) {
   function doRemovePlinth() {
     const r = removeStructuralPlinth();
     if (!r.ok) toast(r.errors.join('; '), { type: 'info' });
-    else toast('Zócalo estructural eliminado', { type: 'success' });
+    else toast(`Zócalo estructural eliminado${r.restored ? `; se restauraron ${r.restored} frente(s) simple(s)` : ''}`, { type: 'success' });
   }
 
   function render() {
@@ -586,7 +587,7 @@ export function createConstructorView(store) {
             <button class="btn btn--secondary" data-action="goto-view" data-view="renderer3d" ${pieces.length ? '' : 'disabled'}>Ver 3D</button>
             <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
           </div>
-          ${renderWarningsPanel(pieces)}
+          ${renderWarningsPanel(pieces, state)}
         </div>
       </div>
 
@@ -631,8 +632,9 @@ export function createConstructorView(store) {
             </div>
             ${renderLiftCheck(pieces, state)}
           </details>
+          ${marcoDesactualizado(pieces) ? '<p class="cn-constructor__warnings" role="alert">⚠ Los módulos cambiaron desde que se generó el marco. Pulse <strong>Generar marco</strong> para actualizar los sub-zócalos.</p>' : ''}
           <div class="cn-constructor__content-btns">
-            <button class="btn btn--primary" data-action="apply-plinth">Generar marco</button>
+            <button class="btn btn--primary" data-action="apply-plinth">${marcoDesactualizado(pieces) ? 'Regenerar marco' : 'Generar marco'}</button>
             <button class="btn btn--secondary" data-action="remove-plinth" ${plinthLayoutFromPieces(pieces).length ? '' : 'disabled'}>Quitar marco</button>
           </div>
         </div>
@@ -986,9 +988,34 @@ function resumenHardware(hardware) {
   return partes.join(', ');
 }
 
+// Avisos de obra: verificación de levantamiento por módulo (solo con H
+// techo cargada) y marco desactualizado respecto de los módulos.
+function avisosObra(pieces, state = {}) {
+  const cfg = state.userConfig || {};
+  const hTecho = Number(cfg.obraHTecho) || 0;
+  const out = [];
+  if (hTecho) {
+    const altoZocalo = Number(cfg.plinthAltoZocalo) || 100;
+    for (const d of rootModuleDims(pieces)) {
+      const r = computeLiftCheck({
+        altoModulo: d.alto, altoZocalo, profundidad: d.profundidad, hTecho,
+        margenSeg: Number(cfg.obraMargenSeg ?? 20),
+        margenAjuste: Number(cfg.obraMargenAjuste ?? 10),
+        zMin: Number(cfg.obraZmin ?? 60),
+        zMax: Number(cfg.obraZmax ?? 150),
+      });
+      r.warnings.forEach((w) => out.push(`M${d.id}: ${w}`));
+    }
+  }
+  if (marcoDesactualizado(pieces)) {
+    out.push('Zócalo a marco desactualizado: los módulos cambiaron (ancho/agregados/eliminados). Pulse "Generar marco" en la tarjeta de zócalo para actualizarlo.');
+  }
+  return out;
+}
+
 // Panel de avisos del validador: re-parsea el mueble en silencio y muestra
 // los warnings (luz de repisas, cobertura de frentes) de forma persistente.
-function renderWarningsPanel(pieces) {
+function renderWarningsPanel(pieces, state = {}) {
   if (!pieces.length) return '';
   let warnings = [];
   try {
@@ -997,6 +1024,7 @@ function renderWarningsPanel(pieces) {
   } catch {
     return '';
   }
+  warnings = [...warnings, ...avisosObra(pieces, state)];
   if (!warnings.length) {
     return '<p class="cn-constructor__warnings cn-constructor__warnings--ok">✓ Sin avisos de diseño</p>';
   }
