@@ -9,7 +9,7 @@ import { createStore, setStore } from '../../js/core/store.js';
 import { createConstructorView } from '../../js/views/constructorView.js';
 import { createContainer, resetDocument } from './setup.mjs';
 import { countVersions, deleteAllVersions } from '../../js/services/projectVersionsService.js';
-import { plinthLayoutFromPieces, plinthTotalWidth } from '../../js/services/plinthFrameService.js';
+import { plinthTotalWidth } from '../../js/services/plinthFrameService.js';
 
 beforeEach(() => {
   resetDocument();
@@ -895,7 +895,7 @@ test('B3: quitar el marco restaura los frentes simples por módulo', () => {
   assert.equal(store.get().pieces.some((p) => p.id === 'm1-zocalo'), false);
   click(container, '[data-action="remove-plinth"]');
   const pieces = store.get().pieces;
-  assert.equal(plinthLayoutFromPieces(pieces).length, 0, 'sin marco');
+  assert.equal(plinthTotalWidth(pieces), 0, 'sin marco');
   const zocalo = pieces.find((p) => p.id === 'm1-zocalo');
   assert.ok(zocalo, 'frente simple restaurado');
   assert.equal(zocalo.alto, 100, 'mismo alto Z configurado (plinthAltoZocalo default)');
@@ -916,28 +916,6 @@ test('C2: retraso mayor que la profundidad útil se rechaza', () => {
   setRetraso(50);
   click(container, '[data-action="apply-plinth"]');
   assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'marco generado con retraso válido');
-  view.destroy();
-});
-
-test('Modo segmentado: opción que divide en sub-zócalos y regenera al instante', () => {
-  const { store, view, container } = mountView();
-  click(container, '[data-action="add-module"]'); // 850 → en segmentado: 2 sub-zócalos
-  click(container, '[data-action="apply-plinth"]');
-  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'default: zócalo único');
-  // Elegir "Dividido en sub-zócalos": el marco se regenera solo.
-  const modo = container.querySelector('[data-obra="modo"]');
-  modo.value = 'segmentado';
-  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
-  const pieces = store.get().pieces;
-  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-frente'), 'sub-zócalo S1');
-  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s2-frente'), 'sub-zócalo S2');
-  assert.equal(pieces.some((p) => p.id === 'glb-zocalo-frente'), false, 'ya no hay marco único');
-  assert.equal(plinthTotalWidth(pieces), 850, 'cobertura total intacta');
-  // Y se puede volver al zócalo único.
-  const modo2 = container.querySelector('[data-obra="modo"]');
-  modo2.value = 'unico';
-  modo2.dispatchEvent(new window.Event('change', { bubbles: true }));
-  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'de vuelta al zócalo único');
   view.destroy();
 });
 
@@ -974,5 +952,39 @@ test('Marco sobre módulo sin "con zócalo": la base externa pasa a interna', ()
   const base = store.get().pieces.find((p) => p.id === 'm1-base');
   assert.equal(base.ancho, 850 - 2 * 15, 'base interna (apoyada sobre el marco)');
   assert.equal(base.alto, 600 - 2 * 15, 'profundidad interna');
+  view.destroy();
+});
+
+test('Zócalo simple agregado a posteriori: el fondo se recalcula y al quitarlo se restaura', () => {
+  const { store, view, container } = mountView();
+  // Módulo SIN "con zócalo": fondo a altura completa.
+  const chk = container.querySelector('[data-cfg="zocalo"]');
+  chk.checked = false;
+  click(container, '[data-action="add-module"]');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 2 * 15, 'fondo completo inicial');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-base').ancho, 850, 'base externa inicial');
+  // Agregar "+ Zócalo" (150): base a interna y fondo con descuento.
+  click(container, '[data-action="add-content"][data-kind="zocalo"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1-zocalo'), 'frente simple agregado');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-base').ancho, 850 - 2 * 15, 'base interna');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 150 - 2 * 15, 'fondo descuenta el zócalo');
+  // Quitar el zócalo (doble click: el primero arma la confirmación): el
+  // fondo vuelve a su alto completo.
+  click(container, '[data-action="remove-content"][data-ref="m1-zocalo"]');
+  click(container, '[data-action="remove-content"][data-ref="m1-zocalo"]');
+  assert.equal(store.get().pieces.some((p) => p.id === 'm1-zocalo'), false, 'zócalo quitado');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 2 * 15, 'fondo restaurado');
+  view.destroy();
+});
+
+test('Editar dimensiones mantiene el descuento del fondo según el zócalo vigente', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // con zócalo simple 150
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 150 - 2 * 15);
+  // Redimensionar (mismo alto): el fondo mantiene el descuento del zócalo.
+  container.querySelector('[data-module-scoped="1"] [data-edit-ancho]').value = '900';
+  click(container, '[data-action="apply-edit-module"][data-module="1"]');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 150 - 2 * 15, 'descuento preservado');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 900 - 2 * 15, 'fondo renACE al nuevo ancho');
   view.destroy();
 });

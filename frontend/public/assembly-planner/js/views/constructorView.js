@@ -46,7 +46,6 @@ import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
   computeLiftCheck,
-  plinthLayoutFromPieces,
   rootModuleDims,
   hasPlinthFrame,
   plinthFrameSpec,
@@ -184,12 +183,6 @@ export function createConstructorView(store) {
       if (e.target.dataset.obra === 'tipo') {
         if (e.target.value === 'marco') doApplyPlinth();
         else doRemovePlinth();
-      }
-      if (e.target.dataset.obra === 'modo') {
-        // Cambiar de estructura regenera el marco al instante si ya existe.
-        saveUserConfig({ plinthSegmented: e.target.value === 'segmentado' ? 1 : 0 });
-        store.set({ userConfig: loadUserConfig() });
-        if (hasPlinthFrame(store.get().pieces)) doApplyPlinth();
       }
       return;
     }
@@ -513,15 +506,12 @@ export function createConstructorView(store) {
     const r = applyStructuralPlinth({
       altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
       retraso: Number(cfg.plinthFrontRecess) || 0,
-      mode: Number(cfg.plinthSegmented) ? 'segmentado' : 'unico',
     });
     if (!r.ok) {
       toast(r.errors.join('; '), { type: 'error' });
       return;
     }
-    toast(r.mode === 'segmentado'
-      ? `Zócalo a marco segmentado: ${r.pieceCount} piezas, ${r.levelers} niveladores`
-      : `Zócalo único a marco (${r.ancho} mm): ${r.pieceCount} piezas, ${r.levelers} niveladores`, { type: 'success' });
+    toast(`Zócalo a marco (${r.ancho} mm): ${r.pieceCount} piezas, ${r.levelers} niveladores`, { type: 'success' });
     (r.warnings || []).forEach((w) => toast(w, { type: 'info', durationMs: 8000 }));
   }
 
@@ -612,12 +602,6 @@ export function createConstructorView(store) {
               <select data-obra="tipo">
                 <option value="simple" ${hasPlinthFrame(pieces) ? '' : 'selected'}>Frente simple por módulo</option>
                 <option value="marco" ${hasPlinthFrame(pieces) ? 'selected' : ''}>Marco estructural (cajón de 4 lados)</option>
-              </select>
-            </label>
-            <label class="form-group">Estructura del marco
-              <select data-obra="modo" ${hasPlinthFrame(pieces) ? '' : 'disabled'}>
-                <option value="unico" ${Number(state.userConfig?.plinthSegmented) ? '' : 'selected'}>Zócalo único (ancho total)</option>
-                <option value="segmentado" ${Number(state.userConfig?.plinthSegmented) ? 'selected' : ''}>Dividido en sub-zócalos</option>
               </select>
             </label>
             <label class="form-group">Alto zócalo Z (mm)
@@ -956,9 +940,6 @@ function resumenPlinth(pieces, state = {}) {
   const spec = plinthFrameSpec(pieces);
   const niveladores = plinthLevelerCount(pieces);
   if (!spec) return `${niveladores} niveladores`;
-  if (spec.mode === 'segmentado') {
-    return `${spec.ancho} mm en ${plinthLayoutFromPieces(pieces).length} sub-zócalos · ${niveladores} niveladores`;
-  }
   return `zócalo único ${spec.ancho}×${spec.profundidad}×${spec.altoZocalo} mm (e${spec.espesor}) · ${niveladores} niveladores`;
 }
 

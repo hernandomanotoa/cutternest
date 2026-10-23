@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateHardware } from './hardware.js';
-import { computePlinthSegments, plinthFramePieces } from './plinthFrameService.js';
+import { buildPlinthFrame } from './plinthFrameService.js';
 
 function pieza(id, nombre, modulo = '1') {
   return { id, originalId: id, nombre, modulo, ancho: 400, alto: 180, cantos: '' };
@@ -221,16 +221,15 @@ test('proyecto sin cama: sin herrajes de dormitorio', () => {
   assert.equal(h.some((x) => x.nombre === 'Soporte central de tarima'), false);
 });
 
-test('zócalo estructural a marco: niveladores ocultos 2 por sub-zócalo, 4 si supera 600', () => {
-  const segs = computePlinthSegments([850]).segments; // 425 + 425 → 2 × 2 niveladores
-  const { pieces } = plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 });
+test('zócalo estructural a marco: niveladores ocultos, un par cada 600 mm', () => {
+  // 850 mm → 2 × ceil(850/600) = 4 niveladores
+  const { pieces } = buildPlinthFrame({ moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18 });
   const h = calculateHardware(pieces, []);
   const niv = h.find((x) => x.nombre === 'Nivelador oculto de zócalo');
   assert.ok(niv, 'el marco genera niveladores');
   assert.equal(niv.cantidad, 4);
-  // Módulos angostos: 600 + 600 → 2 niveladores por sub-zócalo.
-  const segs2 = computePlinthSegments([600, 600]).segments;
-  const { pieces: p2 } = plinthFramePieces(segs2, { profundidad: 600, altoZocalo: 90, espesor: 18 });
+  // 1200 mm → 2 × ceil(1200/600) = 4 niveladores.
+  const { pieces: p2 } = buildPlinthFrame({ moduleWidths: [600, 600], profundidad: 600, altoZocalo: 90, espesor: 18 });
   const h2 = calculateHardware(p2, []);
   assert.equal(h2.find((x) => x.nombre === 'Nivelador oculto de zócalo').cantidad, 4);
   // Sin marco: sin niveladores.

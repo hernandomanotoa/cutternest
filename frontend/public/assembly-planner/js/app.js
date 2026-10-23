@@ -42,6 +42,7 @@ import { getGapPreset, GAP_PRESETS } from './core/gapPresets.js';
 import {
   buildPlinthFrame,
   hasPlinthFrame,
+  marcoZocaloHeight,
   modulosConCajones,
   plinthLevelerCount,
   rootModuleDims,
@@ -519,7 +520,6 @@ export function addModuleFromBuilder(config) {
     applyStructuralPlinth({
       altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
       retraso: Number(cfg.plinthFrontRecess) || 0,
-      mode: Number(cfg.plinthSegmented) ? 'segmentado' : 'unico',
       skipUndo: true,
     });
   }
@@ -578,22 +578,29 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   } else if (kind === 'doubleRail') {
     result = addDoubleRail(moduleId, { anchoUtil, index: nextContentIndex(state.pieces, moduleId, 'rail') });
   } else if (kind === 'zocalo') {
+    const altoZocalo = Number(opts.alturaZocalo) > 0 ? Number(opts.alturaZocalo) : 150;
     result = addZocalo(moduleId, {
       ancho: anchoModulo,
-      alto: Number(opts.alturaZocalo) > 0 ? Number(opts.alturaZocalo) : 150,
+      alto: altoZocalo,
       espesor, color: colorCuerpo,
     });
     // Primer zocalo del modulo: convertir la base a interna para que se
-    // apoye sobre el (si aun es externa).
+    // apoye sobre el (si aun es externa) y descontar el zócalo del fondo:
+    // la altura del mueble queda fija y el fondo se apoya sobre la base.
     const tieneZocalo = state.pieces.some((p) => p.id === `m${moduleId}-zocalo`);
     const tapa = modPieces.find((p) => p.id === `m${moduleId}-tapa`);
     const base = modPieces.find((p) => p.id === `m${moduleId}-base`);
-    if (result.ok && !tieneZocalo && base && tapa && Number(base.ancho) >= Number(tapa.ancho)) {
-      piecesMutadas = state.pieces.map((p) => (
-        p.id === base.id
-          ? { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - 2 * espesor }
-          : p
-      ));
+    const lateral = modPieces.find((p) => p.id === `m${moduleId}-lateral-izq`);
+    if (result.ok && !tieneZocalo && base && tapa && lateral
+      && Number(base.ancho) >= Number(tapa.ancho)) {
+      const altoModulo = Number(lateral.alto) || 0;
+      piecesMutadas = state.pieces.map((p) => {
+        if (p.id === base.id) return { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - 2 * espesor };
+        if (p.id === `m${moduleId}-fondo` && altoModulo) {
+          return { ...p, alto: Math.max(100, altoModulo - altoZocalo - 2 * espesor) };
+        }
+        return p;
+      });
     }
   } else if (kind === 'drawer' || kind === 'shoeRack') {
     // Contador UNIFICADO cajón+zapatera: submódulos secuenciales según el
@@ -982,8 +989,13 @@ export function removeContentPiece(refId) {
   // 'm1-repisa-1' es 'm1-repisa-1' (pieza unica, mas su refuerzo).
   let groupPrefix = ref.slice(0, ref.lastIndexOf('-') + 1);
   if (groupPrefix === 'm') groupPrefix = ref; // seguridad: sin guiones
+  // El zócalo simple (`m{N}-zocalo`) es pieza única: su prefijo `m{N}-`
+  // arrastraría todo el casco (fondo/base terminan en esos sufijos).
+  if (/^m\d+-zocalo$/.test(ref)) groupPrefix = ref;
   const esRepisa = /-repisa-\d+$/.test(ref);
-  const pieces = state.pieces.filter((p) => {
+  const esZocaloSimple = /^m\d+-zocalo$/.test(ref);
+  const zocaloMod = esZocaloSimple ? ref.match(/^m(\d+)-zocalo$/)[1] : null;
+  let pieces = state.pieces.filter((p) => {
     const id = String(p.id);
     if (id === ref) return false;
     if (id.startsWith(groupPrefix) && /-(frente|lateral|fondo|cara|base|tirador)$/.test(id)) return false;
@@ -991,6 +1003,17 @@ export function removeContentPiece(refId) {
     if (esRepisa && id === ref.replace('-repisa-', '-refuerzo-repisa-')) return false;
     return true;
   });
+  // Sin zócalo simple el fondo vuelve a su alto completo (alto − 2e).
+  if (zocaloMod) {
+    const lateral = pieces.find((p) => p.id === `m${zocaloMod}-lateral-izq`);
+    const altoMod = Number(lateral?.alto) || 0;
+    if (altoMod) {
+      const e = Number(pieces.find((p) => p.id === `m${zocaloMod}-fondo`)?.espesor) || 15;
+      pieces = pieces.map((p) => (
+        p.id === `m${zocaloMod}-fondo` ? { ...p, alto: Math.max(100, altoMod - 2 * e) } : p
+      ));
+    }
+  }
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
   return { ok: true };
@@ -1066,9 +1089,6 @@ export function applyStructuralPlinth(opts = {}) {
   if (!dims.length) return { ok: false, errors: ['Agregue al menos un módulo con casco (tapa/base)'] };
   const altoZocalo = Number(opts.altoZocalo) || 100;
   const retraso = Math.max(0, Number(opts.retraso) || 0);
-  // Modo: 'unico' (default, un solo marco del ancho total) o 'segmentado'
-  // (sub-zócalos por juntas, con divisores en tramos > 800 mm).
-  const mode = opts.mode === 'segmentado' ? 'segmentado' : 'unico';
   const profundidad = Math.max(...dims.map((d) => d.profundidad || 0));
   if (!profundidad) return { ok: false, errors: ['No se pudo determinar la profundidad del mueble (falta el lateral)'] };
   const espesor = dims[0].espesor || 15;
@@ -1076,18 +1096,15 @@ export function applyStructuralPlinth(opts = {}) {
   if (retraso > profundidad - 2 * espesor) {
     return { ok: false, errors: [`Retraso de ${retraso} mm inválido: el frente quedaría detrás del trasero del marco (máximo ${profundidad - 2 * espesor} mm para ${profundidad} mm de profundidad)`] };
   }
-  // Forma definida del zócalo: el servicio deriva segmentos y piezas de
-  // corte; aquí no hay restas de espesor — solo la forma (anchos de módulo,
-  // profundidad, alto Z).
+  // Forma definida del zócalo: el servicio deriva las piezas de corte; aquí
+  // no hay restas de espesor — solo la forma (anchos de módulo, profundidad,
+  // alto Z).
   const built = buildPlinthFrame({
     moduleWidths: dims.map((d) => d.ancho),
     profundidad,
     altoZocalo,
     espesor,
-    mode,
-    drawerModules: mode === 'unico' ? modulosConCajones(state.pieces) : [],
-    maxSpan: opts.maxSpan,
-    splitLight: opts.splitLight,
+    drawerModules: modulosConCajones(state.pieces),
   });
   if (!built.ok) return { ok: false, errors: built.errors };
   if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');
@@ -1132,8 +1149,7 @@ export function applyStructuralPlinth(opts = {}) {
   recalculateAll();
   return {
     ok: true,
-    mode,
-    ancho: segments.reduce((s, g) => s + g.width, 0),
+    ancho: built.spec.ancho,
     pieceCount: built.pieces.length,
     levelers: plinthLevelerCount(built.pieces),
     warnings: built.warnings,
@@ -1279,13 +1295,18 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     grupos.push({ viejas: new Set(piezasGrupo.map((p) => p.id)), piezasNuevas: renombradas });
   }
 
-  // 2. Casco redimensionado.
+  // 2. Casco redimensionado. El fondo descuenta la zona del zócalo (simple
+  //    o marco): la altura del mueble queda fija y se apoya sobre la base.
+  const zocaloSimple = state.pieces.find((p) => p.id === `m${moduleId}-zocalo`);
+  const zDescuento = zocaloSimple
+    ? (Number(zocaloSimple.alto) || 0)
+    : marcoZocaloHeight(state.pieces);
   const cascoIds = {
     base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? profUtil : dims.prof],
     tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
     'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
     'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],
-    fondo: [`m${moduleId}-fondo`, anchoUtil, dims.alto - 2 * espesor],
+    fondo: [`m${moduleId}-fondo`, anchoUtil, Math.max(100, dims.alto - zDescuento - 2 * espesor)],
   };
 
   // 3. Aplicar: casco + contenido interior adaptado.

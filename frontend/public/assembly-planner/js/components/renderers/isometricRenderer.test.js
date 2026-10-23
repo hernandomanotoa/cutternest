@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { IsometricRenderer, sortByDepth } from './isometricRenderer.js';
-import { computePlinthSegments, plinthFramePieces } from '../../services/plinthFrameService.js';
+import { buildPlinthFrame } from '../../services/plinthFrameService.js';
 import { createModule } from '../../services/closetBuilderService.js';
 
 function parsePolygons(svg) {
@@ -1086,89 +1086,12 @@ describe('IsometricRenderer zócalo-cajón global (modelo sin base global)', () 
   });
 });
 
-describe('IsometricRenderer zócalo estructural a marco', () => {
-  const marcoPieces = (widths = [400, 400]) => {
-    const segs = computePlinthSegments(widths).segments;
-    return plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 }).pieces;
-  };
-  const rendererFor = (pieces, overrides = {}, moduleW = 800) => {
-    const renderer = new IsometricRenderer({ innerHTML: '' }, { verticalPositionOverrides: overrides });
-    return renderer._buildGlobalGeometries(pieces, moduleW, 600, 2300, 18, true, 90);
-  };
-
-  it('posiciona los frentes de cada sub-zócalo en su segmento', () => {
-    const geoms = rendererFor(marcoPieces());
-    const frentes = geoms.filter((g) => g.role === 'plinth').sort((a, b) => a.x - b.x);
-    assert.equal(frentes.length, 2);
-    assert.equal(frentes[0].x, 0);
-    assert.equal(frentes[0].w, 364); // 400 - 2*18
-    assert.equal(frentes[1].x, 400, 'segundo sub-zócalo arranca en la junta');
-    assert.equal(frentes[1].w, 364);
-    frentes.forEach((f) => {
-      assert.equal(f.h, 90);
-      assert.equal(f.z, 0);
-    });
-  });
-
-  it('coloca costados y trasero por segmento', () => {
-    const geoms = rendererFor(marcoPieces());
-    const traseros = geoms.filter((g) => g.role === 'back_panel').sort((a, b) => a.x - b.x);
-    assert.equal(traseros.length, 2);
-    assert.equal(traseros[1].x, 400);
-    const costados = geoms.filter((g) => g.id.includes('costado'));
-    assert.equal(costados.length, 4);
-    const derechos = costados.filter((g) => g.id.includes('der')).sort((a, b) => a.x - b.x);
-    assert.equal(derechos[0].x, 400 - 18, 'costado der del S1 en el límite de su segmento');
-    assert.equal(derechos[1].x, 800 - 18, 'costado der del S2 al final del mueble');
-  });
-
-  it('aplica el retraso configurable al frente del marco', () => {
-    const sinRetraso = rendererFor(marcoPieces(), {});
-    const conRetraso = rendererFor(marcoPieces(), { plinthFrontRecess: 50 });
-    const f0 = sinRetraso.find((g) => g.role === 'plinth');
-    const f1 = conRetraso.find((g) => g.role === 'plinth');
-    assert.equal(f0.y, 600 - 18);
-    assert.equal(f1.y, 600 - 18 - 50);
-  });
-
-  it('dibuja el divisor interno centrado en su segmento', () => {
-    // Módulo de 850 → dos sub-zócalos de 425 con divisor en x=425 (S1).
-    const geoms = rendererFor(marcoPieces([850]), {}, 850);
-    const divisores = geoms.filter((g) => g.id.includes('divisor'));
-    assert.equal(divisores.length, 1);
-    assert.equal(divisores[0].x, 425 - 9, 'divisor centrado a 425 mm del origen');
-    assert.equal(divisores[0].w, 18);
-    assert.equal(divisores[0].h, 90);
-  });
-
-  it('escala los segmentos cuando el ancho visual incluye gaps entre módulos', () => {
-    // Vista "todos": moduleW = 800 + 20 de gap → escala 820/800.
-    const geoms = rendererFor(marcoPieces(), {}, 820);
-    const frentes = geoms.filter((g) => g.role === 'plinth').sort((a, b) => a.x - b.x);
-    assert.ok(Math.abs(frentes[1].x - 410) < 1e-6, `x=${frentes[1].x}`);
-  });
-
-  it('el zócalo clásico de catálogo (sin s{k}) conserva su layout', () => {
-    const catalogo = [
-      { id: 'glb-zocalo', nombre: 'Zocalo global', ancho: 800, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
-      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
-      { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
-    ];
-    const geoms = rendererFor(catalogo, {}, 800);
-    const frente = geoms.find((g) => g.role === 'plinth');
-    assert.equal(frente.x, 0);
-    assert.equal(frente.w, 800);
-    const costados = geoms.filter((g) => g.id.includes('lateral'));
-    assert.equal(costados.find((g) => g.id.includes('izq')).x, 0);
-    assert.equal(costados.find((g) => g.id.includes('der')).x, 800 - 18);
-  });
-});
 
 describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
-  const unicoPieces = () => plinthFramePieces(
-    [{ index: 1, x0: 0, width: 850, modules: [0], dividers: [] }],
-    { profundidad: 600, altoZocalo: 90, espesor: 18, mode: 'unico', drawerModules: [{ moduloId: '1', ancho: 850 }] },
-  ).pieces;
+  const unicoPieces = () => buildPlinthFrame({
+    moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
+    drawerModules: [{ moduloId: '1', ancho: 850 }],
+  }).pieces;
 
   it('dibuja el marco único a ancho total con su división a mitad de profundidad', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
@@ -1205,10 +1128,9 @@ describe('IsometricRenderer alineación zócalo único en vista completa', () =>
       ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces,
       ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '2' }).pieces,
     ];
-    const marco = plinthFramePieces(
-      [{ index: 1, x0: 0, width: 1700, modules: [0, 1], dividers: [] }],
-      { profundidad: 600, altoZocalo: 100, espesor: 15, mode: 'unico' },
-    ).pieces;
+    const marco = buildPlinthFrame({
+      moduleWidths: [850, 850], profundidad: 600, altoZocalo: 100, espesor: 15,
+    }).pieces;
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const { geometries } = renderer.computeGeometries('all', [...mods, ...marco]);
     const rowEnd = Math.max(...geometries.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
@@ -1228,10 +1150,9 @@ describe('IsometricRenderer alineación zócalo único en vista completa', () =>
 
   it('el fondo del módulo se apoya sobre la base (no invade la zona del zócalo)', () => {
     const mods = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1', baseInterna: true, alturaZocalo: 100 }).pieces;
-    const marco = plinthFramePieces(
-      [{ index: 1, x0: 0, width: 850, modules: [0], dividers: [] }],
-      { profundidad: 600, altoZocalo: 100, espesor: 15, mode: 'unico' },
-    ).pieces;
+    const marco = buildPlinthFrame({
+      moduleWidths: [850], profundidad: 600, altoZocalo: 100, espesor: 15,
+    }).pieces;
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const { geometries } = renderer.computeGeometries('all', [...mods, ...marco]);
     const fondo = geometries.find((g) => g.id === 'm1-fondo');
@@ -1239,5 +1160,38 @@ describe('IsometricRenderer alineación zócalo único en vista completa', () =>
     assert.equal(fondo.z, 100 + 15, 'fondo apoyado sobre la base interior (zócalo + espesor)');
     assert.ok(Math.abs((fondo.z + fondo.h) - (base.z + base.h + 2270 - 15)) < 1e-6 || fondo.h === 2270, 'alto del fondo con descuento del zócalo');
     assert.equal(fondo.z + fondo.h, 2385, 'el fondo llega hasta la tapa');
+  });
+});
+
+describe('IsometricRenderer zócalo: retraso y catálogo legacy', () => {
+  const unico = () => buildPlinthFrame({
+    moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
+  }).pieces;
+
+  it('aplica el retraso configurable al frente del marco', () => {
+    const mk = (overrides) => {
+      const renderer = new IsometricRenderer({ innerHTML: '' }, { verticalPositionOverrides: overrides });
+      return renderer._buildGlobalGeometries(unico(), 850, 600, 2300, 18, true, 90);
+    };
+    const f0 = mk({}).find((g) => g.id === 'glb-zocalo-frente');
+    const f1 = mk({ plinthFrontRecess: 50 }).find((g) => g.id === 'glb-zocalo-frente');
+    assert.equal(f0.y, 600 - 18);
+    assert.equal(f1.y, 600 - 18 - 50);
+  });
+
+  it('el zócalo clásico de catálogo (sin ids del marco) conserva su layout', () => {
+    const catalogo = [
+      { id: 'glb-zocalo', nombre: 'Zocalo global', ancho: 800, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+    ];
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildGlobalGeometries(catalogo, 800, 600, 2300, 18, true, 90);
+    const frente = geoms.find((g) => g.role === 'plinth');
+    assert.equal(frente.x, 0);
+    assert.equal(frente.w, 800);
+    const costados = geoms.filter((g) => g.id.includes('lateral'));
+    assert.equal(costados.find((g) => g.id.includes('izq')).x, 0);
+    assert.equal(costados.find((g) => g.id.includes('der')).x, 800 - 18);
   });
 });

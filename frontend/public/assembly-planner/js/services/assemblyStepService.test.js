@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifySequenceRole, buildAssemblySequence, buildAssemblyLevels } from './assemblyStepService.js';
-import { computePlinthSegments, plinthFramePieces } from './plinthFrameService.js';
+import { buildPlinthFrame } from './plinthFrameService.js';
 
 const mk = (id, nombre, modulo = '1', pos_z = '') => ({ id, nombre, modulo, pos_z });
 
@@ -405,9 +405,11 @@ describe('assemblyStepService/base interna vs externa', () => {
 });
 
 describe('assemblyStepService/zócalo estructural a marco', () => {
-  it('el marco va primero en la secuencia, ordenado por sub-zócalo y pieza', () => {
-    const segs = computePlinthSegments([850]).segments;
-    const { pieces: marco } = plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 });
+  it('el marco va primero en la secuencia, con orden físico de cajón', () => {
+    const { pieces: marco } = buildPlinthFrame({
+      moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
+      drawerModules: [{ moduloId: '1', ancho: 850 }],
+    });
     const modulos = [
       mk('m1-base', 'Base modulo M1'),
       mk('m1-tapa', 'Tapa modulo M1'),
@@ -415,15 +417,14 @@ describe('assemblyStepService/zócalo estructural a marco', () => {
     ];
     const { steps } = buildAssemblySequence([...modulos, ...marco]);
     const primerosIds = steps.slice(0, marco.length).map((s) => s.piezas[0]);
-    // Orden físico: trasero → costados → divisor → frente, por sub-zócalo.
-    assert.deepEqual(primerosIds.slice(0, 5), [
-      'glb-zocalo-s1-trasero',
-      'glb-zocalo-s1-costado-izq',
-      'glb-zocalo-s1-costado-der',
-      'glb-zocalo-s1-divisor-1',
-      'glb-zocalo-s1-frente',
+    // Orden físico: trasero → costados → división(es) → frente.
+    assert.deepEqual(primerosIds, [
+      'glb-zocalo-trasero',
+      'glb-zocalo-costado-izq',
+      'glb-zocalo-costado-der',
+      'glb-zocalo-divpar-1',
+      'glb-zocalo-frente',
     ]);
-    assert.equal(steps[5].piezas[0], 'glb-zocalo-s2-trasero', 'S2 tras los pasos de S1');
     // Los módulos siguen al marco (plataforma primero).
     assert.equal(steps[marco.length].piezas[0], 'm1-base', 'el casco arranca tras el marco');
   });

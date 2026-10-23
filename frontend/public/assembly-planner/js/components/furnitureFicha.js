@@ -210,9 +210,7 @@ function renderObra(pieces, cfg = {}) {
   if (!plan) return '';
   const spec = plinthFrameSpec(pieces);
   const forma = spec ? `${spec.ancho}×${spec.profundidad}×${spec.altoZocalo} mm (e${spec.espesor})` : '';
-  const zocalo = plan.mode === 'unico'
-    ? `Zócalo único a marco ${forma} · ${plan.niveladores} niveladores ocultos M8/M10${plan.divparCount ? ` · ${plan.divparCount} división(es) bajo cajones/zapateras` : ''}`
-    : `Zócalo a marco ${forma}, en ${plan.segments.length} sub-zócalos · ${plan.niveladores} niveladores ocultos M8/M10`;
+  const zocalo = `Zócalo a marco ${forma} · ${plan.niveladores} niveladores ocultos M8/M10${plan.divparCount ? ` · ${plan.divparCount} división(es) bajo cajones/zapateras` : ''}`;
   let lev = '';
   if (plan?.levantamiento && !plan.levantamiento.skipped) {
     const r = plan.levantamiento;
