@@ -335,11 +335,16 @@ function validateDimensions(pieces, warnings) {
   // Estructura global
   globalModules.forEach((gmod) => {
     const globalPieces = modules[gmod];
-    // Frente del zócalo global: pieza 'zocalo' con rol de base/frontal. En el
-    // modelo zócalo-cajón hay también laterales (rol 'plinth_side') y un
-    // trasero opcional (rol 'back_panel') cuyo ancho es la profundidad: no
-    // deben entrar en la comparación contra la suma de anchos de módulos.
-    const zocalo = globalPieces.find((p) => {
+    // Frente(s) del zócalo global. Tres patrones:
+    // - Zócalo a marco segmentado (ids `glb-zocalo-s{k}-frente`): cada
+    //   frente cubre su segmento completo; el ancho cubierto es
+    //   Σ(ancho + 2*espesor) (los largueros van entre los costados).
+    // - Zócalo-cajón de catálogo: un frente de ancho = suma de módulos.
+    // Los laterales (rol 'plinth_side'), divisores ('plinth_divider') y el
+    // trasero ('back_panel', ancho = profundidad) no entran en la comparación
+    // contra la suma de anchos de módulos.
+    const frentesMarco = globalPieces.filter((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)));
+    const zocalos = globalPieces.filter((p) => {
       const role = inferRole(p);
       return (role === 'bottom_panel' || role === 'plinth') && normalizeName(p.nombre).includes('zocalo');
     });
@@ -349,8 +354,13 @@ function validateDimensions(pieces, warnings) {
       const modBox = getModuleDimensions(modules[modId], b.espesor);
       return sum + modBox.width;
     }, 0);
-    if (zocalo && sumaBases > 0 && Math.abs(zocalo.ancho - sumaBases) > 2) {
-      warnings.push(`Estructura global: zócalo (${zocalo.ancho} mm) no coincide con suma de bases (${sumaBases} mm). Verifica que incluya solo módulos que toquen el suelo.`);
+    const anchoZocalo = frentesMarco.length
+      ? frentesMarco.reduce((s, p) => s + (Number(p.ancho) || 0) + 2 * (Number(p.espesor) || 15), 0)
+      : zocalos.length
+        ? Math.max(0, ...zocalos.map((p) => Number(p.ancho) || 0))
+        : 0;
+    if (anchoZocalo && sumaBases > 0 && Math.abs(anchoZocalo - sumaBases) > 2) {
+      warnings.push(`Estructura global: zócalo (${anchoZocalo} mm) no coincide con suma de bases (${sumaBases} mm). Verifica que incluya solo módulos que toquen el suelo.`);
     }
   });
 }

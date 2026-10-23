@@ -348,3 +348,38 @@ describe('parseCSV - zócalo-cajón global (modelo sin base global)', () => {
     assert.equal(zocaloWidthWarning(result).length, 1, `se esperaba 1 warning de ancho de zócalo: ${result.warnings.join(' | ')}`);
   });
 });
+
+describe('parseCSV - zócalo global vs suma de bases', () => {
+  const marcoFrentes = (segs) => segs.map(([id, ancho], i) =>
+    `glb-zocalo-s${i + 1}-frente,Zocalo marco S${i + 1} frente,${ancho},100,1,no,#C19A6B,18,"T,B,L,R",estructura,0`
+  ).join('\n');
+
+  it('zócalo a marco segmentado: Σ(ancho + 2*espesor) = suma de bases, sin aviso', () => {
+    // Módulo de 600 → dos segmentos de 300: frentes de 300-2*18 = 264.
+    const csv = [...MODULE_CSV, marcoFrentes([['s1', 264], ['s2', 264]])].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores: ${result.errors.join(' | ')}`);
+    assert.ok(
+      !result.warnings.some((w) => w.includes('no coincide con suma de bases')),
+      `aviso espurio: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('zócalo a marco desactualizado (segmentos no cubren los módulos): avisa', () => {
+    const csv = [...MODULE_CSV, marcoFrentes([['s1', 214]])].join('\n'); // cubre 250, bases 600
+    const result = parseCSV(csv);
+    assert.ok(
+      result.warnings.some((w) => w.includes('no coincide con suma de bases')),
+      `se esperaba aviso: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('zócalo clásico de catálogo (un frente a ancho total): sin aviso', () => {
+    const csv = [...MODULE_CSV, 'glb-zocalo,Zocalo global,600,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0'].join('\n');
+    const result = parseCSV(csv);
+    assert.ok(
+      !result.warnings.some((w) => w.includes('no coincide con suma de bases')),
+      `aviso espurio: ${result.warnings.join(' | ')}`
+    );
+  });
+});
