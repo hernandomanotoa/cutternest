@@ -263,6 +263,17 @@ export const VERTICAL_POSITIONS = {
   // ── Divisor vertical ────────────────────────────────────────────
   dividerBaseOffset: 0,      // distancia desde la cara superior de la base al borde inferior del divisor
   dividerTopInset: 0,        // distancia desde la cara inferior de la tapa/repisa superior al borde superior del divisor
+
+  // ── Zócalo estructural a marco ─────────────────────────────────
+  plinthFrontRecess: 0,      // retraso del frente del marco de zócalo (mm); 0 = al ras (patrón de catálogo)
+  plinthAltoZocalo: 100,     // alto Z del zócalo estructural (mm), default 100 (rango típico 60–150)
+
+  // ── Datos de obra (levantamiento en vertical) ─────────────────
+  obraHTecho: 0,             // altura piso→techo en obra (mm); 0 = sin verificación de diagonal
+  obraMargenSeg: 20,         // holgura de levantamiento (mm)
+  obraMargenAjuste: 10,      // holgura piso/techo (mm) para derivar Z_real
+  obraZmin: 60,              // rango válido de altura de zócalo (mm)
+  obraZmax: 150,
 };
 
 // Separación estándar entre módulos en la vista multi-módulo (mm). Vive en

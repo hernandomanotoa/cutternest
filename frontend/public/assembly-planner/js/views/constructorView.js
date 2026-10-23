@@ -38,9 +38,18 @@ import {
   moveContent,
   duplicateAllModules,
   focusModule,
+  applyStructuralPlinth,
+  removeStructuralPlinth,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
+import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
+import {
+  computeLiftCheck,
+  plinthLayoutFromPieces,
+  rootModuleDims,
+  totalLevelers,
+} from '../services/plinthFrameService.js';
 
 const ALTO_VANO_OPCIONES = [130, 180, 200, 220, 280];
 const TIPOS_CAJON = [
@@ -148,6 +157,33 @@ export function createConstructorView(store) {
   }
 
   function onChange(e) {
+    // Datos de obra / zócalo estructural: persisten en userConfig (los
+    // defaults viven en VERTICAL_POSITIONS) y alimentan el lift-check y el
+    // retraso del frente del marco en el renderer.
+    if (e.target.matches('[data-obra]')) {
+      const KEY = {
+        altoZocalo: 'plinthAltoZocalo',
+        retraso: 'plinthFrontRecess',
+        htecho: 'obraHTecho',
+        mseg: 'obraMargenSeg',
+        majuste: 'obraMargenAjuste',
+        zmin: 'obraZmin',
+        zmax: 'obraZmax',
+      };
+      const cfgKey = KEY[e.target.dataset.obra];
+      if (cfgKey) {
+        const value = Number(e.target.value);
+        if (Number.isFinite(value)) {
+          saveUserConfig({ [cfgKey]: value });
+          store.set({ userConfig: loadUserConfig() });
+        }
+      }
+      if (e.target.dataset.obra === 'tipo') {
+        if (e.target.value === 'marco') doApplyPlinth();
+        else doRemovePlinth();
+      }
+      return;
+    }
     // Tipo de cajón/zapatera: llena el vano con la altura ergonómica del
     // tipo elegido (los tipos del catálogo). 'personalizado' deja el valor.
     if (e.target.matches('[data-tipo-drawer], [data-tipo-zapatera]')) {
@@ -319,6 +355,10 @@ export function createConstructorView(store) {
     } else if (action === 'move-content') {
       const r = moveContent(btn.dataset.ref, btn.dataset.dir);
       if (!r.ok) toast(r.errors.join('; '), { type: 'info' });
+    } else if (action === 'apply-plinth') {
+      doApplyPlinth();
+    } else if (action === 'remove-plinth') {
+      doRemovePlinth();
     } else if (action === 'edit-posz') {
       // Edicion inline de la altura: el label del chip se convierte en un
       // input numerico con el pos_z actual. Enter/blur confirma, Escape
@@ -458,6 +498,28 @@ export function createConstructorView(store) {
     }
   }
 
+  function doApplyPlinth() {
+    const state = store.get();
+    const cfg = state.userConfig || {};
+    const r = applyStructuralPlinth({
+      altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
+      retraso: Number(cfg.plinthFrontRecess) || 0,
+    });
+    if (!r.ok) {
+      toast(r.errors.join('; '), { type: 'error' });
+      return;
+    }
+    const avisos = [...(r.warnings || [])];
+    toast(`Zócalo a marco: ${r.segments} sub-zócalo(s), ${r.pieceCount} piezas, ${r.levelers} niveladores`, { type: 'success' });
+    avisos.forEach((w) => toast(w, { type: 'info', durationMs: 8000 }));
+  }
+
+  function doRemovePlinth() {
+    const r = removeStructuralPlinth();
+    if (!r.ok) toast(r.errors.join('; '), { type: 'info' });
+    else toast('Zócalo estructural eliminado', { type: 'success' });
+  }
+
   function render() {
     if (!container) return;
     const state = store.get();
@@ -525,6 +587,54 @@ export function createConstructorView(store) {
             <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
           </div>
           ${renderWarningsPanel(pieces)}
+        </div>
+      </div>
+
+      <div class="card mb-2">
+        <div class="card__header">
+          <h2 class="card__title">Zócalo estructural y datos de obra</h2>
+          <span class="cn-constructor__summary" data-plinth-resumen>${resumenPlinth(pieces, state)}</span>
+        </div>
+        <div class="card__body">
+          <div class="cn-constructor__grid">
+            <label class="form-group">Tipo de zócalo
+              <select data-obra="tipo">
+                <option value="simple" ${plinthLayoutFromPieces(pieces).length ? '' : 'selected'}>Frente simple por módulo</option>
+                <option value="marco" ${plinthLayoutFromPieces(pieces).length ? 'selected' : ''}>Marco estructural (cajón de 4 lados)</option>
+              </select>
+            </label>
+            <label class="form-group">Alto zócalo Z (mm)
+              <input type="number" data-obra="altoZocalo" value="${Number(state.userConfig?.plinthAltoZocalo) || 100}" min="50" max="300" step="5" />
+            </label>
+            <label class="form-group">Retraso frente (mm)
+              <input type="number" data-obra="retraso" value="${Number(state.userConfig?.plinthFrontRecess) || 0}" min="0" max="150" step="5" />
+            </label>
+          </div>
+          <details class="cn-constructor__obra" ${Number(state.userConfig?.obraHTecho) > 0 ? 'open' : ''}>
+            <summary>Datos de obra — levantamiento en vertical (restricción de diagonal)</summary>
+            <div class="cn-constructor__grid">
+              <label class="form-group">H techo (mm)
+                <input type="number" data-obra="htecho" value="${Number(state.userConfig?.obraHTecho) || ''}" min="0" step="10" placeholder="0 = sin verificar" />
+              </label>
+              <label class="form-group">Margen seguridad (mm)
+                <input type="number" data-obra="mseg" value="${Number(state.userConfig?.obraMargenSeg ?? 20)}" min="0" step="5" />
+              </label>
+              <label class="form-group">Margen ajuste (mm)
+                <input type="number" data-obra="majuste" value="${Number(state.userConfig?.obraMargenAjuste ?? 10)}" min="0" step="5" />
+              </label>
+              <label class="form-group">Z mín (mm)
+                <input type="number" data-obra="zmin" value="${Number(state.userConfig?.obraZmin ?? 60)}" min="0" step="5" />
+              </label>
+              <label class="form-group">Z máx (mm)
+                <input type="number" data-obra="zmax" value="${Number(state.userConfig?.obraZmax ?? 150)}" min="0" step="5" />
+              </label>
+            </div>
+            ${renderLiftCheck(pieces, state)}
+          </details>
+          <div class="cn-constructor__content-btns">
+            <button class="btn btn--primary" data-action="apply-plinth">Generar marco</button>
+            <button class="btn btn--secondary" data-action="remove-plinth" ${plinthLayoutFromPieces(pieces).length ? '' : 'disabled'}>Quitar marco</button>
+          </div>
         </div>
       </div>
 
@@ -666,8 +776,12 @@ function renderModuleCard(group, allPieces) {
       : matches.length;
   };
   const altoModulo = piezas.find((p) => p.id.endsWith('lateral-izq'))?.alto || null;
-  const tieneZocalo = piezas.some((p) => p.id === `m${moduleId}-zocalo`);
-  const altoZocalo = piezas.find((p) => p.id === `m${moduleId}-zocalo`)?.alto || 0;
+  // Zócalo: frente simple del módulo o marco estructural global (el marco
+  // reemplaza al frente simple; mismo anclaje del vano).
+  const zocaloSimple = piezas.find((p) => p.id === `m${moduleId}-zocalo`);
+  const marcoZ = Math.max(0, ...piezas.filter((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id))).map((p) => Number(p.alto) || 0));
+  const tieneZocalo = Boolean(zocaloSimple) || marcoZ > 0;
+  const altoZocalo = zocaloSimple ? Number(zocaloSimple.alto) || 0 : marcoZ;
   const vanoInfo = altoModulo ? vanoUsado(allPieces, moduleId, altoModulo, tieneZocalo, altoZocalo) : null;
   return `
     <div class="cn-constructor__module" data-module-scoped="${escapeHtml(moduleId)}">
@@ -814,6 +928,39 @@ function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
   }
   const pct = util > 0 ? Math.min(100, Math.round((usado / util) * 100)) : 0;
   return { usado: Math.round(usado), util, pct };
+}
+
+// Resumen del zócalo estructural para la cabecera de su tarjeta.
+function resumenPlinth(pieces, state = {}) {
+  const layout = plinthLayoutFromPieces(pieces);
+  if (!layout.length) return 'frente simple por módulo';
+  return `${layout.length} sub-zócalo(s) · ${totalLevelers(layout)} niveladores`;
+}
+
+// Verificación de levantamiento en vertical por módulo (restricción de
+// diagonal con el techo). Muestra alto del cuerpo, diagonal y holgura; solo
+// aparece cuando se cargó la altura de techo de la obra.
+function renderLiftCheck(pieces, state = {}) {
+  const cfg = state.userConfig || {};
+  const hTecho = Number(cfg.obraHTecho) || 0;
+  if (!hTecho) return '<p class="empty-state">Sin altura de techo: cargue H techo para verificar la diagonal de levantamiento y el rango de Z.</p>';
+  const dims = rootModuleDims(pieces);
+  if (!dims.length) return '<p class="empty-state">Agregue módulos para verificar el levantamiento.</p>';
+  const altoZocalo = Number(cfg.plinthAltoZocalo) || 100;
+  const lineas = dims.map((d) => {
+    const r = computeLiftCheck({
+      altoModulo: d.alto, altoZocalo, profundidad: d.profundidad, hTecho,
+      margenSeg: Number(cfg.obraMargenSeg ?? 20),
+      margenAjuste: Number(cfg.obraMargenAjuste ?? 10),
+      zMin: Number(cfg.obraZmin ?? 60),
+      zMax: Number(cfg.obraZmax ?? 150),
+    });
+    const ok = r.levantamientoOk && r.zEnRango;
+    const holgura = r.holgura == null ? '' : ` · holgura ${r.holgura.toFixed(0)} mm`;
+    const diagonal = r.diagonal == null ? '' : ` · diagonal ${r.diagonal.toFixed(0)} mm`;
+    return `<li>${ok ? '✓' : '✕'} M${d.id}: cuerpo ${r.altoCuerpo} mm${diagonal}${holgura}${ok ? '' : ` — ${escapeHtml(r.warnings.join(' '))}`}</li>`;
+  });
+  return `<ul class="cn-constructor__liftcheck">${lineas.join('')}</ul>`;
 }
 
 function resumenMueble(pieces, state = {}) {

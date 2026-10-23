@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { IsometricRenderer, sortByDepth } from './isometricRenderer.js';
+import { computePlinthSegments, plinthFramePieces } from '../../services/plinthFrameService.js';
 
 function parsePolygons(svg) {
   const regex = /<polygon[^>]*>/g;
@@ -1081,5 +1082,83 @@ describe('IsometricRenderer zócalo-cajón global (modelo sin base global)', () 
 
     const side = geometries.find((g) => g.id === 'm1-lateral-izq');
     assert.equal(side.z, 15, 'sin zócalo-cajón, los laterales del módulo arrancan sobre la base externa (comportamiento legacy)');
+  });
+});
+
+describe('IsometricRenderer zócalo estructural a marco', () => {
+  const marcoPieces = (widths = [400, 400]) => {
+    const segs = computePlinthSegments(widths).segments;
+    return plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 }).pieces;
+  };
+  const rendererFor = (pieces, overrides = {}, moduleW = 800) => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { verticalPositionOverrides: overrides });
+    return renderer._buildGlobalGeometries(pieces, moduleW, 600, 2300, 18, true, 90);
+  };
+
+  it('posiciona los frentes de cada sub-zócalo en su segmento', () => {
+    const geoms = rendererFor(marcoPieces());
+    const frentes = geoms.filter((g) => g.role === 'plinth').sort((a, b) => a.x - b.x);
+    assert.equal(frentes.length, 2);
+    assert.equal(frentes[0].x, 0);
+    assert.equal(frentes[0].w, 364); // 400 - 2*18
+    assert.equal(frentes[1].x, 400, 'segundo sub-zócalo arranca en la junta');
+    assert.equal(frentes[1].w, 364);
+    frentes.forEach((f) => {
+      assert.equal(f.h, 90);
+      assert.equal(f.z, 0);
+    });
+  });
+
+  it('coloca costados y trasero por segmento', () => {
+    const geoms = rendererFor(marcoPieces());
+    const traseros = geoms.filter((g) => g.role === 'back_panel').sort((a, b) => a.x - b.x);
+    assert.equal(traseros.length, 2);
+    assert.equal(traseros[1].x, 400);
+    const costados = geoms.filter((g) => g.id.includes('costado'));
+    assert.equal(costados.length, 4);
+    const derechos = costados.filter((g) => g.id.includes('der')).sort((a, b) => a.x - b.x);
+    assert.equal(derechos[0].x, 400 - 18, 'costado der del S1 en el límite de su segmento');
+    assert.equal(derechos[1].x, 800 - 18, 'costado der del S2 al final del mueble');
+  });
+
+  it('aplica el retraso configurable al frente del marco', () => {
+    const sinRetraso = rendererFor(marcoPieces(), {});
+    const conRetraso = rendererFor(marcoPieces(), { plinthFrontRecess: 50 });
+    const f0 = sinRetraso.find((g) => g.role === 'plinth');
+    const f1 = conRetraso.find((g) => g.role === 'plinth');
+    assert.equal(f0.y, 600 - 18);
+    assert.equal(f1.y, 600 - 18 - 50);
+  });
+
+  it('dibuja el divisor interno centrado en su segmento', () => {
+    // Módulo de 850 → dos sub-zócalos de 425 con divisor en x=425 (S1).
+    const geoms = rendererFor(marcoPieces([850]), {}, 850);
+    const divisores = geoms.filter((g) => g.id.includes('divisor'));
+    assert.equal(divisores.length, 1);
+    assert.equal(divisores[0].x, 425 - 9, 'divisor centrado a 425 mm del origen');
+    assert.equal(divisores[0].w, 18);
+    assert.equal(divisores[0].h, 90);
+  });
+
+  it('escala los segmentos cuando el ancho visual incluye gaps entre módulos', () => {
+    // Vista "todos": moduleW = 800 + 20 de gap → escala 820/800.
+    const geoms = rendererFor(marcoPieces(), {}, 820);
+    const frentes = geoms.filter((g) => g.role === 'plinth').sort((a, b) => a.x - b.x);
+    assert.ok(Math.abs(frentes[1].x - 410) < 1e-6, `x=${frentes[1].x}`);
+  });
+
+  it('el zócalo clásico de catálogo (sin s{k}) conserva su layout', () => {
+    const catalogo = [
+      { id: 'glb-zocalo', nombre: 'Zocalo global', ancho: 800, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+    ];
+    const geoms = rendererFor(catalogo, {}, 800);
+    const frente = geoms.find((g) => g.role === 'plinth');
+    assert.equal(frente.x, 0);
+    assert.equal(frente.w, 800);
+    const costados = geoms.filter((g) => g.id.includes('lateral'));
+    assert.equal(costados.find((g) => g.id.includes('izq')).x, 0);
+    assert.equal(costados.find((g) => g.id.includes('der')).x, 800 - 18);
   });
 });

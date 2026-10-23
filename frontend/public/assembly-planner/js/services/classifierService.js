@@ -50,6 +50,12 @@ export function inferRole(piece) {
     if (esGlobal && texto.includes('zocalo') && (texto.includes('lateral') || texto.includes('costado'))) {
       return 'plinth_side';
     }
+    // Divisor interno del zócalo a marco (ids `glb-zocalo-s{k}-divisor-{j}`):
+    // panel vertical de pie entre frente y trasero del sub-zócalo. ANTES de
+    // la regla genérica de 'divisor'.
+    if (esGlobal && texto.includes('zocalo') && (texto.includes('divisor') || texto.includes('division'))) {
+      return 'plinth_divider';
+    }
   }
 
   // Estructura principal: base, tapa, laterales y fondo deben tener prioridad

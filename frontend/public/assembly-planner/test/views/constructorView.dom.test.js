@@ -791,3 +791,46 @@ test('A2: badge de vano calculado con spans reales de pos_z', () => {
   assert.ok(Number(m[3]) > 0);
   view.destroy();
 });
+
+test('Zócalo estructural: generar marco reemplaza frentes simples y ancla el apilado', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // ancho default 850
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1-zocalo'), 'frente simple inicial');
+  click(container, '[data-action="apply-plinth"]');
+  const pieces = store.get().pieces;
+  assert.equal(pieces.some((p) => p.id === 'm1-zocalo'), false, 'el frente simple se reemplaza por el marco');
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-frente'));
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s2-frente'));
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-divisor-1'));
+  const resumen = container.querySelector('[data-plinth-resumen]')?.textContent || '';
+  assert.match(resumen, /2 sub-zócalo\(s\) · 4 niveladores/);
+  // El apilado se ancla a la altura del marco (Z=100 + base 15 + offset 10).
+  click(container, '[data-action="add-content"][data-kind="shelf"]');
+  const repisa = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
+  assert.equal(repisa.pos_z, 125, 'repisa anclada sobre el marco');
+  view.destroy();
+});
+
+test('Datos de obra: lift-check con altura de techo', () => {
+  const { view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // 2400 alto × 600 fondo
+  const setHtecho = (v) => {
+    // Cada cambio re-renderiza: hay que re-buscar el input en el DOM.
+    const el = container.querySelector('[data-obra="htecho"]');
+    assert.ok(el, 'input H techo presente');
+    el.value = String(v);
+    el.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  // 2350 techo: diagonal 2377 + margen 20 no cabe → ✕
+  setHtecho(2350);
+  let check = container.querySelector('.cn-constructor__liftcheck');
+  assert.ok(check, 'lift-check renderizado');
+  assert.match(check.textContent, /M1/);
+  assert.match(check.textContent, /✕/);
+  // 2400 techo: holgura ~3 mm → ✓
+  setHtecho(2400);
+  check = container.querySelector('.cn-constructor__liftcheck');
+  assert.match(check.textContent, /✓/);
+  assert.match(check.textContent, /holgura/);
+  view.destroy();
+});

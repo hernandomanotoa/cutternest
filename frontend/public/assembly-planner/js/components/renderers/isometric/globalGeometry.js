@@ -6,6 +6,7 @@
 
 import { ROLE_COLORS, VERTICAL_POSITIONS } from '../../../core/config.js';
 import { inferRole } from '../../../services/classifierService.js';
+import { plinthLayoutFromPieces } from '../../../services/plinthFrameService.js';
 import { normalizeName } from '../../../utils/normalize.js';
 import { findPairedHandle, isHandlePiece } from './handleMatching.js';
 
@@ -25,13 +26,30 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
   const plinthH = drawerPlinth
     ? (zocaloHeight || Math.max(0, ...plinthSides.map((p) => Number(p.alto) || 0)))
     : 0;
+  // Zócalo a marco segmentado (sub-zócalos, ver plinthFrameService): el
+  // layout se deriva de los ids + anchos de los frentes (sobrevive el
+  // round-trip CSV de las versiones). `scale` mapea el ancho lógico del
+  // mueble al ancho visual de esta vista (en 'all' incluye los gaps).
+  const plinthLayout = drawerPlinth ? plinthLayoutFromPieces(globalPieces) : [];
+  const plinthTotalW = plinthLayout.reduce((s, g) => s + g.width, 0);
+  const plinthScale = plinthLayout.length && plinthTotalW > 0 ? moduleW / plinthTotalW : 1;
+  const segByIndex = new Map(plinthLayout.map((g) => [g.index, g]));
+  const segRefDe = (p) => {
+    const m = String(p.id).match(/^glb-zocalo-s(\d+)-/);
+    return m ? segByIndex.get(Number(m[1])) || null : null;
+  };
+  // Retraso configurable del frente del marco (efecto flotación), en mm.
+  const plinthRecess = Number(renderer.verticalPositionOverrides?.plinthFrontRecess) || 0;
 
   plinthSides.forEach((side) => {
     const sn = normalizeName(side.nombre);
     const sid = normalizeName(side.id);
     const isLeft = sn.includes('izquierdo') || sn.includes('izq') || sid.includes('izquierdo') || sid.includes('izq');
     const t = Number(side.espesor) || thickness;
-    const x = isLeft ? 0 : moduleW - t;
+    // Sub-zócalo segmentado: el costado cae en el límite de su segmento.
+    // Pieza de catálogo sin `s{k}`: comportamiento clásico (extremos).
+    const seg = segRefDe(side);
+    const x = seg ? (seg.x0 + (isLeft ? 0 : seg.width - t)) * plinthScale : (isLeft ? 0 : moduleW - t);
     // Mismo reparto frente/atrás que los laterales de los módulos: en
     // perspectiva normal el lateral izquierdo queda al frente.
     const isFront = renderer.isoFlip ? !isLeft : isLeft;
@@ -42,31 +60,54 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     });
   });
 
+  // Divisores internos del marco segmentado: paneles verticales de pie
+  // entre frente y trasero de cada sub-zócalo.
+  globalPieces.filter((p) => inferRole(p) === 'plinth_divider').forEach((div) => {
+    const seg = segRefDe(div);
+    if (!seg) return;
+    const m = String(div.id).match(/^glb-zocalo-s\d+-divisor-(\d+)$/);
+    const j = m ? Number(m[1]) : 1;
+    const nDiv = seg.dividers.length;
+    const t = Number(div.espesor) || thickness;
+    const x = (seg.dividers[j - 1] ?? seg.x0 + seg.width / 2) * plinthScale - t / 2;
+    geometries.push({
+      x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
+      color: div.color || ROLE_COLORS.wood, role: 'side_panel_rear',
+      name: div.nombre, id: div.id, opacity: 0.4,
+    });
+  });
+
   globalPieces.forEach((p) => {
     const role = inferRole(p);
     const n = normalizeName(p.nombre);
     const color = p.color || ROLE_COLORS.wood;
 
-    if (role === 'plinth_side') {
-      // Ya dibujados en la pasada anterior (necesitan plinthH).
-    } else if (drawerPlinth && role === 'back_panel' && n.includes('zocalo')) {
+    if (role === 'plinth_side' || role === 'plinth_divider') {
+      // Ya dibujados en pasadas anteriores (necesitan plinthH / layout).
+    } else if (drawerPlinth && (role === 'back_panel' || /-trasero$/.test(String(p.id))) && n.includes('zocalo')) {
       // Trasero opcional del cajón de zócalo: banda z:0..zocaloHeight en
       // la cara trasera (la rama genérica de back_panel lo dibujaría a
       // altura completa del mueble).
       const w = Number(p.ancho) || moduleW;
       const t = Number(p.espesor) || thickness;
+      const seg = segRefDe(p);
       geometries.push({
-        x: 0, y: -t, z: 0, w, d: t, h: Number(p.alto) || plinthH,
+        x: seg ? seg.x0 * plinthScale : 0, y: -t, z: 0,
+        w: seg ? w * plinthScale : w, d: t, h: Number(p.alto) || plinthH,
         color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
       });
     } else if (role === 'bottom_panel' || n.includes('zocalo')) {
       const w = Number(p.ancho) || moduleW;
       if (drawerPlinth) {
-        // Frente del cajón de zócalo: banda visible z:0..zocaloHeight al
-        // ras del frente del mueble (no retranqueada ni bajo el suelo).
+        // Frente del cajón de zócalo: banda visible z:0..zocaloHeight. En
+        // el marco segmentado va retrasado `plinthRecess` mm (efecto de
+        // flotación y apertura de puertas); el patrón de catálogo sigue al
+        // ras del frente (recess = 0).
         const t = Number(p.espesor) || thickness;
+        const seg = segRefDe(p);
         geometries.push({
-          x: 0, y: moduleD - t, z: 0, w, d: t, h: Number(p.alto) || plinthH,
+          x: seg ? seg.x0 * plinthScale : 0, y: moduleD - t - plinthRecess, z: 0,
+          w: seg ? w * plinthScale : w, d: t, h: Number(p.alto) || plinthH,
           color, role: 'plinth', name: p.nombre, id: p.id,
         });
       } else {

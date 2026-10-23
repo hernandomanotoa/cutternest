@@ -39,6 +39,13 @@ import {
   loadUserConfig,
 } from './services/userConfigService.js';
 import { getGapPreset, GAP_PRESETS } from './core/gapPresets.js';
+import {
+  computePlinthSegments,
+  plinthFramePieces,
+  plinthLayoutFromPieces,
+  rootModuleDims,
+  totalLevelers,
+} from './services/plinthFrameService.js';
 import { getContentType, RAIL_SIDE_HEIGHT } from './core/contentTypes.js';
 import {
   createModule,
@@ -801,8 +808,13 @@ export function updateContentPosZ(refId, posZ) {
 
 function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
   const zocalo = pieces.find((p) => p.id === `m${moduleId}-zocalo`);
+  // Zócalo estructural a marco (global): ancla el apilado igual que el
+  // frente simple de módulo cuando este no existe.
+  const marcoZ = Math.max(0, ...(pieces || [])
+    .filter((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)))
+    .map((p) => Number(p.alto) || 0));
   const base = pieces.find((p) => p.id === `m${moduleId}-base`);
-  const baseTop = (zocalo ? Number(zocalo.alto) || 0 : 0) + (Number(base?.espesor) || 15);
+  const baseTop = (zocalo ? Number(zocalo.alto) || 0 : marcoZ) + (Number(base?.espesor) || 15);
   let cursor = baseTop + 10; // drawerBaseOffset
   for (const p of pieces || []) {
     if (!Number.isFinite(p.pos_z)) continue;
@@ -1016,6 +1028,60 @@ function renameModulePrefix(pieces, oldId, newId) {
 //    profundidad del modulo, conservando su alto de vano, colores y tipo
 //    (los ids se mantienen: mismo modulo + mismo indice).
 // Si algun cajon no cabe en el nuevo ancho, la operacion aborta sin cambios.
+// Genera (o regenera) el zócalo estructural a marco: N sub-zócalos cajón
+// de 4 lados alineados a las juntas entre módulos, con divisores internos
+// cuando un tramo supera 800 mm. Reemplaza las piezas `glb-zocalo-s*`
+// previas. opts: { altoZocalo, retraso, maxSpan?, splitLight? }. El retraso
+// del frente persiste en userConfig.plinthFrontRecess (lo lee el renderer).
+export function applyStructuralPlinth(opts = {}) {
+  const store = getStore();
+  const state = store.get();
+  const dims = rootModuleDims(state.pieces);
+  if (!dims.length) return { ok: false, errors: ['Agregue al menos un módulo con casco (tapa/base)'] };
+  const altoZocalo = Number(opts.altoZocalo) || 100;
+  const retraso = Math.max(0, Number(opts.retraso) || 0);
+  const segResult = computePlinthSegments(
+    dims.map((d) => d.ancho),
+    { maxSpan: opts.maxSpan, splitLight: opts.splitLight },
+  );
+  if (!segResult.ok) return { ok: false, errors: segResult.errors };
+  const profundidad = Math.max(...dims.map((d) => d.profundidad || 0));
+  if (!profundidad) return { ok: false, errors: ['No se pudo determinar la profundidad del mueble (falta el lateral)'] };
+  const frame = plinthFramePieces(segResult.segments, {
+    profundidad, altoZocalo, espesor: dims[0].espesor || 15,
+  });
+  if (!frame.ok) return { ok: false, errors: frame.errors };
+  snapshotUndo('Zocalo estructural a marco');
+  // El marco reemplaza al frente simple de cada módulo (el apilado se
+  // ancla al marco vía cursorInsercion).
+  const pieces = [
+    ...state.pieces.filter((p) => !/^glb-zocalo-s\d+-/.test(String(p.id)) && !/^m\d+-zocalo$/.test(String(p.id))),
+    ...frame.pieces,
+  ];
+  saveUserConfig({ plinthFrontRecess: retraso });
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  getStore().set({ userConfig: loadUserConfig() });
+  recalculateAll();
+  return {
+    ok: true,
+    segments: segResult.segments.length,
+    pieceCount: frame.pieces.length,
+    levelers: totalLevelers(plinthLayoutFromPieces(frame.pieces)),
+    warnings: frame.warnings,
+  };
+}
+
+export function removeStructuralPlinth() {
+  const store = getStore();
+  const state = store.get();
+  const remaining = state.pieces.filter((p) => !/^glb-zocalo-s\d+-/.test(String(p.id)));
+  if (remaining.length === state.pieces.length) return { ok: false, errors: ['No hay zócalo estructural'] };
+  snapshotUndo('Quitar zócalo estructural');
+  store.set({ pieces: remaining, dependencies: sugerirDependencias(remaining) });
+  recalculateAll();
+  return { ok: true };
+}
+
 export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   snapshotUndo("Editar dimensiones");
   const store = getStore();
