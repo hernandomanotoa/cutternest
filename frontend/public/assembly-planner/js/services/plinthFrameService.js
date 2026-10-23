@@ -311,6 +311,75 @@ export function plinthAssemblyPlan(pieces, { hTecho = 0, margenSeg = 20 } = {}) 
   return { mode: 'segmentado', segments, uniones, niveladores: totalLevelers(layout), altoZocalo, levantamiento };
 }
 
+// ── Form paramétrico del zócalo ────────────────────────────────────
+// El zócalo a marco se DEFINE con su forma exterior (ancho × profundidad ×
+// alto Z, espesor) y su modo; las piezas de corte se derivan de ahí. Estas
+// dos funciones son la única frontera donde viven las restas/sumas de
+// espesor: buildPlinthFrame (generar) y plinthFrameSpec (reconstruir el
+// form desde las piezas persistidas). Ningún consumidor hace aritmética
+// de espesor por su cuenta.
+
+// Forma definida del zócalo derivada de las piezas (CSV-safe). Null si no
+// hay marco. Las restas inversas viven SOLO aquí: los demás módulos leen
+// el form ya resuelto.
+export function plinthFrameSpec(pieces) {
+  const layout = plinthLayoutFromPieces(pieces);
+  const single = plinthSingleFrente(pieces);
+  if (!layout.length && !single) return null;
+  const frente = single || (pieces || []).find((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)));
+  const e = Number(frente?.espesor) || 15;
+  const costado = (pieces || []).find((p) => /glb-zocalo(-s\d+)?-costado-izq$/.test(String(p.id)));
+  const profundidad = costado ? (Number(costado.ancho) || 0) + 2 * e : 0;
+  return {
+    mode: single ? 'unico' : 'segmentado',
+    ancho: plinthTotalWidth(pieces),
+    profundidad,
+    altoZocalo: marcoZocaloHeight(pieces),
+    espesor: e,
+  };
+}
+
+// Punto de entrada único para generar el zócalo a marco. El caller solo
+// aporta las dimensiones de la FORMA (anchos de módulo, profundidad, alto
+// Z, espesor) y el modo; la segmentación (juntas + luces) y las restas de
+// corte se resuelven dentro. Devuelve { ok, pieces, segments, spec, warnings }.
+export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espesor = 18, color = '#C19A6B', mode = 'unico', drawerModules = [], maxSpan, splitLight }) {
+  const errors = [];
+  if (!Array.isArray(moduleWidths) || !moduleWidths.length) errors.push('Se necesita al menos un módulo (moduleWidths)');
+  if (!Number.isFinite(profundidad) || profundidad <= 0) errors.push('profundidad inválida');
+  if (!Number.isFinite(altoZocalo) || altoZocalo <= 0) errors.push('altoZocalo inválido');
+  if (errors.length) return { ok: false, errors };
+
+  let segments;
+  if (mode === 'segmentado') {
+    const segResult = computePlinthSegments(moduleWidths, { maxSpan, splitLight });
+    if (!segResult.ok) return { ok: false, errors: segResult.errors };
+    segments = segResult.segments;
+  } else {
+    segments = [{
+      index: 1,
+      x0: 0,
+      width: moduleWidths.reduce((s, w) => s + w, 0),
+      modules: moduleWidths.map((_, i) => i),
+      junctionLeft: false,
+      junctionRight: false,
+      dividers: [],
+    }];
+  }
+  const frame = plinthFramePieces(segments, {
+    profundidad, altoZocalo, espesor, color, mode, drawerModules,
+  });
+  if (!frame.ok) return { ok: false, errors: frame.errors };
+  const total = segments.reduce((s, g) => s + g.width, 0);
+  return {
+    ok: true,
+    pieces: frame.pieces,
+    segments,
+    warnings: frame.warnings,
+    spec: { mode, ancho: total, profundidad, altoZocalo, espesor },
+  };
+}
+
 // Verificación de levantamiento en vertical (restricción de diagonal con el
 // techo). El mueble se arma acostado: alto_cuerpo ≤ √(H²−D²) − MARGEN_SEG.
 // Z_real es el alto del zócalo y debe caer en [zMin, zMax]. Sin hTecho la

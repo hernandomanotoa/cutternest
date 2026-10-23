@@ -20,6 +20,8 @@ import {
   plinthLevelerCount,
   divparLayoutFromPieces,
   marcoDesactualizado,
+  buildPlinthFrame,
+  plinthFrameSpec,
 } from './plinthFrameService.js';
 
 describe('computePlinthSegments', () => {
@@ -251,5 +253,53 @@ describe('modo único (zócalo del ancho total)', () => {
     assert.equal(marcoDesactualizado([...casco, ...unico]), false);
     const cascoNuevo = casco.map((p) => (/-tapa$/.test(p.id) ? { ...p, ancho: 900 } : p));
     assert.equal(marcoDesactualizado([...cascoNuevo, ...unico]), true);
+  });
+});
+
+describe('form paramétrico: buildPlinthFrame y plinthFrameSpec', () => {
+  it('buildPlinthFrame único: una sola llamada, sin restas en el caller', () => {
+    const r = buildPlinthFrame({
+      moduleWidths: [850, 850],
+      profundidad: 600,
+      altoZocalo: 100,
+      espesor: 15,
+      mode: 'unico',
+      drawerModules: [{ moduloId: '1', ancho: 850 }],
+    });
+    assert.ok(r.ok);
+    assert.deepEqual(r.spec, { mode: 'unico', ancho: 1700, profundidad: 600, altoZocalo: 100, espesor: 15 });
+    assert.equal(r.segments.length, 1);
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente'));
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-divpar-1'));
+  });
+
+  it('buildPlinthFrame segmentado: deriva los sub-zócalos de los anchos', () => {
+    const r = buildPlinthFrame({
+      moduleWidths: [850],
+      profundidad: 600,
+      altoZocalo: 90,
+      espesor: 18,
+      mode: 'segmentado',
+    });
+    assert.ok(r.ok);
+    assert.equal(r.segments.length, 2);
+    assert.deepEqual(r.spec, { mode: 'segmentado', ancho: 850, profundidad: 600, altoZocalo: 90, espesor: 18 });
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-s1-frente'));
+  });
+
+  it('plinthFrameSpec reconstruye la forma desde las piezas (ambos modos)', () => {
+    const unico = buildPlinthFrame({
+      moduleWidths: [850, 450], profundidad: 600, altoZocalo: 100, espesor: 15, mode: 'unico',
+    }).pieces;
+    assert.deepEqual(plinthFrameSpec(unico), {
+      mode: 'unico', ancho: 1300, profundidad: 600, altoZocalo: 100, espesor: 15,
+    });
+    const seg = buildPlinthFrame({
+      moduleWidths: [850], profundidad: 550, altoZocalo: 90, espesor: 18, mode: 'segmentado',
+    }).pieces;
+    assert.deepEqual(plinthFrameSpec(seg), {
+      mode: 'segmentado', ancho: 850, profundidad: 550, altoZocalo: 90, espesor: 18,
+    });
+    assert.equal(plinthFrameSpec([]), null);
   });
 });

@@ -49,7 +49,7 @@ import {
   plinthLayoutFromPieces,
   rootModuleDims,
   hasPlinthFrame,
-  plinthTotalWidth,
+  plinthFrameSpec,
   plinthLevelerCount,
   marcoDesactualizado,
 } from '../services/plinthFrameService.js';
@@ -948,13 +948,18 @@ function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
   return { usado: Math.round(usado), util, pct };
 }
 
-// Resumen del zócalo estructural para la cabecera de su tarjeta.
+// Resumen del zócalo estructural para la cabecera de su tarjeta: muestra la
+// forma definida (ancho × profundidad × alto Z, espesor), no las restas de
+// corte — esas viven solo en el despiece.
 function resumenPlinth(pieces, state = {}) {
   if (!hasPlinthFrame(pieces)) return 'frente simple por módulo';
+  const spec = plinthFrameSpec(pieces);
   const niveladores = plinthLevelerCount(pieces);
-  const layout = plinthLayoutFromPieces(pieces);
-  if (layout.length) return `${layout.length} sub-zócalo(s) · ${niveladores} niveladores`;
-  return `zócalo único (${plinthTotalWidth(pieces)} mm) · ${niveladores} niveladores`;
+  if (!spec) return `${niveladores} niveladores`;
+  if (spec.mode === 'segmentado') {
+    return `${spec.ancho} mm en ${plinthLayoutFromPieces(pieces).length} sub-zócalos · ${niveladores} niveladores`;
+  }
+  return `zócalo único ${spec.ancho}×${spec.profundidad}×${spec.altoZocalo} mm (e${spec.espesor}) · ${niveladores} niveladores`;
 }
 
 // Verificación de levantamiento en vertical por módulo (restricción de

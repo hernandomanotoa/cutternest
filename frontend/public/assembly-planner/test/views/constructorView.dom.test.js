@@ -807,7 +807,7 @@ test('Zócalo estructural: generar marco reemplaza frentes simples y ancla el ap
   assert.ok(pieces.some((p) => p.id === 'glb-zocalo-trasero'));
   assert.ok(pieces.some((p) => p.id === 'glb-zocalo-costado-izq'));
   const resumen = container.querySelector('[data-plinth-resumen]')?.textContent || '';
-  assert.match(resumen, /zócalo único \(850 mm\) · 4 niveladores/);
+  assert.match(resumen, /zócalo único 850×600×100 mm \(e15\) · 4 niveladores/);
   // El apilado se ancla a la altura del marco (Z=100 + base 15 + offset 10).
   click(container, '[data-action="add-content"][data-kind="shelf"]');
   const repisa = store.get().pieces.find((p) => p.id === 'm1-repisa-1');

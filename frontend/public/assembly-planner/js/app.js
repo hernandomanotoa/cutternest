@@ -40,8 +40,7 @@ import {
 } from './services/userConfigService.js';
 import { getGapPreset, GAP_PRESETS } from './core/gapPresets.js';
 import {
-  computePlinthSegments,
-  plinthFramePieces,
+  buildPlinthFrame,
   hasPlinthFrame,
   modulosConCajones,
   plinthLevelerCount,
@@ -1070,17 +1069,6 @@ export function applyStructuralPlinth(opts = {}) {
   // Modo: 'unico' (default, un solo marco del ancho total) o 'segmentado'
   // (sub-zócalos por juntas, con divisores en tramos > 800 mm).
   const mode = opts.mode === 'segmentado' ? 'segmentado' : 'unico';
-  let segments;
-  if (mode === 'segmentado') {
-    const segResult = computePlinthSegments(
-      dims.map((d) => d.ancho),
-      { maxSpan: opts.maxSpan, splitLight: opts.splitLight },
-    );
-    if (!segResult.ok) return { ok: false, errors: segResult.errors };
-    segments = segResult.segments;
-  } else {
-    segments = [{ index: 1, x0: 0, width: dims.reduce((s, d) => s + d.ancho, 0), modules: dims.map((_, i) => i), junctionLeft: false, junctionRight: false, dividers: [] }];
-  }
   const profundidad = Math.max(...dims.map((d) => d.profundidad || 0));
   if (!profundidad) return { ok: false, errors: ['No se pudo determinar la profundidad del mueble (falta el lateral)'] };
   const espesor = dims[0].espesor || 15;
@@ -1088,17 +1076,26 @@ export function applyStructuralPlinth(opts = {}) {
   if (retraso > profundidad - 2 * espesor) {
     return { ok: false, errors: [`Retraso de ${retraso} mm inválido: el frente quedaría detrás del trasero del marco (máximo ${profundidad - 2 * espesor} mm para ${profundidad} mm de profundidad)`] };
   }
-  const frame = plinthFramePieces(segments, {
-    profundidad, altoZocalo, espesor, mode,
+  // Forma definida del zócalo: el servicio deriva segmentos y piezas de
+  // corte; aquí no hay restas de espesor — solo la forma (anchos de módulo,
+  // profundidad, alto Z).
+  const built = buildPlinthFrame({
+    moduleWidths: dims.map((d) => d.ancho),
+    profundidad,
+    altoZocalo,
+    espesor,
+    mode,
     drawerModules: mode === 'unico' ? modulosConCajones(state.pieces) : [],
+    maxSpan: opts.maxSpan,
+    splitLight: opts.splitLight,
   });
-  if (!frame.ok) return { ok: false, errors: frame.errors };
+  if (!built.ok) return { ok: false, errors: built.errors };
   if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');
   // El marco reemplaza al frente simple de cada módulo (el apilado se
   // ancla al marco vía cursorInsercion).
   const pieces = [
     ...state.pieces.filter((p) => !MARCO_PIECE_RE.test(String(p.id)) && !/^m\d+-zocalo$/.test(String(p.id))),
-    ...frame.pieces,
+    ...built.pieces,
   ];
   // Altura del mueble fija: los fondos de los módulos se reajustan al Z del
   // marco (los cascos pueden haberse generado con otro alto de zócalo), y
@@ -1137,9 +1134,9 @@ export function applyStructuralPlinth(opts = {}) {
     ok: true,
     mode,
     ancho: segments.reduce((s, g) => s + g.width, 0),
-    pieceCount: frame.pieces.length,
-    levelers: plinthLevelerCount(frame.pieces),
-    warnings: frame.warnings,
+    pieceCount: built.pieces.length,
+    levelers: plinthLevelerCount(built.pieces),
+    warnings: built.warnings,
   };
 }
 
