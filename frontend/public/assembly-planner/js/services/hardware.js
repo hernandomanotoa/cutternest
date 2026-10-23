@@ -3,7 +3,7 @@
 import { railTypeFor, getRailType } from './railService.js';
 import { railHardwareName, railHardwareSpec } from './railHardwareService.js';
 import { inferRole } from './classifierService.js';
-import { plinthLayoutFromPieces, totalLevelers } from './plinthFrameService.js';
+import { plinthLevelerCount } from './plinthFrameService.js';
 
 function uniquePieces(piezas, predicate) {
   const seen = new Set();
@@ -246,15 +246,14 @@ export function calculateHardware(piezas, dependencies) {
     });
   }
 
-  // Niveladores ocultos del zócalo estructural a marco (ids `glb-zocalo-s*`):
-  // 2 por sub-zócalo, 4 si supera 600 mm de ancho (rango ±25 mm, rosca
-  // M8/M10, insertados en el interior del marco).
-  const layoutZocalo = plinthLayoutFromPieces(piezas);
-  if (layoutZocalo.length) {
-    const cantidad = totalLevelers(layoutZocalo);
+  // Niveladores ocultos del zócalo estructural a marco: 2 por sub-zócalo
+  // (4 si supera 600 mm) en modo segmentado; 2 por cada 600 mm de ancho en
+  // modo único (rango ±25 mm, rosca M8/M10, insertados en el marco).
+  const niveladoresZocalo = plinthLevelerCount(piezas);
+  if (niveladoresZocalo) {
     herrajes.push({
       nombre: 'Nivelador oculto de zócalo',
-      cantidad,
+      cantidad: niveladoresZocalo,
       especificacion: 'Rosca M8/M10, regulable ±25 mm, inserto interior del marco',
       prioridad: 'Alta',
       bloqueante: false,

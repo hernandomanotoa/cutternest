@@ -42,9 +42,11 @@ import { getGapPreset, GAP_PRESETS } from './core/gapPresets.js';
 import {
   computePlinthSegments,
   plinthFramePieces,
-  plinthLayoutFromPieces,
+  hasPlinthFrame,
+  modulosConCajones,
+  plinthLevelerCount,
   rootModuleDims,
-  totalLevelers,
+  MARCO_PIECE_RE,
 } from './services/plinthFrameService.js';
 import { getContentType, RAIL_SIDE_HEIGHT } from './core/contentTypes.js';
 import {
@@ -468,7 +470,7 @@ export function addModuleFromBuilder(config) {
   // Con el zócalo estructural a marco activo, el módulo nuevo no lleva
   // frente simple (el marco lo reemplaza); la base sigue interna y el marco
   // se regenera abajo para incluir el módulo.
-  const marcoActivo = plinthLayoutFromPieces(state.pieces).length > 0;
+  const marcoActivo = hasPlinthFrame(state.pieces);
   const conZocalo = !!config.conZocalo && !marcoActivo;
   const nuevas = [];
   const moduleIds = [];
@@ -510,6 +512,7 @@ export function addModuleFromBuilder(config) {
     applyStructuralPlinth({
       altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
       retraso: Number(cfg.plinthFrontRecess) || 0,
+      mode: Number(cfg.plinthSegmented) ? 'segmentado' : 'unico',
       skipUndo: true,
     });
   }
@@ -826,7 +829,7 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
   // Zócalo estructural a marco (global): ancla el apilado igual que el
   // frente simple de módulo cuando este no existe.
   const marcoZ = Math.max(0, ...(pieces || [])
-    .filter((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)))
+    .filter((p) => /^glb-zocalo(-s\d+)?-frente$/.test(String(p.id)))
     .map((p) => Number(p.alto) || 0));
   const base = pieces.find((p) => p.id === `m${moduleId}-base`);
   const baseTop = (zocalo ? Number(zocalo.alto) || 0 : marcoZ) + (Number(base?.espesor) || 15);
@@ -1056,11 +1059,20 @@ export function applyStructuralPlinth(opts = {}) {
   if (!dims.length) return { ok: false, errors: ['Agregue al menos un módulo con casco (tapa/base)'] };
   const altoZocalo = Number(opts.altoZocalo) || 100;
   const retraso = Math.max(0, Number(opts.retraso) || 0);
-  const segResult = computePlinthSegments(
-    dims.map((d) => d.ancho),
-    { maxSpan: opts.maxSpan, splitLight: opts.splitLight },
-  );
-  if (!segResult.ok) return { ok: false, errors: segResult.errors };
+  // Modo: 'unico' (default, un solo marco del ancho total) o 'segmentado'
+  // (sub-zócalos por juntas, con divisores en tramos > 800 mm).
+  const mode = opts.mode === 'segmentado' ? 'segmentado' : 'unico';
+  let segments;
+  if (mode === 'segmentado') {
+    const segResult = computePlinthSegments(
+      dims.map((d) => d.ancho),
+      { maxSpan: opts.maxSpan, splitLight: opts.splitLight },
+    );
+    if (!segResult.ok) return { ok: false, errors: segResult.errors };
+    segments = segResult.segments;
+  } else {
+    segments = [{ index: 1, x0: 0, width: dims.reduce((s, d) => s + d.ancho, 0), modules: dims.map((_, i) => i), junctionLeft: false, junctionRight: false, dividers: [] }];
+  }
   const profundidad = Math.max(...dims.map((d) => d.profundidad || 0));
   if (!profundidad) return { ok: false, errors: ['No se pudo determinar la profundidad del mueble (falta el lateral)'] };
   const espesor = dims[0].espesor || 15;
@@ -1068,15 +1080,16 @@ export function applyStructuralPlinth(opts = {}) {
   if (retraso > profundidad - 2 * espesor) {
     return { ok: false, errors: [`Retraso de ${retraso} mm inválido: el frente quedaría detrás del trasero del marco (máximo ${profundidad - 2 * espesor} mm para ${profundidad} mm de profundidad)`] };
   }
-  const frame = plinthFramePieces(segResult.segments, {
-    profundidad, altoZocalo, espesor,
+  const frame = plinthFramePieces(segments, {
+    profundidad, altoZocalo, espesor, mode,
+    drawerModules: mode === 'unico' ? modulosConCajones(state.pieces) : [],
   });
   if (!frame.ok) return { ok: false, errors: frame.errors };
   if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');
   // El marco reemplaza al frente simple de cada módulo (el apilado se
   // ancla al marco vía cursorInsercion).
   const pieces = [
-    ...state.pieces.filter((p) => !/^glb-zocalo-s\d+-/.test(String(p.id)) && !/^m\d+-zocalo$/.test(String(p.id))),
+    ...state.pieces.filter((p) => !MARCO_PIECE_RE.test(String(p.id)) && !/^m\d+-zocalo$/.test(String(p.id))),
     ...frame.pieces,
   ];
   saveUserConfig({ plinthFrontRecess: retraso });
@@ -1085,9 +1098,10 @@ export function applyStructuralPlinth(opts = {}) {
   recalculateAll();
   return {
     ok: true,
-    segments: segResult.segments.length,
+    mode,
+    ancho: segments.reduce((s, g) => s + g.width, 0),
     pieceCount: frame.pieces.length,
-    levelers: totalLevelers(plinthLayoutFromPieces(frame.pieces)),
+    levelers: plinthLevelerCount(frame.pieces),
     warnings: frame.warnings,
   };
 }
@@ -1095,7 +1109,7 @@ export function applyStructuralPlinth(opts = {}) {
 export function removeStructuralPlinth() {
   const store = getStore();
   const state = store.get();
-  const remaining = state.pieces.filter((p) => !/^glb-zocalo-s\d+-/.test(String(p.id)));
+  const remaining = state.pieces.filter((p) => !MARCO_PIECE_RE.test(String(p.id)));
   if (remaining.length === state.pieces.length) return { ok: false, errors: ['No hay zócalo estructural'] };
   snapshotUndo('Quitar zócalo estructural');
   // Restaurar el frente simple en los módulos que se quedaron sin él

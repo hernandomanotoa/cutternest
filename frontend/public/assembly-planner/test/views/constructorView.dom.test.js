@@ -9,7 +9,7 @@ import { createStore, setStore } from '../../js/core/store.js';
 import { createConstructorView } from '../../js/views/constructorView.js';
 import { createContainer, resetDocument } from './setup.mjs';
 import { countVersions, deleteAllVersions } from '../../js/services/projectVersionsService.js';
-import { plinthLayoutFromPieces } from '../../js/services/plinthFrameService.js';
+import { plinthLayoutFromPieces, plinthTotalWidth } from '../../js/services/plinthFrameService.js';
 
 beforeEach(() => {
   resetDocument();
@@ -800,15 +800,31 @@ test('Zócalo estructural: generar marco reemplaza frentes simples y ancla el ap
   click(container, '[data-action="apply-plinth"]');
   const pieces = store.get().pieces;
   assert.equal(pieces.some((p) => p.id === 'm1-zocalo'), false, 'el frente simple se reemplaza por el marco');
-  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-frente'));
-  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s2-frente'));
-  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-divisor-1'));
+  // Modo único (default): un solo marco del ancho total de los módulos.
+  const frente = pieces.find((p) => p.id === 'glb-zocalo-frente');
+  assert.ok(frente, 'marco único generado');
+  assert.equal(frente.ancho, 850 - 2 * 15, 'larguero del ancho total menos 2*espesor');
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-trasero'));
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-costado-izq'));
   const resumen = container.querySelector('[data-plinth-resumen]')?.textContent || '';
-  assert.match(resumen, /2 sub-zócalo\(s\) · 4 niveladores/);
+  assert.match(resumen, /zócalo único \(850 mm\) · 4 niveladores/);
   // El apilado se ancla a la altura del marco (Z=100 + base 15 + offset 10).
   click(container, '[data-action="add-content"][data-kind="shelf"]');
   const repisa = store.get().pieces.find((p) => p.id === 'm1-repisa-1');
   assert.equal(repisa.pos_z, 125, 'repisa anclada sobre el marco');
+  view.destroy();
+});
+
+test('Zócalo único: división paralela al frente bajo el módulo con cajón', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="apply-plinth"]');
+  const divpar = store.get().pieces.find((p) => p.id === 'glb-zocalo-divpar-1');
+  assert.ok(divpar, 'división paralela al frente bajo el módulo de cajón');
+  assert.equal(divpar.ancho, 850 - 2 * 15, 'de luz interior del módulo');
+  assert.equal(divpar.rotate, true, 'panel horizontal (rotate)');
+  // Módulo sin cajones: sin división.
   view.destroy();
 });
 
@@ -854,20 +870,21 @@ test('B1: marco desactualizado tras editar un módulo, con regeneración en un c
   // Regenerar: el aviso desaparece y el marco cubre los 900 mm.
   click(container, '[data-action="apply-plinth"]');
   assert.ok(!container.textContent.includes('desactualizado'), 'marco al día tras regenerar');
-  const total = plinthLayoutFromPieces(store.get().pieces).reduce((s, g) => s + g.width, 0);
-  assert.equal(total, 900);
+  assert.equal(plinthTotalWidth(store.get().pieces), 900);
   view.destroy();
 });
 
-test('B2: módulo nuevo sin frente simple cuando hay marco; el marco se regenera solo', () => {
+test('B2: módulo nuevo sin frente simple cuando hay marco; el marco se redefine solo', () => {
   const { store, view, container } = mountView();
-  click(container, '[data-action="add-module"]'); // M1 850 → 2 sub-zócalos
+  click(container, '[data-action="add-module"]'); // M1 850
   click(container, '[data-action="apply-plinth"]');
   click(container, '[data-action="add-module"]'); // M2 850 (con zócalo chequeado por defecto)
   const pieces = store.get().pieces;
   assert.equal(pieces.some((p) => p.id === 'm2-zocalo'), false, 'sin frente simple en el módulo nuevo');
-  assert.equal(plinthLayoutFromPieces(pieces).length, 4, 'marco regenerado: 850+850 → 4 sub-zócalos');
-  assert.ok(!container.textContent.includes('desactualizado'), 'el marco regenerado está al día');
+  // El zócalo único se auto-redefinió al ancho total (850+850).
+  const frente = pieces.find((p) => p.id === 'glb-zocalo-frente');
+  assert.equal(frente.ancho, 1700 - 2 * 15, 'marco único del ancho total de los módulos');
+  assert.ok(!container.textContent.includes('desactualizado'), 'el marco redefinido está al día');
   view.destroy();
 });
 
@@ -895,9 +912,31 @@ test('C2: retraso mayor que la profundidad útil se rechaza', () => {
   };
   setRetraso(600);
   click(container, '[data-action="apply-plinth"]');
-  assert.equal(store.get().pieces.some((p) => /^glb-zocalo-s/.test(p.id)), false, 'sin marco con retraso inválido');
+  assert.equal(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), false, 'sin marco con retraso inválido');
   setRetraso(50);
   click(container, '[data-action="apply-plinth"]');
-  assert.ok(store.get().pieces.some((p) => /^glb-zocalo-s/.test(p.id)), 'marco generado con retraso válido');
+  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'marco generado con retraso válido');
+  view.destroy();
+});
+
+test('Modo segmentado: opción que divide en sub-zócalos y regenera al instante', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // 850 → en segmentado: 2 sub-zócalos
+  click(container, '[data-action="apply-plinth"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'default: zócalo único');
+  // Elegir "Dividido en sub-zócalos": el marco se regenera solo.
+  const modo = container.querySelector('[data-obra="modo"]');
+  modo.value = 'segmentado';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
+  const pieces = store.get().pieces;
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-frente'), 'sub-zócalo S1');
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s2-frente'), 'sub-zócalo S2');
+  assert.equal(pieces.some((p) => p.id === 'glb-zocalo-frente'), false, 'ya no hay marco único');
+  assert.equal(plinthTotalWidth(pieces), 850, 'cobertura total intacta');
+  // Y se puede volver al zócalo único.
+  const modo2 = container.querySelector('[data-obra="modo"]');
+  modo2.value = 'unico';
+  modo2.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'de vuelta al zócalo único');
   view.destroy();
 });

@@ -18,7 +18,7 @@ import { buildAssemblySequence } from '../services/assemblyStepService.js';
 import { escapeHtml, getModuleLabel } from '../utils/helpers.js';
 import { buildStandaloneHtml, download } from './manual/manualExporter.js';
 import { updateFichaCorrections, clearFichaCorrections } from '../app.js';
-import { plinthAssemblyPlan, plinthLayoutFromPieces } from '../services/plinthFrameService.js';
+import { plinthAssemblyPlan } from '../services/plinthFrameService.js';
 
 const COLLAPSE_KEY = 'cn-assembly-ficha-collapsed';
 
@@ -207,11 +207,10 @@ function renderObra(pieces, cfg = {}) {
     hTecho: Number(cfg.obraHTecho) || 0,
     margenSeg: Number(cfg.obraMargenSeg) || 20,
   });
-  const layout = plinthLayoutFromPieces(pieces);
-  if (!plan && !layout.length) return '';
-  const zocalo = plan
-    ? `${plan.segments.length} sub-zócalo(s) a marco · ${plan.niveladores} niveladores ocultos M8/M10`
-    : '';
+  if (!plan) return '';
+  const zocalo = plan.mode === 'unico'
+    ? `Zócalo único a marco (${plan.ancho} mm) · ${plan.niveladores} niveladores ocultos M8/M10${plan.divparCount ? ` · ${plan.divparCount} división(es) bajo cajones/zapateras` : ''}`
+    : `${plan.segments.length} sub-zócalo(s) a marco · ${plan.niveladores} niveladores ocultos M8/M10`;
   let lev = '';
   if (plan?.levantamiento && !plan.levantamiento.skipped) {
     const r = plan.levantamiento;

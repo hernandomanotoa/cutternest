@@ -1162,3 +1162,38 @@ describe('IsometricRenderer zócalo estructural a marco', () => {
     assert.equal(costados.find((g) => g.id.includes('der')).x, 800 - 18);
   });
 });
+
+describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
+  const unicoPieces = () => plinthFramePieces(
+    [{ index: 1, x0: 0, width: 850, modules: [0], dividers: [] }],
+    { profundidad: 600, altoZocalo: 90, espesor: 18, mode: 'unico', drawerModules: [{ moduloId: '1', ancho: 850 }] },
+  ).pieces;
+
+  it('dibuja el marco único a ancho total con su división a mitad de profundidad', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildGlobalGeometries(unicoPieces(), 850, 600, 2300, 18, true, 90);
+    const frente = geoms.find((g) => g.id === 'glb-zocalo-frente');
+    assert.equal(frente.x, 0);
+    assert.equal(frente.w, 850 - 2 * 18);
+    const trasero = geoms.find((g) => g.id === 'glb-zocalo-trasero');
+    assert.equal(trasero.w, 850 - 2 * 18);
+    const divpar = geoms.find((g) => g.id === 'glb-zocalo-divpar-1');
+    assert.ok(divpar, 'división paralela al frente dibujada');
+    assert.equal(divpar.x, 0);
+    assert.equal(divpar.w, 850, 'cubre el ancho del módulo (x espesor de costados)');
+    assert.equal(divpar.d, 18, 'paneles paralelos al frente: espesor en profundidad');
+    // A mitad de la profundidad: centro en moduleD/2.
+    assert.ok(Math.abs((divpar.y + divpar.d / 2) - 600 / 2) < 1e-9, `y=${divpar.y}`);
+    assert.equal(divpar.h, 90);
+    // Costados solo en los extremos.
+    const costados = geoms.filter((g) => g.id.includes('costado'));
+    assert.equal(costados.length, 2);
+  });
+
+  it('la división paralela escala con la vista completa (gaps)', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildGlobalGeometries(unicoPieces(), 870, 600, 2300, 18, true, 90);
+    const divpar = geoms.find((g) => g.id === 'glb-zocalo-divpar-1');
+    assert.ok(Math.abs(divpar.w - 850 * (870 / 850)) < 1e-6);
+  });
+});

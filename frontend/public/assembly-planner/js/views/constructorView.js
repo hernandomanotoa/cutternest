@@ -48,7 +48,9 @@ import {
   computeLiftCheck,
   plinthLayoutFromPieces,
   rootModuleDims,
-  totalLevelers,
+  hasPlinthFrame,
+  plinthTotalWidth,
+  plinthLevelerCount,
   marcoDesactualizado,
 } from '../services/plinthFrameService.js';
 
@@ -182,6 +184,12 @@ export function createConstructorView(store) {
       if (e.target.dataset.obra === 'tipo') {
         if (e.target.value === 'marco') doApplyPlinth();
         else doRemovePlinth();
+      }
+      if (e.target.dataset.obra === 'modo') {
+        // Cambiar de estructura regenera el marco al instante si ya existe.
+        saveUserConfig({ plinthSegmented: e.target.value === 'segmentado' ? 1 : 0 });
+        store.set({ userConfig: loadUserConfig() });
+        if (hasPlinthFrame(store.get().pieces)) doApplyPlinth();
       }
       return;
     }
@@ -505,14 +513,16 @@ export function createConstructorView(store) {
     const r = applyStructuralPlinth({
       altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
       retraso: Number(cfg.plinthFrontRecess) || 0,
+      mode: Number(cfg.plinthSegmented) ? 'segmentado' : 'unico',
     });
     if (!r.ok) {
       toast(r.errors.join('; '), { type: 'error' });
       return;
     }
-    const avisos = [...(r.warnings || [])];
-    toast(`Zócalo a marco: ${r.segments} sub-zócalo(s), ${r.pieceCount} piezas, ${r.levelers} niveladores`, { type: 'success' });
-    avisos.forEach((w) => toast(w, { type: 'info', durationMs: 8000 }));
+    toast(r.mode === 'segmentado'
+      ? `Zócalo a marco segmentado: ${r.pieceCount} piezas, ${r.levelers} niveladores`
+      : `Zócalo único a marco (${r.ancho} mm): ${r.pieceCount} piezas, ${r.levelers} niveladores`, { type: 'success' });
+    (r.warnings || []).forEach((w) => toast(w, { type: 'info', durationMs: 8000 }));
   }
 
   function doRemovePlinth() {
@@ -600,8 +610,14 @@ export function createConstructorView(store) {
           <div class="cn-constructor__grid">
             <label class="form-group">Tipo de zócalo
               <select data-obra="tipo">
-                <option value="simple" ${plinthLayoutFromPieces(pieces).length ? '' : 'selected'}>Frente simple por módulo</option>
-                <option value="marco" ${plinthLayoutFromPieces(pieces).length ? 'selected' : ''}>Marco estructural (cajón de 4 lados)</option>
+                <option value="simple" ${hasPlinthFrame(pieces) ? '' : 'selected'}>Frente simple por módulo</option>
+                <option value="marco" ${hasPlinthFrame(pieces) ? 'selected' : ''}>Marco estructural (cajón de 4 lados)</option>
+              </select>
+            </label>
+            <label class="form-group">Estructura del marco
+              <select data-obra="modo" ${hasPlinthFrame(pieces) ? '' : 'disabled'}>
+                <option value="unico" ${Number(state.userConfig?.plinthSegmented) ? '' : 'selected'}>Zócalo único (ancho total)</option>
+                <option value="segmentado" ${Number(state.userConfig?.plinthSegmented) ? 'selected' : ''}>Dividido en sub-zócalos</option>
               </select>
             </label>
             <label class="form-group">Alto zócalo Z (mm)
@@ -635,7 +651,7 @@ export function createConstructorView(store) {
           ${marcoDesactualizado(pieces) ? '<p class="cn-constructor__warnings" role="alert">⚠ Los módulos cambiaron desde que se generó el marco. Pulse <strong>Generar marco</strong> para actualizar los sub-zócalos.</p>' : ''}
           <div class="cn-constructor__content-btns">
             <button class="btn btn--primary" data-action="apply-plinth">${marcoDesactualizado(pieces) ? 'Regenerar marco' : 'Generar marco'}</button>
-            <button class="btn btn--secondary" data-action="remove-plinth" ${plinthLayoutFromPieces(pieces).length ? '' : 'disabled'}>Quitar marco</button>
+            <button class="btn btn--secondary" data-action="remove-plinth" ${hasPlinthFrame(pieces) ? '' : 'disabled'}>Quitar marco</button>
           </div>
         </div>
       </div>
@@ -781,7 +797,7 @@ function renderModuleCard(group, allPieces) {
   // Zócalo: frente simple del módulo o marco estructural global (el marco
   // reemplaza al frente simple; mismo anclaje del vano).
   const zocaloSimple = piezas.find((p) => p.id === `m${moduleId}-zocalo`);
-  const marcoZ = Math.max(0, ...piezas.filter((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id))).map((p) => Number(p.alto) || 0));
+  const marcoZ = Math.max(0, ...piezas.filter((p) => /^glb-zocalo(-s\d+)?-frente$/.test(String(p.id))).map((p) => Number(p.alto) || 0));
   const tieneZocalo = Boolean(zocaloSimple) || marcoZ > 0;
   const altoZocalo = zocaloSimple ? Number(zocaloSimple.alto) || 0 : marcoZ;
   const vanoInfo = altoModulo ? vanoUsado(allPieces, moduleId, altoModulo, tieneZocalo, altoZocalo) : null;
@@ -934,9 +950,11 @@ function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
 
 // Resumen del zócalo estructural para la cabecera de su tarjeta.
 function resumenPlinth(pieces, state = {}) {
+  if (!hasPlinthFrame(pieces)) return 'frente simple por módulo';
+  const niveladores = plinthLevelerCount(pieces);
   const layout = plinthLayoutFromPieces(pieces);
-  if (!layout.length) return 'frente simple por módulo';
-  return `${layout.length} sub-zócalo(s) · ${totalLevelers(layout)} niveladores`;
+  if (layout.length) return `${layout.length} sub-zócalo(s) · ${niveladores} niveladores`;
+  return `zócalo único (${plinthTotalWidth(pieces)} mm) · ${niveladores} niveladores`;
 }
 
 // Verificación de levantamiento en vertical por módulo (restricción de

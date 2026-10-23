@@ -14,6 +14,12 @@ import {
   dividerX,
   rootModuleDims,
   computeLiftCheck,
+  hasPlinthFrame,
+  modulosConCajones,
+  plinthTotalWidth,
+  plinthLevelerCount,
+  divparLayoutFromPieces,
+  marcoDesactualizado,
 } from './plinthFrameService.js';
 
 describe('computePlinthSegments', () => {
@@ -166,5 +172,84 @@ describe('computeLiftCheck', () => {
     const r = computeLiftCheck({ altoModulo: 2400, altoZocalo: 90, profundidad: 600 });
     assert.equal(r.skipped, true);
     assert.equal(r.levantamientoOk, null);
+  });
+});
+
+describe('modo único (zócalo del ancho total)', () => {
+  const base = { profundidad: 600, altoZocalo: 90, espesor: 18, mode: 'unico' };
+
+  it('genera un solo marco con largueros del ancho total', () => {
+    const segs = [{ index: 1, x0: 0, width: 850, modules: [0], dividers: [] }];
+    const r = plinthFramePieces(segs, base);
+    assert.ok(r.ok);
+    const ids = r.pieces.map((p) => p.id);
+    assert.deepEqual(ids, [
+      'glb-zocalo-frente', 'glb-zocalo-trasero',
+      'glb-zocalo-costado-izq', 'glb-zocalo-costado-der',
+    ]);
+    assert.equal(r.pieces.find((p) => p.id === 'glb-zocalo-frente').ancho, 850 - 2 * 18);
+  });
+
+  it('agrega división paralela al frente bajo módulos con cajones', () => {
+    const segs = [{ index: 1, x0: 0, width: 850, modules: [0], dividers: [] }];
+    const r = plinthFramePieces(segs, { ...base, drawerModules: [{ moduloId: '1', ancho: 850 }] });
+    const divpar = r.pieces.find((p) => p.id === 'glb-zocalo-divpar-1');
+    assert.ok(divpar);
+    assert.equal(divpar.ancho, 850 - 2 * 18);
+    assert.equal(divpar.rotate, true);
+    assert.match(divpar.nombre, /paralela frente M1/);
+  });
+
+  it('avisa cuando el larguero supera el tablero estándar', () => {
+    const segs = [{ index: 1, x0: 0, width: 2600, modules: [0], dividers: [] }];
+    const r = plinthFramePieces(segs, base);
+    assert.ok(r.warnings.some((w) => w.includes('2440')));
+  });
+
+  it('modulosConCajones detecta el módulo raíz aunque el frente viva en submódulo', () => {
+    const pieces = [
+      { id: 'm1-tapa', nombre: 'Tapa', ancho: 850, alto: 2400, espesor: 15, modulo: '1' },
+      { id: 'm1cajon1-frente', nombre: 'Frente cajon 1 M1', ancho: 818, alto: 197, modulo: '11' },
+      { id: 'm2-tapa', nombre: 'Tapa', ancho: 600, alto: 2400, espesor: 15, modulo: '2' },
+      { id: 'm2-repisa-1', nombre: 'Repisa 1 M2', ancho: 570, alto: 600, modulo: '2' },
+    ];
+    assert.deepEqual(modulosConCajones(pieces), [{ moduloId: '1', ancho: 850 }]);
+  });
+
+  it('helpers: hasPlinthFrame, plinthTotalWidth y niveladores en ambos modos', () => {
+    const segs = computePlinthSegments([850]).segments;
+    const unico = plinthFramePieces([{ index: 1, x0: 0, width: 850, dividers: [] }], base).pieces;
+    const seg = plinthFramePieces(segs, { profundidad: 600, altoZocalo: 90, espesor: 18 }).pieces;
+    assert.equal(hasPlinthFrame(unico), true);
+    assert.equal(hasPlinthFrame(seg), true);
+    assert.equal(hasPlinthFrame([]), false);
+    assert.equal(plinthTotalWidth(unico), 850);
+    assert.equal(plinthTotalWidth(seg), 850);
+    assert.equal(plinthLevelerCount(unico), 4, '2 por cada 600 mm de ancho');
+    assert.equal(plinthLevelerCount(seg), 4, '2 por sub-zócalo de 425');
+    // 1700 mm en modo único → 2*ceil(1700/600) = 6 niveladores.
+    const ancho1700 = plinthFramePieces([{ index: 1, x0: 0, width: 1700, dividers: [] }], base).pieces;
+    assert.equal(plinthLevelerCount(ancho1700), 6);
+  });
+
+  it('divparLayoutFromPieces deriva posiciones acumuladas (CSV-safe)', () => {
+    const segs = [{ index: 1, x0: 0, width: 1300, dividers: [] }];
+    const r = plinthFramePieces(segs, {
+      ...base,
+      drawerModules: [{ moduloId: '1', ancho: 850 }, { moduloId: '2', ancho: 450 }],
+    });
+    const layout = divparLayoutFromPieces(r.pieces);
+    assert.deepEqual(layout, [{ x0: 0, width: 850 }, { x0: 850, width: 450 }]);
+  });
+
+  it('marcoDesactualizado funciona en modo único', () => {
+    const unico = plinthFramePieces([{ index: 1, x0: 0, width: 850, dividers: [] }], base).pieces;
+    const casco = [
+      { id: 'm1-tapa', nombre: 'Tapa', ancho: 850, alto: 2400, espesor: 18, modulo: '1' },
+      { id: 'm1-lateral-izq', nombre: 'Lateral', ancho: 600, alto: 2400, modulo: '1' },
+    ];
+    assert.equal(marcoDesactualizado([...casco, ...unico]), false);
+    const cascoNuevo = casco.map((p) => (/-tapa$/.test(p.id) ? { ...p, ancho: 900 } : p));
+    assert.equal(marcoDesactualizado([...cascoNuevo, ...unico]), true);
   });
 });

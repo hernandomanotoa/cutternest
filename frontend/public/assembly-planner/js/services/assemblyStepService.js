@@ -150,17 +150,17 @@ function accessoryRank(piece) {
 }
 
 // Clave de orden físico para las piezas del zócalo estructural a marco
-// (ids `glb-zocalo-s{k}-*`): el marco es la plataforma sobre la que se
-// arman los módulos, así que sus pasos van PRIMERO en la secuencia. Dentro
-// de cada sub-zócalo se ensambla como cajón en el piso: trasero como
-// referencia, costados (tarugos), divisores internos y frente al cierre.
-// Devuelve null para cualquier otra pieza.
+// (ids `glb-zocalo-s{k}-*` segmentado y `glb-zocalo-*` único): el marco es
+// la plataforma sobre la que se arman los módulos, así que sus pasos van
+// PRIMERO en la secuencia. Dentro de cada cajón se ensambla en el piso:
+// trasero como referencia, costados (tarugos), divisiones internas y
+// frente al cierre. Devuelve null para cualquier otra pieza.
 function marcoStepKey(piece) {
-  const m = String(piece.id || '').match(/^glb-zocalo-s(\d+)-(trasero|costado-izq|costado-der|divisor-\d+|frente)$/);
+  const m = String(piece.id || '').match(/^glb-zocalo(?:-s(\d+))?-(trasero|costado-izq|costado-der|divpar-\d+|divisor-\d+|frente)$/);
   if (!m) return null;
   const orden = { trasero: 0, 'costado-izq': 1, 'costado-der': 2, frente: 3 };
-  const parte = m[2].startsWith('divisor-') ? 2.5 : orden[m[2]];
-  return [Number(m[1]), parte];
+  const parte = m[2].startsWith('divisor-') ? 2.5 : m[2].startsWith('divpar-') ? 2.7 : orden[m[2]];
+  return [m[1] ? Number(m[1]) : 0, parte];
 }
 
 /**

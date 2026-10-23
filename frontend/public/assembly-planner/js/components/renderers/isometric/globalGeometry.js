@@ -6,7 +6,7 @@
 
 import { ROLE_COLORS, VERTICAL_POSITIONS } from '../../../core/config.js';
 import { inferRole } from '../../../services/classifierService.js';
-import { plinthLayoutFromPieces } from '../../../services/plinthFrameService.js';
+import { plinthLayoutFromPieces, divparLayoutFromPieces } from '../../../services/plinthFrameService.js';
 import { normalizeName } from '../../../utils/normalize.js';
 import { findPairedHandle, isHandlePiece } from './handleMatching.js';
 
@@ -30,10 +30,17 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
   // layout se deriva de los ids + anchos de los frentes (sobrevive el
   // round-trip CSV de las versiones). `scale` mapea el ancho lógico del
   // mueble al ancho visual de esta vista (en 'all' incluye los gaps).
+  // En modo único hay un solo frente (`glb-zocalo-frente`) y el ancho total
+  // se deriva de su ancho + 2*espesor.
   const plinthLayout = drawerPlinth ? plinthLayoutFromPieces(globalPieces) : [];
-  const plinthTotalW = plinthLayout.reduce((s, g) => s + g.width, 0);
-  const plinthScale = plinthLayout.length && plinthTotalW > 0 ? moduleW / plinthTotalW : 1;
+  const singleFrente = drawerPlinth
+    ? globalPieces.find((p) => String(p.id) === 'glb-zocalo-frente')
+    : null;
+  const plinthTotalW = plinthLayout.reduce((s, g) => s + g.width, 0)
+    || (singleFrente ? (Number(singleFrente.ancho) || 0) + 2 * (Number(singleFrente.espesor) || thickness) : 0);
+  const plinthScale = plinthTotalW > 0 ? moduleW / plinthTotalW : 1;
   const segByIndex = new Map(plinthLayout.map((g) => [g.index, g]));
+  const divparLayout = drawerPlinth ? divparLayoutFromPieces(globalPieces) : [];
   const segRefDe = (p) => {
     const m = String(p.id).match(/^glb-zocalo-s(\d+)-/);
     return m ? segByIndex.get(Number(m[1])) || null : null;
@@ -60,9 +67,25 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     });
   });
 
-  // Divisores internos del marco segmentado: paneles verticales de pie
-  // entre frente y trasero de cada sub-zócalo.
-  globalPieces.filter((p) => inferRole(p) === 'plinth_divider').forEach((div) => {
+  // Divisores internos del marco. Dos familias:
+  // - `...-divisor-{j}` (modo segmentado): paneles verticales de pie entre
+  //   frente y trasero en el límite de cada parte.
+  // - `...-divpar-{j}` (modo único, bajo módulos de cajón/zapatera):
+  //   divisiones PARALELAS al frente/trasero a mitad de la profundidad:
+  //   apoyan el medio de la base del cajón.
+  globalPieces.filter((p) => inferRole(p) === 'plinth_divider' && String(p.id).includes('-divpar-')).forEach((div) => {
+    const m = String(div.id).match(/-divpar-(\d+)$/);
+    const slot = m ? divparLayout[Number(m[1]) - 1] : null;
+    if (!slot) return;
+    const t = Number(div.espesor) || thickness;
+    geometries.push({
+      x: slot.x0 * plinthScale, y: moduleD / 2 - t / 2, z: 0,
+      w: slot.width * plinthScale, d: t, h: plinthH,
+      color: div.color || ROLE_COLORS.wood, role: 'back_panel',
+      name: div.nombre, id: div.id, opacity: 0.25,
+    });
+  });
+  globalPieces.filter((p) => inferRole(p) === 'plinth_divider' && !String(p.id).includes('-divpar-')).forEach((div) => {
     const seg = segRefDe(div);
     if (!seg) return;
     const m = String(div.id).match(/^glb-zocalo-s\d+-divisor-(\d+)$/);
@@ -100,14 +123,15 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
       const w = Number(p.ancho) || moduleW;
       if (drawerPlinth) {
         // Frente del cajón de zócalo: banda visible z:0..zocaloHeight. En
-        // el marco segmentado va retrasado `plinthRecess` mm (efecto de
-        // flotación y apertura de puertas); el patrón de catálogo sigue al
-        // ras del frente (recess = 0).
+        // el marco (único o segmentado) va retrasado `plinthRecess` mm
+        // (efecto de flotación y apertura de puertas); el patrón de catálogo
+        // sigue al ras del frente (recess = 0).
         const t = Number(p.espesor) || thickness;
         const seg = segRefDe(p);
+        const esMarcoUnico = String(p.id) === 'glb-zocalo-frente';
         geometries.push({
           x: seg ? seg.x0 * plinthScale : 0, y: moduleD - t - plinthRecess, z: 0,
-          w: seg ? w * plinthScale : w, d: t, h: Number(p.alto) || plinthH,
+          w: (seg || esMarcoUnico) ? w * plinthScale : w, d: t, h: Number(p.alto) || plinthH,
           color, role: 'plinth', name: p.nombre, id: p.id,
         });
       } else {

@@ -336,14 +336,16 @@ function validateDimensions(pieces, warnings) {
   globalModules.forEach((gmod) => {
     const globalPieces = modules[gmod];
     // Frente(s) del zócalo global. Tres patrones:
+    // - Zócalo a marco único (id `glb-zocalo-frente`): cubre
+    //   ancho + 2*espesor = ancho total de los módulos.
     // - Zócalo a marco segmentado (ids `glb-zocalo-s{k}-frente`): cada
     //   frente cubre su segmento completo; el ancho cubierto es
-    //   Σ(ancho + 2*espesor) (los largueros van entre los costados).
+    //   Σ(ancho + 2*espesor).
     // - Zócalo-cajón de catálogo: un frente de ancho = suma de módulos.
-    // Los laterales (rol 'plinth_side'), divisores ('plinth_divider') y el
-    // trasero ('back_panel', ancho = profundidad) no entran en la comparación
-    // contra la suma de anchos de módulos.
-    const frentesMarco = globalPieces.filter((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)));
+    // Los laterales (rol 'plinth_side'), divisiones ('plinth_divider',
+    // ancho = luz interior o profundidad) y el trasero ('back_panel') no
+    // entran en la comparación contra la suma de anchos de módulos.
+    const frentesMarco = globalPieces.filter((p) => /^glb-zocalo(-s\d+)?-frente$/.test(String(p.id)));
     const zocalos = globalPieces.filter((p) => {
       const role = inferRole(p);
       return (role === 'bottom_panel' || role === 'plinth') && normalizeName(p.nombre).includes('zocalo');

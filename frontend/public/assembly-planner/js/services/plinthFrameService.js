@@ -16,6 +16,10 @@
 // frente = ancho del segmento - 2*espesor; las posiciones X se recalculan
 // acumulando segmentos (ver plinthLayoutFromPieces).
 
+// Piezas del marco: ids `glb-zocalo-s{k}-*` (segmentado) y `glb-zocalo-*`
+// (único). Usado para reemplazar/quitar el marco sin tocar otros globales.
+export const MARCO_PIECE_RE = /^glb-zocalo(-s\d+)?-(frente|trasero|costado-izq|costado-der|divisor-\d+|divpar-\d+)$/;
+
 export const PLINTH_MAX_SPAN = 800;    // tramo máximo entre juntas sin dividir
 export const PLINTH_SPLIT_LIGHT = 600; // luz objetivo al dividir un tramo ancho
 export const PLINTH_DEFAULT_RECESS = 50; // retraso típico del frente (mm)
@@ -89,12 +93,15 @@ export function computePlinthSegments(moduleWidths, { maxSpan = PLINTH_MAX_SPAN,
   return { ok: true, segments, totalWidth, warnings: [] };
 }
 
-// Piezas del marco para una lista de segmentos. Convención de cortes del
-// taller: costados y divisores de largo = profundidad - 2*e (van entre el
-// frente y el trasero); frente y trasero (largueros) de largo = ancho del
-// segmento - 2*e (van entre los costados). Todas son paneles verticales de
-// pie, altura = altoZocalo, ensamblados con tarugos.
-export function plinthFramePieces(segments, { profundidad, altoZocalo, espesor = 18, color = '#C19A6B' } = {}) {
+// Piezas del marco. mode 'segmentado': un cajón por segmento (sub-zócalos).
+// mode 'unico' (default): UN solo cajón de ancho total (Σ segmentos) con
+// costados solo en los extremos; bajo cada módulo con cajones/zapateras
+// (`drawerModules: [{moduloId, ancho}]`) agrega una división paralela al
+// frente/trasero a mitad de la profundidad (apoya el medio de la base del
+// cajón). Convención de cortes: costados y divisiones de largo = D−2e (van
+// entre frente y trasero); largueros de largo = ancho − 2e (van entre
+// costados). Paneles verticales de pie, altura = altoZocalo, tarugos.
+export function plinthFramePieces(segments, { profundidad, altoZocalo, espesor = 18, color = '#C19A6B', mode = 'segmentado', drawerModules = [] } = {}) {
   const errors = [];
   if (!Array.isArray(segments) || !segments.length) errors.push('Sin segmentos de zócalo');
   if (!Number.isFinite(profundidad) || profundidad <= 0) errors.push('profundidad inválida');
@@ -107,10 +114,31 @@ export function plinthFramePieces(segments, { profundidad, altoZocalo, espesor =
   const warnings = [];
   const pieces = [];
 
-  const mk = (id, nombre, ancho) => ({
-    id, nombre, ancho, alto: Z, cantidad: 1, rotate: false,
+  const mk = (id, nombre, ancho, rotate = false) => ({
+    id, nombre, ancho, alto: Z, cantidad: 1, rotate,
     color, espesor: e, cantos: 'T,B,L,R', modulo: 'estructura', pos_z: 0,
   });
+
+  if (mode === 'unico') {
+    const total = segments.reduce((s, g) => s + g.width, 0);
+    const w = Math.round(total - 2 * e);
+    if (total < Z) {
+      warnings.push(`Zócalo único (${total} mm) es más angosto que su alto (${Z} mm): posible inestabilidad.`);
+    }
+    if (total > 2440) {
+      warnings.push(`Largueros de ${w} mm: superan el tablero estándar de 2440 mm y requerirán empalme en obra.`);
+    }
+    pieces.push(mk('glb-zocalo-frente', 'Zocalo marco frente', w));
+    pieces.push(mk('glb-zocalo-trasero', 'Zocalo marco trasero', w));
+    pieces.push(mk('glb-zocalo-costado-izq', 'Lateral zocalo izquierdo', depthPiece));
+    pieces.push(mk('glb-zocalo-costado-der', 'Lateral zocalo derecho', depthPiece));
+    (drawerModules || []).forEach((m, i) => {
+      const mw = Math.round((Number(m.ancho) || 0) - 2 * e);
+      if (mw <= 0) return;
+      pieces.push(mk(`glb-zocalo-divpar-${i + 1}`, `Division zocalo paralela frente M${m.moduloId}`, mw, true));
+    });
+    return { ok: true, pieces, warnings };
+  }
 
   for (const seg of segments) {
     const k = seg.index;
@@ -155,12 +183,82 @@ export function plinthLayoutFromPieces(pieces) {
   return layout;
 }
 
+// Frente del zócalo único (mode 'unico'), o null si no existe.
+export function plinthSingleFrente(pieces) {
+  return (pieces || []).find((p) => String(p.id) === 'glb-zocalo-frente') || null;
+}
+
+// True si hay zócalo estructural a marco (único o segmentado).
+export function hasPlinthFrame(pieces) {
+  return plinthLayoutFromPieces(pieces).length > 0 || Boolean(plinthSingleFrente(pieces));
+}
+
+// Alto Z del marco (frente único o el primer frente segmentado).
+export function marcoZocaloHeight(pieces) {
+  const f = plinthSingleFrente(pieces)
+    || (pieces || []).find((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)));
+  return Number(f?.alto) || 0;
+}
+
+// Layout de las divisiones paralelas al frente (ids `glb-zocalo-divpar-{k}`,
+// una por módulo con cajones/zapateras). Posiciones derivadas acumulando
+// ancho + 2*espesor en orden de id (sobrevive el CSV de las versiones).
+export function divparLayoutFromPieces(pieces) {
+  const divpars = (pieces || [])
+    .filter((p) => /^glb-zocalo-divpar-\d+$/.test(String(p.id)))
+    .sort((a, b) => Number(a.id.match(/-(\d+)$/)[1]) - Number(b.id.match(/-(\d+)$/)[1]));
+  const layout = [];
+  let x0 = 0;
+  for (const d of divpars) {
+    const e = Number(d.espesor) || 15;
+    const width = (Number(d.ancho) || 0) + 2 * e;
+    if (width <= 0) continue;
+    layout.push({ x0, width });
+    x0 += width;
+  }
+  return layout;
+}
+
+// Ancho total cubierto por el marco (segmentado: Σ segmentos; único:
+// ancho del frente + 2*espesor). 0 si no hay marco.
+export function plinthTotalWidth(pieces) {
+  const layout = plinthLayoutFromPieces(pieces);
+  if (layout.length) return layout.reduce((s, g) => s + g.width, 0);
+  const single = plinthSingleFrente(pieces);
+  if (!single) return 0;
+  return (Number(single.ancho) || 0) + 2 * (Number(single.espesor) || 15);
+}
+
+// Módulos raíz que contienen cajones o zapateras (frentes identificables),
+// con su ancho de casco. Alimenta las divisiones paralelas al frente.
+export function modulosConCajones(pieces) {
+  const conCajones = new Set();
+  for (const p of pieces || []) {
+    // Los frentes de submódulo viven en su propio módulo ('m1cajon1' →
+    // modulo '11'): el módulo raíz sale del prefijo del id, no de `modulo`.
+    const m = String(p.id || '').match(/^m(\d+)(cajon|zapatera)\d*-frente$/);
+    if (m) conCajones.add(m[1]);
+  }
+  return rootModuleDims(pieces)
+    .filter((d) => conCajones.has(d.id))
+    .map((d) => ({ moduloId: d.id, ancho: d.ancho }));
+}
+
+// Niveladores ocultos totales del marco: 2 por sub-zócalo (4 si supera
+// 600 mm) en modo segmentado; 2 por cada 600 mm de ancho en modo único.
+export function plinthLevelerCount(pieces) {
+  const layout = plinthLayoutFromPieces(pieces);
+  if (layout.length) return totalLevelers(layout);
+  const total = plinthTotalWidth(pieces);
+  if (!total) return 0;
+  return 2 * Math.ceil(total / PLINTH_MAX_LEVELER_SPAN);
+}
+
 // True si el marco ya no coincide con los módulos (el usuario editó anchos
 // o agregó/eliminó módulos tras generarlo): hay que regenerarlo.
 export function marcoDesactualizado(pieces) {
-  const layout = plinthLayoutFromPieces(pieces);
-  if (!layout.length) return false;
-  const totalMarco = layout.reduce((s, g) => s + g.width, 0);
+  const totalMarco = plinthTotalWidth(pieces);
+  if (!totalMarco) return false;
   const totalModulos = rootModuleDims(pieces).reduce((s, d) => s + (d.ancho || 0), 0);
   return totalModulos > 0 && Math.abs(totalMarco - totalModulos) > 2;
 }
@@ -174,32 +272,41 @@ export function totalLevelers(layout) {
   return (layout || []).reduce((n, seg) => n + levelerCountForSegment(seg.width), 0);
 }
 
-// Plan de ensamble del zócalo a marco para el manual: orden de armado de
-// cada sub-zócalo, uniones entre adyacentes, niveladores y (si hay datos
+// Plan de ensamble del zócalo a marco para el manual: orden de armado,
+// uniones entre sub-zócalos (modo segmentado), divisiones paralelas al
+// frente bajo módulos de cajón (modo único), niveladores y (si hay datos
 // de obra) la verificación de levantamiento en vertical. Null si no hay
 // marco. Puro: sin DOM.
 export function plinthAssemblyPlan(pieces, { hTecho = 0, margenSeg = 20 } = {}) {
   const layout = plinthLayoutFromPieces(pieces);
-  if (!layout.length) return null;
-  const frente0 = (pieces || []).find((p) => /^glb-zocalo-s\d+-frente$/.test(String(p.id)));
-  const altoZocalo = Number(frente0?.alto) || 0;
+  const single = plinthSingleFrente(pieces);
+  if (!layout.length && !single) return null;
+  const altoZocalo = marcoZocaloHeight(pieces);
+  const levantamiento = Number(hTecho) > 0
+    ? computeLiftCheck({
+      altoModulo: Math.max(0, ...rootModuleDims(pieces).map((d) => d.alto || 0)),
+      altoZocalo,
+      profundidad: Math.max(0, ...rootModuleDims(pieces).map((d) => d.profundidad || 0)),
+      hTecho: Number(hTecho),
+      margenSeg: Number(margenSeg) || 20,
+    })
+    : null;
+  if (single) {
+    return {
+      mode: 'unico',
+      ancho: plinthTotalWidth(pieces),
+      divparCount: divparLayoutFromPieces(pieces).length,
+      niveladores: plinthLevelerCount(pieces),
+      altoZocalo,
+      levantamiento,
+    };
+  }
   const segments = layout.map((seg) => ({ ...seg, niveladores: levelerCountForSegment(seg.width) }));
   const uniones = [];
   for (let i = 1; i < layout.length; i += 1) {
     uniones.push({ x: layout[i].x0, entre: [layout[i - 1].index, layout[i].index] });
   }
-  let levantamiento = null;
-  if (Number(hTecho) > 0) {
-    const dims = rootModuleDims(pieces);
-    levantamiento = computeLiftCheck({
-      altoModulo: Math.max(0, ...dims.map((d) => d.alto || 0)),
-      altoZocalo,
-      profundidad: Math.max(0, ...dims.map((d) => d.profundidad || 0)),
-      hTecho: Number(hTecho),
-      margenSeg: Number(margenSeg) || 20,
-    });
-  }
-  return { segments, uniones, niveladores: totalLevelers(layout), altoZocalo, levantamiento };
+  return { mode: 'segmentado', segments, uniones, niveladores: totalLevelers(layout), altoZocalo, levantamiento };
 }
 
 // Verificación de levantamiento en vertical (restricción de diagonal con el

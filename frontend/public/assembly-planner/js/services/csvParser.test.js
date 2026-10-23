@@ -383,3 +383,22 @@ describe('parseCSV - zócalo global vs suma de bases', () => {
     );
   });
 });
+
+describe('parseCSV - zócalo único a marco', () => {
+  it('frente único (glb-zocalo-frente): ancho + 2*espesor = suma de bases, sin aviso', () => {
+    const csv = [
+      ...MODULE_CSV,
+      'glb-zocalo-frente,Zocalo marco frente,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-trasero,Zocalo marco trasero,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-costado-izq,Lateral zocalo izquierdo,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-costado-der,Lateral zocalo derecho,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-divpar-1,Division zocalo paralela frente M1,564,100,1,si,#C19A6B,18,"T,B,L,R",estructura,0',
+    ].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores: ${result.errors.join(' | ')}`);
+    assert.ok(
+      !result.warnings.some((w) => w.includes('no coincide con suma de bases')),
+      `aviso espurio: ${result.warnings.join(' | ')}`
+    );
+  });
+});
