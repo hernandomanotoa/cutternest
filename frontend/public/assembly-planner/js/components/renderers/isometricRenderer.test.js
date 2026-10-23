@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { IsometricRenderer, sortByDepth } from './isometricRenderer.js';
 import { computePlinthSegments, plinthFramePieces } from '../../services/plinthFrameService.js';
+import { createModule } from '../../services/closetBuilderService.js';
 
 function parsePolygons(svg) {
   const regex = /<polygon[^>]*>/g;
@@ -1173,14 +1174,14 @@ describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildGlobalGeometries(unicoPieces(), 850, 600, 2300, 18, true, 90);
     const frente = geoms.find((g) => g.id === 'glb-zocalo-frente');
-    assert.equal(frente.x, 0);
+    assert.equal(frente.x, 18, 'banda entre las caras interiores de los costados');
     assert.equal(frente.w, 850 - 2 * 18);
     const trasero = geoms.find((g) => g.id === 'glb-zocalo-trasero');
     assert.equal(trasero.w, 850 - 2 * 18);
     const divpar = geoms.find((g) => g.id === 'glb-zocalo-divpar-1');
     assert.ok(divpar, 'división paralela al frente dibujada');
-    assert.equal(divpar.x, 0);
-    assert.equal(divpar.w, 850, 'cubre el ancho del módulo (x espesor de costados)');
+    assert.equal(divpar.x, 18);
+    assert.equal(divpar.w, 850 - 2 * 18, 'entre las caras interiores de los costados');
     assert.equal(divpar.d, 18, 'paneles paralelos al frente: espesor en profundidad');
     // A mitad de la profundidad: centro en moduleD/2.
     assert.ok(Math.abs((divpar.y + divpar.d / 2) - 600 / 2) < 1e-9, `y=${divpar.y}`);
@@ -1194,6 +1195,49 @@ describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildGlobalGeometries(unicoPieces(), 870, 600, 2300, 18, true, 90);
     const divpar = geoms.find((g) => g.id === 'glb-zocalo-divpar-1');
-    assert.ok(Math.abs(divpar.w - 850 * (870 / 850)) < 1e-6);
+    assert.ok(Math.abs(divpar.w - (850 * (870 / 850) - 2 * 18)) < 1e-6);
+  });
+});
+
+describe('IsometricRenderer alineación zócalo único en vista completa', () => {
+  it('el marco único coincide exactamente con la fila de módulos (frente, trasero y costados)', () => {
+    const mods = [
+      ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces,
+      ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '2' }).pieces,
+    ];
+    const marco = plinthFramePieces(
+      [{ index: 1, x0: 0, width: 1700, modules: [0, 1], dividers: [] }],
+      { profundidad: 600, altoZocalo: 100, espesor: 15, mode: 'unico' },
+    ).pieces;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries } = renderer.computeGeometries('all', [...mods, ...marco]);
+    const rowEnd = Math.max(...geometries.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
+    const frente = geometries.find((g) => g.id === 'glb-zocalo-frente');
+    const trasero = geometries.find((g) => g.id === 'glb-zocalo-trasero');
+    // Frente y trasero: mismo origen y mismo ancho, cubriendo la fila
+    // (banda entre las caras interiores de los costados).
+    assert.equal(frente.x, 15);
+    assert.ok(Math.abs(frente.w - trasero.w) < 1e-6, 'frente y trasero alineados');
+    assert.ok(Math.abs(frente.x + frente.w - (rowEnd - 15)) < 40, `frente cubre la fila de módulos (hasta ${rowEnd})`);
+    // Costados en los extremos de la fila.
+    const der = geometries.find((g) => g.id === 'glb-zocalo-costado-der');
+    assert.ok(Math.abs(der.x + der.w - rowEnd) < 40, 'costado derecho en el extremo de la fila');
+    const izq = geometries.find((g) => g.id === 'glb-zocalo-costado-izq');
+    assert.equal(izq.x, 0);
+  });
+
+  it('el fondo del módulo se apoya sobre la base (no invade la zona del zócalo)', () => {
+    const mods = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1', baseInterna: true, alturaZocalo: 100 }).pieces;
+    const marco = plinthFramePieces(
+      [{ index: 1, x0: 0, width: 850, modules: [0], dividers: [] }],
+      { profundidad: 600, altoZocalo: 100, espesor: 15, mode: 'unico' },
+    ).pieces;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries } = renderer.computeGeometries('all', [...mods, ...marco]);
+    const fondo = geometries.find((g) => g.id === 'm1-fondo');
+    const base = geometries.find((g) => g.id === 'm1-base');
+    assert.equal(fondo.z, 100 + 15, 'fondo apoyado sobre la base interior (zócalo + espesor)');
+    assert.ok(Math.abs((fondo.z + fondo.h) - (base.z + base.h + 2270 - 15)) < 1e-6 || fondo.h === 2270, 'alto del fondo con descuento del zócalo');
+    assert.equal(fondo.z + fondo.h, 2385, 'el fondo llega hasta la tapa');
   });
 });

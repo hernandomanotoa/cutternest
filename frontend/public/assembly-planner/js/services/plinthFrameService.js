@@ -34,7 +34,9 @@ export function dividerX(segX0, segWidth, j, nDiv) {
 
 // Dimensiones de los módulos raíz ordenados (para segmentos y lift-check).
 // Ancho desde la tapa `m{id}-tapa` (fallback: base + 2*espesor), alto desde
-// la tapa, profundidad desde el lateral `m{id}-lateral-izq`.
+// el lateral, profundidad desde el lateral `m{id}-lateral-izq`. Los ids
+// anclados al módulo (`m\d+-pieza`) excluyen los submódulos (cajón/zapatera),
+// cuyas piezas comparten sufijo pero viven en su propio módulo ('11'...).
 export function rootModuleDims(pieces) {
   const mods = new Map();
   for (const p of pieces || []) {
@@ -42,9 +44,9 @@ export function rootModuleDims(pieces) {
     if (!/^\d+$/.test(m)) continue;
     if (!mods.has(m)) mods.set(m, { id: m, ancho: 0, alto: 0, profundidad: 0, espesor: 15 });
     const dims = mods.get(m);
-    if (/-tapa$/.test(p.id)) { dims.ancho = Number(p.ancho) || 0; dims.alto = Number(p.alto) || 0; dims.espesor = Number(p.espesor) || 15; }
-    else if (/-base$/.test(p.id) && !dims.ancho) { dims.ancho = (Number(p.ancho) || 0) + 2 * dims.espesor; dims.espesor = Number(p.espesor) || 15; }
-    else if (/-lateral-izq$/.test(p.id)) {
+    if (/^m\d+-tapa$/.test(p.id)) { dims.ancho = Number(p.ancho) || 0; dims.alto = Number(p.alto) || 0; dims.espesor = Number(p.espesor) || 15; }
+    else if (/^m\d+-base$/.test(p.id) && !dims.ancho) { dims.ancho = (Number(p.ancho) || 0) + 2 * dims.espesor; dims.espesor = Number(p.espesor) || 15; }
+    else if (/^m\d+-lateral-izq$/.test(p.id)) {
       dims.profundidad = Number(p.ancho) || 0;
       dims.alto = Number(p.alto) || 0; // el alto del módulo vive en los laterales (la tapa es horizontal)
     }

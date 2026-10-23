@@ -10,7 +10,7 @@ import { plinthLayoutFromPieces, divparLayoutFromPieces } from '../../../service
 import { normalizeName } from '../../../utils/normalize.js';
 import { findPairedHandle, isHandlePiece } from './handleMatching.js';
 
-export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true, zocaloHeight = 0) {
+export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true, zocaloHeight = 0, moduleSpans = null) {
   const geometries = [];
   const globalDoors = [];
   // Modelo de zócalo: si el zócalo global incluye laterales (rol
@@ -39,6 +39,23 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
   const plinthTotalW = plinthLayout.reduce((s, g) => s + g.width, 0)
     || (singleFrente ? (Number(singleFrente.ancho) || 0) + 2 * (Number(singleFrente.espesor) || thickness) : 0);
   const plinthScale = plinthTotalW > 0 ? moduleW / plinthTotalW : 1;
+  // Vista completa: mapa real→visual por módulo. Cada módulo ocupa `width`
+  // mm reales desde la posición visual `base`; los gaps quedan entre spans.
+  // Sin mapa (vista de un módulo / global) se recae a la escala global.
+  const visX = moduleSpans?.length
+    ? (logical) => {
+      const L = Math.max(0, logical);
+      let start = 0;
+      for (const s of moduleSpans) {
+        if (L <= start + s.width) return s.base + (L - start);
+        start += s.width;
+      }
+      const last = moduleSpans[moduleSpans.length - 1];
+      return last.base + (L - start);
+    }
+    : null;
+  const px = (logical) => (visX ? visX(logical) : logical * plinthScale);
+  const pw = (logical0, width) => (visX ? visX(logical0 + width) - visX(logical0) : width * plinthScale);
   const segByIndex = new Map(plinthLayout.map((g) => [g.index, g]));
   const divparLayout = drawerPlinth ? divparLayoutFromPieces(globalPieces) : [];
   const segRefDe = (p) => {
@@ -56,7 +73,14 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     // Sub-zócalo segmentado: el costado cae en el límite de su segmento.
     // Pieza de catálogo sin `s{k}`: comportamiento clásico (extremos).
     const seg = segRefDe(side);
-    const x = seg ? (seg.x0 + (isLeft ? 0 : seg.width - t)) * plinthScale : (isLeft ? 0 : moduleW - t);
+    // Costados del marco (costado-*) se posicionan con el mapa; los de
+    // catálogo (lateral-*) conservan el comportamiento clásico (extremos).
+    const esCostadoMarco = /costado/.test(String(side.id));
+    const x = seg
+      ? px(seg.x0 + (isLeft ? 0 : seg.width - t))
+      : esCostadoMarco
+        ? (isLeft ? px(0) : px(plinthTotalW) - t)
+        : (isLeft ? 0 : moduleW - t);
     // Mismo reparto frente/atrás que los laterales de los módulos: en
     // perspectiva normal el lateral izquierdo queda al frente.
     const isFront = renderer.isoFlip ? !isLeft : isLeft;
@@ -78,9 +102,11 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     const slot = m ? divparLayout[Number(m[1]) - 1] : null;
     if (!slot) return;
     const t = Number(div.espesor) || thickness;
+    // Entre las caras interiores de los costados del módulo, a mitad de la
+    // profundidad.
     geometries.push({
-      x: slot.x0 * plinthScale, y: moduleD / 2 - t / 2, z: 0,
-      w: slot.width * plinthScale, d: t, h: plinthH,
+      x: px(slot.x0) + t, y: moduleD / 2 - t / 2, z: 0,
+      w: pw(slot.x0, slot.width) - 2 * t, d: t, h: plinthH,
       color: div.color || ROLE_COLORS.wood, role: 'back_panel',
       name: div.nombre, id: div.id, opacity: 0.25,
     });
@@ -92,7 +118,7 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     const j = m ? Number(m[1]) : 1;
     const nDiv = seg.dividers.length;
     const t = Number(div.espesor) || thickness;
-    const x = (seg.dividers[j - 1] ?? seg.x0 + seg.width / 2) * plinthScale - t / 2;
+    const x = px(seg.dividers[j - 1] ?? seg.x0 + seg.width / 2) - t / 2;
     geometries.push({
       x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
       color: div.color || ROLE_COLORS.wood, role: 'side_panel_rear',
@@ -114,9 +140,12 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
       const w = Number(p.ancho) || moduleW;
       const t = Number(p.espesor) || thickness;
       const seg = segRefDe(p);
+      const esMarcoUnico = String(p.id) === 'glb-zocalo-trasero';
+      // Banda entre las caras interiores de los costados (los costados
+      // cierran los extremos).
       geometries.push({
-        x: seg ? seg.x0 * plinthScale : 0, y: -t, z: 0,
-        w: seg ? w * plinthScale : w, d: t, h: Number(p.alto) || plinthH,
+        x: seg ? px(seg.x0) : esMarcoUnico ? px(0) + t : 0, y: -t, z: 0,
+        w: seg ? pw(seg.x0, w) : esMarcoUnico ? pw(0, plinthTotalW) - 2 * t : w, d: t, h: Number(p.alto) || plinthH,
         color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
       });
     } else if (role === 'bottom_panel' || n.includes('zocalo')) {
@@ -130,8 +159,8 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
         const seg = segRefDe(p);
         const esMarcoUnico = String(p.id) === 'glb-zocalo-frente';
         geometries.push({
-          x: seg ? seg.x0 * plinthScale : 0, y: moduleD - t - plinthRecess, z: 0,
-          w: (seg || esMarcoUnico) ? w * plinthScale : w, d: t, h: Number(p.alto) || plinthH,
+          x: seg ? px(seg.x0) : esMarcoUnico ? px(0) + t : 0, y: moduleD - t - plinthRecess, z: 0,
+          w: seg ? pw(seg.x0, w) : esMarcoUnico ? pw(0, plinthTotalW) - 2 * t : w, d: t, h: Number(p.alto) || plinthH,
           color, role: 'plinth', name: p.nombre, id: p.id,
         });
       } else {

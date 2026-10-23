@@ -75,7 +75,10 @@ function piece(id, nombre, ancho, alto, opts = {}) {
 // sobre el zocalo (bottomPanelOffset = altura del zocalo) en vez de en el
 // suelo — modelo zocalo-cajon del catalogo (cascoZocaloCajon). Usar SOLO
 // cuando el modulo lleva zocalo.
-export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#C19A6B', modulo, baseInterna = false }) {
+// `alturaZocalo` (con baseInterna) descuenta el zócalo del fondo: el alto
+// del mueble es FIJO (incluye el zócalo) y el fondo se apoya sobre la base
+// interior, sin invadir la zona del zócalo.
+export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#C19A6B', modulo, baseInterna = false, alturaZocalo = 0 }) {
   const errors = [];
   validateDimension(ancho, 'ancho', errors, { min: 100 });
   validateDimension(alto, 'alto', errors, { min: 100 });
@@ -88,12 +91,16 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
   const E = espesor;
   const baseW = baseInterna ? ancho - 2 * E : ancho;
   const baseD = baseInterna ? prof - 2 * E : prof;
+  // Fondo: embutido (alto − 2E); con zócalo se descuenta además la zona del
+  // zócalo para apoyarse sobre la base interior (altura total fija).
+  const plinthDrop = baseInterna ? Math.max(0, Number(alturaZocalo) || 0) : 0;
+  const fondoH = Math.max(100, alto - 2 * E - plinthDrop);
   const pieces = [
     piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rotate: 'si', color, espesor: E, cantos: 'T,B,L,R', modulo }),
     piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rotate: 'si', color, espesor: E, cantos: 'T,B,L,R', modulo }),
     piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, prof, alto, { color, espesor: E, cantos: 'T,B,L', modulo }),
     piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, prof, alto, { color, espesor: E, cantos: 'T,B,R', modulo }),
-    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, alto - 2 * E, { color: '#F2F2F2', espesor: E, cantos: '', modulo }),
+    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { color: '#F2F2F2', espesor: E, cantos: '', modulo }),
   ];
   return { ok: true, pieces, interiorWidth: ancho - 2 * E, interiorDepth: prof - 2 * E };
 }

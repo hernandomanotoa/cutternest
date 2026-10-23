@@ -472,6 +472,13 @@ export function addModuleFromBuilder(config) {
   // se regenera abajo para incluir el módulo.
   const marcoActivo = hasPlinthFrame(state.pieces);
   const conZocalo = !!config.conZocalo && !marcoActivo;
+  // Alto del mueble FIJO (incluye el zócalo): el casco descuenta la zona
+  // del zócalo para que el fondo se apoye sobre la base interior. Con el
+  // marco activo manda el Z del marco (userConfig), no el del formulario.
+  const cfg = state.userConfig || {};
+  const zEfectivo = marcoActivo
+    ? (Number(cfg.plinthAltoZocalo) || 100)
+    : conZocalo ? alturaZocalo : 0;
   const nuevas = [];
   const moduleIds = [];
 
@@ -485,6 +492,7 @@ export function addModuleFromBuilder(config) {
       colorCuerpo: config.colorCuerpo || '#C19A6B',
       modulo: moduleId,
       baseInterna: conZocalo || marcoActivo,
+      alturaZocalo: zEfectivo,
     });
     if (!result.ok) return { ok: false, errors: result.errors };
     nuevas.push(...result.pieces);
@@ -1092,8 +1100,23 @@ export function applyStructuralPlinth(opts = {}) {
     ...state.pieces.filter((p) => !MARCO_PIECE_RE.test(String(p.id)) && !/^m\d+-zocalo$/.test(String(p.id))),
     ...frame.pieces,
   ];
+  // Altura del mueble fija: los fondos de los módulos se reajustan al Z del
+  // marco (los cascos pueden haberse generado con otro alto de zócalo).
+  const altoLateral = new Map();
+  pieces.forEach((p) => {
+    const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
+    if (ml) altoLateral.set(ml[1], Number(p.alto) || 0);
+  });
+  const piecesFinales = pieces.map((p) => {
+    const mf = String(p.id).match(/^m(\d+)-fondo$/);
+    if (!mf) return p;
+    const altoMod = altoLateral.get(mf[1]);
+    if (!altoMod) return p;
+    const e = Number(p.espesor) || 15;
+    return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+  });
   saveUserConfig({ plinthFrontRecess: retraso });
-  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
   getStore().set({ userConfig: loadUserConfig() });
   recalculateAll();
   return {
@@ -1129,7 +1152,23 @@ export function removeStructuralPlinth() {
     if (z.ok) restauradas.push(...z.pieces);
   }
   const pieces = [...remaining, ...restauradas];
-  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  // Restaurar también el fondo a su alto completo (sin descuento de zócalo).
+  const altoLateral = new Map();
+  pieces.forEach((p) => {
+    const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
+    if (ml) altoLateral.set(ml[1], Number(p.alto) || 0);
+  });
+  const piecesFinales = pieces.map((p) => {
+    const mf = String(p.id).match(/^m(\d+)-fondo$/);
+    if (!mf) return p;
+    const altoMod = altoLateral.get(mf[1]);
+    if (!altoMod) return p;
+    const e = Number(p.espesor) || 15;
+    // El frente simple restaurado vuelve a ocupar la zona del zócalo
+    // (mismo Z): el fondo mantiene el descuento y sigue apoyado en la base.
+    return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+  });
+  store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
   recalculateAll();
   return { ok: true, restored: restauradas.length };
 }

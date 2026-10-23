@@ -940,3 +940,23 @@ test('Modo segmentado: opción que divide en sub-zócalos y regenera al instante
   assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'de vuelta al zócalo único');
   view.destroy();
 });
+
+test('Altura fija del mueble: el fondo descuenta el zócalo y se apoya sobre la base', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // alto 2400, zócalo simple 150
+  // Casco con zócalo simple: fondo descuenta 150.
+  const fondoSimple = store.get().pieces.find((p) => p.id === 'm1-fondo');
+  assert.equal(fondoSimple.alto, 2400 - 150 - 2 * 15, 'fondo = alto − zócalo simple − 2e');
+  // Al aplicar el marco (Z=100), el fondo se reajusta al Z del marco.
+  click(container, '[data-action="apply-plinth"]');
+  const fondoMarco = store.get().pieces.find((p) => p.id === 'm1-fondo');
+  assert.equal(fondoMarco.alto, 2400 - 100 - 2 * 15, 'fondo reajustado al Z del marco');
+  // Altura total del mueble: inalterada (2400) — el zócalo ocupa su zona.
+  const lateral = store.get().pieces.find((p) => p.id === 'm1-lateral-izq');
+  assert.equal(lateral.alto, 2400, 'el alto del módulo es el total (fijo)');
+  // Quitar el marco: frente simple restaurado (Z=100) y fondo consistente.
+  click(container, '[data-action="remove-plinth"]');
+  const fondoRestaurado = store.get().pieces.find((p) => p.id === 'm1-fondo');
+  assert.equal(fondoRestaurado.alto, 2400 - 100 - 2 * 15, 'fondo consistente con el frente restaurado');
+  view.destroy();
+});

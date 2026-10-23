@@ -175,6 +175,11 @@ export class IsometricRenderer {
       const moduleGroups = this._groupByModule(nonGlobalPieces);
       const sortedIds = this._sortModuleIds(Object.keys(moduleGroups));
       let offsetX = 0;
+      // Spans reales→visuales por módulo: el zócalo global se posiciona con
+      // este mapa (cada módulo ocupa `width` mm reales desde `base` visual),
+      // no con una escala global — el ancho visual de la vista completa
+      // incluye skew isométrico y gaps que la escala mezclaba mal.
+      const moduleSpans = [];
       sortedIds.forEach((mid, idx) => {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
@@ -187,13 +192,14 @@ export class IsometricRenderer {
         subGeometries.forEach((g) => { g.x += offsetX; });
         subGeometries.forEach((g) => { g.moduleSeq = idx; });
         geometries.push(...subGeometries);
+        moduleSpans.push({ base: offsetX, width: dims.width });
         // En 'compact' los módulos quedaban pegados (gap 0); se aplica el
         // mismo gap mínimo de 20 mm que la vista 3D (MODULE_GAP_MM).
         const extraGap = useProjection ? dims.thickness : MODULE_GAP_MM;
         offsetX += moduleVisualWidth + extraGap;
       });
       if (globalPieces.length) {
-        const globalGeoms = this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true, zocaloHeight);
+        const globalGeoms = this._buildGlobalGeometries(globalPieces, offsetX, moduleD, moduleH, thickness, true, zocaloHeight, moduleSpans);
         globalGeoms.forEach((g) => { g.moduleSeq = sortedIds.length; });
         geometries.push(...globalGeoms);
       }
@@ -303,8 +309,8 @@ export class IsometricRenderer {
     return computeModuleBounds(this, geometries, includeDepth);
   }
 
-  _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true, zocaloHeight = 0) {
-    return buildGlobalGeometries(this, globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors, zocaloHeight);
+  _buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors = true, zocaloHeight = 0, moduleSpans = null) {
+    return buildGlobalGeometries(this, globalPieces, moduleW, moduleD, moduleH, thickness, includeDoors, zocaloHeight, moduleSpans);
   }
 
   // ═══════════════════════════════════════════════════════════

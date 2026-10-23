@@ -337,10 +337,17 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
       if (size < total) return Math.min(total - size, 2 * thickness);
       return 0;
     };
+    // Con cajón de zócalo (módulos apoyados sobre el marco): si el fondo
+    // fue generado con el descuento del zócalo (casco del Constructor),
+    // se apoya sobre la base interior (z = zocalo + espesor). Los fondos a
+    // altura completa (catálogo) conservan el encaje clásico.
+    const plinthBase = zocaloDrawerHeight || 0;
+    const encajaReducido = plinthBase > 0
+      && Math.abs(backDims.h - (moduleH - plinthBase - 2 * thickness)) <= tol;
     geometries.push({
       x: fitOffset(backDims.w, moduleW),
       y: 0,
-      z: fitOffset(backDims.h, moduleH),
+      z: encajaReducido ? plinthBase + thickness : fitOffset(backDims.h, moduleH),
       w: backDims.w,
       d: backThickness,
       h: backDims.h,
