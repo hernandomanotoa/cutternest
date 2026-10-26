@@ -16,6 +16,9 @@ import {
   divparLayoutFromPieces,
   marcoDesactualizado,
   computeLiftCheck,
+  symmetricSplit,
+  plinthLayoutFromPieces,
+  plinthAssemblyPlan,
 } from './plinthFrameService.js';
 
 describe('buildPlinthFrame (forma paramétrica)', () => {
@@ -24,11 +27,12 @@ describe('buildPlinthFrame (forma paramétrica)', () => {
   it('genera un solo marco con largueros del ancho total', () => {
     const r = buildPlinthFrame({ moduleWidths: [850, 850], ...base });
     assert.ok(r.ok);
-    assert.deepEqual(r.spec, { ancho: 1700, profundidad: 600, altoZocalo: 90, espesor: 18 });
+    assert.deepEqual(r.spec, { ancho: 1700, profundidad: 600, altoZocalo: 90, espesor: 18, nZocalos: 1, luzMax: 1700 });
     const ids = r.pieces.map((p) => p.id);
     assert.deepEqual(ids, [
       'glb-zocalo-frente', 'glb-zocalo-trasero',
       'glb-zocalo-costado-izq', 'glb-zocalo-costado-der',
+      'glb-zocalo-montante-1', // luz 1700 > 1000: 1 montante
     ]);
     assert.equal(r.pieces.find((p) => p.id === 'glb-zocalo-frente').ancho, 1700 - 2 * 18);
     const costado = r.pieces.find((p) => p.id === 'glb-zocalo-costado-izq');
@@ -72,7 +76,7 @@ describe('helpers derivados de las piezas (CSV-safe)', () => {
   it('plinthFrameSpec reconstruye la forma en ambas direcciones', () => {
     const pieces = mk([850, 450]);
     assert.deepEqual(plinthFrameSpec(pieces), {
-      ancho: 1300, profundidad: 600, altoZocalo: 100, espesor: 15,
+      ancho: 1300, profundidad: 600, altoZocalo: 100, espesor: 15, nZocalos: 1, luzMax: 1300,
     });
     assert.equal(plinthFrameSpec([]), null);
   });
@@ -156,5 +160,74 @@ describe('computeLiftCheck', () => {
     const r = computeLiftCheck({ altoModulo: 2400, altoZocalo: 90, profundidad: 600 });
     assert.equal(r.skipped, true);
     assert.equal(r.levantamientoOk, null);
+  });
+});
+
+describe('N zócalos, montantes y empalme por tablero', () => {
+  const base = { profundidad: 600, altoZocalo: 100, espesor: 15 };
+
+  it('divide en N zócalos simétricos (3400 → 1700+1700)', () => {
+    const r = buildPlinthFrame({ moduleWidths: [850, 850, 850, 850], ...base, nZocalos: 2 });
+    assert.ok(r.ok);
+    assert.equal(r.spec.nZocalos, 2);
+    assert.equal(r.spec.luzMax, 1700);
+    const layout = plinthLayoutFromPieces(r.pieces);
+    assert.deepEqual(layout.map((b) => b.width), [1700, 1700]);
+    assert.equal(plinthTotalWidth(r.pieces), 3400);
+    // Cada zócalo: frente, trasero, 2 costados + 1 montante (luz > 1000).
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-s1-frente'));
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-s2-frente'));
+    assert.equal(r.pieces.filter((p) => /-costado-/.test(p.id)).length, 4, '2 costados por zócalo');
+    assert.equal(r.pieces.filter((p) => /-montante-/.test(p.id)).length, 2, '1 montante por zócalo (luz 1700)');
+  });
+
+  it('división en 3: extremos iguales (3400 → 1134+1132+1134)', () => {
+    const r = buildPlinthFrame({ moduleWidths: [850, 850, 850, 850], ...base, nZocalos: 3 });
+    const layout = plinthLayoutFromPieces(r.pieces);
+    assert.deepEqual(layout.map((b) => b.width), [1133, 1134, 1133]);
+    assert.equal(r.spec.luzMax, 1134);
+  });
+
+  it('sin montantes cuando la luz es <= 1000', () => {
+    const r = buildPlinthFrame({ moduleWidths: [800, 800], ...base, nZocalos: 2 });
+    assert.equal(r.pieces.filter((p) => /-montante-/.test(p.id)).length, 0);
+  });
+
+  it('niveladores por banda: 1700 mm → 2 pares por zócalo', () => {
+    const pieces = buildPlinthFrame({ moduleWidths: [850, 850, 850, 850], ...base, nZocalos: 2 }).pieces;
+    assert.equal(plinthLevelerCount(pieces), 12, 'por banda: 2 × ceil(1700/600) = 6 cada uno');
+  });
+
+  it('empalme automático cuando el único supera 2440: parte en la junta de módulo más cercana al centro', () => {
+    const r = buildPlinthFrame({ moduleWidths: [850, 850, 850, 850], ...base, nZocalos: 1 });
+    assert.ok(r.warnings.some((w) => w.includes('empalmar')));
+    const layout = plinthLayoutFromPieces(r.pieces);
+    assert.equal(layout.length, 2);
+    assert.deepEqual(layout.map((b) => b.width), [1700, 1700], 'empalme en x=1700 (junta M2/M3)');
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente-a'));
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente-b'));
+    assert.equal(r.pieces.filter((p) => /-costado-/.test(p.id)).length, 2, 'solo los extremos');
+    // Cada tramo del larguero mide 1700 − e y cabe en el tablero.
+    const fa = r.pieces.find((p) => p.id === 'glb-zocalo-frente-a');
+    assert.equal(fa.ancho, 1700 - 15);
+    assert.equal(plinthTotalWidth(r.pieces), 3400);
+  });
+
+  it('plan de ensamble: uniones entre zócalos y nota de empalme', () => {
+    const multi = buildPlinthFrame({ moduleWidths: [850, 850, 850, 850], ...base, nZocalos: 2 }).pieces;
+    const planMulti = plinthAssemblyPlan(multi);
+    assert.equal(planMulti.uniones.length, 1);
+    assert.equal(planMulti.uniones[0].x, 1700);
+    assert.equal(planMulti.segments[0].montantes, 1);
+    const empalme = buildPlinthFrame({ moduleWidths: [850, 850, 850, 850], ...base, nZocalos: 1 }).pieces;
+    const planEmp = plinthAssemblyPlan(empalme);
+    assert.equal(planEmp.empalme.x, 1700);
+    assert.equal(planEmp.uniones.length, 0);
+  });
+
+  it('symmetricSplit absorbe el redondeo en el centro', () => {
+    assert.deepEqual(symmetricSplit(3400, 2), [1700, 1700]);
+    assert.deepEqual(symmetricSplit(3400, 3), [1133, 1134, 1133]);
+    assert.deepEqual(symmetricSplit(1000, 3), [333, 334, 333]);
   });
 });

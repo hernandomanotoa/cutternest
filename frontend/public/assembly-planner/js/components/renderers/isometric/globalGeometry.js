@@ -6,7 +6,7 @@
 
 import { ROLE_COLORS, VERTICAL_POSITIONS } from '../../../core/config.js';
 import { inferRole } from '../../../services/classifierService.js';
-import { divparLayoutFromPieces } from '../../../services/plinthFrameService.js';
+import { plinthLayoutFromPieces, divparLayoutFromPieces } from '../../../services/plinthFrameService.js';
 import { normalizeName } from '../../../utils/normalize.js';
 import { findPairedHandle, isHandlePiece } from './handleMatching.js';
 
@@ -26,17 +26,13 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
   const plinthH = drawerPlinth
     ? (zocaloHeight || Math.max(0, ...plinthSides.map((p) => Number(p.alto) || 0)))
     : 0;
-  // Zócalo a marco (único, ver plinthFrameService): el ancho total se deriva
-  // del frente (ancho + 2*espesor), sobrevive el round-trip CSV de las
-  // versiones. `px`/`pw` mapean coordenadas lógicas a la vista; en 'all' se
-  // usa el mapa real→visual por módulo (moduleSpans), que respeta gaps y
-  // skew; sin mapa (vista de un módulo) se recae a la escala global.
-  const singleFrente = drawerPlinth
-    ? globalPieces.find((p) => String(p.id) === 'glb-zocalo-frente')
-    : null;
-  const plinthTotalW = singleFrente
-    ? (Number(singleFrente.ancho) || 0) + 2 * (Number(singleFrente.espesor) || thickness)
-    : 0;
+  // Zócalo a marco (ver plinthFrameService): bandas derivadas de los frentes
+  // (zócalo único, tramos de empalme a/b o N zócalos s{k}). Sobrevive el
+  // round-trip CSV. `px`/`pw` mapean coordenadas lógicas a la vista; en
+  // 'all' se usa el mapa real→visual por módulo (moduleSpans); sin mapa se
+  // recae a la escala global.
+  const bandLayout = drawerPlinth ? plinthLayoutFromPieces(globalPieces) : [];
+  const plinthTotalW = bandLayout.reduce((s, b) => s + b.width, 0);
   const plinthScale = plinthTotalW > 0 ? moduleW / plinthTotalW : 1;
   // Vista completa: mapa real→visual por módulo. Cada módulo ocupa `width`
   // mm reales desde la posición visual `base`; los gaps quedan entre spans.
@@ -54,29 +50,59 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     : null;
   const px = (logical) => (visX ? visX(logical) : logical * plinthScale);
   const pw = (logical0, width) => (visX ? visX(logical0 + width) - visX(logical0) : width * plinthScale);
+  const bandDe = (pieceId) => bandLayout.find((b) => b.pieceId === String(pieceId)) || null;
   const divparLayout = drawerPlinth ? divparLayoutFromPieces(globalPieces) : [];
   // Retraso configurable del frente del marco (efecto flotación), en mm.
   const plinthRecess = Number(renderer.verticalPositionOverrides?.plinthFrontRecess) || 0;
 
-  plinthSides.forEach((side) => {
-    const sn = normalizeName(side.nombre);
-    const sid = normalizeName(side.id);
-    const isLeft = sn.includes('izquierdo') || sn.includes('izq') || sid.includes('izquierdo') || sid.includes('izq');
-    const t = Number(side.espesor) || thickness;
-    // Costados del marco (costado-*) en los extremos del ancho total; los
-    // de catálogo (lateral-*) conservan el comportamiento clásico.
-    const esCostadoMarco = /costado/.test(String(side.id));
-    const x = esCostadoMarco
-      ? (isLeft ? px(0) : px(plinthTotalW) - t)
-      : (isLeft ? 0 : moduleW - t);
-    // Mismo reparto frente/atrás que los laterales de los módulos: en
-    // perspectiva normal el lateral izquierdo queda al frente.
+  // Costados y montantes de cada banda (por orden de id ↔ orden de banda).
+  const costadosIzq = globalPieces.filter((p) => inferRole(p) === 'plinth_side' && /costado-izq$|lateral-izq$/.test(String(p.id)) && /costado/.test(String(p.id)));
+  const costadosDer = globalPieces.filter((p) => inferRole(p) === 'plinth_side' && /costado-der$/.test(String(p.id)) && /costado/.test(String(p.id)));
+  const montantes = globalPieces.filter((p) => inferRole(p) === 'plinth_side' && /-montante-\d+$/.test(String(p.id)));
+
+  const pushSide = (side, x, t, isLeft) => {
     const isFront = renderer.isoFlip ? !isLeft : isLeft;
     geometries.push({
       x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
       color: side.color || ROLE_COLORS.wood, role: isFront ? 'side_panel_front' : 'side_panel_rear',
       name: side.nombre, id: side.id, opacity: 0.4,
     });
+  };
+
+  // Costados: si coinciden en cantidad con las bandas, uno por banda;
+  // si no (catálogo legacy), extremos del moduleW.
+  if (bandLayout.length && costadosIzq.length === bandLayout.length && costadosDer.length === bandLayout.length) {
+    const ordenIzq = [...costadosIzq].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    const ordenDer = [...costadosDer].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    bandLayout.forEach((band, i) => {
+      const t = Number(ordenIzq[i].espesor) || thickness;
+      pushSide(ordenIzq[i], px(band.x0), t, true);
+      pushSide(ordenDer[i], px(band.x0 + band.width) - t, t, false);
+    });
+  } else {
+    plinthSides.forEach((side) => {
+      const sid = normalizeName(side.id);
+      const isLeft = sid.includes('izquierdo') || sid.includes('izq');
+      const t = Number(side.espesor) || thickness;
+      pushSide(side, isLeft ? 0 : moduleW - t, t, isLeft);
+    });
+  }
+
+  // Montantes interiores: repartidos parejos dentro de su banda.
+  const bandIdxDe = (id) => {
+    const m = String(id).match(/^glb-zocalo-s(\d+)-/);
+    return m ? Number(m[1]) - 1 : 0;
+  };
+  montantes.forEach((mon) => {
+    const bandIdx = bandIdxDe(mon.id);
+    const band = bandLayout[bandIdx];
+    if (!band) return;
+    const jMatch = String(mon.id).match(/-montante-(\d+)$/);
+    const j = jMatch ? Number(jMatch[1]) : 1;
+    const nMon = montantes.filter((m2) => bandIdxDe(m2.id) === bandIdx).length;
+    const t = Number(mon.espesor) || thickness;
+    const x = px(band.x0 + Math.round((band.width * j) / (nMon + 1))) - t / 2;
+    pushSide(mon, x, t, false);
   });
 
   // Divisiones paralelas al frente (bajo módulos de cajón/zapatera):
@@ -102,31 +128,39 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
 
     if (role === 'plinth_side' || role === 'plinth_divider') {
       // Ya dibujados en pasadas anteriores (necesitan plinthH / layout).
-    } else if (drawerPlinth && (role === 'back_panel' || /-trasero$/.test(String(p.id))) && n.includes('zocalo')) {
-      // Trasero opcional del cajón de zócalo: banda z:0..zocaloHeight en
-      // la cara trasera (la rama genérica de back_panel lo dibujaría a
-      // altura completa del mueble). Banda entre las caras interiores de
-      // los costados (los costados cierran los extremos).
+    } else if (drawerPlinth && (role === 'back_panel' || /-trasero(-[ab])?$/.test(String(p.id))) && n.includes('zocalo')) {
+      // Trasero del cajón de zócalo: banda z:0..zocaloHeight en la cara
+      // trasera. Con marco se dibuja como banda continua sobre el mapa; el
+      // patrón de catálogo conserva su ancho propio.
       const w = Number(p.ancho) || moduleW;
       const t = Number(p.espesor) || thickness;
-      const esMarcoUnico = String(p.id) === 'glb-zocalo-trasero';
+      const band = bandDe(String(p.id).replace(/-trasero/, '-frente'));
+      // Tramo de empalme: el tramo A llega hasta la junta y el B arranca en
+      // ella (sin costado intermedió); los demás van entre costados (−2t).
+      const esA = /-a$/.test(String(p.id));
+      const esB = /-b$/.test(String(p.id));
+      const offL = band ? (esB ? 0 : t) : 0;
+      const offR = band ? (esA ? 0 : t) : 0;
       geometries.push({
-        x: esMarcoUnico ? px(0) + t : 0, y: -t, z: 0,
-        w: esMarcoUnico ? pw(0, plinthTotalW) - 2 * t : w, d: t, h: Number(p.alto) || plinthH,
+        x: band ? px(band.x0) + offL : 0, y: -t, z: 0,
+        w: band ? pw(band.x0, band.width) - offL - offR : w, d: t, h: Number(p.alto) || plinthH,
         color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
       });
     } else if (role === 'bottom_panel' || n.includes('zocalo')) {
       const w = Number(p.ancho) || moduleW;
       if (drawerPlinth) {
-        // Frente del cajón de zócalo: banda visible z:0..zocaloHeight. En
-        // el marco va retrasado `plinthRecess` mm (efecto de flotación y
-        // apertura de puertas); el patrón de catálogo sigue al ras del
-        // frente (recess = 0).
+        // Frente del cajón de zócalo: banda visible z:0..zocaloHeight,
+        // retrasada `plinthRecess` mm (efecto de flotación); el patrón de
+        // catálogo sigue al ras (recess = 0) y con su ancho propio.
         const t = Number(p.espesor) || thickness;
-        const esMarcoUnico = String(p.id) === 'glb-zocalo-frente';
+        const band = bandDe(p.id);
+        const esA = /-a$/.test(String(p.id));
+        const esB = /-b$/.test(String(p.id));
+        const offL = band ? (esB ? 0 : t) : 0;
+        const offR = band ? (esA ? 0 : t) : 0;
         geometries.push({
-          x: esMarcoUnico ? px(0) + t : 0, y: moduleD - t - plinthRecess, z: 0,
-          w: esMarcoUnico ? pw(0, plinthTotalW) - 2 * t : w, d: t, h: Number(p.alto) || plinthH,
+          x: band ? px(band.x0) + offL : 0, y: moduleD - t - (band ? plinthRecess : 0), z: 0,
+          w: band ? pw(band.x0, band.width) - offL - offR : w, d: t, h: Number(p.alto) || plinthH,
           color, role: 'plinth', name: p.nombre, id: p.id,
         });
       } else {

@@ -988,3 +988,30 @@ test('Editar dimensiones mantiene el descuento del fondo según el zócalo vigen
   assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 900 - 2 * 15, 'fondo renACE al nuevo ancho');
   view.destroy();
 });
+
+test('Selector de cantidad de zócalos: divide simétrico y regenera al instante', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // 850 (1 módulo: el split es interno)
+  click(container, '[data-action="apply-plinth"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'zócalo único inicial');
+  const setN = (v) => {
+    const el = container.querySelector('[data-obra="nzocalos"]');
+    el.value = String(v);
+    el.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  // 2 módulos de 850 → 2 zócalos de 425 con montante (luz > 1000? no: 425 → sin montante)
+  setN(2);
+  let pieces = store.get().pieces;
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s1-frente'), 'zócalo S1');
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-s2-frente'), 'zócalo S2');
+  assert.equal(pieces.filter((p) => /-costado-/.test(p.id)).length, 4, '2 costados por zócalo');
+  assert.equal(pieces.some((p) => p.id === 'glb-zocalo-frente'), false, 'ya no hay zócalo único');
+  const resumen = container.querySelector('[data-plinth-resumen]')?.textContent || '';
+  assert.match(resumen, /2 zócalos/);
+  // Volver a 1: zócalo único de nuevo.
+  setN(1);
+  pieces = store.get().pieces;
+  assert.ok(pieces.some((p) => p.id === 'glb-zocalo-frente'), 'de vuelta al zócalo único');
+  assert.equal(pieces.filter((p) => /-costado-/.test(p.id)).length, 2);
+  view.destroy();
+});

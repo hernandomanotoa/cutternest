@@ -520,6 +520,7 @@ export function addModuleFromBuilder(config) {
     applyStructuralPlinth({
       altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
       retraso: Number(cfg.plinthFrontRecess) || 0,
+      nZocalos: Number(cfg.plinthNZocalo) || 1,
       skipUndo: true,
     });
   }
@@ -1098,13 +1099,15 @@ export function applyStructuralPlinth(opts = {}) {
   }
   // Forma definida del zócalo: el servicio deriva las piezas de corte; aquí
   // no hay restas de espesor — solo la forma (anchos de módulo, profundidad,
-  // alto Z).
+  // alto Z) y la cantidad de zócalos.
+  const cfg0 = state.userConfig || {};
   const built = buildPlinthFrame({
     moduleWidths: dims.map((d) => d.ancho),
     profundidad,
     altoZocalo,
     espesor,
     drawerModules: modulosConCajones(state.pieces),
+    nZocalos: Number(opts.nZocalos ?? cfg0.plinthNZocalo) || 1,
   });
   if (!built.ok) return { ok: false, errors: built.errors };
   if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');
@@ -1150,6 +1153,8 @@ export function applyStructuralPlinth(opts = {}) {
   return {
     ok: true,
     ancho: built.spec.ancho,
+    nZocalos: built.spec.nZocalos,
+    luzMax: built.spec.luzMax,
     pieceCount: built.pieces.length,
     levelers: plinthLevelerCount(built.pieces),
     warnings: built.warnings,

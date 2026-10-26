@@ -267,6 +267,7 @@ export const VERTICAL_POSITIONS = {
   // ── Zócalo estructural a marco ─────────────────────────────────
   plinthFrontRecess: 0,      // retraso del frente del marco de zócalo (mm); 0 = al ras (patrón de catálogo)
   plinthAltoZocalo: 100,     // alto Z del zócalo estructural (mm), default 100 (rango típico 60–150)
+  plinthNZocalos: 1,         // cantidad de zócalos (división simétrica del ancho total)
 
   // ── Datos de obra (levantamiento en vertical) ─────────────────
   obraHTecho: 0,             // altura piso→techo en obra (mm); 0 = sin verificación de diagonal

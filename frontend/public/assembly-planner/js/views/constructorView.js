@@ -184,6 +184,12 @@ export function createConstructorView(store) {
         if (e.target.value === 'marco') doApplyPlinth();
         else doRemovePlinth();
       }
+      if (e.target.dataset.obra === 'nzocalos') {
+        // Cambiar la cantidad regenera el marco al instante si ya existe.
+        saveUserConfig({ plinthNZocalos: Math.max(1, Math.min(4, Number(e.target.value) || 1)) });
+        store.set({ userConfig: loadUserConfig() });
+        if (hasPlinthFrame(store.get().pieces)) doApplyPlinth();
+      }
       return;
     }
     // Tipo de cajón/zapatera: llena el vano con la altura ergonómica del
@@ -506,6 +512,7 @@ export function createConstructorView(store) {
     const r = applyStructuralPlinth({
       altoZocalo: Number(cfg.plinthAltoZocalo) || 100,
       retraso: Number(cfg.plinthFrontRecess) || 0,
+      nZocalos: Number(cfg.plinthNZocalos) || 1,
     });
     if (!r.ok) {
       toast(r.errors.join('; '), { type: 'error' });
@@ -602,6 +609,11 @@ export function createConstructorView(store) {
               <select data-obra="tipo">
                 <option value="simple" ${hasPlinthFrame(pieces) ? '' : 'selected'}>Frente simple por módulo</option>
                 <option value="marco" ${hasPlinthFrame(pieces) ? 'selected' : ''}>Marco estructural (cajón de 4 lados)</option>
+              </select>
+            </label>
+            <label class="form-group">Cantidad de zócalos
+              <select data-obra="nzocalos">
+                ${[1, 2, 3, 4].map((n) => `<option value="${n}" ${Number(state.userConfig?.plinthNZocalos || 1) === n ? 'selected' : ''}>${n === 1 ? '1 (único)' : n}</option>`).join('')}
               </select>
             </label>
             <label class="form-group">Alto zócalo Z (mm)
@@ -933,14 +945,18 @@ function vanoUsado(pieces, moduleId, altoModulo, tieneZocalo, altoZocalo) {
 }
 
 // Resumen del zócalo estructural para la cabecera de su tarjeta: muestra la
-// forma definida (ancho × profundidad × alto Z, espesor), no las restas de
-// corte — esas viven solo en el despiece.
+// forma definida (ancho × profundidad × alto Z, espesor) y la división, no
+// las restas de corte — esas viven solo en el despiece.
 function resumenPlinth(pieces, state = {}) {
   if (!hasPlinthFrame(pieces)) return 'frente simple por módulo';
   const spec = plinthFrameSpec(pieces);
   const niveladores = plinthLevelerCount(pieces);
   if (!spec) return `${niveladores} niveladores`;
-  return `zócalo único ${spec.ancho}×${spec.profundidad}×${spec.altoZocalo} mm (e${spec.espesor}) · ${niveladores} niveladores`;
+  const forma = `${spec.ancho}×${spec.profundidad}×${spec.altoZocalo} mm (e${spec.espesor})`;
+  if (spec.nZocalos > 1) {
+    return `${spec.nZocalos} zócalos de ~${Math.round(spec.luzMax)} mm ${forma} · ${niveladores} niveladores`;
+  }
+  return `zócalo único ${forma} · ${niveladores} niveladores`;
 }
 
 // Verificación de levantamiento en vertical por módulo (restricción de

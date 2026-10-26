@@ -1195,3 +1195,65 @@ describe('IsometricRenderer zócalo: retraso y catálogo legacy', () => {
     assert.equal(costados.find((g) => g.id.includes('der')).x, 800 - 18);
   });
 });
+
+describe('IsometricRenderer N zócalos y montantes', () => {
+  const mods4 = () => [
+    ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces,
+    ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '2' }).pieces,
+    ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '3' }).pieces,
+    ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '4' }).pieces,
+  ];
+  const geomsAll = (pieces) => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    return renderer.computeGeometries('all', pieces).geometries;
+  };
+
+  it('2 zócalos: bandas alineadas a la fila, 4 costados y montantes centrados', () => {
+    const marco = buildPlinthFrame({
+      moduleWidths: [850, 850, 850, 850], profundidad: 600, altoZocalo: 100, espesor: 15, nZocalos: 2,
+    }).pieces;
+    const geoms = geomsAll([...mods4(), ...marco]);
+    const frentes = geoms.filter((g) => g.id === 'glb-zocalo-s1-frente' || g.id === 'glb-zocalo-s2-frente');
+    assert.equal(frentes.length, 2);
+    const f1 = frentes.find((g) => g.id === 'glb-zocalo-s1-frente');
+    const f2 = frentes.find((g) => g.id === 'glb-zocalo-s2-frente');
+    const rowEnd = Math.max(...geoms.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
+    assert.equal(f1.x, 15);
+    assert.ok(Math.abs(f2.x + f2.w - (rowEnd - 15)) < 40, 'la banda S2 cierra en el extremo de la fila');
+    // Entre bandas quedan los dos costados enfrentados (2t) en la unión.
+    assert.ok(Math.abs(f2.x - (f1.x + f1.w) - 30) < 2e-6, 'entre bandas: costados enfrentados (2×15)');
+    // 4 costados: extremos y enfrentados en el medio (x=1700).
+    const costados = geoms.filter((g) => /glb-zocalo-s\d-costado-(izq|der)/.test(String(g.id)));
+    assert.equal(costados.length, 4);
+    // Unión S1–S2: el frente S2 arranca +t desde la cara del costado.
+    const unionX = f2.x - 15;
+    const medio = costados.filter((g) => Math.abs(g.x - unionX) < 5 || Math.abs(g.x + g.w - unionX) < 5);
+    assert.equal(medio.length, 2, 'dos costados enfrentados en la unión S1–S2');
+    // 2 montantes, uno centrado en cada banda (respecto al frente de su banda).
+    const montantes = geoms.filter((g) => /-montante-1$/.test(String(g.id)));
+    assert.equal(montantes.length, 2);
+    const c1 = montantes.find((g) => g.id.startsWith('glb-zocalo-s1'));
+    const c2 = montantes.find((g) => g.id.startsWith('glb-zocalo-s2'));
+    // Centro lógico de cada banda: S1 → 850 (fin de M1); S2 → 2550 (fin de M3,
+    // borde derecho del lateral de M3 en coordenadas de pieza).
+    const m3der = geoms.find((g) => g.id === 'm3-lateral-der');
+    assert.ok(Math.abs((c1.x + c1.w / 2) - 850) < 20, `montante S1 en el centro lógico de su banda (${c1.x + c1.w / 2})`);
+    assert.ok(Math.abs((c2.x + c2.w / 2) - m3der.x) < 20, `montante S2 en el centro lógico de su banda (${c2.x + c2.w / 2})`);
+  });
+
+  it('empalme (único > 2440): dos tramos contiguos que cubren la fila', () => {
+    const marco = buildPlinthFrame({
+      moduleWidths: [850, 850, 850, 850], profundidad: 600, altoZocalo: 100, espesor: 15, nZocalos: 1,
+    }).pieces;
+    const geoms = geomsAll([...mods4(), ...marco]);
+    const fa = geoms.find((g) => g.id === 'glb-zocalo-frente-a');
+    const fb = geoms.find((g) => g.id === 'glb-zocalo-frente-b');
+    assert.ok(fa && fb, 'ambos tramos dibujados');
+    assert.equal(fa.x, 15);
+    assert.ok(Math.abs(fb.x - (fa.x + fa.w)) < 2e-6, 'tramos contiguos en la junta');
+    const rowEnd = Math.max(...geoms.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
+    assert.ok(Math.abs(fb.x + fb.w - (rowEnd - 15)) < 40, 'cierra la fila');
+    // Solo 2 costados (extremos).
+    assert.equal(geoms.filter((g) => /glb-zocalo-costado-(izq|der)$/.test(String(g.id))).length, 2);
+  });
+});

@@ -156,11 +156,11 @@ function accessoryRank(piece) {
 // trasero como referencia, costados (tarugos), divisiones internas y
 // frente al cierre. Devuelve null para cualquier otra pieza.
 function marcoStepKey(piece) {
-  const m = String(piece.id || '').match(/^glb-zocalo(?:-s(\d+))?-(trasero|costado-izq|costado-der|divpar-\d+|divisor-\d+|frente)$/);
+  const m = String(piece.id || '').match(/^glb-zocalo(?:-s(\d+))?-(trasero|costado-izq|costado-der|montante-\d+|divpar-\d+|divisor-\d+|frente)(?:-(a|b))?$/);
   if (!m) return null;
   const orden = { trasero: 0, 'costado-izq': 1, 'costado-der': 2, frente: 3 };
-  const parte = m[2].startsWith('divisor-') ? 2.5 : m[2].startsWith('divpar-') ? 2.7 : orden[m[2]];
-  return [m[1] ? Number(m[1]) : 0, parte];
+  const parte = m[2].startsWith('montante-') ? 2.5 : m[2].startsWith('divpar-') || m[2].startsWith('divisor-') ? 2.7 : orden[m[2]];
+  return [m[1] ? Number(m[1]) : 0, parte, m[3] === 'b' ? 1 : 0];
 }
 
 /**

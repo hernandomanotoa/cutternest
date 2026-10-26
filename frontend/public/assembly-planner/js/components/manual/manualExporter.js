@@ -72,17 +72,23 @@ function renderLevantamiento(plan) {
 
 function renderPlinthPlanSection(plan) {
   if (!plan) return '';
+  const sub = plan.segments.map((s) => `
+    <li><strong>Zócalo ${plan.segments.length > 1 ? `S${s.index}` : ''}</strong> (${s.width} mm de ancho):
+    ensamblar trasero, 2 costados y frente a escuadra con tarugos${s.montantes ? `; fijar ${s.montantes} montante(s) interior(es) entre frente y trasero` : ''}.
+    Instalar ${s.niveladores} niveladores ocultos M8/M10 (±25 mm) en el interior del marco.</li>`).join('');
+  const uniones = plan.empalme
+    ? `<p>Empalme de los largueros (frente y trasero) a ${plan.empalme.x} mm del origen:
+    tarugos Ø8 + cola, a escuadra, sobre la junta del módulo.</p>`
+    : (plan.uniones.length
+      ? `<p>Unión entre zócalos: ${plan.uniones.map((u) => `S${u.entre[0]}–S${u.entre[1]} (a ${u.x} mm del origen)`).join('; ')}:
+    tornillos cada 150 mm atravesando los costados enfrentados.</p>`
+      : '');
   return `
     <section style="page-break-after: always; margin-bottom: 2rem;">
       <h2>Plano de ensamble del zócalo</h2>
       <p>El mueble se arma en el piso sobre el zócalo y se levanta en vertical dentro de la habitación.</p>
-      <ol>
-        <li><strong>Zócalo</strong> (${plan.ancho} mm de ancho × ${plan.altoZocalo} mm de alto):
-        ensamblar trasero, 2 costados y frente a escuadra con tarugos.</li>
-        ${plan.divparCount ? `<li>Fijar ${plan.divparCount} división(es) paralela(s) al frente a mitad de la
-        profundidad, bajo los módulos de cajón/zapatera: apoyan el medio de la base del cajón.</li>` : ''}
-        <li>Instalar ${plan.niveladores} niveladores ocultos M8/M10 (±25 mm) en el interior del marco.</li>
-      </ol>
+      <ol>${sub}</ol>
+      ${uniones}
       ${renderLevantamiento(plan)}
     </section>
   `;

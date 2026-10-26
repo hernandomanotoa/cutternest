@@ -47,7 +47,7 @@ export function inferRole(piece) {
     const mod = String(piece.modulo || '').trim().toLowerCase();
     const esGlobal = mod === 'estructura' || mod === 'global' || id.startsWith('glb-');
     const texto = `${n} ${id}`;
-    if (esGlobal && texto.includes('zocalo') && (texto.includes('lateral') || texto.includes('costado'))) {
+    if (esGlobal && texto.includes('zocalo') && (texto.includes('lateral') || texto.includes('costado') || texto.includes('montante'))) {
       return 'plinth_side';
     }
     // Divisor interno del zócalo a marco (ids `glb-zocalo-s{k}-divisor-{j}`):
