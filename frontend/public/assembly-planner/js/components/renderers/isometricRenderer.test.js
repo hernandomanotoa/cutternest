@@ -1234,11 +1234,8 @@ describe('IsometricRenderer N zócalos y montantes', () => {
     assert.equal(montantes.length, 2);
     const c1 = montantes.find((g) => g.id.startsWith('glb-zocalo-s1'));
     const c2 = montantes.find((g) => g.id.startsWith('glb-zocalo-s2'));
-    // Centro lógico de cada banda: S1 → 850 (fin de M1); S2 → 2550 (fin de M3,
-    // borde derecho del lateral de M3 en coordenadas de pieza).
-    const m3der = geoms.find((g) => g.id === 'm3-lateral-der');
-    assert.ok(Math.abs((c1.x + c1.w / 2) - 850) < 20, `montante S1 en el centro lógico de su banda (${c1.x + c1.w / 2})`);
-    assert.ok(Math.abs((c2.x + c2.w / 2) - m3der.x) < 20, `montante S2 en el centro lógico de su banda (${c2.x + c2.w / 2})`);
+    assert.ok(Math.abs((c1.x + c1.w / 2) - (f1.x + f1.w / 2)) < 20, 'montante S1 en el centro visual de su banda');
+    assert.ok(Math.abs((c2.x + c2.w / 2) - (f2.x + f2.w / 2)) < 20, 'montante S2 en el centro visual de su banda');
   });
 
   it('empalme (único > 2440): dos tramos contiguos que cubren la fila', () => {

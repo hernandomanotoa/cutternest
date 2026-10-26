@@ -88,7 +88,9 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     });
   }
 
-  // Montantes interiores: repartidos parejos dentro de su banda.
+  // Montantes interiores: en el CENTRO VISUAL de su banda (el centro lógico
+  // no coincide con el visual cuando la banda cruza módulos: el skew isométrico
+  // desplaza el mapeo).
   const bandIdxDe = (id) => {
     const m = String(id).match(/^glb-zocalo-s(\d+)-/);
     return m ? Number(m[1]) - 1 : 0;
@@ -101,7 +103,9 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     const j = jMatch ? Number(jMatch[1]) : 1;
     const nMon = montantes.filter((m2) => bandIdxDe(m2.id) === bandIdx).length;
     const t = Number(mon.espesor) || thickness;
-    const x = px(band.x0 + Math.round((band.width * j) / (nMon + 1))) - t / 2;
+    // Centro visual de su fracción de banda (el centro lógico no coincide
+    // con el visual cuando la banda cruza módulos: el skew desplaza el mapeo).
+    const x = px(band.x0) + (pw(band.x0, band.width) * j) / (nMon + 1) - t / 2;
     pushSide(mon, x, t, false);
   });
 
