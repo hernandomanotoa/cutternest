@@ -964,6 +964,9 @@ function resumenPlinth(pieces, state = {}) {
 // aparece cuando se cargó la altura de techo de la obra.
 function renderLiftCheck(pieces, state = {}) {
   const cfg = state.userConfig || {};
+  // Con zócalo a marco, la altura la define el propio marco (Z): los datos
+  // de obra dejan de aplicar.
+  if (hasPlinthFrame(pieces)) return '<p class="empty-state">Con zócalo a marco, la altura la define el marco (Z): los datos de obra no aplican.</p>';
   const hTecho = Number(cfg.obraHTecho) || 0;
   if (!hTecho) return '<p class="empty-state">Sin altura de techo: cargue H techo para verificar la diagonal de levantamiento y el rango de Z.</p>';
   const dims = rootModuleDims(pieces);
@@ -1012,9 +1015,9 @@ function resumenHardware(hardware) {
 // techo cargada) y marco desactualizado respecto de los módulos.
 function avisosObra(pieces, state = {}) {
   const cfg = state.userConfig || {};
-  const hTecho = Number(cfg.obraHTecho) || 0;
   const out = [];
-  if (hTecho) {
+  const hTecho = Number(cfg.obraHTecho) || 0;
+  if (hTecho && !hasPlinthFrame(pieces)) {
     const altoZocalo = Number(cfg.plinthAltoZocalo) || 100;
     for (const d of rootModuleDims(pieces)) {
       const r = computeLiftCheck({

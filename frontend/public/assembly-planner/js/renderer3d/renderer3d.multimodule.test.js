@@ -137,14 +137,18 @@ describe('ensureModuleGap (pure)', () => {
 });
 
 describe('Renderer3D multi-módulo (vista completa)', () => {
-  it('separa los módulos con un gap de 20 mm', () => {
+  it('por defecto los módulos quedan pegados (gap 0); el toggle agrega 20 mm', () => {
     const container = createContainer();
     const renderer = new Renderer3D(container, { width: 900, height: 600 });
     renderer.load('all', allPieces);
 
-    const [m1, m2] = moduleBoundsBySeq(renderer.geometries);
-    const gap = m2.minX - m1.maxX;
-    assert.equal(gap, MODULE_GAP_MM, `gap entre módulos debe ser ${MODULE_GAP_MM} mm (compact)`);
+    let [m1, m2] = moduleBoundsBySeq(renderer.geometries);
+    assert.equal(m2.minX - m1.maxX, 0, 'default: módulos pegados');
+
+    renderer.setVerticalPositionOverrides?.({ viewModuleGap: MODULE_GAP_MM });
+    renderer.load('all', allPieces, { keepCamera: true });
+    [m1, m2] = moduleBoundsBySeq(renderer.geometries);
+    assert.equal(m2.minX - m1.maxX, MODULE_GAP_MM, `toggle: gap de ${MODULE_GAP_MM} mm`);
   });
 
   it('no reduce el gap amplio del modo projected', () => {

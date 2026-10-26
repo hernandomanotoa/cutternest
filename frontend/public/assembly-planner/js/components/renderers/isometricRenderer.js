@@ -193,9 +193,11 @@ export class IsometricRenderer {
         subGeometries.forEach((g) => { g.moduleSeq = idx; });
         geometries.push(...subGeometries);
         moduleSpans.push({ base: offsetX, width: dims.width });
-        // En 'compact' los módulos quedaban pegados (gap 0); se aplica el
-        // mismo gap mínimo de 20 mm que la vista 3D (MODULE_GAP_MM).
-        const extraGap = useProjection ? dims.thickness : MODULE_GAP_MM;
+        // Gap entre módulos configurable ("Separar módulos"): 0 = pegados
+        // (default), MODULE_GAP_MM = separados. En 'projected' el gap nunca
+        // baja del espesor (skew de profundidad).
+        const gapPref = Number(this.verticalPositionOverrides?.viewModuleGap) || 0;
+        const extraGap = useProjection ? Math.max(dims.thickness, gapPref) : gapPref;
         offsetX += moduleVisualWidth + extraGap;
       });
       if (globalPieces.length) {

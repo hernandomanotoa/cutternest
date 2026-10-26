@@ -1015,3 +1015,22 @@ test('Selector de cantidad de zócalos: divide simétrico y regenera al instante
   assert.equal(pieces.filter((p) => /-costado-/.test(p.id)).length, 2);
   view.destroy();
 });
+
+test('Datos de obra no aplican con zócalo a marco (la altura la define el marco)', () => {
+  const { view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // Sin marco: con H techo cargada aparece el lift-check.
+  const setH = (v) => {
+    const el = container.querySelector('[data-obra="htecho"]');
+    el.value = String(v);
+    el.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  setH(2350);
+  assert.ok(container.querySelector('.cn-constructor__liftcheck'), 'lift-check sin marco');
+  // Con marco: el lift-check se reemplaza por la nota de "no aplican".
+  click(container, '[data-action="apply-plinth"]');
+  assert.equal(container.querySelector('.cn-constructor__liftcheck'), null, 'sin lift-check con marco');
+  assert.match(container.textContent, /datos de obra no aplican/i);
+  assert.ok(!container.textContent.includes('No cabe en vertical'), 'sin aviso de diagonal con marco');
+  view.destroy();
+});

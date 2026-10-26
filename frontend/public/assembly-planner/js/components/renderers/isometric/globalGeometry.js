@@ -52,6 +52,9 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
   const pw = (logical0, width) => (visX ? visX(logical0 + width) - visX(logical0) : width * plinthScale);
   const bandDe = (pieceId) => bandLayout.find((b) => b.pieceId === String(pieceId)) || null;
   const divparLayout = drawerPlinth ? divparLayoutFromPieces(globalPieces) : [];
+  // Marco propio (bandas derivadas) = cajón real: opaco. Catálogo legacy:
+  // translúcido (backdrop).
+  const opacoMarco = bandLayout.length > 0;
   // Retraso configurable del frente del marco (efecto flotación), en mm.
   const plinthRecess = Number(renderer.verticalPositionOverrides?.plinthFrontRecess) || 0;
 
@@ -65,7 +68,7 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
     geometries.push({
       x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
       color: side.color || ROLE_COLORS.wood, role: isFront ? 'side_panel_front' : 'side_panel_rear',
-      name: side.nombre, id: side.id, opacity: 0.4,
+      name: side.nombre, id: side.id, opacity: opacoMarco ? 1 : 0.4,
     });
   };
 
@@ -121,7 +124,7 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
       x: px(slot.x0) + t, y: moduleD / 2 - t / 2, z: 0,
       w: pw(slot.x0, slot.width) - 2 * t, d: t, h: plinthH,
       color: div.color || ROLE_COLORS.wood, role: 'back_panel',
-      name: div.nombre, id: div.id, opacity: 0.25,
+      name: div.nombre, id: div.id, opacity: opacoMarco ? 1 : 0.25,
     });
   });
 
@@ -148,7 +151,7 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
       geometries.push({
         x: band ? px(band.x0) + offL : 0, y: -t, z: 0,
         w: band ? pw(band.x0, band.width) - offL - offR : w, d: t, h: Number(p.alto) || plinthH,
-        color, role: 'back_panel', name: p.nombre, id: p.id, opacity: 0.25,
+        color, role: 'back_panel', name: p.nombre, id: p.id, opacity: opacoMarco ? 1 : 0.25,
       });
     } else if (role === 'bottom_panel' || n.includes('zocalo')) {
       const w = Number(p.ancho) || moduleW;

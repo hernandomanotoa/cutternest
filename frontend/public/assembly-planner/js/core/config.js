@@ -275,6 +275,9 @@ export const VERTICAL_POSITIONS = {
   obraMargenAjuste: 10,      // holgura piso/techo (mm) para derivar Z_real
   obraZmin: 60,              // rango válido de altura de zócalo (mm)
   obraZmax: 150,
+
+  // ── Vista (mm) ────────────────────────────────────────────────
+  viewModuleGap: 0,          // gap entre módulos en 'Vista completa'; 0 = pegados (default), 20 = separados
 };
 
 // Separación estándar entre módulos en la vista multi-módulo (mm). Vive en

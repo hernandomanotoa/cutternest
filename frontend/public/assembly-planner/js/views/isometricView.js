@@ -1,7 +1,8 @@
 // js/views/isometricView.js — Vista isométrica 3D SVG
 
 import { getModulePieces, getModuleLabel, escapeHtml } from '../utils/helpers.js';
-import { COLORS } from '../core/config.js';
+import { COLORS, MODULE_GAP_MM } from '../core/config.js';
+import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
 import { createPieceOffsetsConfig } from '../components/pieceOffsetsConfig.js';
 import { createFurnitureFicha } from '../components/furnitureFicha.js';
@@ -142,6 +143,10 @@ export function createIsometricView(store) {
             <button id="btn-iso-export" class="btn btn--primary btn--sm" title="Descargar el dibujo isométrico como archivo SVG" aria-label="Descargar el dibujo isométrico como archivo SVG">Exportar SVG</button>
             <button id="btn-iso-fullscreen" class="btn btn--secondary btn--sm" title="Ver la vista isométrica en pantalla completa" aria-label="Ver la vista isométrica en pantalla completa">⛶ Pantalla completa</button>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Separar los módulos en Vista completa (gap ${MODULE_GAP_MM} mm); por defecto pegados">
+              <input type="checkbox" id="iso-module-gap" ${Number(state.userConfig?.viewModuleGap) > 0 ? 'checked' : ''} style="cursor:pointer;">
+              <span>Separar módulos</span>
+            </label>
           </div>
         </div>
         <div class="card__body" style="flex:1;min-height:0;position:relative;">
@@ -153,6 +158,10 @@ export function createIsometricView(store) {
 
     aperturaControls.bind(container);
     gapToggle.bind(container);
+    container.querySelector('#iso-module-gap')?.addEventListener('change', (e) => {
+      saveUserConfig({ viewModuleGap: e.target.checked ? MODULE_GAP_MM : 0 });
+      store.set({ userConfig: loadUserConfig() });
+    });
 
     canvas = container.querySelector('#iso-canvas');
     render();

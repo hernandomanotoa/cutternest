@@ -127,10 +127,10 @@ export class Renderer3D {
     // desplazan en X (offsetX acumulado en computeGeometries) y moduleW/2
     // quedaría sobre el primer módulo en vez del centro global de la escena.
     if (moduleId === ALL_MODULE_ID) {
-      // Separar los módulos con el gap estándar (en 'compact' quedan pegados)
-      // y usar el ancho real de la escena (no el del primer módulo) para
-      // perspectiva, cotas y plano de sección.
-      this.geometries = ensureModuleGap(this.geometries, MODULE_GAP_MM);
+      // Separar los módulos con el gap configurado ("Separar módulos",
+      // default 0 = pegados). Las piezas globales (zócalo) quedan fuera.
+      const gapPref = Number(this.verticalPositionOverrides?.viewModuleGap) || 0;
+      this.geometries = ensureModuleGap(this.geometries, gapPref);
       const sceneBox = computeBoundingBox(this.geometries);
       this.moduleW = Math.max(this.moduleW, sceneBox.size.w);
       this.moduleCenter = sceneBox.center;

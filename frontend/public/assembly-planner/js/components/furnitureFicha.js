@@ -18,7 +18,7 @@ import { buildAssemblySequence } from '../services/assemblyStepService.js';
 import { escapeHtml, getModuleLabel } from '../utils/helpers.js';
 import { buildStandaloneHtml, download } from './manual/manualExporter.js';
 import { updateFichaCorrections, clearFichaCorrections } from '../app.js';
-import { plinthAssemblyPlan, plinthFrameSpec } from '../services/plinthFrameService.js';
+import { plinthAssemblyPlan, plinthFrameSpec, hasPlinthFrame } from '../services/plinthFrameService.js';
 
 const COLLAPSE_KEY = 'cn-assembly-ficha-collapsed';
 
@@ -216,7 +216,9 @@ function renderObra(pieces, cfg = {}) {
       : `Zócalo a marco ${forma} · ${plan.niveladores} niveladores ocultos M8/M10`)
     : '';
   let lev = '';
-  if (plan?.levantamiento && !plan.levantamiento.skipped) {
+  if (hasPlinthFrame(pieces)) {
+    lev = `<div style="font-size:0.78rem;color:${COLORS.textSecondary};">Con zócalo a marco la altura la define el propio marco (Z): los datos de obra no aplican.</div>`;
+  } else if (plan?.levantamiento && !plan.levantamiento.skipped) {
     const r = plan.levantamiento;
     lev = `
       <div style="font-size:0.78rem;color:${r.levantamientoOk ? COLORS.textDark : '#B3261E'};">

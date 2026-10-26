@@ -1254,3 +1254,36 @@ describe('IsometricRenderer N zócalos y montantes', () => {
     assert.equal(geoms.filter((g) => /glb-zocalo-costado-(izq|der)$/.test(String(g.id))).length, 2);
   });
 });
+
+describe('IsometricRenderer gap de módulos configurable y marco opaco', () => {
+  const mods2 = () => [
+    ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces,
+    ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '2' }).pieces,
+  ];
+
+  it('"Separar módulos": gap 0 por defecto, 20 con el toggle', () => {
+    const all = [...mods2()];
+    const r0 = new IsometricRenderer({ innerHTML: '' }, { moduleGapMode: 'compact', verticalPositionOverrides: {} });
+    const g0 = r0.computeGeometries('all', all).geometries;
+    const r1 = new IsometricRenderer({ innerHTML: '' }, { moduleGapMode: 'compact', verticalPositionOverrides: { viewModuleGap: 20 } });
+    const g1 = r1.computeGeometries('all', all).geometries;
+    const x0 = g0.find((g) => g.id === 'm2-lateral-izq').x;
+    const x1 = g1.find((g) => g.id === 'm2-lateral-izq').x;
+    assert.ok(Math.abs((x1 - x0) - 20) < 1e-6, `el toggle agrega 20 mm de gap (Δ=${(x1 - x0).toFixed(1)})`);
+  });
+
+  it('marco propio opaco (cajón completo); catálogo legacy translúcido', () => {
+    const marco = buildPlinthFrame({ moduleWidths: [850, 850], profundidad: 600, altoZocalo: 100, espesor: 15 }).pieces;
+    const r = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries: geoms } = r.computeGeometries('all', [...mods2(), ...marco]);
+    assert.equal(geoms.find((g) => g.id === 'glb-zocalo-costado-izq').opacity, 1);
+    assert.equal(geoms.find((g) => g.id === 'glb-zocalo-trasero').opacity, 1);
+    // Legacy catálogo: sin bandas → translúcido.
+    const catalogo = [
+      { id: 'glb-zocalo', nombre: 'Zocalo global', ancho: 1700, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 570, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+    ];
+    const { geometries: geoms2 } = r.computeGeometries('all', [...mods2(), ...catalogo]);
+    assert.equal(geoms2.find((g) => g.id === 'glb-zocalo-lateral-izq').opacity, 0.4);
+  });
+});

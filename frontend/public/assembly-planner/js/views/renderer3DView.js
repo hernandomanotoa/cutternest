@@ -10,6 +10,8 @@ import { Renderer3D, DEFAULT_CAMERA } from '../renderer3d/index.js';
 import { COLORS, RENDERER3D_THEME, HIGHLIGHT_COLORS } from '../core/config.js';
 import { attachFullscreenToggle } from '../utils/fullscreen.js';
 import { createAperturaControls, createGapModeToggle } from '../components/aperturaControls.js';
+import { MODULE_GAP_MM } from '../core/config.js';
+import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import { createModuleSelector } from '../components/moduleSelector.js';
 import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
 
@@ -238,6 +240,10 @@ export function createRenderer3DView(store) {
               <span>X-ray</span>
             </label>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Separar los módulos en Vista completa (gap ${MODULE_GAP_MM} mm); por defecto pegados">
+              <input type="checkbox" id="r3d-module-gap" ${Number(state.userConfig?.viewModuleGap) > 0 ? 'checked' : ''} style="cursor:pointer;">
+              <span>Separar módulos</span>
+            </label>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
               <span>Perspectiva</span>
@@ -317,6 +323,10 @@ export function createRenderer3DView(store) {
 
     aperturaControls.bind(container);
     gapToggle.bind(container);
+    container.querySelector('#r3d-module-gap')?.addEventListener('change', (e) => {
+      saveUserConfig({ viewModuleGap: e.target.checked ? MODULE_GAP_MM : 0 });
+      store.set({ userConfig: loadUserConfig() });
+    });
 
     canvas = container.querySelector('#r3d-canvas');
     renderer = new Renderer3D(canvas, {
