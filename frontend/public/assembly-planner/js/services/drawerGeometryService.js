@@ -157,9 +157,15 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
     : Math.max(0, w - 2 * (espLat + clear));
   const baseRealW = Math.max(0, Number(parts.base.ancho) || 0);
   const baseW = baseRealW > 0 ? Math.min(baseRealW, maxInterior) : maxInterior;
-  const profBase = Math.max(0, Number(parts.base.alto) || 0) || profLat;
+  // Convención perimetral: la base confinada (largo = lateral − 2·espLat)
+  // va ENTRE la cara y el fondo: de la cara interior del fondo a la cara
+  // interior de la cara frontal. Los CSV viejos (base a profundidad completa)
+  // conservan el anclaje clásico al ras de la cara.
+  const profBase = Math.max(0, Number(parts.base.alto) || 0) || Math.max(0, profLat - 2 * espLat);
+  const baseConfinada = profBase <= profLat - 2 * espLat + 1;
+  const baseY = baseConfinada ? yFace - espLat - profBase : yFace - profBase;
   box.push({
-    x: x + (w - baseW) / 2, y: yFace - profBase, z: zBox,
+    x: x + (w - baseW) / 2, y: baseY, z: zBox,
     w: baseW, d: profBase, h: espBase,
     color: parts.base.color, role: 'drawer_bottom', name: parts.base.nombre, id: parts.base.id, real: true,
   });
@@ -170,11 +176,15 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
     // El fondo va APOYADO SOBRE la base (en un cajón real no comparten el
     // plano inferior: z = zBox + espBase) y su alto se capa para no pasar
     // el borde superior de los laterales: ocupa [zBox + espBase, zBox + latAlto).
-    const backMaxH = Math.max(0, latAlto - espBase);
+    // Fondo ESTRUCTURAL perimetral: interno a los laterales y A PISO (par
+    // trasero de la cara). Los CSV viejos (fondo apoyado sobre la base) se
+    // dibujan como indican sus medidas reales.
+    const backMaxH = Math.max(0, latAlto);
     const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
     const backT = Number(parts.fondo.espesor) || thickness;
+    const backSobreBase = backH <= latAlto - espBase + 1 && Number(parts.fondo.alto) > 0;
     box.push({
-      x: x + (w - backW) / 2, y: yFace - profLat, z: zBox + espBase,
+      x: x + (w - backW) / 2, y: yFace - profLat, z: backSobreBase ? zBox + espBase : zBox,
       w: backW, d: backT, h: backH,
       color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
     });

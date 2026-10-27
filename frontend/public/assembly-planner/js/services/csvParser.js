@@ -267,6 +267,50 @@ function validateDimensions(pieces, warnings) {
             warnings.push(`Módulo ${modId} → ${subId}: lateral cajón "${lat.nombre}" (${latRealHeight} mm) excede profundidad disponible (${maxDepth} mm).`);
           }
         });
+
+        // AUDITORÍA ESTRUCTURAL PERIMETRAL (cajones/zapateras correderas):
+        // los laterales abrazan a cara y fondo (internos, a piso) y confinan
+        // a la base: base = lateral − 2·espesor. Y la holgura total de la
+        // caja contra el vano debe coincidir con la del riel (26 mm
+        // telescópica regla estricta; 25,4 catálogo; 12 oculta con g=15).
+        const esVolqueteSub = front && normalizeName(front.nombre).includes('abatible');
+        if (!esVolqueteSub && subLaterals.length >= 2) {
+          const lat0 = subLaterals[0];
+          const espLat = Number(lat0.espesor) || 15;
+          const profLat = Math.max(lat0.ancho, lat0.alto);
+          const subBase = findPiece(subPieces, ['base']);
+          // Guard de sanidad: solo cajones reales (profundidad útil ≥ 3
+          // espesores); las piezas diminutas de ejemplo quedan fuera.
+          if (subBase && profLat >= 3 * espLat) {
+            const esperada = profLat - 2 * espLat;
+            // Eje de profundidad de la base = el candidato más cercano a lo
+            // esperado (la base es interior × profundidad, rotate=si: el
+            // ancho interior puede superar a la profundidad en cajones anchos).
+            const profBase = Math.abs(subBase.ancho - esperada) <= Math.abs(subBase.alto - esperada)
+              ? subBase.ancho
+              : subBase.alto;
+            if (Math.abs(profBase - esperada) > 1.5) {
+              warnings.push(`Módulo ${modId} → ${subId}: COLISIÓN DE FONDO — la base (${profBase} mm) no respeta el abrazo perimetral: con laterales de ${profLat} mm debe medir ${esperada} mm (= lateral − 2×${espLat}).`);
+            }
+          }
+          // Reglas de riel y luz solo con frente a lo ancho del vano: los
+          // frentes dobles (2 por fila / vanos multi-módulo) tienen su propio
+          // reparto y quedan fuera de esta auditoría.
+          if (front && interiorWidth >= 150 && subBack && front.ancho >= interiorWidth - 100) {
+            const tipoRiel = inferRailType(front);
+            const holguras = { telescopica: 25.4, telescopica26: 26, oculta: Math.max(0, 42 - 2 * espLat), ruedas: 25, ligera: 20 };
+            const esperadaH = holguras[tipoRiel] ?? 25.4;
+            const luzFrente = interiorWidth - Number(front.ancho) || 0;
+            if (Math.abs(luzFrente - 2) > 1.5) {
+              warnings.push(`Módulo ${modId} → ${subId}: frente de ${front.ancho} mm sin luz perimetral de 2 mm por lado (vano ${interiorWidth} mm; esperado ${interiorWidth - 2} mm).`);
+            }
+            const anchoCaja = (Number(subBack.ancho) || 0) + 2 * espLat;
+            const holguraReal = interiorWidth - anchoCaja;
+            if (anchoCaja > 0 && Math.abs(holguraReal - esperadaH) > 1.5) {
+              warnings.push(`Módulo ${modId} → ${subId}: descuento de riel ${holguraReal.toFixed(1)} mm ≠ ${esperadaH} mm (riel ${tipoRiel}); la caja (${anchoCaja} mm = fondo + 2×${espLat}) no deja la holgura del riel en el vano de ${interiorWidth} mm.`);
+            }
+          }
+        }
       }
 
       // Coherencia del ancho de las piezas de la caja (fondo, base y cara).

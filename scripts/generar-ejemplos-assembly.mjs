@@ -273,10 +273,10 @@ const examples = [];
     lines.push(line(`m${sm}-zapatera-repisa-frente`, `Frente zapatera repisa extraible${label}`, frenteAncho, frenteAlto, 1, 'si', '#C19A6B', 15, 'T,B,L,R', sm));
     lines.push(line(`m${sm}-zapatera-repisa-lateral-izq`, `Lateral zapatera repisa extraible${label} izq`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L', sm));
     lines.push(line(`m${sm}-zapatera-repisa-lateral-der`, `Lateral zapatera repisa extraible${label} der`, profCajon, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,R', sm));
-    lines.push(line(`m${sm}-zapatera-repisa-fondo`, `Fondo zapatera repisa extraible${label}`, interior, latAlto - 18, 1, 'no', '#F2F2F2', 15, '', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-fondo`, `Fondo zapatera repisa extraible${label}`, interior, latAlto, 1, 'no', '#F2F2F2', 15, '', sm));
     lines.push(line(`m${sm}-zapatera-repisa-cara`, `Cara zapatera repisa extraible${label}`, interior, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', sm));
-    lines.push(line(`m${sm}-zapatera-repisa-divisor`, `Divisor zapatera repisa extraible${label}`, interior, latAlto - 18, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', sm));
-    lines.push(line(`m${sm}-zapatera-repisa-base`, `Base bandeja zapatera extraible${label}`, interior, profCajon, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-divisor`, `Divisor zapatera repisa extraible${label}`, interior, latAlto, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', sm));
+    lines.push(line(`m${sm}-zapatera-repisa-base`, `Base bandeja zapatera extraible${label}`, interior, profCajon - 30, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', sm));
   }
   examples.push({ name: 'Ejemplo_CSV_Zapatera_Repisa_Riel.csv', dataName: 'ejemplo-zapatera-repisa.csv', lines });
 }
@@ -394,9 +394,9 @@ function cajonOculto(parent, index, opts) {
     `m${sm}-cajon-frente,Frente cajon oculto${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},16,"T,B,L,R",${sm}`,
     `m${sm}-cajon-lateral-izq,Lateral cajon oculto${label} izq M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
     `m${sm}-cajon-lateral-der,Lateral cajon oculto${label} der M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`,
-    `m${sm}-cajon-fondo,Fondo cajon oculto${label} M${parent},${interior},${latAlto - ESP_BASE},1,no,#F2F2F2,${ESP_BASE},,${sm}`,
+    `m${sm}-cajon-fondo,Fondo cajon oculto${label} M${parent},${interior},${latAlto},1,no,#F2F2F2,${ESP_BASE},,${sm}`,
     `m${sm}-cajon-cara,Cara cajon oculto${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L,R",${sm}`,
-    `m${sm}-cajon-base,Base cajon oculto${label} M${parent},${interior},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    `m${sm}-cajon-base,Base cajon oculto${label} M${parent},${interior},${profCajon - 2 * ESP_LAT},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
     `m${sm}-cajon-tirador,Tirador cajon oculto${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
   ];
 }

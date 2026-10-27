@@ -23,8 +23,10 @@ export function tirador(id, nombre, color, modulo) {
 //   frente.ancho = N===1 ? W−2 : floor((W − (N−1)×3)/N) − 1  (debe ser ≤ W−2)
 //   frente.alto = altoVano − 3
 //   profCajon = D − 25 (corredera telescópica) o D − 15 (volquete/abatible)
-//   lateral = profCajon × (frente.alto − 2×espBase)
-//   fondo = interior × (latAlto − espBase): va apoyado sobre la base
+//   lateral = profCajon × (frente.alto − 2×espBase): ABRAZA a cara y fondo
+//   fondo = interior × latAlto: ESTRUCTURAL, interno a los laterales y a
+//   piso (la cara es su par frontal, también interna y a todo lo alto)
+//   base = interior × (profCajon − 2·espLat): confinada entre cara y fondo
 // Caja telescópica (RAIL_TYPES.telescopica, holgura 12,7 mm por lado):
 //   vanoCajon = N===1 ? W : frente.ancho + 2 (vano individual del cajón)
 //   boxExterior = round(vanoCajon − 25,4) · interior = boxExterior − 2·espLat
@@ -82,15 +84,18 @@ export function cajon(parent, index, opts) {
     `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`
   ];
   if (!volquete) {
-    // Fondo y cara: piezas de la caja que miden el interior entre laterales.
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - ESP_BASE},1,no,#F2F2F2,15,,${sm}`);
+    // Fondo y cara: INTERNOS a los laterales, a todo lo alto (fondo
+    // estructural a piso). La base queda confinada entre ambos.
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto},1,no,#F2F2F2,15,,${sm}`);
     rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L,R",${sm}`);
   } else {
     // Volquete/abatible: se conserva el fondo clásico derivado del frente.
     rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - ESP_BASE},1,no,#F2F2F2,15,,${sm}`);
   }
   rows.push(
-    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${profCajon},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    // Base confinada (perimetral): largo = lateral − 2·espLat, entre la
+    // cara y el fondo.
+    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * ESP_LAT},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
     `m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
   );
   return rows;

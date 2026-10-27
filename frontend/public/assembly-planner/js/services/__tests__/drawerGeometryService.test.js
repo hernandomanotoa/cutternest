@@ -19,7 +19,7 @@ import { IsometricRenderer } from '../../components/renderers/isometricRenderer.
 const FACE = { id: 'm1-cajon-1', nombre: 'Frente cajon 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' };
 const LAT_IZQ = { id: 'm1-cajon-lat-izq', nombre: 'Lateral cajon 1 izq', ancho: 480, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' };
 const LAT_DER = { id: 'm1-cajon-lat-der', nombre: 'Lateral cajon 1 der', ancho: 480, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' };
-const BASE = { id: 'm1-cajon-base', nombre: 'Base cajon 1', ancho: 370, alto: 480, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 15, modulo: '1' };
+const BASE = { id: 'm1-cajon-base', nombre: 'Base cajon 1', ancho: 370, alto: 450, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 15, modulo: '11' };
 const FONDO = { id: 'm1-cajon-fondo', nombre: 'Fondo cajon 1', ancho: 370, alto: 170, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' };
 const CARA = { id: 'm1-cajon-cara', nombre: 'Cara cajon 1', ancho: 370, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' };
 
@@ -109,7 +109,8 @@ describe('buildDrawerBoxGeometries', () => {
     assert.equal(base.role, 'drawer_bottom');
     assert.ok(Math.abs(base.w - 344.6) < 1e-9, 'base real clampada al máximo interior (vano − 2·(esp+holgura))');
     assert.ok(Math.abs(base.x - 127.7) < 1e-9, 'centrada en el vano del frente');
-    assert.equal(base.y, 20);
+    assert.equal(base.y, 35, 'confinada: de la cara interior del fondo a la cara interior de la cara (yFace − espLat − profBase)');
+    assert.equal(base.d, 450, 'profundidad real de la base (lateral − 2×espLat)');
     assert.equal(base.h, 15, 'espesor real de la base');
 
     const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
@@ -117,16 +118,18 @@ describe('buildDrawerBoxGeometries', () => {
     assert.ok(Math.abs(fondo.w - 344.6) < 1e-9);
     assert.equal(fondo.d, 15, 'espesor real del fondo');
     assert.equal(fondo.y, 20, 'trasera de la caja, contra el fondo del cajón');
-    assert.equal(fondo.z, 80, 'z = zBox + espBase (65+15): apoyado SOBRE la base');
-    assert.equal(fondo.h, 155, 'alto real 170 clampado a latAlto − espBase (170−15)');
+    // Fondo ESTRUCTURAL perimetral: interno a los laterales y A PISO (el
+    // fixture mide latAlto completo → baja hasta el piso de la caja).
+    assert.equal(fondo.z, 65, 'z = zBox: a piso');
+    assert.equal(fondo.h, 170, 'alto real completo (latAlto)');
 
-    // El fondo no debe intersecar la base en AABB: rangos [z, z+h) disjuntos.
+    // Perimetral: el fondo queda DETRÁS de la base (adyacencia en Y, no Z).
     const aabb = (g) => ({ minX: g.x, maxX: g.x + g.w, minY: g.y, maxY: g.y + g.d, minZ: g.z, maxZ: g.z + g.h });
     const ab = aabb(base);
     const af = aabb(fondo);
     assert.ok(
-      af.minZ >= ab.maxZ - 1e-9,
-      `el fondo [${af.minZ},${af.maxZ}) debe empezar donde termina la base [${ab.minZ},${ab.maxZ})`
+      ab.minY >= af.maxY - 1e-9,
+      `la base [y ${ab.minY},${ab.maxY}) debe arrancar donde termina el fondo [${af.minY},${af.maxY})`
     );
     // Y no debe superar el borde superior de los laterales.
     const latTop = izq.z + izq.h;

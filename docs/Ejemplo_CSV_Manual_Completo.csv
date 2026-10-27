@@ -24,9 +24,9 @@ m2-lateral-der,Lateral derecho M2,560,2300,1,no,#8B5A2B,15,"T,B,R",2
 m2-fondo,Fondo modulo M2,460,2300,1,no,#F2F2F2,15,,2
 
 # --- Submodulo 21: cajon dentro del modulo 2 ---
-m21-cajon-frente,Frente cajon M2,400,177,1,si,#D9C2A3,15,"T,B,L,R",21
+m21-cajon-frente,Frente cajon M2,428,177,1,si,#D9C2A3,15,"T,B,L,R",21
 m21-cajon-lateral-izq,Lateral cajon M2,495,147,1,no,#D9C2A3,15,"T,B,L",21
 m21-cajon-lateral-der,Lateral cajon M2,495,147,1,no,#D9C2A3,15,"T,B,R",21
-m21-cajon-fondo,Fondo cajon M2,370,147,1,no,#F2F2F2,15,,21
-m21-cajon-base,Base cajon M2,370,495,1,si,#D9C2A3,15,"T,B,L,R",21
+m21-cajon-fondo,Fondo cajon M2,375,147,1,no,#F2F2F2,15,,21
+m21-cajon-base,Base cajon M2,375,465,1,si,#D9C2A3,15,"T,B,L,R",21
 m21-cajon-tirador,Tirador cajon M2,2,20,1,no,#A0A0A0,5,,21
