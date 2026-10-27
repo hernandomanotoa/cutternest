@@ -1083,3 +1083,56 @@ test('Zapatera: división central por defecto, opcional, y se elimina con el gru
   assert.equal(pieces.some((p) => /^m1zapatera1-/.test(p.id)), false, 'sin residuos del submódulo 1');
   view.destroy();
 });
+
+test('Preferencias de contenido persistidas: se reutilizan en el siguiente módulo', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  const scoped = '[data-module-scoped="1"]';
+  // Personalizar: riel oculta, vano 250, sin división, 2 por fila.
+  const setSel = (sel, v) => {
+    const el = container.querySelector(`${scoped} ${sel}`);
+    el.value = v;
+    el.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  setSel('[data-tipo-riel]', 'oculta');
+  setSel('[data-tipo-drawer]', 'personalizado'); // el tipo manda sobre el vano; usar vano libre
+  const vano = container.querySelector(`${scoped} [data-alto-vano]`);
+  vano.value = '250';
+  container.querySelector(`${scoped} [data-division]`).checked = false;
+  setSel('[data-n-por-fila]', '2');
+  // Agregar cajón: usa las prefs y las persiste.
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const frente = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.match(frente.nombre, /oculta/, 'cajón generado con riel oculta');
+  assert.equal(frente.alto, 247, 'frente con vano 250 − 3');
+  assert.equal(frente.ancho, 407, '2 por fila: frente a la mitad del vano');
+  // Segundo módulo: el formulario llega con las prefs guardadas.
+  click(container, '[data-action="add-module"]');
+  const scoped2 = '[data-module-scoped="2"]';
+  // happy-dom no refleja el atributo selected en .value: se lee la opción.
+  const optSel = (sel) => container.querySelector(`${scoped2} ${sel} option[selected]`)?.value
+    ?? container.querySelector(`${scoped2} ${sel}`)?.value;
+  assert.equal(optSel('[data-tipo-riel]'), 'oculta', 'riel persistido');
+  assert.equal(container.querySelector(`${scoped2} [data-alto-vano]`)?.value, '250', 'vano persistido');
+  assert.equal(container.querySelector(`${scoped2} [data-division]`)?.checked, false, 'división persistida');
+  assert.equal(optSel('[data-n-por-fila]'), '2', 'N por fila persistido');
+  view.destroy();
+});
+
+test('Canto PVC configurable: reflejado en la lista de herrajes', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  const canto = container.querySelector('[data-obra="canto"]');
+  assert.ok(canto, 'selector de canto presente');
+  canto.value = '2';
+  canto.dispatchEvent(new window.Event('change', { bubbles: true }));
+  const entry = (store.get().hardware || []).find((h) => h.nombre === 'Cantos PVC');
+  assert.ok(entry, 'hay entrada de cantos');
+  assert.match(entry.especificacion, /^2 mm/, `especificación con 2 mm: ${entry.especificacion}`);
+  // Persistido: otro módulo mantiene la selección.
+  click(container, '[data-action="add-module"]');
+  // happy-dom no refleja el atributo selected en .value: se lee la opción.
+  const selOpt = container.querySelector('[data-obra="canto"] option[selected]');
+  assert.equal(selOpt?.value, '2', 'canto persistido en el formulario');
+  view.destroy();
+});

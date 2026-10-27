@@ -40,6 +40,7 @@ import {
   focusModule,
   applyStructuralPlinth,
   removeStructuralPlinth,
+  recalculateAll,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
@@ -183,6 +184,15 @@ export function createConstructorView(store) {
       if (e.target.dataset.obra === 'tipo') {
         if (e.target.value === 'marco') doApplyPlinth();
         else doRemovePlinth();
+      }
+      if (e.target.dataset.obra === 'canto') {
+        const value = Number(e.target.value);
+        if (Number.isFinite(value)) {
+          saveUserConfig({ cantoEspesor: value });
+          store.set({ userConfig: loadUserConfig() });
+          recalculateAll();
+        }
+        return;
       }
       if (e.target.dataset.obra === 'nzocalos') {
         // Cambiar la cantidad regenera el marco al instante si ya existe.
@@ -349,6 +359,16 @@ export function createConstructorView(store) {
       const division = container.querySelector(`${scoped} [data-division]`)?.checked !== false;
       // Tipo de riel: define las medidas de la caja (descuentos y fondo).
       const riel = container.querySelector(`${scoped} [data-tipo-riel]`)?.value || 'catalogo';
+      // Persistir las preferencias para los siguientes módulos (sesión).
+      saveUserConfig({
+        ...(altoVanoInput > 0 ? { contentVano: altoVanoInput } : {}),
+        contentNPorFila: nPorFila,
+        contentDivision: division ? 1 : 0,
+        contentTipoCajon: container.querySelector(`${scoped} [data-tipo-drawer]`)?.value || '',
+        contentTipoZapatera: container.querySelector(`${scoped} [data-tipo-zapatera]`)?.value || '',
+        contentRiel: riel,
+      });
+      store.set({ userConfig: loadUserConfig() });
       const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, riel });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
@@ -579,6 +599,11 @@ export function createConstructorView(store) {
             <label class="form-group">Color cuerpo
               <input type="color" data-cfg="color" value="#c19a6b" />
             </label>
+            <label class="form-group" title="Espesor del canto PVC para la lista de herrajes (no cambia las medidas de corte)">Canto PVC
+              <select data-obra="canto">
+                ${[0.8, 1, 2].map((e) => `<option value="${e}" ${Number(state.userConfig?.cantoEspesor ?? 0.8) === e ? 'selected' : ''}>${e} mm</option>`).join('')}
+              </select>
+            </label>
             <label class="form-group">Zócalo (mm)
               <input type="number" data-cfg="altura-zocalo" value="150" min="50" max="300" step="10" />
             </label>
@@ -662,7 +687,7 @@ export function createConstructorView(store) {
         <div class="card__body">
           ${groups.length === 0
             ? '<p class="empty-state">Todavía no hay módulos. Agrega el primero arriba.</p>'
-            : groups.map((g) => renderModuleCard(g, pieces)).join('')}
+            : groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {})).join('')}
         </div>
       </div>
 
@@ -781,7 +806,13 @@ function nombreCorto(nombre) {
   return out.trim();
 }
 
-function renderModuleCard(group, allPieces) {
+function renderModuleCard(group, allPieces, cfg = {}) {
+  // Preferencias persistidas del formulario de contenido (se reutilizan al
+  // crear cada módulo): vano, tipos, división, riel y N por fila.
+  const prefVano = Number(cfg.contentVano) || 200;
+  const prefNPorFila = Number(cfg.contentNPorFila) || 1;
+  const prefDivision = Number(cfg.contentDivision) !== 0;
+  const sel = (actual, value) => (actual === value ? 'selected' : '');
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
   // Contar por tipo en TODO el mueble (las piezas de caja viven en
@@ -815,25 +846,25 @@ function renderModuleCard(group, allPieces) {
           <input type="number" data-separacion placeholder="auto" min="0" max="2000" step="10" />
         </label>
         <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de la izquierda lo llenan automáticamente)">Vano (mm)
-          <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="200" min="50" max="600" step="10" />
+          <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="${prefVano}" min="50" max="600" step="10" />
           <datalist id="cn-vanos-sugeridos">
             ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}"></option>`).join('')}
           </datalist>
         </label>
         <label class="form-group" style="margin:0;" title="Tipo de cajón por prenda (alturas ergonómicas del catálogo)">Tipo cajón
           <select data-tipo-drawer>
-            ${DRAWER_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
-            <option value="personalizado">Personalizado (usar vano libre)</option>
+            ${DRAWER_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoCajon || DRAWER_TYPES[0].id, t.id)}>${t.label}</option>`).join('')}
+            <option value="personalizado" ${sel(cfg.contentTipoCajon, 'personalizado')}>Personalizado (usar vano libre)</option>
           </select>
         </label>
         <label class="form-group" style="margin:0;" title="Tipo de zapatera por calzado. Botas = frente completo (sin cara ni gaps)">Tipo zapatera
           <select data-tipo-zapatera>
-            ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
-            <option value="personalizado">Personalizada (usar vano libre)</option>
+            ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoZapatera || SHOE_RACK_TYPES[0].id, t.id)}>${t.label}</option>`).join('')}
+            <option value="personalizado" ${sel(cfg.contentTipoZapatera, 'personalizado')}>Personalizada (usar vano libre)</option>
           </select>
         </label>
         <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División zapatera
-          <input type="checkbox" data-division checked />
+          <input type="checkbox" data-division ${prefDivision ? 'checked' : ''} />
         </label>
         <label class="form-group" style="margin:0;">Mecanismo
           <select data-mecanismo>
@@ -842,16 +873,16 @@ function renderModuleCard(group, allPieces) {
         </label>
         <label class="form-group" style="margin:0;" title="El tipo de riel DEFINE las medidas de la caja del cajón/zapatera (descuentos por holgura y largo del fondo). 'Marco regulable' = herraje de catálogo para zapateras: sin cajón, solo el frente.">Tipo de riel
           <select data-tipo-riel>
-            <option value="catalogo" selected>Catálogo (estándar del proyecto)</option>
-            <option value="telescopica26">Telescópica balines (−26 mm, fondo = riel)</option>
-            <option value="oculta">Oculta bajo cajón (−10 mm, cierre suave)</option>
-            <option value="marco">Marco aluminio regulable (zapatera, sin cajón)</option>
+            <option value="catalogo" ${sel(cfg.contentRiel || 'catalogo', 'catalogo')}>Catálogo (estándar del proyecto)</option>
+            <option value="telescopica26" ${sel(cfg.contentRiel, 'telescopica26')}>Telescópica balines (−26 mm, fondo = riel)</option>
+            <option value="oculta" ${sel(cfg.contentRiel, 'oculta')}>Oculta bajo cajón (−10 mm, cierre suave)</option>
+            <option value="marco" ${sel(cfg.contentRiel, 'marco')}>Marco aluminio regulable (zapatera, sin cajón)</option>
           </select>
         </label>
         <label class="form-group" style="margin:0;" title="Cajones por fila: 2 divide el ancho del vano en dos frentes (modulos anchos)">N por fila
           <select data-n-por-fila>
-            <option value="1" selected>1</option>
-            <option value="2">2</option>
+            <option value="1" ${prefNPorFila === 1 ? 'selected' : ''}>1</option>
+            <option value="2" ${prefNPorFila === 2 ? 'selected' : ''}>2</option>
           </select>
         </label>
         <label class="form-group" style="margin:0;" title="Espesor del frente decorativo (puede diferir del cuerpo: frente 18 con cuerpo 15 es lo mas comun)">Esp. frente

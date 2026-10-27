@@ -290,6 +290,12 @@ export const VERTICAL_POSITIONS = {
 
   // ── Vista (mm) ────────────────────────────────────────────────
   viewModuleGap: 0,          // gap entre módulos en 'Vista completa'; 0 = pegados (default), 20 = separados
+
+  // ── Preferencias de contenido del Constructor (persistidas) ────
+  contentVano: 200,          // alto de vano por defecto al agregar cajón/zapatera
+  contentNPorFila: 1,        // cajones/zapateras por fila (1|2)
+  contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
+  cantoEspesor: 0.8,         // espesor del canto PVC (mm) para la lista de herrajes
 };
 
 // Separación estándar entre módulos en la vista multi-módulo (mm). Vive en

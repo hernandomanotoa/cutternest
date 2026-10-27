@@ -16,7 +16,7 @@ function uniquePieces(piezas, predicate) {
   });
 }
 
-export function calculateHardware(piezas, dependencies) {
+export function calculateHardware(piezas, dependencies, cfg = {}) {
   const herrajes = [];
   const structural = dependencies.filter((d) => d.type === 'estructural').length;
   const fondos = uniquePieces(piezas, (p) => p.nombre.toLowerCase().includes('fondo'));
@@ -239,7 +239,7 @@ export function calculateHardware(piezas, dependencies) {
     herrajes.push({
       nombre: 'Cantos PVC',
       cantidad: Math.ceil(cantoTotal / 1000),
-      especificacion: '0.8 mm, color a juego',
+      especificacion: `${Number(cfg.cantoEspesor) || 0.8} mm, color a juego`,
       unidad: 'metros',
       prioridad: 'Alta',
       bloqueante: false,

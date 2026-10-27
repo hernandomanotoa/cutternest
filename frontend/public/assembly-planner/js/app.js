@@ -190,7 +190,7 @@ export function recalculateAll() {
     alerts.push({ level: 'danger', text: `Ciclo detectado: ${cycle.join(' → ')}` });
   }
 
-  const hardware = calculateHardware(prev.pieces, dependencies);
+  const hardware = calculateHardware(prev.pieces, dependencies, prev.userConfig || {});
 
   store.set({
     dependencies,

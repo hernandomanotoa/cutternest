@@ -64,6 +64,9 @@ export function loadUserConfig() {
         if (parsed.fichaCorrections && typeof parsed.fichaCorrections === 'object') {
           config.fichaCorrections = { ...parsed.fichaCorrections };
         }
+        for (const key of STRING_PREFS) {
+          if (typeof parsed[key] === 'string') config[key] = parsed[key];
+        }
       }
     }
   } catch {
@@ -72,6 +75,10 @@ export function loadUserConfig() {
 
   return config;
 }
+
+// Preferencias de texto persistibles (selects del formulario de contenido
+// del Constructor). Se guardan tal cual; loadUserConfig las rehidrata.
+export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel'];
 
 export function saveUserConfig(overrides) {
   const storage = getStorage();
@@ -104,6 +111,11 @@ export function saveUserConfig(overrides) {
       Object.keys(overrides.fichaCorrections).length > 0
     ) {
       diff.fichaCorrections = overrides.fichaCorrections;
+    }
+    for (const key of STRING_PREFS) {
+      if (typeof overrides?.[key] === 'string' && overrides[key]) {
+        diff[key] = overrides[key];
+      }
     }
     storage.setItem(STORAGE_KEY, JSON.stringify(diff));
   } catch {
