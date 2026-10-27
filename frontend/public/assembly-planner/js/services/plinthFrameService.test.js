@@ -231,3 +231,25 @@ describe('N zócalos, montantes y empalme por tablero', () => {
     assert.deepEqual(symmetricSplit(1000, 3), [333, 334, 333]);
   });
 });
+
+describe('reglas estructurales: desactualizado por montantes faltantes', () => {
+  it('marco viejo sin montantes en luz > 1000 se detecta como desactualizado', () => {
+    const base = { moduleWidths: [850, 850, 850, 850], profundidad: 600, altoZocalo: 100, espesor: 15 };
+    // Marco N=2 actual (con montantes): al día.
+    const actual = buildPlinthFrame({ ...base, nZocalos: 2 }).pieces;
+    assert.equal(marcoDesactualizado(actual), false);
+    // Marco viejo: mismas bandas pero SIN montantes (generado antes de la regla).
+    const viejo = actual.filter((p) => !/-montante-/.test(p.id));
+    assert.equal(marcoDesactualizado(viejo), true, 'falta el montante en luz 1700');
+  });
+
+  it('empalme: montantes con id único por tramo (s1/s2), derivables a su banda', () => {
+    const r = buildPlinthFrame({ moduleWidths: [850, 850, 850], profundidad: 600, altoZocalo: 100, espesor: 15 });
+    // Tramo A (850 mm) sin montante; tramo B (1700 mm) con 1, id único por tramo.
+    const ids = r.pieces.filter((p) => /-montante-/.test(p.id)).map((p) => p.id);
+    assert.deepEqual(ids, ['glb-zocalo-s2-montante-1']);
+    const layout = plinthLayoutFromPieces(r.pieces);
+    assert.deepEqual(layout.map((b) => b.width), [850, 1700]);
+    assert.equal(marcoDesactualizado(r.pieces), false);
+  });
+});

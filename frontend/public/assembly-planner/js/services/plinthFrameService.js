@@ -138,13 +138,21 @@ export function plinthLevelerCount(pieces) {
   return layout.reduce((n, b) => n + 2 * Math.ceil(b.width / PLINTH_LEVELER_SPAN), 0);
 }
 
-// True si el marco ya no coincide con los módulos (el usuario editó anchos
-// o agregó/eliminó módulos tras generarlo): hay que regenerarlo.
+// True si el marco ya no coincide con los módulos o con las reglas
+// estructurales vigentes (el usuario editó módulos, o el marco fue generado
+// antes de una regla nueva — p. ej. falta el montante en una luz > 1000):
+// hay que regenerarlo.
 export function marcoDesactualizado(pieces) {
-  const totalMarco = plinthTotalWidth(pieces);
-  if (!totalMarco) return false;
+  const layout = plinthLayoutFromPieces(pieces);
+  if (!layout.length) return false;
   const totalModulos = rootModuleDims(pieces).reduce((s, d) => s + (d.ancho || 0), 0);
-  return totalModulos > 0 && Math.abs(totalMarco - totalModulos) > 2;
+  if (totalModulos > 0 && Math.abs(plinthTotalWidth(pieces) - totalModulos) > 2) return true;
+  // Reglas estructurales: toda luz > PLINTH_MONTANTE_LUZ necesita montante(s).
+  return layout.some((band, i) => {
+    const esperados = band.width > PLINTH_MONTANTE_LUZ ? Math.max(1, Math.ceil(band.width / PLINTH_MONTANTE_LUZ) - 1) : 0;
+    const actuales = (pieces || []).filter((p) => new RegExp(`^glb-zocalo(-s${i + 1})?-montante-`).test(String(p.id))).length;
+    return actuales < esperados;
+  });
 }
 
 // Plan de ensamble del zócalo para el manual: orden de armado por banda
@@ -322,10 +330,13 @@ export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espeso
     if (!span.ab || span.ab === 'b') {
       pieces.push(mk(`${span.key}-costado-der`, `Lateral zocalo${label} derecho`, depthPiece));
     }
-    // Montantes interiores: 1 por cada 1000 mm de luz iniciado.
+    // Montantes interiores: 1 por cada 1000 mm de luz iniciado. El id lleva
+    // el índice de span (s{i+1}) también en el empalme, para que el renderer
+    // y la detección de desactualizado los asocien a su banda.
     const nMont = span.width > PLINTH_MONTANTE_LUZ ? Math.max(1, Math.ceil(span.width / PLINTH_MONTANTE_LUZ) - 1) : 0;
+    const monKey = span.ab ? `glb-zocalo-s${i + 1}` : span.key;
     for (let j = 1; j <= nMont; j += 1) {
-      pieces.push(mk(`${span.key}-montante-${j}`, `Montante zocalo${label} ${j}`, depthPiece));
+      pieces.push(mk(`${monKey}-montante-${j}`, `Montante zocalo${label} ${j}`, depthPiece));
     }
     if (larg > PLINTH_BOARD_LENGTH) {
       warnings.push(`Larguero de ${larg} mm (zócalo ${i + 1}) supera el tablero de ${PLINTH_BOARD_LENGTH} mm: partirlo en obra o aumentar la cantidad de zócalos.`);
