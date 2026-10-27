@@ -24,6 +24,7 @@ export function generarInstruccion(paso, piezasData) {
   const cajones = piezas.filter((p) => normalizar(p.nombre).includes('cajon'));
   const zocalos = piezas.filter((p) => normalizar(p.nombre).includes('zocalo'));
   const barras = piezas.filter((p) => normalizar(p.nombre).includes('barra'));
+  const golas = piezas.filter((p) => normalizar(p.nombre).includes('gola'));
   const cabeceros = piezas.filter((p) => normalizar(p.nombre).includes('cabecero'));
   const tarimas = piezas.filter((p) => normalizar(p.nombre).includes('tarima'));
   const laminasSomier = piezas.filter((p) => {
@@ -89,6 +90,10 @@ export function generarInstruccion(paso, piezasData) {
     return `Instalar barras cromadas de ropa a la altura deseada, ancladas en laterales.`;
   }
 
+  if (golas.length > 0) {
+    return `Colocación de perfiles gola: atornillar cada perfil retranqueado detrás del plano de frentes, dejando el hueco de agarre hacia arriba. El cajón superior cierra en L (frente extendido, sin tira).`;
+  }
+
   return `Ensamblar ${piezas.map((p) => p.nombre).join(', ')}.`;
 }
 
@@ -123,6 +128,10 @@ export function toolsForStep(paso, piezasData) {
     }
     if (name.includes('zocalo')) {
       tools.add('patas niveladoras');
+    }
+    if (name.includes('gola')) {
+      tools.add('atornillador');
+      tools.add('taladro');
     }
     if (name.includes('cabecero') || name.includes('tarima')) {
       tools.add('taladro');

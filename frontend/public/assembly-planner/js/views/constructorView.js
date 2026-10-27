@@ -40,9 +40,12 @@ import {
   focusModule,
   applyStructuralPlinth,
   removeStructuralPlinth,
+  enableGola,
+  disableGola,
   recalculateAll,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
+import { isGolaEnabled, drawerUnits } from '../services/golaService.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
@@ -58,6 +61,18 @@ const ALTO_VANO_OPCIONES = [130, 180, 200, 220, 280];
 const TIPOS_CAJON = [
   { value: 'corredera', label: 'Corredera' },
   { value: 'volquete', label: 'Volquete' },
+];
+
+// Parámetros numéricos del sistema gola editables por módulo (persistidos en
+// userConfig como los demás VERTICAL_POSITIONS): clave cfg, label, min, step.
+const GOLA_CFG_FIELDS = [
+  ['golaPerfilHeight', 'Alto tira (mm)', 10, 5],
+  ['golaFingerClearance', 'Agarre (mm)', 5, 5],
+  ['golaStripDepth', 'Prof. tira (mm)', 20, 5],
+  ['golaStripSetback', 'Retranqueo (mm)', 0, 5],
+  ['golaHolguraLateral', 'Holgura lat. (mm)', 0, 1],
+  ['golaTornillosPorPerfil', 'Tornillos/perfil', 1, 1],
+  ['golaMaxOverhang', 'Máx. sobrealtura L (mm)', 30, 10],
 ];
 
 const FURNITURE_NAME_KEY = 'cn-assembly-furniture-name';
@@ -160,6 +175,30 @@ export function createConstructorView(store) {
   }
 
   function onChange(e) {
+    // Parámetros del sistema gola: numéricos persistidos como los demás
+    // VERTICAL_POSITIONS; golaFijacion como STRING_PREF. Con gola activo en
+    // el módulo, un cambio numérico re-aplica enableGola (re-calcula).
+    if (e.target.matches('[data-gola-cfg]')) {
+      const key = e.target.dataset.golaCfg;
+      const scoped = e.target.closest('[data-module-scoped]');
+      const moduleId = scoped?.dataset.moduleScoped;
+      if (key === 'golaFijacion') {
+        saveUserConfig({ golaFijacion: e.target.value });
+        store.set({ userConfig: loadUserConfig() });
+        recalculateAll();
+        return;
+      }
+      const value = Number(e.target.value);
+      if (!Number.isFinite(value)) return;
+      saveUserConfig({ [key]: value });
+      store.set({ userConfig: loadUserConfig() });
+      if (moduleId && isGolaEnabled(store.get().pieces, moduleId)) {
+        const r = enableGola(moduleId);
+        if (!r.ok) toast(r.errors.join('; '), { type: 'error' });
+        else warnIfAny(r.warnings);
+      }
+      return;
+    }
     // Datos de obra / zócalo estructural: persisten en userConfig (los
     // defaults viven en VERTICAL_POSITIONS) y alimentan el lift-check y el
     // retraso del frente del marco en el renderer.
@@ -453,6 +492,21 @@ export function createConstructorView(store) {
       const r = recolorModule(btn.dataset.module, color);
       if (r.ok) toast(`Módulo ${btn.dataset.module} recoloreado`, { type: 'success' });
       else toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'toggle-gola') {
+      const moduleId = btn.dataset.module;
+      const r = btn.checked ? enableGola(moduleId) : disableGola(moduleId);
+      if (!r.ok) {
+        toast(r.errors.join('; '), { type: 'error' });
+        render(); // revertir el checkbox al estado real
+        return;
+      }
+      toast(
+        btn.checked
+          ? `Gola activada en el módulo ${moduleId}: sin tiradores, agarre en los perfiles`
+          : `Gola desactivada en el módulo ${moduleId}: tiradores restaurados`,
+        { type: 'success' },
+      );
+      warnIfAny(r.warnings);
     } else if (action === 'clear-all') {
       confirmable(btn, '¿Borrar TODO?', () => {
         clearAllPieces();
@@ -833,6 +887,10 @@ function renderModuleCard(group, allPieces, cfg = {}) {
   const tieneZocalo = Boolean(zocaloSimple) || marcoZ > 0;
   const altoZocalo = zocaloSimple ? Number(zocaloSimple.alto) || 0 : marcoZ;
   const vanoInfo = altoModulo ? vanoUsado(allPieces, moduleId, altoModulo, tieneZocalo, altoZocalo) : null;
+  // Sistema gola: solo si el módulo tiene >= 2 unidades-cajón (el caso de 1
+  // cajón/L-gola lo soporta el servicio, pero la UI lo reserva a pilas).
+  const golaUnidades = drawerUnits(allPieces, moduleId).length;
+  const golaOn = isGolaEnabled(allPieces, moduleId);
   return `
     <div class="cn-constructor__module" data-module-scoped="${escapeHtml(moduleId)}">
       <div class="cn-constructor__module-head">
@@ -898,6 +956,10 @@ function renderModuleCard(group, allPieces, cfg = {}) {
         <label class="form-group" style="margin:0;">Cuerpo
           <input type="color" data-color-cuerpo value="#c19a6b" />
         </label>
+        ${golaUnidades >= 2 ? `
+        <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: tiras de melamina entre frentes (sin tiradores, agarre en los perfiles) y frente del cajón superior extendido en L">
+          <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn ? 'checked' : ''} /> Gola
+        </label>` : ''}
         <button class="btn btn--secondary btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica">👁 Ver</button>
         <button class="btn btn--secondary btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}">Editar</button>
         <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="izq" title="Mover a la izquierda">◀</button>
@@ -907,6 +969,7 @@ function renderModuleCard(group, allPieces, cfg = {}) {
         <button class="btn btn--danger btn--sm" data-action="remove-module" data-module="${escapeHtml(moduleId)}">Eliminar módulo</button>
       </div>
       ${renderContentList(moduleId, allPieces)}
+      ${golaOn && golaUnidades >= 2 ? renderGolaPanel(cfg) : ''}
       <div class="cn-constructor__content-btns">
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
@@ -917,6 +980,24 @@ function renderModuleCard(group, allPieces, cfg = {}) {
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="divider" title="Divisor vertical de bahias (span completo del vano)">+ Divisor (${countByKind('divider')})</button>
       </div>
       ${renderEditForm(moduleId, piezas)}
+    </div>
+  `;
+}
+
+// Panel de parámetros del sistema gola (visible solo con gola activo en el
+// módulo). Reusa el estilo del formulario de edición de dimensiones; los
+// valores leen/escriben userConfig vía [data-gola-cfg] (onChange).
+function renderGolaPanel(cfg = {}) {
+  return `
+    <div class="cn-constructor__edit-form" data-gola-panel>
+      ${GOLA_CFG_FIELDS.map(([key, label, min, step]) => `
+        <label class="form-group" style="margin:0;" title="${key}">${label}
+          <input type="number" data-gola-cfg="${key}" value="${Number(cfg[key]) || ''}" min="${min}" step="${step}" />
+        </label>`).join('')}
+      <label class="form-group" style="margin:0;" title="Fijación de los perfiles (preferencia de texto persistida)">Fijación
+        <input type="text" data-gola-cfg="golaFijacion" value="${escapeHtml(cfg.golaFijacion || '')}" placeholder="Tornillos 3.5×16…" />
+      </label>
+      <small>Tiras de melamina entre frentes (agarre hacia arriba); el cajón superior cierra en L. Sin mecanizados — parámetros PROVISIONALES.</small>
     </div>
   `;
 }

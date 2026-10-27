@@ -130,6 +130,8 @@ export function classifySequenceRole(piece) {
   if (!isDrawer && name.includes('lateral')) return 'lateral';
   if (!isDrawer && /(tapa|techo)/.test(name)) return 'tapa';
   if (!isDrawer && /(fondo|trasera)/.test(name)) return 'fondo';
+  // Perfiles gola: interiores (van tras los frentes, antes de accesorios).
+  if (name.includes('gola')) return 'interior';
   if (/(puerta|cajon|tirador|barra|manija)/.test(name)) return 'accesorio';
   if (!isDrawer && /(repisa|estante|zapatero|divisor|division|particion|montante|travesano|refuerzo|tirante|pata|cantonera)/.test(name)) return 'interior';
   return 'otro';

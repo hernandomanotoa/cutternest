@@ -143,6 +143,7 @@ export const ROLE_COLORS = {
   drawer_bottom: '#64748b',
   drawer_back: '#64748b',
   drawer_divider: '#64748b',
+  gola_strip: '#64748b', // tira de melamina del sistema gola (gris pizarra)
   headboard: '#64748b',
   bed_bottom: '#64748b',
   bed_slat: '#a8a29e',
@@ -226,6 +227,7 @@ export const Z_INDEX = {
   drawer_side: 10,
   drawer_part: 24, // cara del cajón: interior frontal, justo bajo el frente
   drawer_divider: 24, // divisor interior: capa de la cara, bajo el frente
+  gola_strip: 22, // tira gola entre frentes: bajo el plano de frentes (25)
   seat_panel: 11,
   headboard: 12,
   leg: 13,
@@ -296,6 +298,17 @@ export const VERTICAL_POSITIONS = {
   contentNPorFila: 1,        // cajones/zapateras por fila (1|2)
   contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
   cantoEspesor: 0.8,         // espesor del canto PVC (mm) para la lista de herrajes
+
+  // ── Sistema gola (tiras de melamina entre frentes; PROVISIONAL) ──
+  // Defaults de taller a confirmar contra catálogo antes de producción.
+  // golaFijacion (STRING_PREF en userConfigService) acompaña estos valores.
+  golaPerfilHeight: 30,      // alto de la tira gola (mm)
+  golaFingerClearance: 20,   // espacio de agarre; también el gap bajo repisa para la L (mm)
+  golaStripDepth: 60,        // profundidad de la tira (mm)
+  golaStripSetback: 10,      // retranqueo detrás del plano de frentes (mm)
+  golaHolguraLateral: 2,     // por lado respecto al ancho interior (mm)
+  golaTornillosPorPerfil: 2, // tornillos de fijación por perfil
+  golaMaxOverhang: 120,      // máx. sobrealtura del frente L respecto a su caja (mm)
 };
 
 // Separación estándar entre módulos en la vista multi-módulo (mm). Vive en

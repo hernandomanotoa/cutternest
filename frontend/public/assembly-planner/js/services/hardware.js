@@ -4,6 +4,7 @@ import { railTypeFor, getRailType } from './railService.js';
 import { railHardwareName, railHardwareSpec } from './railHardwareService.js';
 import { inferRole } from './classifierService.js';
 import { plinthLevelerCount } from './plinthFrameService.js';
+import { getGolaCfg } from './golaService.js';
 
 function uniquePieces(piezas, predicate) {
   const seen = new Set();
@@ -256,6 +257,35 @@ export function calculateHardware(piezas, dependencies, cfg = {}) {
       cantidad: niveladoresZocalo,
       especificacion: 'Rosca M8/M10, regulable ±25 mm, inserto interior del marco',
       prioridad: 'Alta',
+      bloqueante: false,
+    });
+  }
+
+  // ── Perfiles gola ─────────────────────────────────────────────────────────
+  // Tiras de melamina entre frentes (rol gola_strip): agrupadas por largo de
+  // corte + tornillos de fijación por perfil (default PROVISIONAL).
+  const tirasGola = uniquePieces(piezas, (p) => inferRole(p) === 'gola_strip');
+  if (tirasGola.length > 0) {
+    const golaCfg = getGolaCfg(cfg);
+    const porLargo = new Map();
+    tirasGola.forEach((p) => {
+      const largo = Math.round(Number(p.ancho) || 0);
+      porLargo.set(largo, (porLargo.get(largo) || 0) + 1);
+    });
+    porLargo.forEach((cantidad, largo) => {
+      herrajes.push({
+        nombre: 'Perfil gola melamina',
+        cantidad,
+        especificacion: `corte ${largo} mm c/u · fijación: ${golaCfg.golaFijacion}`,
+        prioridad: 'Media',
+        bloqueante: false,
+      });
+    });
+    herrajes.push({
+      nombre: 'Tornillo fijación gola',
+      cantidad: tirasGola.length * (golaCfg.golaTornillosPorPerfil || 2),
+      especificacion: '3.5×16 mm (PROVISIONAL)',
+      prioridad: 'Media',
       bloqueante: false,
     });
   }

@@ -78,7 +78,7 @@ export function loadUserConfig() {
 
 // Preferencias de texto persistibles (selects del formulario de contenido
 // del Constructor). Se guardan tal cual; loadUserConfig las rehidrata.
-export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel'];
+export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel', 'golaFijacion'];
 
 export function saveUserConfig(overrides) {
   const storage = getStorage();

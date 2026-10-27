@@ -33,6 +33,7 @@ import { buildDrawerGeometries } from './drawerGeometry.js';
 import { buildDividerGeometries } from './dividerGeometry.js';
 import { buildFrontPanelGeometries } from './frontPanelGeometry.js';
 import { buildSeatingGeometries } from './seatingGeometry.js';
+import { buildGolaGeometries } from './golaGeometry.js';
 import { isHandlePiece } from './handleMatching.js';
 
 export function groupByModule(pieces) {
@@ -486,6 +487,19 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
   const drawers = roles.filter((p) => p.role.startsWith('drawer_') || p.role === 'handle');
   if (drawers.length) {
     geometries.push(...buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions, bottomPanelOffset, topPanelOffset));
+  }
+
+  // Perfiles gola (tiras entre frentes): detrás del plano de frentes, con
+  // pos_z anclado. Después de drawerGeometry para pintarlas bajo los frentes.
+  // Las tiras viven en el módulo raíz: su propio `modulo` es el id a filtrar.
+  const golaStrips = roles.filter((p) => p.role === 'gola_strip');
+  if (golaStrips.length) {
+    geometries.push(...buildGolaGeometries(
+      String(golaStrips[0].modulo),
+      roles,
+      { moduleW, moduleD, moduleH, thickness },
+      renderer,
+    ));
   }
 
   // Riel colgador

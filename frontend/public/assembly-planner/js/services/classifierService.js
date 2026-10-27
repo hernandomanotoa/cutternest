@@ -7,6 +7,10 @@ export function inferRole(piece) {
   const n = normalizeName(piece.nombre);
   const id = normalizeName(piece.id);
 
+  // Sistema gola: la tira se nombra 'Perfil gola' (rol propio). Va primero
+  // porque no comparte keywords con ninguna regla posterior.
+  if (n.includes('gola') || id.includes('gola')) return 'gola_strip';
+
   if ((n.includes('cajon') || id.includes('cajon')) && !n.includes('cajonera')) {
     if (n.includes('frente') || id.includes('frente')) return 'drawer_face';
     if (n.includes('lateral') || id.includes('lateral')) return 'drawer_side';

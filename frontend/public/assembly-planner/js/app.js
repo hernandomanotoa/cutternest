@@ -74,6 +74,12 @@ import {
   duplicateVersion,
   versionCsv,
 } from './services/projectVersionsService.js';
+import {
+  applyGola,
+  removeGola,
+  isGolaEnabled,
+  getGolaCfg,
+} from './services/golaService.js';
 
 export const GLOBAL_MODULE_ID = 'global';
 
@@ -959,7 +965,9 @@ export function duplicateModule(moduleId) {
   return { ok: true, moduleId: newId };
 }
 
-// Recolorea el casco de un modulo (base/tapa/laterales/zocalo).
+// Recolorea el casco de un modulo (base/tapa/laterales/zocalo). También
+// recolorea las tiras gola del módulo: usan el mismo `modulo` e id
+// `m{mod}-gola-{i}` (mismo material/color que el módulo).
 export function recolorModule(moduleId, color) {
   snapshotUndo("Recolorear modulo");
   const store = getStore();
@@ -972,12 +980,90 @@ export function recolorModule(moduleId, color) {
     `m${moduleId}-lateral-izq`, `m${moduleId}-lateral-der`,
     `m${moduleId}-zocalo`,
   ]);
-  const pieces = state.pieces.map((p) => (
-    cascoIds.has(String(p.id)) ? { ...p, color: String(color) } : p
-  ));
+  const prefijoGola = `m${moduleId}-gola-`;
+  const pieces = state.pieces.map((p) => {
+    const id = String(p.id);
+    if (cascoIds.has(id)) return { ...p, color: String(color) };
+    if (id.startsWith(prefijoGola)) return { ...p, color: String(color) };
+    return p;
+  });
   store.set({ pieces });
   recalculateAll();
   return { ok: true };
+}
+
+// ── Sistema gola (golaService) ────────────────────────────────────
+
+// Metadatos de round-trip por módulo (alturas/pos_z originales de frentes),
+// persistidos por el orquestador: el servicio es puro y no toca storage.
+const GOLA_META_KEY = 'cn-assembly-gola';
+
+function loadGolaMetas() {
+  try {
+    const raw = localStorage.getItem(GOLA_META_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveGolaMetas(metas) {
+  try {
+    localStorage.setItem(GOLA_META_KEY, JSON.stringify(metas));
+  } catch {
+    // Falla silenciosa en entornos sin localStorage.
+  }
+}
+
+// Activa (o re-aplica con los cfg actuales) el sistema gola de un módulo.
+// Re-aplicar restaura primero los frentes originales con el meta persistido
+// para no acumular reescalados. Devuelve { ok, warnings?, errors? }.
+export function enableGola(moduleId) {
+  const store = getStore();
+  const state = store.get();
+  const modId = String(moduleId);
+  const cfg = getGolaCfg(state.userConfig || {});
+
+  let basePieces = state.pieces;
+  if (isGolaEnabled(basePieces, modId)) {
+    const metas = loadGolaMetas();
+    const restored = removeGola(basePieces, modId, cfg, metas[modId]);
+    if (restored.ok) basePieces = restored.pieces;
+  }
+
+  const result = applyGola(basePieces, modId, cfg);
+  if (!result.ok) return { ok: false, errors: result.errors, warnings: result.warnings };
+
+  snapshotUndo('Activar gola');
+  store.set({ pieces: result.pieces, dependencies: sugerirDependencias(result.pieces) });
+  const metas = loadGolaMetas();
+  metas[modId] = result.meta;
+  saveGolaMetas(metas);
+  recalculateAll();
+  return { ok: true, warnings: [...(result.warnings || []), ...validatePiecesQuiet(result.pieces)] };
+}
+
+// Desactiva el sistema gola del módulo: quita las tiras, restaura frentes
+// (con el meta persistido; fallback proporcional si no hay) y regenera los
+// tiradores. Limpia el meta del módulo.
+export function disableGola(moduleId) {
+  const store = getStore();
+  const state = store.get();
+  const modId = String(moduleId);
+  if (!isGolaEnabled(state.pieces, modId)) return { ok: true, warnings: [] };
+
+  const metas = loadGolaMetas();
+  const cfg = getGolaCfg(state.userConfig || {});
+  snapshotUndo('Desactivar gola');
+  const result = removeGola(state.pieces, modId, cfg, metas[modId]);
+  if (!result.ok) return { ok: false, errors: result.errors };
+
+  delete metas[modId];
+  saveGolaMetas(metas);
+  store.set({ pieces: result.pieces, dependencies: sugerirDependencias(result.pieces) });
+  recalculateAll();
+  return { ok: true, warnings: validatePiecesQuiet(result.pieces) };
 }
 
 // Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.
@@ -1216,6 +1302,9 @@ export function removeStructuralPlinth() {
 }
 
 export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
+  // TODO(gola): las tiras `m{mod}-gola-*` conservan su pos_z (no rompen el
+  // apilado) pero no se re-anchoan al nuevo vano ni se re-deriva su topRef:
+  // con gola activo, re-aplicar enableGola tras editar dimensiones del casco.
   snapshotUndo("Editar dimensiones");
   const store = getStore();
   const state = store.get();
@@ -1391,6 +1480,12 @@ export function removeModule(moduleId) {
     if (/^\d+$/.test(id) && (mod.startsWith(id) || mod.startsWith(`${id}.`))) return false;
     return true;
   });
+  // Limpiar el meta gola del módulo eliminado (queda huérfano).
+  const golaMetas = loadGolaMetas();
+  if (Object.prototype.hasOwnProperty.call(golaMetas, id)) {
+    delete golaMetas[id];
+    saveGolaMetas(golaMetas);
+  }
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
   return { ok: true };

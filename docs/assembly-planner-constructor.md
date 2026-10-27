@@ -68,7 +68,7 @@ Todas las funciones devuelven `{ok: true, pieces, ...}` o
 `addModuleFromBuilder`, `addContentToModule`, `removeModule`,
 `removeContentPiece`, `duplicateModule`, `duplicateAllModules`,
 `recolorModule`, `editModuleDimensions`, `moveModule`, `clearAllPieces`,
-`focusModule`, `undoLast`. Y las de versiones: `saveCurrentVersion`,
+`focusModule`, `undoLast`, `enableGola`, `disableGola`. Y las de versiones: `saveCurrentVersion`,
 `loadVersionById`, `renameVersionById`, `duplicateVersionById`,
 `exportVersionCsv`, `isDesignDirty`, `saveCurrentVersionToCloud`,
 `loadCloudVersionById`, `deleteCloudVersionById`.
@@ -86,6 +86,49 @@ Todas las funciones devuelven `{ok: true, pieces, ...}` o
 - `moveModule(dir)` implementa el reordenado como **swap de numeración**
   entre dos módulos raíz (a→temp, b→a, temp→b) renombrando ids; es invasivo
   pero localizado a los dos módulos afectados.
+
+### Sistema gola (`golaService.js`, servicio puro)
+
+Apertura sin tiradores, activable **por módulo** desde la tarjeta del
+Constructor (checkbox `toggle-gola`, visible con ≥2 unidades-cajón). Dos
+mecanismos con tiras de **melamina del mismo material/color que el módulo**
+(no perfil comercial de aluminio; todos los valores son **PROVISIONALES** y
+se editan en el mini-panel de la tarjeta o vía `userConfig`):
+
+1. **Tiras entre frentes**: en cada gap entre cajones apilados se genera una
+   tira (`{mod}-gola-{i}`, rol `gola_strip`). Gap gola `G = golaPerfilHeight
+   + golaFingerClearance` **reemplaza** a `drawerFrontGap` (no se suman). La
+   tira se apoya en el techo del frente inferior y deja el agarre hacia
+   arriba; su largo = ancho interior − 2·`golaHolguraLateral` (nunca el
+   ancho exterior).
+2. **L-gola del cajón superior**: el frente del último cajón se extiende
+   hasta `topRef − golaFingerClearance`, donde `topRef` es la repisa
+   inmediata superior (o el techo interior del casco si no hay). La caja no
+   cambia. Si la sobrealtura sobre la caja supera `golaMaxOverhang`, se capa
+   y se avisa (queda un hueco sobre el frente).
+
+Reglas: los frentes se reescalan **proporcionalmente** (las cajas no se
+tocan) conservando el span y las dimensiones exteriores; al activar se
+eliminan los tiradores del módulo y al desactivar se regeneran (espejo de
+`addDrawer`). `applyGola` devuelve `meta` (alturas/pos_z originales) que
+`app.js` persiste en localStorage (`cn-assembly-gola`) para restaurar
+exacto al desactivar; sin `meta`, `removeGola` usa un fallback proporcional.
+Si el vano no alcanza para que cada frente cubra su caja (lateral + 10 mm),
+`applyGola` devuelve `{ok: false}` con explicación. La activación emite
+warnings si redujo frentes o aplicó el cap.
+
+- Render: `golaGeometry.js` (builder iso enganchado en `moduleGeometry.js`;
+  la 3D lo hereda vía `computeGeometries`). Las tiras se dibujan
+  retranqueadas `golaStripSetback` detrás del plano de frentes, con
+  `ROLE_COLORS.gola_strip` / `Z_INDEX.gola_strip` (22, bajo `drawer_face`).
+- Materiales/planos: `calculateHardware` lista "Perfil gola melamina"
+  agrupado por largo de corte + "Tornillo fijación gola"
+  (tiras × `golaTornillosPorPerfil`); paso de montaje "interior" en
+  `assemblyStepService` con instrucción en `instructions.js`.
+- **Limitaciones**: sin mecanizados en tablero; la L capada deja hueco
+  visible sobre el frente superior; `editModuleDimensions` no re-anchoa
+  tiras ni re-deriva `topRef` (con gola activo, re-aplicar `enableGola`);
+  los parámetros son de taller hasta seleccionar un perfil comercial.
 
 ### Versiones
 
@@ -148,6 +191,7 @@ proporción y **ocupa la misma fracción de pantalla** que en tamaño normal.
 | Suite | Qué cubre |
 |---|---|
 | `js/services/closetBuilderService.test.js` | Invariantes geométricas + 100 closets aleatorios re-parsean sin errores/warnings (salvo heurística de cobertura de frentes). |
+| `js/services/golaService.test.js` | Sistema gola: tiras N−1 entre frentes (N = 2..5), agarre, L-gola (con/sin repisa, cap), coherencia del reparto, cubre-caja, round-trip con/sin meta, BOM, límites (0/1 cajón, vano insuficiente), geo `gola_strip` en el renderer. |
 | `js/services/projectVersionsService.test.js` | CRUD, round-trip, tope 50, JSON corrupto, pin. |
 | `js/services/__tests__/userConfigService.test.js` | Presets: default ← preset ← edición del usuario. |
 | `test/views/constructorView.dom.test.js` | Flujos UI: agregar/editar/duplicar/reordenar/eliminar, undo (botón y Ctrl+Z), versiones (incl. pin y Enter), nube (mock), vano libre, reparto de ancho, panel de avisos. |
