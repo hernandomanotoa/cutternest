@@ -43,10 +43,12 @@ import {
   enableGola,
   disableGola,
   previewGola,
+  setGolaModuleConfig,
+  loadGolaModuleCfgs,
   recalculateAll,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
-import { isGolaEnabled, drawerUnits } from '../services/golaService.js';
+import { isGolaEnabled, drawerUnits, getGolaCfg } from '../services/golaService.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
@@ -64,8 +66,9 @@ const TIPOS_CAJON = [
   { value: 'volquete', label: 'Volquete' },
 ];
 
-// Parámetros numéricos del sistema gola editables por módulo (persistidos en
-// userConfig como los demás VERTICAL_POSITIONS): clave cfg, label, min, step.
+// Parámetros numéricos del sistema gola editables por módulo (persistidos
+// como overrides en cn-assembly-gola-cfg, con fallback a la userConfig
+// global): clave cfg, label, min, step.
 const GOLA_CFG_FIELDS = [
   ['golaPerfilHeight', 'Alto tira (mm)', 10, 5],
   ['golaFingerClearance', 'Agarre (mm)', 5, 5],
@@ -179,28 +182,26 @@ export function createConstructorView(store) {
   }
 
   function onChange(e) {
-    // Parámetros del sistema gola: numéricos persistidos como los demás
-    // VERTICAL_POSITIONS; golaFijacion como STRING_PREF. Con gola activo en
-    // el módulo, un cambio numérico re-aplica enableGola (re-calcula).
+    // Parámetros del sistema gola: overrides POR MÓDULO (cn-assembly-gola-cfg)
+    // vía setGolaModuleConfig; la userConfig global queda como fallback para
+    // módulos sin overrides. Con gola activo en el módulo, el propio
+    // setGolaModuleConfig re-aplica (enableGola) con la config efectiva.
     if (e.target.matches('[data-gola-cfg]')) {
       const key = e.target.dataset.golaCfg;
       const scoped = e.target.closest('[data-module-scoped]');
       const moduleId = scoped?.dataset.moduleScoped;
+      if (!moduleId) return;
+      let overrides;
       if (key === 'golaFijacion') {
-        saveUserConfig({ golaFijacion: e.target.value });
-        store.set({ userConfig: loadUserConfig() });
-        recalculateAll();
-        return;
+        overrides = { golaFijacion: e.target.value };
+      } else {
+        const value = Number(e.target.value);
+        if (!Number.isFinite(value)) return;
+        overrides = { [key]: value };
       }
-      const value = Number(e.target.value);
-      if (!Number.isFinite(value)) return;
-      saveUserConfig({ [key]: value });
-      store.set({ userConfig: loadUserConfig() });
-      if (moduleId && isGolaEnabled(store.get().pieces, moduleId)) {
-        const r = enableGola(moduleId);
-        if (!r.ok) toast(r.errors.join('; '), { type: 'error' });
-        else warnIfAny(r.warnings);
-      }
+      const r = setGolaModuleConfig(moduleId, overrides);
+      if (!r.ok) toast(r.errors.join('; '), { type: 'error' });
+      else warnIfAny(r.warnings);
       return;
     }
     // Datos de obra / zócalo estructural: persisten en userConfig (los
@@ -920,6 +921,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   const golaUnidades = drawerUnits(allPieces, moduleId).length;
   const golaOn = isGolaEnabled(allPieces, moduleId);
   const golaPreviewHere = golaPreview && String(golaPreview.moduleId) === String(moduleId);
+  // Config efectiva del módulo: global ← overrides propios (el panel edita el
+  // módulo; sin overrides muestra los valores globales, como antes).
+  const golaCfg = getGolaCfg(cfg, loadGolaModuleCfgs()[String(moduleId)] || {});
   return `
     <div class="cn-constructor__module" data-module-scoped="${escapeHtml(moduleId)}">
       <div class="cn-constructor__module-head">
@@ -999,7 +1003,7 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
       </div>
       ${renderContentList(moduleId, allPieces)}
       ${golaPreviewHere ? renderGolaPreviewPanel(golaPreview) : ''}
-      ${golaOn && golaUnidades >= 2 ? renderGolaPanel(cfg) : ''}
+      ${golaOn && golaUnidades >= 2 ? renderGolaPanel(golaCfg) : ''}
       <div class="cn-constructor__content-btns">
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
@@ -1015,8 +1019,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
 }
 
 // Panel de parámetros del sistema gola (visible solo con gola activo en el
-// módulo). Reusa el estilo del formulario de edición de dimensiones; los
-// valores leen/escriben userConfig vía [data-gola-cfg] (onChange).
+// módulo). Reusa el estilo del formulario de edición de dimensiones; muestra
+// la config efectiva del módulo (global ← overrides) y los valores escriben
+// overrides del módulo vía [data-gola-cfg] (onChange → setGolaModuleConfig).
 function renderGolaPanel(cfg = {}) {
   return `
     <div class="cn-constructor__edit-form" data-gola-panel>

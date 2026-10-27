@@ -132,6 +132,19 @@ warnings si redujo frentes o aplicó el cap.
   `golaMetas` en `projectVersionsService.saveVersion`, schema sin cambios,
   tolerante a versiones viejas) y `loadVersionById` los rehidrata en
   `cn-assembly-gola` (merge, no borra metas de otros módulos).
+- **Config por módulo**: cada módulo puede recordar sus propios parámetros
+  `gola*` como overrides parciales (map moduleId→cfg en localStorage
+  `cn-assembly-gola-cfg`, editable desde el mini-panel de la tarjeta — ya no
+  escribe la `userConfig` global). El merge efectivo es `GOLA_DEFAULTS ←
+  userConfig global ← overrides del módulo` (`getGolaCfg(userConfig,
+  moduleCfg)`, golaService; mismas reglas de validación en cada capa): los del
+  módulo ganan y un módulo sin overrides usa la config global como fallback.
+  `setGolaModuleConfig` (app.js) mergea sin pisar claves no incluidas y
+  re-aplica el gola del módulo si está activo (delega en `enableGola`, que
+  hace su propio snapshot de undo). El mapa viaja en la versión local (campo
+  opcional `golaModuleCfgs`, tolerante a versiones viejas) y `loadVersionById`
+  lo rehidrata con merge (no borra configs de otros módulos); `removeModule`
+  limpia la entrada del módulo eliminado (igual que con los metas).
 - Render: `golaGeometry.js` (builder iso enganchado en `moduleGeometry.js`;
   la 3D lo hereda vía `computeGeometries`). Las tiras se dibujan
   retranqueadas `golaStripSetback` detrás del plano de frentes, con

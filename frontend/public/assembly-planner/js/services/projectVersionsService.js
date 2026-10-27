@@ -55,9 +55,10 @@ function writeContainer(container) {
 
 // Guarda una version del diseno actual. `pieces` es el array del store;
 // `dependencies` es opcional; `golaMetas` (map moduleId→meta) es opcional y
-// preserva el round-trip del sistema gola al cargar la version. Devuelve
-// { ok, version?, error?, evicted? }.
-export function saveVersion(name, { pieces, dependencies, golaMetas } = {}) {
+// preserva el round-trip del sistema gola al cargar la version;
+// `golaModuleCfgs` (map moduleId→cfg parcial) es opcional y preserva la
+// config gola por módulo. Devuelve { ok, version?, error?, evicted? }.
+export function saveVersion(name, { pieces, dependencies, golaMetas, golaModuleCfgs } = {}) {
   const trimmed = String(name || '').trim();
   if (!trimmed) return { ok: false, error: 'El nombre de la version es obligatorio' };
   if (!Array.isArray(pieces) || pieces.length === 0) {
@@ -75,6 +76,9 @@ export function saveVersion(name, { pieces, dependencies, golaMetas } = {}) {
   };
   if (golaMetas && typeof golaMetas === 'object' && Object.keys(golaMetas).length) {
     version.golaMetas = golaMetas;
+  }
+  if (golaModuleCfgs && typeof golaModuleCfgs === 'object' && Object.keys(golaModuleCfgs).length) {
+    version.golaModuleCfgs = golaModuleCfgs;
   }
   container.versions.unshift(version);
 
@@ -95,8 +99,9 @@ export function listVersions() {
 
 // Carga una version por id. Re-parsea el CSV para devolver piezas "limpias"
 // (con derivados de classifyPiece recalculados). Devuelve
-// { ok, name?, pieces?, dependencies?, golaMetas?, error? }. `golaMetas` es
-// null en versiones guardadas antes de que existiera el campo (dato viejo).
+// { ok, name?, pieces?, dependencies?, golaMetas?, golaModuleCfgs?, error? }.
+// `golaMetas` y `golaModuleCfgs` son null en versiones guardadas antes de que
+// existieran los campos (dato viejo).
 export function loadVersion(id) {
   const found = readContainer().versions.find((v) => v.id === id);
   if (!found) return { ok: false, error: 'Version no encontrada' };
@@ -109,6 +114,7 @@ export function loadVersion(id) {
     pieces: result.pieces,
     dependencies: Array.isArray(found.dependencies) ? found.dependencies : [],
     golaMetas: found.golaMetas && typeof found.golaMetas === 'object' ? found.golaMetas : null,
+    golaModuleCfgs: found.golaModuleCfgs && typeof found.golaModuleCfgs === 'object' ? found.golaModuleCfgs : null,
     warnings: result.warnings,
   };
 }

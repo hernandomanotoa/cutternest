@@ -77,6 +77,29 @@ describe('getGolaCfg', () => {
     assert.equal(custom.golaFijacion, 'Cola + tarugos');
     assert.equal(getGolaCfg({ golaPerfilHeight: -5 }).golaPerfilHeight, 30, 'negativos caen a default');
   });
+
+  it('moduleCfg: los overrides del módulo ganan sobre la config global', () => {
+    const global_ = { golaPerfilHeight: 40, golaFingerClearance: 15 };
+    const cfg = getGolaCfg(global_, { golaPerfilHeight: 50 });
+    assert.equal(cfg.golaPerfilHeight, 50, 'override del módulo gana a la global');
+    assert.equal(cfg.golaFingerClearance, 15, 'clave no tocada hereda la global');
+    assert.equal(cfg.golaStripDepth, GOLA_DEFAULTS.golaStripDepth, 'y si nadie la toca, el default');
+    assert.equal(getGolaCfg({}, {}).golaPerfilHeight, 30, 'sin overrides → default');
+    assert.equal(getGolaCfg(global_).golaPerfilHeight, 40, 'sin moduleCfg → igual que antes');
+  });
+
+  it('moduleCfg: negativos/no numéricos caen al valor global/default', () => {
+    const cfg = getGolaCfg({ golaPerfilHeight: 40 }, { golaPerfilHeight: -5 });
+    assert.equal(cfg.golaPerfilHeight, 40, 'negativo del módulo cae a la global');
+    assert.equal(getGolaCfg({}, { golaPerfilHeight: 'abc' }).golaPerfilHeight, 30, 'no numérico cae al default');
+  });
+
+  it('moduleCfg: golaFijacion del módulo gana; string vacío cae a la global', () => {
+    const cfg = getGolaCfg({ golaFijacion: 'Fijación global' }, { golaFijacion: '  Cola del módulo ' });
+    assert.equal(cfg.golaFijacion, 'Cola del módulo', 'trim + gana sobre la global');
+    assert.equal(getGolaCfg({ golaFijacion: 'Fijación global' }, { golaFijacion: '  ' }).golaFijacion, 'Fijación global');
+    assert.equal(getGolaCfg({}, { golaFijacion: '' }).golaFijacion, GOLA_DEFAULTS.golaFijacion, 'vacío en ambas → default');
+  });
 });
 
 describe('applyGola — tiras entre frentes (N = 2..5)', () => {

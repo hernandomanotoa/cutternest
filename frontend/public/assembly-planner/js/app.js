@@ -1017,15 +1017,46 @@ function saveGolaMetas(metas) {
   }
 }
 
+// Config gola por módulo: overrides parciales (moduleId → cfg parcial) sobre
+// la userConfig global, persistidos por el orquestador (el servicio es puro).
+const GOLA_MODULE_CFG_KEY = 'cn-assembly-gola-cfg';
+
+export function loadGolaModuleCfgs() {
+  try {
+    const raw = localStorage.getItem(GOLA_MODULE_CFG_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveGolaModuleCfgs(map) {
+  try {
+    localStorage.setItem(GOLA_MODULE_CFG_KEY, JSON.stringify(map));
+  } catch {
+    // Falla silenciosa en entornos sin localStorage.
+  }
+}
+
+// Config gola efectiva de un módulo: GOLA_DEFAULTS ← userConfig global ←
+// overrides del módulo (cn-assembly-gola-cfg). Sin overrides del módulo es
+// idéntica a la config global.
+export function getGolaCfgForModule(modId) {
+  const state = getStore().get();
+  return getGolaCfg(state.userConfig || {}, loadGolaModuleCfgs()[String(modId)] || {});
+}
+
 // Re-aplica el gola de un módulo sobre un array de piezas (puro respecto al
 // store): si ya había tiras, restaura primero los frentes originales con el
 // meta persistido para no acumular reescalados, y vuelve a aplicar con los
-// cfg actuales. NO hace snapshot ni toca el store: el caller decide cuándo
-// persistir (enableGola hace SU snapshot; editModuleDimensions forma la
-// re-aplicación parte de SU propia acción de undo única).
+// cfg actuales. Recibe la config YA mergeada (getGolaCfgForModule): el caller
+// decide la capa (global vs. overrides del módulo). NO hace snapshot ni toca
+// el store: el caller decide cuándo persistir (enableGola hace SU snapshot;
+// editModuleDimensions forma la re-aplicación parte de SU propia acción de
+// undo única).
 // Devuelve { ok, pieces?, meta?, errors?, warnings? }.
-function reapplyGolaPieces(modId, basePieces, userConfig) {
-  const cfg = getGolaCfg(userConfig || {});
+function reapplyGolaPieces(modId, basePieces, cfg) {
   let pieces = basePieces;
   if (isGolaEnabled(pieces, modId)) {
     const metas = loadGolaMetas();
@@ -1046,9 +1077,9 @@ export function previewGola(moduleId) {
   const store = getStore();
   const state = store.get();
   const modId = String(moduleId);
-  const cfg = getGolaCfg(state.userConfig || {});
+  const cfg = getGolaCfgForModule(modId);
 
-  const dry = reapplyGolaPieces(modId, state.pieces, state.userConfig);
+  const dry = reapplyGolaPieces(modId, state.pieces, cfg);
   if (!dry.ok) return { ok: false, errors: dry.errors, warnings: dry.warnings };
 
   const alturasActuales = new Map(
@@ -1080,7 +1111,7 @@ export function enableGola(moduleId) {
   const state = store.get();
   const modId = String(moduleId);
 
-  const reapplied = reapplyGolaPieces(modId, state.pieces, state.userConfig);
+  const reapplied = reapplyGolaPieces(modId, state.pieces, getGolaCfgForModule(modId));
   if (!reapplied.ok) return { ok: false, errors: reapplied.errors, warnings: reapplied.warnings };
 
   snapshotUndo('Activar gola');
@@ -1102,7 +1133,7 @@ export function disableGola(moduleId) {
   if (!isGolaEnabled(state.pieces, modId)) return { ok: true, warnings: [] };
 
   const metas = loadGolaMetas();
-  const cfg = getGolaCfg(state.userConfig || {});
+  const cfg = getGolaCfgForModule(modId);
   snapshotUndo('Desactivar gola');
   const result = removeGola(state.pieces, modId, cfg, metas[modId]);
   if (!result.ok) return { ok: false, errors: result.errors };
@@ -1112,6 +1143,26 @@ export function disableGola(moduleId) {
   store.set({ pieces: result.pieces, dependencies: sugerirDependencias(result.pieces) });
   recalculateAll();
   return { ok: true, warnings: validatePiecesQuiet(result.pieces) };
+}
+
+/**
+ * Mergea overrides de config gola del módulo en el mapa persistido
+ * (cn-assembly-gola-cfg; no pisa claves no incluidas) y, si el módulo tiene
+ * el gola activo, re-aplica con la config efectiva (delega en enableGola,
+ * que hace su propio snapshot de undo). Si no está activo solo persiste: la
+ * config se aplicará la próxima vez que se active. Devuelve el resultado de
+ * la re-aplicación ({ok, warnings?, errors?}) o { ok: true } si no hay
+ * re-aplicación.
+ */
+export function setGolaModuleConfig(moduleId, overrides = {}) {
+  const modId = String(moduleId);
+  const map = loadGolaModuleCfgs();
+  map[modId] = { ...(map[modId] || {}), ...overrides };
+  saveGolaModuleCfgs(map);
+  if (isGolaEnabled(getStore().get().pieces, modId)) {
+    return enableGola(modId);
+  }
+  return { ok: true };
 }
 
 // Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.
@@ -1505,7 +1556,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   let finalPieces = pieces;
   const golaWarnings = [];
   if (isGolaEnabled(pieces, moduleId)) {
-    const reapplied = reapplyGolaPieces(String(moduleId), pieces, state.userConfig);
+    const reapplied = reapplyGolaPieces(String(moduleId), pieces, getGolaCfgForModule(String(moduleId)));
     if (reapplied.ok) {
       finalPieces = reapplied.pieces;
       golaWarnings.push(...(reapplied.warnings || []));
@@ -1550,6 +1601,12 @@ export function removeModule(moduleId) {
     delete golaMetas[id];
     saveGolaMetas(golaMetas);
   }
+  // Limpiar también su config gola por módulo.
+  const golaCfgs = loadGolaModuleCfgs();
+  if (Object.prototype.hasOwnProperty.call(golaCfgs, id)) {
+    delete golaCfgs[id];
+    saveGolaModuleCfgs(golaCfgs);
+  }
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
   return { ok: true };
@@ -1579,6 +1636,7 @@ export function saveCurrentVersion(name) {
     pieces: state.pieces,
     dependencies: state.dependencies,
     golaMetas: loadGolaMetas(),
+    golaModuleCfgs: loadGolaModuleCfgs(),
   });
   if (result.ok) lastSavedHash = piecesHash(state.pieces);
   return result;
@@ -1594,6 +1652,11 @@ export function loadVersionById(id) {
   // borra los metas de otros módulos del estado actual.
   if (result.golaMetas && typeof result.golaMetas === 'object') {
     saveGolaMetas({ ...loadGolaMetas(), ...result.golaMetas });
+  }
+  // Mismo criterio para la config gola por módulo: merge, una versión vieja
+  // sin el campo no borra los overrides de otros módulos del estado actual.
+  if (result.golaModuleCfgs && typeof result.golaModuleCfgs === 'object') {
+    saveGolaModuleCfgs({ ...loadGolaModuleCfgs(), ...result.golaModuleCfgs });
   }
   getStore().set({
     userConfig: loadUserConfig(),

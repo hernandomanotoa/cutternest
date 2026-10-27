@@ -14,7 +14,7 @@
 //   validateGola(pieces, moduleId, cfg) → { errors, warnings }
 //   isGolaEnabled(pieces, moduleId)     → bool (hay tiras del módulo)
 //   drawerUnits(pieces, moduleId)       → unidades-cajón (para la UI/tests)
-//   getGolaCfg(userConfig)              → defaults + overrides persistidos
+//   getGolaCfg(userConfig, moduleCfg?) → defaults + overrides (módulo gana)
 //   golaReport(pieces, cfg, opts?)      → filas "Perfiles gola" para el manual
 //
 // Convenciones: unidades ordenadas por min pos_z de sus frentes (unidad 1 =
@@ -48,16 +48,24 @@ export const GOLA_NUMERIC_KEYS = [
   'golaMaxOverhang',
 ];
 
-/** Mergea defaults PROVISIONALES con overrides numéricos/string persistidos. */
-export function getGolaCfg(userConfig = {}) {
+/** Mergea defaults PROVISIONALES con overrides numéricos/string persistidos.
+ * Orden: `GOLA_DEFAULTS ← userConfig (global) ← moduleCfg (del módulo)`; los
+ * overrides del módulo ganan sobre los globales. Mismas reglas de validación
+ * en ambas capas: numéricos finitos ≥0, `golaFijacion` string no vacío. Sin
+ * `moduleCfg` el comportamiento es idéntico al histórico (solo global). */
+export function getGolaCfg(userConfig = {}, moduleCfg = {}) {
   const cfg = { ...GOLA_DEFAULTS };
-  for (const key of GOLA_NUMERIC_KEYS) {
-    const value = Number(userConfig?.[key]);
-    if (Number.isFinite(value) && value >= 0) cfg[key] = value;
-  }
-  if (typeof userConfig?.golaFijacion === 'string' && userConfig.golaFijacion.trim()) {
-    cfg.golaFijacion = userConfig.golaFijacion.trim();
-  }
+  const aplicar = (overrides = {}) => {
+    for (const key of GOLA_NUMERIC_KEYS) {
+      const value = Number(overrides?.[key]);
+      if (Number.isFinite(value) && value >= 0) cfg[key] = value;
+    }
+    if (typeof overrides?.golaFijacion === 'string' && overrides.golaFijacion.trim()) {
+      cfg.golaFijacion = overrides.golaFijacion.trim();
+    }
+  };
+  aplicar(userConfig);
+  aplicar(moduleCfg);
   return cfg;
 }
 
