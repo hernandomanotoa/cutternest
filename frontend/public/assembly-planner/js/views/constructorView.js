@@ -347,7 +347,9 @@ export function createConstructorView(store) {
       // División central de la zapatera (apoyo de la fila delantera): el
       // checkbox por defecto va activado; solo aplica a zapateras.
       const division = container.querySelector(`${scoped} [data-division]`)?.checked !== false;
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division });
+      // Tipo de riel: define las medidas de la caja (descuentos y fondo).
+      const riel = container.querySelector(`${scoped} [data-tipo-riel]`)?.value || 'catalogo';
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, riel });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -836,6 +838,14 @@ function renderModuleCard(group, allPieces) {
         <label class="form-group" style="margin:0;">Mecanismo
           <select data-mecanismo>
             ${TIPOS_CAJON.map((t) => `<option value="${t.value}">${t.label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="form-group" style="margin:0;" title="El tipo de riel DEFINE las medidas de la caja del cajón/zapatera (descuentos por holgura y largo del fondo). 'Marco regulable' = herraje de catálogo para zapateras: sin cajón, solo el frente.">Tipo de riel
+          <select data-tipo-riel>
+            <option value="catalogo" selected>Catálogo (estándar del proyecto)</option>
+            <option value="telescopica26">Telescópica balines (−26 mm, fondo = riel)</option>
+            <option value="oculta">Oculta bajo cajón (−10 mm, cierre suave)</option>
+            <option value="marco">Marco aluminio regulable (zapatera, sin cajón)</option>
           </select>
         </label>
         <label class="form-group" style="margin:0;" title="Cajones por fila: 2 divide el ancho del vano en dos frentes (modulos anchos)">N por fila

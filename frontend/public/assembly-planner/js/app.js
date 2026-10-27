@@ -626,6 +626,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         colorLateral: opts.colorLateral || '#D9C2A3',
         // División central (apoyo de la fila delantera): por defecto va.
         division: opts.division !== false,
+        riel: ['catalogo', 'telescopica26', 'oculta', 'marco'].includes(opts.riel) ? opts.riel : 'catalogo',
       });
     } else {
       result = addDrawer(moduleId, idx, {
@@ -637,6 +638,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
+        riel: ['catalogo', 'telescopica26', 'oculta'].includes(opts.riel) ? opts.riel : 'catalogo',
       });
     }
   } else if (kind === 'divider') {

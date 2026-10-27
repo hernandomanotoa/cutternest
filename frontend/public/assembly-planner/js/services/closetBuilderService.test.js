@@ -314,3 +314,36 @@ describe('zapatera: división central (apoyo de la fila delantera)', () => {
     assert.equal(r.pieces.length, 7);
   });
 });
+
+describe('tipo de riel: define las medidas de la caja', () => {
+  it('telescópica regla −26: holgura 13 por lado, fondo = prof − E − 10', () => {
+    const r = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'telescopica26' });
+    assert.ok(r.ok);
+    // interior = 820 − 26 − 30 = 764; fondo/laterales = 600 − 15 − 10 = 575.
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-base')).ancho, 764);
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-lateral-izq')).ancho, 575);
+    assert.ok((r.warnings || []).some((w) => w.includes('−26')));
+  });
+
+  it('oculta: exterior = vano − 42 + 2×grosor → holgura 6 por lado con laterales 15', () => {
+    const r = addDrawer('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'oculta' });
+    assert.ok(r.ok);
+    // interior = 820 − 12 − 30 = 778.
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-base')).ancho, 778);
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-lateral-izq')).ancho, 575, 'fondo = riel − 10');
+    assert.ok((r.warnings || []).some((w) => w.includes('Oculta')));
+  });
+
+  it('marco regulable (zapatera): sin cajón, solo frente + tirador, con aviso del rango', () => {
+    const r = addShoeTray('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'marco' });
+    assert.ok(r.ok);
+    assert.deepEqual(r.pieces.map((p) => p.id.split('-').pop()), ['frente', 'tirador']);
+    assert.ok((r.warnings || []).some((w) => w.includes('marco de aluminio regulable') && w.includes('850')));
+  });
+
+  it('riel inválido cae al catálogo (comportamiento por defecto intacto)', () => {
+    const r = addDrawer('1', 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'nope' });
+    assert.ok(r.ok);
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-base')).ancho, 765, 'catálogo: 820 − 25,4 − 30');
+  });
+});

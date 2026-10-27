@@ -9,6 +9,43 @@ import { RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
 
 const ESPESORES_VALIDOS = [15, 18, 25];
 const HOLGURA_CORREDERA = 12.7; // mm por lado (RAIL_TYPES.telescopica)
+
+// Reglas de descuento según el tipo de riel elegido (definen las medidas
+// de la caja del cajón/zapatera). 'catalogo' = convención histórica del
+// proyecto (cajonModel); las demás siguen la spec de taller.
+export const RIEL_RULES = {
+  catalogo: {
+    label: 'Catálogo del proyecto (vano − 25,4 mm)',
+    holgura: 12.7,        // mm por lado
+    fondoMm: (prof, E) => prof - 2 * E - 25, // largo del fondo/laterales
+    nota: null,
+  },
+  telescopica26: {
+    label: 'Telescópica balines (vano − 26 mm; fondo = riel, vano +10 mm)',
+    holgura: 13,          // 26 mm total, 13 por lado
+    fondoMm: (prof, E) => prof - E - 10,     // riel nominal; vano con +10
+    nota: 'Telescópica (regla −26): fondo = riel nominal; el vano necesita +10 mm de fondo.',
+  },
+  oculta: {
+    label: 'Oculta bajo cajón (exterior = vano − 42 + 2×grosor; fondo = riel − 10)',
+    holgura: null,        // se calcula por fórmula con el grosor del lateral
+    fondoMm: (prof, E) => prof - E - 10,     // riel − 10 (marca estándar)
+    nota: 'Oculta: exterior = vano − 42 + 2×grosor lateral; rebajo inferior de 12,7 mm y alto máx. = vano − 23 (fijación del herraje).',
+  },
+  marco: {
+    label: 'Marco de aluminio regulable (zapatero de catálogo, sin cajón)',
+    holgura: null, fondoMm: null,
+    nota: 'Herraje de catálogo: marco de aluminio regulable con rieles ocultos propios; NO se fabrica cajón. Verificar el rango del catálogo para el vano.',
+  },
+};
+const RIEL_DEFAULT = 'catalogo';
+function rielRule(riel, espLat) {
+  const key = RIEL_RULES[riel] ? riel : RIEL_DEFAULT;
+  const rule = RIEL_RULES[key];
+  // Oculta: holgura por lado = (42 − 2×grosor lateral) / 2 (exterior = vano − 42 + 2g).
+  const holgura = key === 'oculta' ? Math.max(0, (42 - 2 * espLat) / 2) : rule.holgura;
+  return { key, rule, holgura };
+}
 const CAJA_MAS_BAJA_QUE_FRENTE = 30; // la caja queda 30 mm mas baja que el frente
 const LUZ_PARA_REFUERZO = 600; // repisas con luz >= 600 llevan refuerzo de 100 mm
                                // (el parser exige soporte a partir de 600 mm)
@@ -231,12 +268,14 @@ export function addDrawer(moduleId, index, {
   nPorFila = 1,
   altBandeja = 150,
   espesorFrente = 15,
+  riel = RIEL_DEFAULT,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
   validateDimension(profundidadModulo, 'profundidadModulo', errors, { min: 100 });
   validateDimension(altoVano, 'altoVano', errors, { min: 50 });
   if (!['corredera', 'volquete'].includes(tipo)) errors.push(`tipo: "${tipo}" no soportado (corredera|volquete)`);
+  if (riel === 'marco') errors.push('riel "marco" solo aplica a zapateras (herraje de catálogo)');
   if (!['cajon', 'zapatera'].includes(vocabulario)) errors.push(`vocabulario: "${vocabulario}" no soportado (cajon|zapatera)`);
   const cf = validateColor(colorFrente, errors, 'colorFrente');
   const cl = validateColor(colorLateral, errors, 'colorLateral');
@@ -250,13 +289,15 @@ export function addDrawer(moduleId, index, {
   const frenteAncho = nPorFila === 1 ? W - 2 : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
   const frenteAlto = altoVano - 3;
   const volquete = tipo === 'volquete';
-  const profCajon = D - (volquete ? 15 : 25);
+  // El tipo de riel define las medidas de la caja (spec del taller).
+  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, ESP_LAT);
+  const profCajon = volquete ? D - 15 : rielRegla.fondoMm(profundidadModulo, E);
   const latAlto = volquete
     ? Math.min(frenteAlto - 2 * ESP_BASE, altBandeja)
     : frenteAlto - 2 * ESP_BASE;
   const interior = volquete
     ? frenteAncho - 2 * ESP_LAT
-    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * HOLGURA_CORREDERA) - 2 * ESP_LAT;
+    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * rielHolgura) - 2 * ESP_LAT;
 
   if (interior <= 0) {
     return { ok: false, errors: [`cajon: vano de ${anchoModulo} mm demasiado estrecho para ${nPorFila} cajon/cajones`] };
@@ -286,7 +327,9 @@ export function addDrawer(moduleId, index, {
     piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab}${num} M${moduleId}`, interior, profCajon, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-tirador`, `Tirador ${vocab}${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
   );
-  return { ok: true, pieces, submodulo: sub, frente: { ancho: frenteAncho, alto: frenteAlto } };
+  const warnings = [];
+  if (!volquete && rielRegla.nota) warnings.push(rielRegla.nota);
+  return { ok: true, pieces, submodulo: sub, frente: { ancho: frenteAncho, alto: frenteAlto }, warnings };
 }
 
 // ── Utilidades ────────────────────────────────────────────────────
@@ -338,6 +381,7 @@ export function addShoeTray(moduleId, index, {
   colorFrente = '#8B5A2B',
   colorLateral = '#D9C2A3',
   division = true,
+  riel = RIEL_DEFAULT,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -365,33 +409,53 @@ export function addShoeTray(moduleId, index, {
 
   const sub = `${moduleId}${index}`;
   const num = ` ${index}`;
+  // Herraje de catálogo: marco de aluminio regulable con rieles propios —
+  // no se fabrica cajón; solo el frente (va atornillado al marco) y tirador.
+  if (riel === 'marco') {
+    return {
+      ok: true,
+      submodulo: sub,
+      frente: { ancho: frenteAncho, alto: frenteAlto },
+      warnings: [`${RIEL_RULES.marco.nota} Vano de ${anchoModulo} mm (p. ej. marco regulable 800–900).`],
+      pieces: [
+        piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera marco regulable${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+        piece(`m${moduleId}zapatera${index}-tirador`, `Tirador zapatera marco regulable${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
+      ],
+    };
+  }
+  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, ESP_LAT);
+  const profBandeja2 = rielRegla.fondoMm(profundidadModulo, E);
+  const interior2 = Math.round(W - 2 * rielHolgura) - 2 * ESP_LAT;
   const pieces = [
     piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior, Math.max(20, latAlto - ESP_BASE), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, latAlto - ESP_BASE), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
   ];
   if (!frenteCompleto) {
     // Frente bajo: la cara cierra la abertura sobre la bandeja (como cajón).
-    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, `Cara zapatera extraible${num} M${moduleId}`, interior, Math.max(20, frenteAlto - 2 * ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, `Cara zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, frenteAlto - 2 * ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   if (division) {
     // División central (por defecto): apoyo paralelo al fondo a media
     // profundidad de la bandeja. Sirve de respaldo para la fila delantera
     // de zapatos; la fila trasera se apoya en el fondo. El renderer la
     // posiciona centrada (rol drawer_divider).
-    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior, Math.max(20, latAlto - ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, latAlto - ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
-    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior, profBandeja, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior2, profBandeja2, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-tirador`, `Tirador zapatera extraible${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
   );
+  const warnings = [];
+  if (rielRegla.nota) warnings.push(rielRegla.nota);
   return {
     ok: true,
     pieces,
     submodulo: sub,
     frenteCompleto,
     frente: { ancho: frenteAncho, alto: frenteAlto },
+    warnings,
   };
 }
 
