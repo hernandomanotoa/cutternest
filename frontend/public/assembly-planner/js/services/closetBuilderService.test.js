@@ -13,6 +13,7 @@ import {
   addHangerRail,
   addDoubleRail,
   addDrawer,
+  addShoeTray,
   nextModuleId,
   countRootModules,
   rootModuleIds,
@@ -289,5 +290,27 @@ describe('buildCloset', () => {
   it('rechaza config sin modulos', () => {
     assert.equal(buildCloset({}).ok, false);
     assert.equal(buildCloset({ modules: [] }).ok, false);
+  });
+});
+
+describe('zapatera: división central (apoyo de la fila delantera)', () => {
+  it('por defecto genera la división paralela al fondo (rol drawer_divider)', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    assert.ok(r.ok);
+    const div = r.pieces.find((p) => p.id === 'm1zapatera1-division');
+    assert.ok(div, 'división presente por defecto');
+    const fondo = r.pieces.find((p) => p.id === 'm1zapatera1-fondo');
+    assert.equal(div.ancho, fondo.ancho, 'misma luz interior que el fondo');
+    assert.equal(div.alto, fondo.alto, 'misma altura de apoyo que el fondo');
+    assert.equal(inferRole(div), 'drawer_divider');
+    assert.equal(div.modulo, '11');
+  });
+
+  it('division: false la omite', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, division: false });
+    assert.ok(r.ok);
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-division')), false);
+    // El resto del conjunto intacto (frente, laterales, fondo, cara, base, tirador).
+    assert.equal(r.pieces.length, 7);
   });
 });

@@ -1061,3 +1061,25 @@ test('Reordenar módulo con cajones/zapateras: los submódulos viajan sin quedar
   assert.ok(![...new Set(p2.map((p) => String(p.modulo)))].some((m) => m.startsWith('x')));
   view.destroy();
 });
+
+test('Zapatera: división central por defecto, opcional, y se elimina con el grupo', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // Por defecto (checkbox activado): la zapatera lleva división.
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+  let pieces = store.get().pieces;
+  assert.ok(pieces.some((p) => p.id === 'm1zapatera1-division'), 'división presente por defecto');
+  // Sin división: se desmarca el checkbox.
+  container.querySelector('[data-module-scoped="1"] [data-division]').checked = false;
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+  pieces = store.get().pieces;
+  assert.equal(pieces.some((p) => p.id === 'm1zapatera2-division'), false, 'sin división cuando se desmarca');
+  assert.ok(pieces.some((p) => p.id === 'm1zapatera2-fondo'), 'el resto del conjunto intacto');
+  // Eliminar la zapatera 1 (con división) limpia también la división.
+  click(container, '[data-action="remove-content"][data-ref="m1zapatera1-frente"]');
+  click(container, '[data-action="remove-content"][data-ref="m1zapatera1-frente"]');
+  pieces = store.get().pieces;
+  assert.equal(pieces.some((p) => p.id === 'm1zapatera1-division'), false, 'la división se elimina con el grupo');
+  assert.equal(pieces.some((p) => /^m1zapatera1-/.test(p.id)), false, 'sin residuos del submódulo 1');
+  view.destroy();
+});

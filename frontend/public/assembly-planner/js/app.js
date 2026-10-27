@@ -624,6 +624,8 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
+        // División central (apoyo de la fila delantera): por defecto va.
+        division: opts.division !== false,
       });
     } else {
       result = addDrawer(moduleId, idx, {
@@ -999,7 +1001,7 @@ export function removeContentPiece(refId) {
   let pieces = state.pieces.filter((p) => {
     const id = String(p.id);
     if (id === ref) return false;
-    if (id.startsWith(groupPrefix) && /-(frente|lateral|fondo|cara|base|tirador)$/.test(id)) return false;
+    if (id.startsWith(groupPrefix) && /-(frente|lateral(-izq|-der)?|fondo|cara|division|base|tirador)$/.test(id)) return false;
     // La repisa arranca su refuerzo asociado.
     if (esRepisa && id === ref.replace('-repisa-', '-refuerzo-repisa-')) return false;
     return true;
@@ -1235,7 +1237,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   //    submodulo del modulo que contienen un frente (rol drawer_face). Las
   //    piezas regeneradas se RENOMBRAN a los ids viejos (mismo sufijo) para
   //    conservar la convencion y las dependencias por id.
-  const SUFIJOS = ['lateral-izq', 'lateral-der', 'frente', 'fondo', 'cara', 'base', 'tirador'];
+  const SUFIJOS = ['lateral-izq', 'lateral-der', 'frente', 'fondo', 'cara', 'division', 'base', 'tirador'];
   const sufijoDe = (id) => SUFIJOS.find((s) => String(id).endsWith(`-${s}`));
   const esSubmoduloDe = (mod) => {
     const m = String(mod || '');
@@ -1267,6 +1269,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         altoLateral: Math.max(40, Number(lateral?.alto) || RAIL_SIDE_HEIGHT),
         colorFrente: frente.color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',
+        division: piezasGrupo.some((p) => sufijoDe(p.id) === 'division'),
       })
       : addDrawer(moduleId, 1, {
         anchoModulo: dims.ancho,

@@ -344,7 +344,10 @@ export function createConstructorView(store) {
       const insetTapa = Number(container.querySelector(`${scoped} [data-inset-tapa]`)?.value) || 0;
       const nPorFila = Number(container.querySelector(`${scoped} [data-n-por-fila]`)?.value) || 1;
       const espesorFrente = Number(container.querySelector(`${scoped} [data-espesor-frente]`)?.value) || 15;
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente });
+      // División central de la zapatera (apoyo de la fila delantera): el
+      // checkbox por defecto va activado; solo aplica a zapateras.
+      const division = container.querySelector(`${scoped} [data-division]`)?.checked !== false;
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -826,6 +829,9 @@ function renderModuleCard(group, allPieces) {
             ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}
             <option value="personalizado">Personalizada (usar vano libre)</option>
           </select>
+        </label>
+        <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División zapatera
+          <input type="checkbox" data-division checked />
         </label>
         <label class="form-group" style="margin:0;">Mecanismo
           <select data-mecanismo>

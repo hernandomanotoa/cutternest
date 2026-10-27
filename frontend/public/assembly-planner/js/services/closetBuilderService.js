@@ -337,6 +337,7 @@ export function addShoeTray(moduleId, index, {
   espesorFrente = 15,
   colorFrente = '#8B5A2B',
   colorLateral = '#D9C2A3',
+  division = true,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -373,6 +374,13 @@ export function addShoeTray(moduleId, index, {
   if (!frenteCompleto) {
     // Frente bajo: la cara cierra la abertura sobre la bandeja (como cajón).
     pieces.push(piece(`m${moduleId}zapatera${index}-cara`, `Cara zapatera extraible${num} M${moduleId}`, interior, Math.max(20, frenteAlto - 2 * ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+  }
+  if (division) {
+    // División central (por defecto): apoyo paralelo al fondo a media
+    // profundidad de la bandeja. Sirve de respaldo para la fila delantera
+    // de zapatos; la fila trasera se apoya en el fondo. El renderer la
+    // posiciona centrada (rol drawer_divider).
+    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior, Math.max(20, latAlto - ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior, profBandeja, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
