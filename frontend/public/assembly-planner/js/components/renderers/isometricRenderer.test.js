@@ -1287,3 +1287,22 @@ describe('IsometricRenderer gap de módulos configurable y marco opaco', () => {
     assert.equal(geoms2.find((g) => g.id === 'glb-zocalo-lateral-izq').opacity, 0.4);
   });
 });
+
+describe('IsometricRenderer vista Global/Estructura', () => {
+  it('el marco se dibuja a su ancho total (no achicado a una banda)', () => {
+    const mods = [
+      ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces,
+      ...createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '2' }).pieces,
+    ];
+    const marco = buildPlinthFrame({
+      moduleWidths: [850, 850], profundidad: 600, altoZocalo: 100, espesor: 15, nZocalos: 2,
+    }).pieces;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries, moduleW } = renderer.computeGeometries('estructura', [...mods, ...marco]);
+    assert.equal(moduleW, 1700, 'el ancho de la vista es el ancho total del marco');
+    const f2 = geometries.find((g) => g.id === 'glb-zocalo-s2-frente');
+    assert.equal(f2.w, 820, 'la banda S2 a su ancho real (850−2e, sin escala)');
+    const der = geometries.find((g) => g.id === 'glb-zocalo-s2-costado-der');
+    assert.equal(der.x + der.w, 1700, 'el costado derecho cierra el ancho total');
+  });
+});

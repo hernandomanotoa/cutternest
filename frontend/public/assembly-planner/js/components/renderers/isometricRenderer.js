@@ -36,6 +36,7 @@ import {
   sortModuleIds,
 } from './isometric/moduleGeometry.js';
 import { buildGlobalGeometries } from './isometric/globalGeometry.js';
+import { plinthTotalWidth } from '../../services/plinthFrameService.js';
 import { MODULE_GAP_MM } from '../../core/config.js';
 import { buildSeatingGeometries } from './isometric/seatingGeometry.js';
 import { buildFrontPanelGeometries } from './isometric/frontPanelGeometry.js';
@@ -149,7 +150,7 @@ export class IsometricRenderer {
     }
 
     const dims = getModuleDimensions(allPieces, inferThickness(allPieces), family);
-    const moduleW = dims.width;
+    let moduleW = dims.width;
     const moduleH = dims.height;
     const moduleD = getModuleDepth(pieces);
     const thickness = dims.thickness;
@@ -169,7 +170,12 @@ export class IsometricRenderer {
     let geometries = [];
 
     if (isGlobalModule) {
-      geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, true, zocaloHeight));
+      // Vista Global/Estructura: el ancho debe ser el del MARCO completo
+      // (Σ bandas), no el de una sola pieza global — si no, el zócalo se
+      // dibuja achicado (escala = ancho parcial / ancho total).
+      const marcoW = plinthTotalWidth(globalPieces);
+      if (marcoW) moduleW = marcoW;
+      geometries.push(...this._buildGlobalGeometries(globalPieces, marcoW || moduleW, moduleD, moduleH, thickness, true, zocaloHeight));
     } else if (target === ALL_MODULE_ID) {
       const nonGlobalPieces = allPieces.filter((p) => !isGlobalPiece(p));
       const moduleGroups = this._groupByModule(nonGlobalPieces);
