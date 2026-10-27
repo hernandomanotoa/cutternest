@@ -90,7 +90,10 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
 
   const E = espesor;
   const baseW = baseInterna ? ancho - 2 * E : ancho;
-  const baseD = baseInterna ? prof - 2 * E : prof;
+  // Base con zócalo: entre laterales (ancho−2E) y hasta la pared (prof−E,
+  // 'front_flush': trasero contra el fondo/zócalo-trasero, sellando el
+  // cajón del zócalo por arriba; el frente queda oculto tras el retraso).
+  const baseD = baseInterna ? prof - E : prof;
   // Fondo: embutido (alto − 2E); con zócalo se descuenta además la zona del
   // zócalo para apoyarse sobre la base interior (altura total fija).
   const plinthDrop = baseInterna ? Math.max(0, Number(alturaZocalo) || 0) : 0;

@@ -62,10 +62,11 @@ describe('createModule', () => {
     assert.ok(r.ok);
     const base = r.pieces.find((p) => p.id === 'm1-base');
     const tapa = r.pieces.find((p) => p.id === 'm1-tapa');
-    assert.equal(base.ancho, 820);  // 850 - 2*15
-    assert.equal(base.alto, 570);   // 600 - 2*15
+    assert.equal(base.ancho, 820);  // 850 - 2*15 (entre laterales)
+    assert.equal(base.alto, 585);   // 600 - 15 (hasta la pared: front_flush)
     assert.equal(tapa.ancho, 850);  // la tapa sigue externa
-    // El renderer debe clasificar la base como 'internal' → bottomPanelOffset
+    // El renderer clasifica la base 'front_flush' en profundidad; el ancho
+    // interno manda para apoyarla sobre el zócalo (bottomPanelOffset).
     // = altura del zocalo (se apoya sobre el, no en el suelo).
     const { classifyTopBottomMount } = geometryService;
     assert.equal(classifyTopBottomMount(base, 850, 600, 15), 'internal');

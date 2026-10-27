@@ -596,7 +596,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       && Number(base.ancho) >= Number(tapa.ancho)) {
       const altoModulo = Number(lateral.alto) || 0;
       piecesMutadas = state.pieces.map((p) => {
-        if (p.id === base.id) return { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - 2 * espesor };
+        if (p.id === base.id) return { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - espesor };
         if (p.id === `m${moduleId}-fondo` && altoModulo) {
           return { ...p, alto: Math.max(100, altoModulo - altoZocalo - 2 * espesor) };
         }
@@ -1142,7 +1142,7 @@ export function applyStructuralPlinth(opts = {}) {
     const tapaW = anchoTapa.get(mm[1]) || 0;
     const prof = profLateral.get(mm[1]) || 0;
     if (tapaW && Number(p.ancho) >= tapaW - 2 && prof) {
-      return { ...p, ancho: tapaW - 2 * e, alto: prof - 2 * e };
+      return { ...p, ancho: tapaW - 2 * e, alto: prof - e };
     }
     return p;
   });
@@ -1307,7 +1307,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     ? (Number(zocaloSimple.alto) || 0)
     : marcoZocaloHeight(state.pieces);
   const cascoIds = {
-    base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? profUtil : dims.prof],
+    base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? dims.prof - espesor : dims.prof],
     tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
     'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
     'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],

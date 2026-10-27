@@ -65,11 +65,12 @@ test('agregar m처dulo con z처calo: casco 6 piezas, base INTERNA apoyada sobre z�
 
   const piezas = store.get().pieces;
   assert.equal(piezas.filter((p) => p.modulo === '1').length, 6); // casco 5 + zocalo 1
-  // Base interna (820x570): el renderer la apoya sobre el z처calo (z=150).
+  // Base (820x585, front_flush: hasta la pared): el renderer la apoya sobre
+  // el z처calo (z=150).
   const base = piezas.find((p) => p.id === 'm1-base');
   const tapa = piezas.find((p) => p.id === 'm1-tapa');
   assert.equal(base.ancho, tapa.ancho - 2 * base.espesor);
-  assert.equal(base.alto, tapa.alto - 2 * base.espesor);
+  assert.equal(base.alto, tapa.alto - base.espesor);
   assert.match(container.textContent, /M처dulo 1/);
   view.destroy();
 });
@@ -951,7 +952,7 @@ test('Marco sobre m처dulo sin "con z처calo": la base externa pasa a interna', ()
   click(container, '[data-action="apply-plinth"]');
   const base = store.get().pieces.find((p) => p.id === 'm1-base');
   assert.equal(base.ancho, 850 - 2 * 15, 'base interna (apoyada sobre el marco)');
-  assert.equal(base.alto, 600 - 2 * 15, 'profundidad interna');
+  assert.equal(base.alto, 600 - 15, 'profundidad hasta el fondo (front_flush)');
   view.destroy();
 });
 
