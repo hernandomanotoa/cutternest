@@ -1035,3 +1035,29 @@ test('Datos de obra no aplican con zócalo a marco (la altura la define el marco
   assert.ok(!container.textContent.includes('No cabe en vertical'), 'sin aviso de diagonal con marco');
   view.destroy();
 });
+
+test('Reordenar módulo con cajones/zapateras: los submódulos viajan sin quedar huérfanos', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // M1
+  // M2 con cajón y zapatera
+  click(container, '[data-action="add-module"]');
+  container.querySelector('[data-module-scoped="2"] [data-alto-vano]').value = '200';
+  click(container, '[data-action="add-content"][data-kind="drawer"][data-module="2"]');
+  click(container, '[data-action="add-content"][data-kind="shoeRack"][data-module="2"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm2cajon1-frente'), 'submódulo cajón en M2');
+  // Mover M2 a la izquierda (intercambio con M1).
+  click(container, '[data-action="move-module"][data-module="2"][data-dir="izq"]');
+  const pieces = store.get().pieces;
+  const mods = new Set(pieces.map((p) => String(p.modulo)));
+  assert.ok(![...mods].some((m) => m.startsWith('x')), `sin módulos temporales huérfanos: ${[...mods].join(',')}`);
+  assert.equal(pieces.some((p) => p.id === 'm1cajon1-frente'), true, 'el cajón renombró a M1');
+  assert.ok(pieces.some((p) => p.id === 'm1zapatera2-frente'), 'la zapatera renombró a M1');
+  assert.equal(pieces.filter((p) => p.id === 'm1-base').length, 1, 'casco de M1 intacto (una sola base)');
+  // De vuelta a la derecha: todo regresa.
+  click(container, '[data-action="move-module"][data-module="1"][data-dir="der"]');
+  const p2 = store.get().pieces;
+  assert.ok(p2.some((p) => p.id === 'm2cajon1-frente'), 'el cajón volvió a M2');
+  assert.ok(p2.some((p) => p.id === 'm2zapatera2-frente'), 'la zapatera volvió a M2');
+  assert.ok(![...new Set(p2.map((p) => String(p.modulo)))].some((m) => m.startsWith('x')));
+  view.destroy();
+});

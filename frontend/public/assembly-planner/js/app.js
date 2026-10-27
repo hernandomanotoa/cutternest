@@ -1050,9 +1050,14 @@ export function moveModule(moduleId, direction) {
 function renameModulePrefix(pieces, oldId, newId) {
   const oldPref = `m${oldId}`;
   const newPref = `m${newId}`;
+  // El prefijo numérico es ambiguo con las raíces ('81' puede ser el módulo
+  // 81 o el submódulo 1 del 8): al renombrar una raíz, todo lo que empieza
+  // con su número viaja con ella. Vale también para el prefijo temporal
+  // 'x{n}' del intercambio (moveModule): sus submódulos 'x{n}{k}' deben
+  // seguirlo; sin esto quedaban huérfanos como módulos 'x81', 'x82'...
   const pertenece = (mod) => {
     const m = String(mod || '');
-    return m === String(oldId) || (m.startsWith(String(oldId)) && /^\d+$/.test(oldId));
+    return m === String(oldId) || m.startsWith(String(oldId));
   };
   return pieces.map((p) => {
     const mod = String(p.modulo || '');
