@@ -117,18 +117,51 @@ Si el vano no alcanza para que cada frente cubra su caja (lateral + 10 mm),
 `applyGola` devuelve `{ok: false}` con explicación. La activación emite
 warnings si redujo frentes o aplicó el cap.
 
+- **Activación con vista previa**: `previewGola(moduleId)` (app.js, dry-run
+  puro, sin mutar el store) devuelve `{ok, warnings, plan}` con el plan
+  (`unidades`, `tiras`, `frentes: [{nombre, antes, despues}]`, `agarre`,
+  `gapGola`). La tarjeta del Constructor lo muestra en un panel inline con
+  botones Aplicar/Cancelar antes de mutar; la desactivación sigue directa
+  (reversible con Ctrl+Z).
+- **Edición de dimensiones**: `editModuleDimensions` re-aplica el gola como
+  parte de la misma acción si el módulo lo tiene activo (helper compartido
+  `reapplyGolaPieces`: restaura con meta + `applyGola`; un solo undo). Si el
+  nuevo vano queda insuficiente, la edición se conserva y el motivo se
+  devuelve como `warnings`.
+- **Versiones**: los metas gola viajan en la versión local (campo opcional
+  `golaMetas` en `projectVersionsService.saveVersion`, schema sin cambios,
+  tolerante a versiones viejas) y `loadVersionById` los rehidrata en
+  `cn-assembly-gola` (merge, no borra metas de otros módulos).
 - Render: `golaGeometry.js` (builder iso enganchado en `moduleGeometry.js`;
   la 3D lo hereda vía `computeGeometries`). Las tiras se dibujan
   retranqueadas `golaStripSetback` detrás del plano de frentes, con
   `ROLE_COLORS.gola_strip` / `Z_INDEX.gola_strip` (22, bajo `drawer_face`).
+  Además emite marcas del **canal de agarre** (rol `gola_grip`, capa 27):
+  una caja fina sobre cada tira (alto = gap real al frente superior) y otra
+  bajo el frente L; color en `ROLE_COLORS.gola_grip` (config, no en la
+  vista); sin etiqueta de pieza (`pieceStyling.makeLabel` devuelve `''`).
 - Materiales/planos: `calculateHardware` lista "Perfil gola melamina"
   agrupado por largo de corte + "Tornillo fijación gola"
   (tiras × `golaTornillosPorPerfil`); paso de montaje "interior" en
-  `assemblyStepService` con instrucción en `instructions.js`.
+  `assemblyStepService` con instrucción en `instructions.js`. El manual
+  (`manualExporter.buildStandaloneHtml`, 6º parámetro opcional
+  retrocompatible `{userConfig, golaLFrontIds}`) renderiza la sección
+  **"Perfiles gola"** vía `golaReport(pieces, userConfig, opts)` (filas:
+  identificador, ubicación "Entre cajón i e i+1" / "L-gola: bajo la
+  repisa", longitud de corte, cantidad, material/acabado, fijación).
+  Nota: el frente L de módulos de 1 solo cajón solo aparece si el caller
+  pasa `opts.golaLFrontIds` (app.js conoce el meta persistido).
+- **Validación geométrica**: `validateGola` además del chequeo aritmético
+  vigila la **interferencia tira↔caja en profundidad** (eje Y del renderer,
+  y=0 en el fondo): error si `yTira < espesor` (retranqueo excesivo) o si la
+  tira sobresale por detrás de las cajas (`yTira − golaStripDepth < espesor − 1`).
+  Solo cuando la profundidad del casco es derivable (`cascoDims` la obtiene
+  del alto de la tapa o del ancho de un lateral).
 - **Limitaciones**: sin mecanizados en tablero; la L capada deja hueco
-  visible sobre el frente superior; `editModuleDimensions` no re-anchoa
-  tiras ni re-deriva `topRef` (con gola activo, re-aplicar `enableGola`);
-  los parámetros son de taller hasta seleccionar un perfil comercial.
+  visible sobre el frente superior; los parámetros son de taller hasta
+  seleccionar un perfil comercial. Futuro: tiras segmentadas por columna de
+  frentes (`nPorFila = 2`), gola en zócalo/base, redistribución del hueco
+  dejado por el cap.
 
 ### Versiones
 
@@ -138,7 +171,11 @@ warnings si redujo frentes o aplicó el cap.
   dependencias; `loadVersion` re-parsea con `parseCSV` para recuperar los
   derivados (`tipo`, `orientacion`, `riesgo`) recalculados. Tolerante a JSON
   corrupto y a storage ausente. `togglePinVersion` marca `pinned`; las
-  fijadas sobreviven a `deleteAllVersions`.
+  fijadas sobreviven a `deleteAllVersions`. Cada versión puede llevar
+  `golaMetas` (map moduleId→meta del sistema gola, campo opcional tolerante
+  a versiones viejas): `app.js` los guarda al versionar y los rehidrata
+  (merge) al cargar, para que `disableGola` restaure exacto tras un
+  guardar/cargar.
 - **Nube** (`designVersionsClient.js` + backend `/api/v1/planner-design-versions`):
   tabla `planner_design_versions` (owner FK, name, csv, piece_count,
   saved_at; se crea sola vía `init_db`). CRUD autenticado (usuario
@@ -191,7 +228,9 @@ proporción y **ocupa la misma fracción de pantalla** que en tamaño normal.
 | Suite | Qué cubre |
 |---|---|
 | `js/services/closetBuilderService.test.js` | Invariantes geométricas + 100 closets aleatorios re-parsean sin errores/warnings (salvo heurística de cobertura de frentes). |
-| `js/services/golaService.test.js` | Sistema gola: tiras N−1 entre frentes (N = 2..5), agarre, L-gola (con/sin repisa, cap), coherencia del reparto, cubre-caja, round-trip con/sin meta, BOM, límites (0/1 cajón, vano insuficiente), geo `gola_strip` en el renderer. |
+| `js/services/golaService.test.js` | Sistema gola: tiras N−1 entre frentes (N = 2..5), agarre, L-gola (con/sin repisa, cap), coherencia del reparto, cubre-caja, round-trip con/sin meta, BOM, límites (0/1 cajón, vano insuficiente), geo `gola_strip`/`gola_grip` en el renderer, interferencia tira↔caja en profundidad, reporte para el manual. |
+| `test/views/golaPreview.dom.test.js` | Vista previa del gola: panel con plan, confirmar aplica, cancelar no muta, `previewGola` es dry-run, fallo revierte el checkbox. |
+| `test/views/golaDimensions.dom.test.js` | `editModuleDimensions` con gola activo re-aplica tiras (re-anchoa/reposiciona) en la misma acción (un solo undo); vano insuficiente → edición OK con warning; save/load de versión rehidrata metas (disable restaura exacto). |
 | `js/services/projectVersionsService.test.js` | CRUD, round-trip, tope 50, JSON corrupto, pin. |
 | `js/services/__tests__/userConfigService.test.js` | Presets: default ← preset ← edición del usuario. |
 | `test/views/constructorView.dom.test.js` | Flujos UI: agregar/editar/duplicar/reordenar/eliminar, undo (botón y Ctrl+Z), versiones (incl. pin y Enter), nube (mock), vano libre, reparto de ancho, panel de avisos. |

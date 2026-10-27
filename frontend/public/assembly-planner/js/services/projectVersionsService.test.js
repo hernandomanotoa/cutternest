@@ -155,6 +155,54 @@ describe('projectVersionsService', () => {
     assert.ok(csv.includes('id,nombre,ancho'));
     assert.equal(versionCsv('nope'), null);
   });
+
+  it('golaMetas: round-trip preserva el map moduleId→meta', () => {
+    const pieces = muebleDePrueba();
+    const golaMetas = {
+      1: { moduleId: '1', origSpan: 777.5, origHeights: { 'm1cajon1-frente': 197 }, origTops: { 'm1cajon1-frente': 25 } },
+    };
+    const saved = saveVersion('Con gola', { pieces, golaMetas });
+    assert.ok(saved.ok, saved.error);
+
+    const loaded = loadVersion(saved.version.id);
+    assert.ok(loaded.ok, loaded.error);
+    assert.deepEqual(loaded.golaMetas, golaMetas);
+  });
+
+  it('golaMetas: version guardada sin el campo carga con null (dato viejo)', () => {
+    const saved = saveVersion('Sin gola', { pieces: muebleDePrueba() });
+    assert.ok(saved.ok, saved.error);
+    const loaded = loadVersion(saved.version.id);
+    assert.ok(loaded.ok, loaded.error);
+    assert.equal(loaded.golaMetas, null);
+  });
+
+  it('golaMetas: version escrita a mano sin el campo (schema viejo) no rompe', () => {
+    // Simula una version persistida antes de que existiera golaMetas:
+    // inyecta el contenedor JSON directo, sin el campo.
+    const pieces = muebleDePrueba();
+    const csv = versionCsv(saveVersion('Tmp', { pieces }).version.id);
+    const vieja = {
+      schema: 1,
+      versions: [{
+        id: 'v-vieja', name: 'Legacy', savedAt: new Date().toISOString(),
+        pieceCount: pieces.length, csv, dependencies: [],
+      }],
+    };
+    globalThis.localStorage = createMockStorage({ 'cn-assembly-versions': JSON.stringify(vieja) });
+    const loaded = loadVersion('v-vieja');
+    assert.ok(loaded.ok, loaded.error);
+    assert.equal(loaded.golaMetas, null);
+    assert.equal(loaded.pieces.length, pieces.length);
+  });
+
+  it('golaMetas: duplicateVersion copia el campo', () => {
+    const golaMetas = { 1: { moduleId: '1', origSpan: 100, origHeights: {}, origTops: {} } };
+    const saved = saveVersion('Base', { pieces: muebleDePrueba(), golaMetas });
+    const copy = duplicateVersion(saved.version.id);
+    assert.ok(copy.ok);
+    assert.deepEqual(loadVersion(copy.version.id).golaMetas, golaMetas);
+  });
 });
 
 describe('projectVersionsService/zócalo estructural a marco', () => {

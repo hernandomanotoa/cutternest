@@ -15,6 +15,7 @@
 //   isGolaEnabled(pieces, moduleId)     → bool (hay tiras del módulo)
 //   drawerUnits(pieces, moduleId)       → unidades-cajón (para la UI/tests)
 //   getGolaCfg(userConfig)              → defaults + overrides persistidos
+//   golaReport(pieces, cfg, opts?)      → filas "Perfiles gola" para el manual
 //
 // Convenciones: unidades ordenadas por min pos_z de sus frentes (unidad 1 =
 // la más baja, unidad N = la más alta, que recibe la L). Gap gola entre
@@ -127,10 +128,16 @@ function cascoDims(pieces, moduleId) {
   const anchoModulo = tapa ? Number(tapa.ancho) || 0 : 0;
   const altoModulo = lateral ? Number(lateral.alto) || 0 : 0;
   if (!anchoModulo || !altoModulo) return null;
+  // Profundidad del casco: el ALTO de la tapa (se modela ancho × prof) o, en
+  // su defecto, el ANCHO de un lateral (prof × alto). 0 = no derivable (p. ej.
+  // CSV sin tapa reconocible): validateGola omite entonces el chequeo de
+  // interferencia tira↔caja en el eje Y.
+  const profundidad = (tapa && Number(tapa.alto)) || (lateral && Number(lateral.ancho)) || 0;
   return {
     anchoModulo,
     altoModulo,
     espesor,
+    profundidad,
     anchoInterior: anchoModulo - 2 * espesor,
     techoInterior: altoModulo - espesor, // cara inferior de la tapa
     colorCuerpo: String((lateral || tapa).color || ''),
@@ -464,6 +471,30 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
     }
   });
 
+  // Interferencia en profundidad (eje Y; y=0 en el fondo del casco y +y hacia
+  // el frente, misma referencia que drawerGeometry/golaGeometry). La tira va
+  // retranqueada detrás del plano de frentes (yFace = moduleD − espesor +
+  // drawerGap 15) y se extiende golaStripDepth hacia el fondo. Las cajas
+  // ocupan aprox. [espesor, moduleD − espesor − 10] (profundidad de caja =
+  // moduleD − 2·espesor − 10). Como ambos rangos se solapan casi siempre, el
+  // chequeo útil es que la tira no sobresalga por detrás de las cajas ni
+  // quede retranqueada hasta detrás del plano interior del fondo.
+  const DRAWER_GAP_REF = 15;
+  const TOLERANCIA_PROF = 1;
+  if (tiras.length && casco && casco.profundidad > 0) {
+    const yTira = casco.profundidad - casco.espesor + DRAWER_GAP_REF - cfg.golaStripSetback;
+    const yTraseroTira = yTira - cfg.golaStripDepth;
+    if (yTira < casco.espesor) {
+      errors.push(
+        `Gola: retranqueo excesivo (golaStripSetback ${cfg.golaStripSetback} mm): la tira quedaría detrás del plano interior del fondo (frente de tira a ${Math.round(yTira)} mm < espesor ${casco.espesor} mm).`
+      );
+    } else if (yTraseroTira < casco.espesor - TOLERANCIA_PROF) {
+      errors.push(
+        `Gola: la tira sobresale por detrás de las cajas (golaStripDepth ${cfg.golaStripDepth} mm en módulo de ${casco.profundidad} mm de fondo: trasero de tira a ${Math.round(yTraseroTira)} mm < espesor ${casco.espesor} mm). Reduzca la profundidad de la tira o aumente el fondo del módulo.`
+      );
+    }
+  }
+
   // Extensión L del último frente y span total.
   const ultima = unidades[N - 1];
   const altoUltima = Math.max(...ultima.frentes.map((f) => Number(f.alto) || 0));
@@ -488,4 +519,77 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
   }
 
   return { errors, warnings };
+}
+
+// Módulo raíz de una pieza: '11' → '1', '1.2' → '1' (misma convención que
+// perteneceAModulo). Sin prefijo numérico, devuelve el módulo tal cual.
+function raizDe(modulo) {
+  const m = String(modulo || '').trim();
+  const match = m.match(/^(\d+)/);
+  return match ? match[1] : m;
+}
+
+function materialDe(p) {
+  const color = String(p?.color || '').trim();
+  return color ? `Melamina (${color})` : 'Melamina';
+}
+
+/**
+ * Reporte de perfiles gola para el manual de ensamblaje: una fila por tira
+ * (ubicación relativa a los frentes, longitud de corte, material, fijación)
+ * más una fila por frente L (el de la unidad superior del módulo recibe la
+ * L-gola por construcción de applyGola; ids adicionales pueden pasarse en
+ * opts.lFrontIds, p. ej. desde el meta persistido por app.js).
+ *
+ * @returns {Array<{id:string, ubicacion:string, corteMm:number, cantidad:number, material:string, fijacion:string}>}
+ *          [] cuando no hay tiras ni frentes L declarados.
+ */
+export function golaReport(pieces, userConfig = {}, opts = {}) {
+  const cfg = getGolaCfg(userConfig);
+  const lista = pieces || [];
+  const tiras = lista.filter(esTiraGola);
+  const lFrontIds = new Set((opts.lFrontIds || []).map(String));
+  const porId = new Map(lista.map((p) => [String(p.id), p]));
+  const raices = new Set(tiras.map((t) => String(t.modulo)));
+  for (const id of lFrontIds) {
+    const p = porId.get(id);
+    if (p) raices.add(raizDe(p.modulo));
+  }
+  if (!raices.size) return [];
+
+  const rows = [];
+  for (const raiz of raices) {
+    const unidades = drawerUnits(lista, raiz);
+    const tirasMod = tiras
+      .filter((t) => String(t.modulo) === raiz)
+      .sort((a, b) => Number(a.pos_z) - Number(b.pos_z));
+    tirasMod.forEach((t, i) => {
+      rows.push({
+        id: String(t.id),
+        ubicacion: `Entre cajón ${i + 1} e ${i + 2}`,
+        corteMm: Math.round(Number(t.ancho) || 0),
+        cantidad: Math.max(1, Math.round(Number(t.cantidad) || 1)),
+        material: materialDe(t),
+        fijacion: cfg.golaFijacion,
+      });
+    });
+    const esL = new Set(lFrontIds);
+    if (tirasMod.length && unidades.length) {
+      for (const f of unidades[unidades.length - 1].frentes) esL.add(String(f.id));
+    }
+    for (const u of unidades) {
+      for (const f of u.frentes) {
+        if (!esL.has(String(f.id))) continue;
+        rows.push({
+          id: String(f.id),
+          ubicacion: 'L-gola: bajo la repisa',
+          corteMm: Math.round(Number(f.ancho) || 0),
+          cantidad: Math.max(1, Math.round(Number(f.cantidad) || 1)),
+          material: materialDe(f),
+          fijacion: cfg.golaFijacion,
+        });
+      }
+    }
+  }
+  return rows;
 }

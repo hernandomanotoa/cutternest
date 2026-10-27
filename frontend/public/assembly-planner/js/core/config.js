@@ -144,6 +144,7 @@ export const ROLE_COLORS = {
   drawer_back: '#64748b',
   drawer_divider: '#64748b',
   gola_strip: '#64748b', // tira de melamina del sistema gola (gris pizarra)
+  gola_grip: '#4ECDC4', // marca del canal de agarre gola (acento mint; solo renderer)
   headboard: '#64748b',
   bed_bottom: '#64748b',
   bed_slat: '#a8a29e',
@@ -237,6 +238,7 @@ export const Z_INDEX = {
   drawer_face: 25,
   door: 25,
   handle: 26,
+  gola_grip: 27, // marca del canal de agarre: sobre el frente para que el hueco se note
   // Cama: tarima como cajón-base y láminas encima, antes del frente/cabecero
   bed_bottom: 7,
   bed_slat: 8,

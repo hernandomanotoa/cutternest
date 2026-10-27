@@ -299,6 +299,39 @@ describe('BOM (calculateHardware)', () => {
   });
 });
 
+describe('validateGola — interferencia tira↔caja en profundidad (eje Y)', () => {
+  it('caso normal (tira 60 mm retranqueada 10 mm en módulo de 500 mm de fondo): sin errores nuevos', () => {
+    const pieces = buildModule(3, { repisaZ: 900 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const v = validateGola(r.pieces, '1', {});
+    assert.deepEqual(v.errors, [], 'sin errores de interferencia en Y');
+  });
+
+  it('tira que sobresale por detrás de las cajas (golaStripDepth 480 en fondo 500) → error', () => {
+    // yTira = 500 − 15 + 15 − 10 = 490; trasero = 490 − 480 = 10 < espesor 15.
+    const pieces = buildModule(2, { repisaZ: 700 });
+    const r = applyGola(pieces, '1', { golaStripDepth: 480 });
+    assert.equal(r.ok, false);
+    assert.ok(
+      r.errors.some((e) => e.includes('detrás') || e.includes('profundidad')),
+      `error de interferencia presente: ${r.errors?.join('; ')}`,
+    );
+  });
+
+  it('retranqueo excesivo (golaStripSetback > fondo del módulo) → error', () => {
+    // yTira = 500 − 15 + 15 − 600 = −100 < espesor 15: la tira quedaría
+    // detrás del plano interior del fondo.
+    const pieces = buildModule(2, { repisaZ: 700 });
+    const r = applyGola(pieces, '1', { golaStripSetback: 600 });
+    assert.equal(r.ok, false);
+    assert.ok(
+      r.errors.some((e) => e.includes('retranqueo')),
+      `error de retranqueo presente: ${r.errors?.join('; ')}`,
+    );
+  });
+});
+
 describe('límites', () => {
   it('1 cajón: ok, 0 tiras y L-gola aplicada', () => {
     // Repisa lo bastante cerca para que la extensión L no choque con el cap.
@@ -356,5 +389,57 @@ describe('renderer (computeGeometries)', () => {
       const moduleW = ANCHO;
       assert.ok(Math.abs(g.x - (moduleW - g.w) / 2) <= 0.5);
     });
+  });
+
+  it('emite marcas gola_grip del canal de agarre (N−1 por tira + 1 bajo el frente L)', () => {
+    const pieces = buildModule(3, { repisaZ: 900 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const { geometries } = renderer.computeGeometries('1', r.pieces);
+    const grips = geometries.filter((g) => g.role === 'gola_grip');
+    assert.equal(grips.length, 3, '3 cajones ⇒ 2 agarres de tira + 1 agarre L');
+
+    const tiras = tirasDe(r.pieces);
+    const frentes = frentesOrdenados(r.pieces);
+    const yFace = PROF - ESP + 15;
+    grips.slice(0, 2).forEach((g, i) => {
+      assert.equal(g.id, `m1-gola-${i + 1}-grip`);
+      // agarre de la tira: techo de la tira → borde inferior del frente superior
+      assert.ok(Math.abs(g.z - (tiras[i].pos_z + tiras[i].alto)) <= 0.5,
+        `grip ${i + 1}: z ${g.z} = techo tira`);
+      assert.equal(g.h, GOLA_DEFAULTS.golaFingerClearance);
+      assert.ok(Math.abs(Number(frentes[i + 1].pos_z) - (g.z + g.h)) <= 0.5,
+        `grip ${i + 1}: termina en el borde inferior del frente superior`);
+      assert.equal(g.w, INTERIOR - 4, 'ancho = ancho de la tira');
+      assert.equal(g.d, 2, 'marca fina en el plano de frentes');
+      assert.equal(g.y, yFace, 'en el plano de frentes (no retranqueada)');
+      assert.equal(g.color, '#4ECDC4', 'color de acento del rol');
+    });
+
+    const lGrip = grips.find((g) => g.id === 'm1-gola-l-grip');
+    assert.ok(lGrip, 'existe la marca del agarre L');
+    const ultimo = frentes[frentes.length - 1];
+    assert.ok(Math.abs(lGrip.z - (ultimo.pos_z + ultimo.alto)) <= 0.5,
+      'z = techo del último frente');
+    assert.equal(lGrip.h, GOLA_DEFAULTS.golaFingerClearance, 'gap bajo la repisa = agarre');
+    assert.equal(lGrip.w, INTERIOR - 4);
+  });
+
+  it('sin repisa, la marca L se coloca bajo el techo interior del casco', () => {
+    const pieces = buildModule(2, { conRepisa: false });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const { geometries } = renderer.computeGeometries('1', r.pieces);
+    const grips = geometries.filter((g) => g.role === 'gola_grip');
+    assert.equal(grips.length, 2, '1 agarre de tira + 1 agarre L bajo el techo');
+    const lGrip = grips.find((g) => g.id === 'm1-gola-l-grip');
+    assert.ok(lGrip);
+    // techo interior = ALTO − ESP (sin repisa): la L no está capeada (vano alto).
+    assert.ok(Math.abs(lGrip.z + lGrip.h - TECHO_INTERIOR) <= 1,
+      `agarre L termina en el techo interior (${lGrip.z} + ${lGrip.h} ≈ ${TECHO_INTERIOR})`);
   });
 });

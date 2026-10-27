@@ -114,4 +114,33 @@ describe('manualExporter', () => {
     assert.ok(html.includes('Paso 1'), 'los pasos de la secuencia real deben aparecer');
     assert.ok(html.includes('Tiempo estimado: 10 min'), 'cada paso debe traer su tiempo default');
   });
+
+  it('incluye sección "Perfiles gola" con tiras y frente L cuando hay gola', () => {
+    const piezasGola = {
+      'm1-gola-1': { id: 'm1-gola-1', nombre: 'Perfil gola', ancho: 766, alto: 30, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 232.5 },
+      'm1cajon1-frente': { id: 'm1cajon1-frente', nombre: 'Frente cajon 1 M1', ancho: 770, alto: 197, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '11', pos_z: 25 },
+      'm1cajon2-frente': { id: 'm1cajon2-frente', nombre: 'Frente cajon 2 M1', ancho: 770, alto: 197, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '12', pos_z: 277.5 },
+    };
+    const html = buildStandaloneHtml(steps, piezasGola, 'Cajonera');
+    assert.ok(html.includes('Perfiles gola'), 'debe incluir la sección');
+    assert.ok(html.includes('m1-gola-1'), 'identificador de la tira');
+    assert.ok(html.includes('Entre cajón 1 e 2'), 'ubicación relativa a los frentes');
+    assert.ok(html.includes('766 mm'), 'longitud de corte = ancho de la tira');
+    assert.ok(html.includes('L-gola: bajo la repisa'), 'ubicación del frente L');
+    assert.ok(html.includes('m1cajon2-frente'), 'identificador del frente L (unidad superior)');
+    assert.ok(html.includes('Melamina (#C19A6B)'), 'material/acabado');
+    assert.ok(html.includes('Tornillos 3.5×16'), 'observaciones de fijación (default PROVISIONAL)');
+  });
+
+  it('respeta golaFijacion del userConfig y omite la sección sin gola', () => {
+    const piezasGola = {
+      'm1-gola-1': { id: 'm1-gola-1', nombre: 'Perfil gola', ancho: 766, alto: 30, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 232.5 },
+    };
+    const html = buildStandaloneHtml(steps, piezasGola, 'Cajonera', null, null, {
+      userConfig: { golaFijacion: 'Cola blanca + tarugos' },
+    });
+    assert.ok(html.includes('Cola blanca + tarugos'), 'fijación del userConfig');
+    const htmlSinGola = buildStandaloneHtml(steps, piecesById, 'M5');
+    assert.equal(htmlSinGola.includes('Perfiles gola'), false, 'sin gola no hay sección');
+  });
 });

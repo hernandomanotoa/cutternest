@@ -2,6 +2,7 @@
 // Requiere DOM global (window, document) para html2canvas/jsPDF.
 
 import { generarInstruccion, toolsForStep } from '../../services/instructions.js';
+import { golaReport } from '../../services/golaService.js';
 import { COLORS, UI_COLORS } from '../../core/config.js';
 import { toast } from '../toast.js';
 import {
@@ -94,7 +95,40 @@ function renderPlinthPlanSection(plan) {
   `;
 }
 
-export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest', ficha = null, plinthPlan = null) {
+// Sección "Perfiles gola" (solo con piezas rol gola_strip o frentes L):
+// tabla con identificador, ubicación relativa a los frentes, longitud de
+// corte, cantidad, material/acabado y observaciones de fijación.
+function renderGolaSection(rows) {
+  if (!rows.length) return '';
+  const body = rows.map((r) => `
+    <tr>
+      <td>${r.id}</td>
+      <td>${r.ubicacion}</td>
+      <td>${r.corteMm} mm</td>
+      <td>${r.cantidad}</td>
+      <td>${r.material}</td>
+      <td>${r.fijacion}</td>
+    </tr>`).join('');
+  return `
+    <section style="page-break-after: always; margin-bottom: 2rem;">
+      <h2>Perfiles gola</h2>
+      <p>Sistema de apertura sin tiradores: tira de melamina retranqueada en cada gap entre frentes de cajones y frente superior extendido (L-gola).</p>
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+        <thead>
+          <tr><th>Identificador</th><th>Ubicación</th><th>Longitud de corte</th><th>Cantidad</th><th>Material/acabado</th><th>Observaciones de fijación</th></tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </section>
+  `;
+}
+
+export function buildStandaloneHtml(steps, piecesById, moduleLabel = 'CutterNest', ficha = null, plinthPlan = null, options = {}) {
+  const golaRows = golaReport(
+    Object.values(piecesById || {}),
+    options.userConfig || {},
+    { lFrontIds: options.golaLFrontIds || [] },
+  );
   const body = steps.map((s) => {
     const completed = new Set();
     for (let i = 0; i < steps.indexOf(s); i++) completed.add(steps[i].paso);
@@ -124,6 +158,7 @@ section { margin-bottom: 2rem; }
 <h1>Manual de Ensamblaje — ${moduleLabel}</h1>
 ${renderFichaSection(ficha)}
 ${renderPlinthPlanSection(plinthPlan)}
+${renderGolaSection(golaRows)}
 ${body}
 </body>
 </html>`;

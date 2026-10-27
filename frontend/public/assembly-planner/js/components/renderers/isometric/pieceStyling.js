@@ -60,6 +60,7 @@ export function getStroke(role) {
 
 export function makeLabel(geo) {
   if (geo.role === 'handle') return '';
+  if (geo.role === 'gola_grip') return '';
   const words = String(geo.name || '').split(/\s+/).slice(0, 2);
   if (geo.role === 'side_panel') return normalizeName(geo.name).includes('izquierdo') ? 'Lat.Izq' : 'Lat.Der';
   if (geo.role === 'drawer_face') return 'Cajón';

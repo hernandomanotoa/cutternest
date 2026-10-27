@@ -42,6 +42,7 @@ import {
   removeStructuralPlinth,
   enableGola,
   disableGola,
+  previewGola,
   recalculateAll,
 } from '../app.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
@@ -101,6 +102,9 @@ export function createConstructorView(store) {
   // {versions: [...]} = cargadas. Se refrescan con el boton o tras subir.
   let cloud = null;
   let cloudLoading = false;
+  // Vista previa de activación gola (dry-run sin mutar el store): se confirma
+  // o cancela desde el panel inline de la tarjeta del módulo.
+  let golaPreview = null;
 
   function mount(parent) {
     container = parent;
@@ -494,19 +498,43 @@ export function createConstructorView(store) {
       else toast(r.errors.join('; '), { type: 'error' });
     } else if (action === 'toggle-gola') {
       const moduleId = btn.dataset.module;
-      const r = btn.checked ? enableGola(moduleId) : disableGola(moduleId);
-      if (!r.ok) {
-        toast(r.errors.join('; '), { type: 'error' });
-        render(); // revertir el checkbox al estado real
+      if (!btn.checked) {
+        // Desactivación: reversible con undo (Ctrl+Z), sigue siendo directa.
+        const r = disableGola(moduleId);
+        if (!r.ok) {
+          toast(r.errors.join('; '), { type: 'error' });
+          render(); // revertir el checkbox al estado real
+          return;
+        }
+        toast(`Gola desactivada en el módulo ${moduleId}: tiradores restaurados`, { type: 'success' });
+        warnIfAny(r.warnings);
         return;
       }
-      toast(
-        btn.checked
-          ? `Gola activada en el módulo ${moduleId}: sin tiradores, agarre en los perfiles`
-          : `Gola desactivada en el módulo ${moduleId}: tiradores restaurados`,
-        { type: 'success' },
-      );
+      // Activación: vista previa con confirmación (dry-run, no muta el store).
+      const pv = previewGola(moduleId);
+      if (!pv.ok) {
+        toast(pv.errors.join('; '), { type: 'error' });
+        golaPreview = null;
+        render(); // revertir el checkbox (sigue apagado en el store)
+        return;
+      }
+      golaPreview = { moduleId, plan: pv.plan, warnings: pv.warnings };
+      render();
+    } else if (action === 'confirm-gola') {
+      const moduleId = btn.dataset.module;
+      golaPreview = null;
+      const r = enableGola(moduleId);
+      if (!r.ok) {
+        toast(r.errors.join('; '), { type: 'error' });
+        render();
+        return;
+      }
+      toast(`Gola activada en el módulo ${moduleId}: sin tiradores, agarre en los perfiles`, { type: 'success' });
       warnIfAny(r.warnings);
+    } else if (action === 'cancel-gola') {
+      // El dry-run nunca tocó el store: basta re-render para volver a off.
+      golaPreview = null;
+      render();
     } else if (action === 'clear-all') {
       confirmable(btn, '¿Borrar TODO?', () => {
         clearAllPieces();
@@ -741,7 +769,7 @@ export function createConstructorView(store) {
         <div class="card__body">
           ${groups.length === 0
             ? '<p class="empty-state">Todavía no hay módulos. Agrega el primero arriba.</p>'
-            : groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {})).join('')}
+            : groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {}, golaPreview)).join('')}
         </div>
       </div>
 
@@ -860,7 +888,7 @@ function nombreCorto(nombre) {
   return out.trim();
 }
 
-function renderModuleCard(group, allPieces, cfg = {}) {
+function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   // Preferencias persistidas del formulario de contenido (se reutilizan al
   // crear cada módulo): vano, tipos, división, riel y N por fila.
   const prefVano = Number(cfg.contentVano) || 200;
@@ -891,6 +919,7 @@ function renderModuleCard(group, allPieces, cfg = {}) {
   // cajón/L-gola lo soporta el servicio, pero la UI lo reserva a pilas).
   const golaUnidades = drawerUnits(allPieces, moduleId).length;
   const golaOn = isGolaEnabled(allPieces, moduleId);
+  const golaPreviewHere = golaPreview && String(golaPreview.moduleId) === String(moduleId);
   return `
     <div class="cn-constructor__module" data-module-scoped="${escapeHtml(moduleId)}">
       <div class="cn-constructor__module-head">
@@ -958,7 +987,7 @@ function renderModuleCard(group, allPieces, cfg = {}) {
         </label>
         ${golaUnidades >= 2 ? `
         <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: tiras de melamina entre frentes (sin tiradores, agarre en los perfiles) y frente del cajón superior extendido en L">
-          <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn ? 'checked' : ''} /> Gola
+          <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn || golaPreviewHere ? 'checked' : ''} /> Gola
         </label>` : ''}
         <button class="btn btn--secondary btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica">👁 Ver</button>
         <button class="btn btn--secondary btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}">Editar</button>
@@ -969,6 +998,7 @@ function renderModuleCard(group, allPieces, cfg = {}) {
         <button class="btn btn--danger btn--sm" data-action="remove-module" data-module="${escapeHtml(moduleId)}">Eliminar módulo</button>
       </div>
       ${renderContentList(moduleId, allPieces)}
+      ${golaPreviewHere ? renderGolaPreviewPanel(golaPreview) : ''}
       ${golaOn && golaUnidades >= 2 ? renderGolaPanel(cfg) : ''}
       <div class="cn-constructor__content-btns">
         <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
@@ -998,6 +1028,27 @@ function renderGolaPanel(cfg = {}) {
         <input type="text" data-gola-cfg="golaFijacion" value="${escapeHtml(cfg.golaFijacion || '')}" placeholder="Tornillos 3.5×16…" />
       </label>
       <small>Tiras de melamina entre frentes (agarre hacia arriba); el cajón superior cierra en L. Sin mecanizados — parámetros PROVISIONALES.</small>
+    </div>
+  `;
+}
+
+// Panel de confirmación de la vista previa gola (dry-run de app.js): resume
+// perfiles creados, gap/agarre y el reescalado de frentes antes de activar.
+// Reusa el estilo del formulario de edición; sin colores ad hoc (clases CSS).
+function renderGolaPreviewPanel(preview) {
+  const { plan, warnings } = preview;
+  const frentes = plan.frentes.map((f) =>
+    `<li>${escapeHtml(f.nombre)}: <strong>${f.antes} → ${f.despues} mm</strong></li>`).join('');
+  return `
+    <div class="cn-constructor__edit-form" data-gola-preview>
+      <p style="margin:0;"><strong>Vista previa — sistema gola</strong></p>
+      <p style="margin:0;">Se eliminarán los tiradores y se crearán ${plan.tiras} perfil(es) gola (gap ${plan.gapGola} mm, agarre ${plan.agarre} mm). Los frentes quedarán:</p>
+      <ul style="margin:0;padding-left:1.25rem;">${frentes}</ul>
+      ${(warnings || []).map((w) => `<p class="cn-constructor__warnings" style="margin:0;">⚠ ${escapeHtml(w)}</p>`).join('')}
+      <div class="cn-constructor__content-btns">
+        <button class="btn btn--primary btn--sm" data-action="confirm-gola" data-module="${escapeHtml(preview.moduleId)}">Aplicar gola</button>
+        <button class="btn btn--secondary btn--sm" data-action="cancel-gola">Cancelar</button>
+      </div>
     </div>
   `;
 }

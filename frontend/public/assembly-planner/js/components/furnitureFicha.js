@@ -91,7 +91,9 @@ function buildFichaExport(pieces, clasificacion, currentModule, obraCfg = {}) {
     .replace(/^-+|-+$/g, '');
   return {
     filename: `ficha-tecnica-${slug || 'mueble'}.html`,
-    html: buildStandaloneHtml(stepsConTiempo, piecesById, moduleLabel, ficha, plinthPlan),
+    // options: userConfig lleva los overrides gola (golaFijacion, etc.) para
+    // la sección "Perfiles gola" del manual (firma retrocompatible).
+    html: buildStandaloneHtml(stepsConTiempo, piecesById, moduleLabel, ficha, plinthPlan, { userConfig: obraCfg }),
   };
 }
 
