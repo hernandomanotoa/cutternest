@@ -149,7 +149,7 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
       const offL = band ? (esB ? 0 : t) : 0;
       const offR = band ? (esA ? 0 : t) : 0;
       geometries.push({
-        x: band ? px(band.x0) + offL : 0, y: -t, z: 0,
+        x: band ? px(band.x0) + offL : 0, y: band ? 0 : -t, z: 0,
         w: band ? pw(band.x0, band.width) - offL - offR : w, d: t, h: Number(p.alto) || plinthH,
         color, role: 'back_panel', name: p.nombre, id: p.id, opacity: opacoMarco ? 1 : 0.25,
       });
