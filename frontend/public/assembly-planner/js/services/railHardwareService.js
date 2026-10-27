@@ -11,23 +11,29 @@ import { railTypeFor } from './railService.js';
 
 const NOMBRES = {
   telescopica: 'Correderas telescópicas',
+  telescopica26: 'Correderas telescópicas (regla −26)',
   oculta: 'Correderas ocultas',
   ruedas: 'Correderas euro ruedas',
   ligera: 'Correderas ligeras',
+  marco: 'Marco de aluminio regulable (zapatero)',
 };
 
 const ESPECIFICACIONES = {
   telescopica: 'Extensión total — la caja ocupa 12,7 mm por lado (ancho = vano − 25,4 mm)',
+  telescopica26: 'Extensión total — regla estricta: 13 mm por lado (ancho = vano − 26 mm); fondo = largo nominal del riel; vano con +10 mm de fondo',
   oculta: 'Extensión total — ancho interior de cajón = vano − 42 mm; rebajo inferior 12,7 mm; alto de cajón = vano − 23 mm',
   ruedas: 'Extensión parcial (~75%) — 12,5 mm por lado (ancho = vano − 25 mm)',
   ligera: 'Extensión parcial (~75%) — 10 mm por lado, uso ligero/bandejas',
+  marco: 'Herraje de catálogo con rieles ocultos propios: NO se fabrica cajón; verificar el rango de ajuste para el vano (p. ej. 800–900 mm)',
 };
 
 const CONFIRMACIONES = {
   telescopica: 'Confirmar corredera telescópica (vano − 25,4 mm) antes de cortar',
+  telescopica26: 'Confirmar corredera telescópica regla −26 (vano − 26 mm; fondo = riel) antes de cortar',
   oculta: 'Confirmar corredera oculta (vano − 42 mm) antes de cortar',
   ruedas: 'Confirmar corredera de ruedas (vano − 25 mm) antes de cortar',
   ligera: 'Confirmar corredera ligera (vano − 20 mm) antes de cortar',
+  marco: 'Confirmar el rango del marco regulable de catálogo para el vano antes de cortar el frente',
 };
 
 const INSTALACIONES = {

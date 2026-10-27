@@ -305,7 +305,10 @@ export function addDrawer(moduleId, index, {
 
   const sub = `${moduleId}${index}`;
   const esZapatera = vocabulario === 'zapatera';
-  const frenteVocab = esZapatera ? 'zapatera extraible' : `cajon${volquete ? ' abatible' : ''}`;
+  // Keyword del riel en el nombre del frente: el hardware y el render lo
+  // infieren de aquí (railService.inferRailType).
+  const rielTag = !volquete && riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
+  const frenteVocab = `${esZapatera ? 'zapatera extraible' : `cajon${volquete ? ' abatible' : ''}`}${rielTag}`;
   const vocab = esZapatera ? 'zapatera extraible' : 'cajon';
   const idp = esZapatera ? 'zapatera' : 'cajon';
   const ladoIzq = esZapatera ? ' izq' : '';
@@ -426,8 +429,9 @@ export function addShoeTray(moduleId, index, {
   const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, ESP_LAT);
   const profBandeja2 = rielRegla.fondoMm(profundidadModulo, E);
   const interior2 = Math.round(W - 2 * rielHolgura) - 2 * ESP_LAT;
+  const rielTagZ = riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
   const pieces = [
-    piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, latAlto - ESP_BASE), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),

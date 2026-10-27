@@ -9,6 +9,8 @@ import { RAIL_TYPES, DEFAULT_RAIL_TYPE } from '../core/config.js';
 
 const KEYWORDS_OCULTA = ['ocult', 'tandem', 'movento', 'matrix um', 'matrix-um'];
 const KEYWORDS_RUEDAS = ['ruedas', 'roller'];
+const KEYWORDS_TELESCOPICA26 = ['telescopica 26', 'telescopica-26', 'regla 26', 'vano 26'];
+const KEYWORDS_MARCO = ['marco regulable', 'marco de aluminio'];
 // 'ligera' exige pieza ligera (bandeja/zapatera) + mención explícita de riel:
 // las zapateras del catálogo usan telescópicas de extensión total salvo que
 // el nombre diga lo contrario.
@@ -24,6 +26,8 @@ const KEYWORDS_LIGERA_RIEL = ['riel', 'corredera', 'corrediza'];
 export function inferRailType(piece, defaultType = DEFAULT_RAIL_TYPE) {
   const text = `${normalizeName(piece?.nombre)} ${normalizeName(piece?.id)}`;
   if (KEYWORDS_OCULTA.some((k) => text.includes(k))) return 'oculta';
+  if (KEYWORDS_MARCO.some((k) => text.includes(k))) return 'marco';
+  if (KEYWORDS_TELESCOPICA26.some((k) => text.includes(k))) return 'telescopica26';
   if (KEYWORDS_RUEDAS.some((k) => text.includes(k))) return 'ruedas';
   const piezaLigera = KEYWORDS_LIGERA_PIEZA.some((k) => text.includes(k));
   const rielExplicito = KEYWORDS_LIGERA_RIEL.some((k) => text.includes(k));

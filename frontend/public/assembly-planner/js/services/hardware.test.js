@@ -236,3 +236,26 @@ test('zócalo estructural a marco: niveladores ocultos, un par cada 600 mm', () 
   const h3 = calculateHardware([pieza('m1-frente', 'Frente cajon 1')], []);
   assert.equal(h3.some((x) => x.nombre === 'Nivelador oculto de zócalo'), false);
 });
+
+test('herrajes por tipo de riel elegido: oculta / telescópica −26 / marco regulable', async () => {
+  const { addDrawer, addShoeTray } = await import('./closetBuilderService.js');
+  const oculta = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'oculta' }).pieces;
+  const h1 = calculateHardware(oculta, []);
+  const entry1 = h1.find((x) => x.nombre === 'Correderas ocultas');
+  assert.ok(entry1, 'la oculta aparece como tal');
+  assert.equal(entry1.cantidad, 1);
+  assert.ok(entry1.especificacion.includes('vano − 42'));
+
+  const t26 = addDrawer('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'telescopica26' }).pieces;
+  const h2 = calculateHardware(t26, []);
+  const entry2 = h2.find((x) => x.nombre === 'Correderas telescópicas (regla −26)');
+  assert.ok(entry2, 'la regla −26 tiene su propia entrada');
+  assert.ok(entry2.especificacion.includes('− 26'));
+
+  const marco = addShoeTray('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'marco' }).pieces;
+  const h3 = calculateHardware(marco, []);
+  const entry3 = h3.find((x) => x.nombre.includes('Marco de aluminio regulable'));
+  assert.ok(entry3, 'el marco es un herraje, no una corredera');
+  assert.equal(h3.some((x) => x.nombre.startsWith('Correderas') && x.cantidad === 1), false, 'sin correderas para el marco');
+  assert.ok(entry3.especificacion.includes('NO se fabrica cajón'));
+});

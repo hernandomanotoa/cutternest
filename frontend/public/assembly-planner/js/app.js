@@ -31,6 +31,7 @@ import { createConstructorView } from './views/constructorView.js';
 import { createIsometricView } from './views/isometricView.js';
 import { createRenderer3DView } from './views/renderer3DView.js';
 import { calculateHardware } from './services/hardware.js';
+import { inferRailType } from './services/railService.js';
 import { getStore, setStore, createStore } from './core/store.js';
 import {
   saveUserConfig,
@@ -1272,6 +1273,8 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         colorFrente: frente.color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',
         division: piezasGrupo.some((p) => sufijoDe(p.id) === 'division'),
+        // El riel se preserva: se infiere del nombre del frente viejo.
+        riel: inferRailType(frente),
       })
       : addDrawer(moduleId, 1, {
         anchoModulo: dims.ancho,
@@ -1281,6 +1284,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         vocabulario: 'cajon',
         colorFrente: frente.color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',
+        riel: esVolquete ? 'catalogo' : inferRailType(frente),
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${frente.nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };

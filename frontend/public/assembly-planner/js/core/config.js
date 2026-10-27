@@ -70,6 +70,12 @@ export const RAIL_TYPES = {
     extraction: 1.0,
     catalogo: 'Häfele Matrix Runner BB / Accuride 3832 (verificar catálogo)',
   },
+  telescopica26: {
+    label: 'Lateral balines 3 tramos, regla −26 (extensión total)',
+    sideClearance: 13,     // mm por lado → ancho caja = vano − 26 (spec taller)
+    extraction: 1.0,
+    catalogo: 'Häfele Matrix Runner BB / Accuride 3832 (verificar catálogo)',
+  },
   oculta: {
     label: 'Oculta inferior (extensión total)',
     sideClearance: 0,      // no descuenta por lado: la caja va al ras del vano
@@ -90,6 +96,12 @@ export const RAIL_TYPES = {
     sideClearance: 10,     // mm por lado (bandejas/zapateras ligeras)
     extraction: 0.75,
     catalogo: 'Bolillas 27 mm ranurado (verificar catálogo)',
+  },
+  marco: {
+    label: 'Marco de aluminio regulable (zapatero de catálogo)',
+    sideClearance: 0,      // sin cajón: el herraje trae sus rieles ocultos
+    extraction: 1.0,
+    catalogo: 'Herraje de catálogo: verificar rango de ajuste para el vano',
   },
 };
 
