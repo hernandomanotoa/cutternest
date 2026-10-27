@@ -425,3 +425,41 @@ describe('parseCSV - zócalo con empalme (tramos a/b)', () => {
     );
   });
 });
+
+describe('parseCSV - presupuesto de fondo según regla de riel (+10 mm)', () => {
+  // Casco con modulo NUMERICO '1' (la detección de submódulo es por prefijo:
+  // '11' es hijo de '1') y profundidad 600 para probar el presupuesto 575.
+  const MOD1 = [
+    HEADER,
+    'lat-1,Lateral izquierdo,600,700,1,no,#FFFFFF,18,"T,B,L,R",1,',
+    'lat-2,Lateral derecho,600,700,1,no,#FFFFFF,18,"T,B,L,R",1,',
+    'base-1,Base,600,600,1,no,#FFFFFF,18,"T,B",1,',
+    'tapa-1,Tapa,600,600,1,no,#FFFFFF,18,"T,B",1,',
+    'fondo-1,Fondo trasero,564,664,1,no,#FFFFFF,15,,1,',
+  ];
+  const zapatera = (sub, lateral) => [
+    `${sub}-frente,Frente zapatera extraible 1 M1,818,197,1,si,#8b5a2b,15,"T,B,L,R",${sub},`,
+    `${sub}-lateral-izq,Lateral zapatera extraible 1 izq M1,${lateral},167,1,no,#D9C2A3,15,"T,B,L",${sub},`,
+    `${sub}-lateral-der,Lateral zapatera extraible 1 der M1,${lateral},167,1,no,#D9C2A3,15,"T,B,R",${sub},`,
+    `${sub}-fondo,Fondo zapatera extraible 1 M1,764,152,1,no,#F2F2F2,15,,${sub},`,
+    `${sub}-base,Base zapatera extraible 1 M1,764,${lateral},1,si,#D9C2A3,15,"T,B,L,R",${sub},`,
+  ];
+
+  it('lateral de 575 (regla telescópica −26 / oculta) NO excede el fondo disponible', () => {
+    const csv = [...MOD1, ...zapatera('11', 575)].join('\n');
+    const result = parseCSV(csv);
+    assert.ok(
+      !result.warnings.some((w) => w.includes('excede profundidad disponible')),
+      `aviso espurio: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('lateral mayor que prof−E−10 sí avisa', () => {
+    const csv = [...MOD1, ...zapatera('11', 590)].join('\n');
+    const result = parseCSV(csv);
+    assert.ok(
+      result.warnings.some((w) => w.includes('excede profundidad disponible (575 mm)')),
+      `se esperaba aviso: ${result.warnings.join(' | ')}`
+    );
+  });
+});

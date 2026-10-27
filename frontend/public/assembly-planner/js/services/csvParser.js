@@ -256,7 +256,11 @@ function validateDimensions(pieces, warnings) {
       }
 
       if (base && subLaterals.length) {
-        const maxDepth = Math.max(0, interiorDepth - 10);
+        // Presupuesto de fondo: vano útil (hasta la cara interior del fondo)
+        // menos los 10 mm de tolerancia que exige el riel (fondo = riel
+        // nominal, vano ≥ riel + 10). Coincide con las reglas de riel del
+        // constructor (catálogo 545, telescópica −26 / oculta: prof−E−10).
+        const maxDepth = Math.max(0, moduleBox.depth - backThickness - 10);
         subLaterals.forEach((lat) => {
           const latRealHeight = Math.max(lat.ancho, lat.alto);
           if (latRealHeight > maxDepth + 1) {
