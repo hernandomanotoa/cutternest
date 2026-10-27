@@ -345,7 +345,7 @@ function validateDimensions(pieces, warnings) {
     // Los laterales (rol 'plinth_side'), divisiones ('plinth_divider',
     // ancho = luz interior o profundidad) y el trasero ('back_panel') no
     // entran en la comparación contra la suma de anchos de módulos.
-    const frentesMarco = globalPieces.filter((p) => /^glb-zocalo(-s\d+)?-frente$/.test(String(p.id)));
+    const frentesMarco = globalPieces.filter((p) => /^glb-zocalo(-s\d+)?-frente(-[ab])?$/.test(String(p.id)));
     const zocalos = globalPieces.filter((p) => {
       const role = inferRole(p);
       return (role === 'bottom_panel' || role === 'plinth') && normalizeName(p.nombre).includes('zocalo');
@@ -357,7 +357,8 @@ function validateDimensions(pieces, warnings) {
       return sum + modBox.width;
     }, 0);
     const anchoZocalo = frentesMarco.length
-      ? frentesMarco.reduce((s, p) => s + (Number(p.ancho) || 0) + 2 * (Number(p.espesor) || 15), 0)
+      // Tramo de empalme (`-a/-b`): toca un solo costado (ancho + e).
+      ? frentesMarco.reduce((s, p) => s + (Number(p.ancho) || 0) + (/-[ab]$/.test(String(p.id)) ? 1 : 2) * (Number(p.espesor) || 15), 0)
       : zocalos.length
         ? Math.max(0, ...zocalos.map((p) => Number(p.ancho) || 0))
         : 0;

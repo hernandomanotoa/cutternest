@@ -793,7 +793,7 @@ function renderModuleCard(group, allPieces) {
   // Zócalo: frente simple del módulo o marco estructural global (el marco
   // reemplaza al frente simple; mismo anclaje del vano).
   const zocaloSimple = piezas.find((p) => p.id === `m${moduleId}-zocalo`);
-  const marcoZ = Math.max(0, ...piezas.filter((p) => /^glb-zocalo(-s\d+)?-frente$/.test(String(p.id))).map((p) => Number(p.alto) || 0));
+  const marcoZ = Math.max(0, ...piezas.filter((p) => /^glb-zocalo(-s\d+)?-frente(-[ab])?$/.test(String(p.id))).map((p) => Number(p.alto) || 0));
   const tieneZocalo = Boolean(zocaloSimple) || marcoZ > 0;
   const altoZocalo = zocaloSimple ? Number(zocaloSimple.alto) || 0 : marcoZ;
   const vanoInfo = altoModulo ? vanoUsado(allPieces, moduleId, altoModulo, tieneZocalo, altoZocalo) : null;

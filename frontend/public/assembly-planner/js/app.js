@@ -844,7 +844,7 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
   // Zócalo estructural a marco (global): ancla el apilado igual que el
   // frente simple de módulo cuando este no existe.
   const marcoZ = Math.max(0, ...(pieces || [])
-    .filter((p) => /^glb-zocalo(-s\d+)?-frente$/.test(String(p.id)))
+    .filter((p) => /^glb-zocalo(-s\d+)?-frente(-[ab])?$/.test(String(p.id)))
     .map((p) => Number(p.alto) || 0));
   const base = pieces.find((p) => p.id === `m${moduleId}-base`);
   const baseTop = (zocalo ? Number(zocalo.alto) || 0 : marcoZ) + (Number(base?.espesor) || 15);
