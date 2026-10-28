@@ -38,6 +38,7 @@ export class Renderer3D {
     this.moduleW = 0;
     this.moduleD = 0;
     this.moduleH = 0;
+    this.perspDistance = 0; // se ajusta en load/_fitCameraToModule
     this.moduleCenter = { x: 0, y: 0, z: 0 };
 
     this.selectedId = null;
@@ -103,8 +104,7 @@ export class Renderer3D {
     this.moduleH = moduleH;
     this.thickness = thickness;
     this.moduleLabel = moduleLabel;
-    // Distancia focal para proyección en perspectiva (~2.5× la dimensión mayor)
-    this.perspDistance = Math.max(moduleW, moduleD, moduleH, 1) * 2.5;
+    this._recalcularPerspDistance();
 
     // Enriquecer geometrías con datos de las piezas originales para tooltip/cantos
     const piecesById = new Map(filtered.map((p) => [p.id, p]));
@@ -169,7 +169,7 @@ export class Renderer3D {
       const sceneBox = computeBoundingBox(this.geometries);
       this.moduleW = Math.max(this.moduleW, sceneBox.size.w);
       this.moduleCenter = sceneBox.center;
-      this.perspDistance = Math.max(this.moduleW, this.moduleD, this.moduleH, 1) * 2.5;
+      this._recalcularPerspDistance();
     } else {
       this.moduleCenter = computeBoundingBox(this.geometries).center;
     }
@@ -178,10 +178,20 @@ export class Renderer3D {
     if (!opts.keepCamera) this._fitCameraToModule();
   }
 
+  // Distancia focal para la proyección en perspectiva (~2.5× la dimensión
+  // mayor del contenido). Se recalcula al cargar y en cada re-encuadre
+  // (load → _fitCameraToModule y resize → _fitCameraToModule) para que el
+  // mueble completo siga encuadrándose tras cambiar el tamaño del lienzo.
+  _recalcularPerspDistance() {
+    this.perspDistance = Math.max(this.moduleW, this.moduleD, this.moduleH, 1) * 2.5;
+  }
+
   _fitCameraToModule() {
     // Ajustar el offset y escala de la cámara para que la unión de todos los
     // módulos/piezas quede centrada en el viewport SVG.
     if (!this.geometries.length) return;
+
+    this._recalcularPerspDistance();
 
     const pieces = applyExplode(this.geometries, 0, this.moduleCenter, classifyPiece);
     const camera = { ...this.controls.getState(), perspDistance: this.perspDistance };

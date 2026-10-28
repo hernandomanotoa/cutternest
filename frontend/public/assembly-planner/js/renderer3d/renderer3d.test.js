@@ -293,6 +293,72 @@ describe('renderer3d/transform — perspectiva', () => {
 });
 
 
+describe('renderer3d/renderer3D — fitCamera al resize (perspDistance)', () => {
+  if (typeof window === 'undefined') {
+    globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  }
+  if (typeof document === 'undefined') {
+    globalThis.document = { createElement: () => ({ style: {} }) };
+  }
+  if (typeof requestAnimationFrame === 'undefined') {
+    globalThis.requestAnimationFrame = () => 0;
+    globalThis.cancelAnimationFrame = () => {};
+  }
+
+  const cont = () => ({
+    style: {}, innerHTML: '',
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 900, height: 600 }),
+    addEventListener() {}, removeEventListener() {},
+  });
+
+  const closetPieces = [
+    { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
+    { id: 'p2', nombre: 'Estante', ancho: 570, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: '', modulo: '1', pos_z: '500' },
+  ];
+
+  it('load fija perspDistance a ~2.5× la dimensión mayor', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    const r = new Renderer3D(cont(), { width: 900, height: 600 });
+    r.load('1', closetPieces);
+    const expected = Math.max(r.moduleW, r.moduleD, r.moduleH, 1) * 2.5;
+    assert.equal(r.perspDistance, expected);
+    assert.ok(r.perspDistance >= 2000 * 2.5 - 1e-6, 'alto 2000 domina la distancia focal');
+    r.destroy();
+  });
+
+  it('resize re-encuadra y recalcula perspDistance (camino del ResizeObserver)', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    const r = new Renderer3D(cont(), { width: 900, height: 600 });
+    r.load('1', closetPieces);
+    const before = r.controls.getState();
+
+    // Pantalla completa: el lienzo crece al doble (ResizeObserver → resize()).
+    r.resize(1800, 1200);
+    const after = r.controls.getState();
+    const expected = Math.max(r.moduleW, r.moduleD, r.moduleH, 1) * 2.5;
+
+    assert.equal(r.width, 1800);
+    assert.equal(r.height, 1200);
+    assert.equal(r.perspDistance, expected, 'perspDistance recalculado tras resize');
+    assert.ok(after.scale > before.scale, 'la escala crece con el viewport');
+    assert.ok(after.offsetX !== before.offsetX || after.offsetY !== before.offsetY, 'la cámara se re-encuadra');
+    // Volver al tamaño original restaura el encuadre exacto (round-trip).
+    r.resize(900, 600);
+    const restored = r.controls.getState();
+    assert.ok(Math.abs(restored.scale - before.scale) / before.scale < 0.05, 'round-trip restaura la escala (~5%)');
+    r.destroy();
+  });
+
+  it('resize sin geometrías cargadas no rompe el encuadre', async () => {
+    const { Renderer3D } = await import('./renderer3D.js');
+    const r = new Renderer3D(cont(), { width: 900, height: 600 });
+    r.resize(1800, 1200);
+    assert.equal(r.width, 1800);
+    assert.ok(Number.isFinite(r.perspDistance));
+    r.destroy();
+  });
+});
+
 describe('renderer3d/renderer3D — BOM API', () => {
   if (typeof window === 'undefined') {
     globalThis.window = { addEventListener() {}, removeEventListener() {} };
