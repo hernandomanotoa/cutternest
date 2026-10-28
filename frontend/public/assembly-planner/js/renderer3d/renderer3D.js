@@ -12,6 +12,7 @@ import { IsometricRenderer } from '../components/renderers/isometricRenderer.js'
 import { getModulePieces, getModuleLabel } from '../utils/helpers.js';
 import { ALL_MODULE_ID } from '../services/moduleService.js';
 import { ensureModuleGap, MODULE_GAP_MM } from './moduleLayout.js';
+import { inferRole } from '../services/classifierService.js';
 
 export class Renderer3D {
   constructor(container, options = {}) {
@@ -121,6 +122,40 @@ export class Renderer3D {
         assemblyLevel: this.assemblyLevels.get(g.id) ?? null,
       };
     });
+
+    // Foco gola: oculta las CAJAS (laterales/base/fondo/cara/división/tirador)
+    // de los módulos con gola activo, conservando frentes (incluida la L del
+    // cajón superior), tiras y marcas de agarre — para inspeccionar la
+    // ubicación de los perfiles sin el ruido de las cajas. Temporal: se
+    // restaura al recargar sin la opción.
+    if (opts.golaFocus) {
+      const moduleIds = new Set(
+        (pieces || []).map((p) => String(p.modulo || '').trim()).filter(Boolean),
+      );
+      const golaRoots = new Set(
+        (pieces || [])
+          .filter((p) => inferRole(p) === 'gola_strip')
+          .map((p) => String(p.id).match(/^m(\d+)-gola-/)?.[1])
+          .filter(Boolean),
+      );
+      if (golaRoots.size) {
+        // Raíz de un módulo: prefijo más corto que exista como módulo
+        // ('11' → '1'; si no hay '1', '11' es raíz).
+        const rootOf = (mod) => {
+          const m = String(mod || '');
+          for (let i = m.length - 1; i >= 1; i -= 1) {
+            const pref = m.slice(0, i);
+            if (moduleIds.has(pref)) return pref;
+          }
+          return m;
+        };
+        const CAJA = new Set(['drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part', 'drawer_divider', 'handle']);
+        this.geometries = this.geometries.filter((g) => {
+          if (!CAJA.has(g.role)) return true;
+          return !golaRoots.has(rootOf(g.modulo));
+        });
+      }
+    }
 
     // Centro de rotación/explode = centro de la caja envolvente real de todas
     // las geometrías visibles. En vista completa ('all') los módulos se

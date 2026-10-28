@@ -263,3 +263,36 @@ describe('ensureModuleGap con zócalo global (glb-*)', () => {
     assert.ok(byId['m2-tapa'].x - (byId['m1-tapa'].x + byId['m1-tapa'].w) >= MODULE_GAP_MM - 1e-6);
   });
 });
+
+describe('Renderer3D foco gola', () => {
+  const CASCO = [
+    { id: 'm1-base', nombre: 'Base M1', ancho: 820, alto: 585, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa M1', ancho: 850, alto: 600, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izq M1', ancho: 600, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L', modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral der M1', ancho: 600, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,R', modulo: '1' },
+    { id: 'm1-fondo', nombre: 'Fondo M1', ancho: 820, alto: 2255, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, cantos: '', modulo: '1' },
+  ];
+  const cajon = (sub, alto) => [
+    { id: `m1cajon${sub}-frente`, nombre: `Frente cajon ${sub} M1`, ancho: 818, alto, cantidad: 1, rotate: 'si', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: `1${sub}` },
+    { id: `m1cajon${sub}-lateral-izq`, nombre: `Lateral cajon ${sub} izq M1`, ancho: 545, alto: 150, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L', modulo: `1${sub}` },
+    { id: `m1cajon${sub}-lateral-der`, nombre: `Lateral cajon ${sub} der M1`, ancho: 545, alto: 150, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, cantos: 'T,B,R', modulo: `1${sub}` },
+    { id: `m1cajon${sub}-fondo`, nombre: `Fondo cajon ${sub} M1`, ancho: 764, alto: 150, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, cantos: '', modulo: `1${sub}` },
+    { id: `m1cajon${sub}-base`, nombre: `Base cajon ${sub} M1`, ancho: 764, alto: 515, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: `1${sub}` },
+  ];
+  const tira = { id: 'm1-gola-1', nombre: 'Tira gola 1 M1', ancho: 764, alto: 30, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' };
+
+  it('oculta las cajas del módulo con gola y conserva frentes/tiras; se restaura al recargar', () => {
+    const container = createContainer();
+    const renderer = new Renderer3D(container, { width: 900, height: 600 });
+    const pieces = [...CASCO, ...cajon(1, 197), ...cajon(2, 197), tira];
+    renderer.load('all', pieces, { golaFocus: true });
+    const roles = renderer.geometries.map((g) => `${g.role}:${g.id}`);
+    assert.equal(renderer.geometries.some((g) => g.role === 'drawer_side'), false, 'sin laterales de caja');
+    assert.equal(renderer.geometries.some((g) => g.role === 'drawer_bottom'), false, 'sin bases de caja');
+    assert.ok(renderer.geometries.some((g) => g.role === 'drawer_face'), 'frentes visibles (incluida la L)');
+    assert.ok(renderer.geometries.some((g) => g.role === 'gola_strip'), 'tira gola visible');
+    // Restauración: recargar sin la opción devuelve las cajas.
+    renderer.load('all', pieces);
+    assert.ok(renderer.geometries.some((g) => g.role === 'drawer_side'), 'cajas restauradas');
+  });
+});

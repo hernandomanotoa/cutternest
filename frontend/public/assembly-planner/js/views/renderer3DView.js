@@ -26,6 +26,7 @@ export function createRenderer3DView(store) {
   let resizeObserver = null;
   let renderLoopId = null;
   let moduleGapMode = 'compact';
+  let golaFocus = false;
   let detachFullscreen = null;
   let playTimer = null;
   // Referencias para distinguir cambios estructurales (piezas/módulo/config)
@@ -244,6 +245,10 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-module-gap" ${Number(state.userConfig?.viewModuleGap) > 0 ? 'checked' : ''} style="cursor:pointer;">
               <span>Separar módulos</span>
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Foco gola: oculta las cajas (laterales/base/fondo) de los módulos con gola para inspeccionar las tiras, el canal de agarre y la L-gola. Volvé a pulsar para restaurar.">
+              <input type="checkbox" id="r3d-gola-focus" ${golaFocus ? 'checked' : ''} style="cursor:pointer;">
+              <span>Foco gola</span>
+            </label>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
               <span>Perspectiva</span>
@@ -327,6 +332,10 @@ export function createRenderer3DView(store) {
       saveUserConfig({ viewModuleGap: e.target.checked ? MODULE_GAP_MM : 0 });
       store.set({ userConfig: loadUserConfig() });
     });
+    container.querySelector('#r3d-gola-focus')?.addEventListener('change', (e) => {
+      golaFocus = e.target.checked;
+      renderView(container, store.get());
+    });
 
     canvas = container.querySelector('#r3d-canvas');
     renderer = new Renderer3D(canvas, {
@@ -354,7 +363,7 @@ export function createRenderer3DView(store) {
         setAperturaPieza(id, siguiente);
       },
     });
-    renderer.load(targetModule, state.pieces);
+    renderer.load(targetModule, state.pieces, { golaFocus });
     applyAperturaFromStore();
 
     startRenderLoop();

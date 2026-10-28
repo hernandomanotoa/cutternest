@@ -463,3 +463,36 @@ describe('parseCSV - presupuesto de fondo según regla de riel (+10 mm)', () => 
     );
   });
 });
+
+describe('parseCSV - gola: frentes reescalados exentos del rango ergonómico', () => {
+  const MOD1 = [
+    HEADER,
+    'lat-1,Lateral izquierdo,600,2400,1,no,#FFFFFF,15,"T,B,L,R",1,',
+    'lat-2,Lateral derecho,600,2400,1,no,#FFFFFF,15,"T,B,R",1,',
+    'base-1,Base,850,600,1,no,#FFFFFF,15,"T,B",1,',
+    'tapa-1,Tapa,850,600,1,no,#FFFFFF,15,"T,B",1,',
+    'fondo-1,Fondo,820,2370,1,no,#FFFFFF,15,,1,',
+  ];
+  const cajonAlto = (sub, alto, nombre = 'Frente cajon') => [
+    `${sub}-frente,${nombre} ${sub} M1,818,${alto},1,si,#8b5a2b,15,"T,B,L,R",${sub},`,
+    `${sub}-lat,Lateral cajon ${sub} izq M1,515,150,1,no,#D9C2A3,15,"T,B,L",${sub},`,
+    `${sub}-lat2,Lateral cajon ${sub} der M1,515,150,1,no,#D9C2A3,15,"T,B,R",${sub},`,
+    `${sub}-base,Base cajon ${sub} M1,764,515,1,si,#D9C2A3,15,"T,B,L,R",${sub},`,
+  ];
+  const tira = 'm1-gola-1,Perfil gola 1 M1,764,30,1,no,#C19A6B,15,"T,B,L,R",1,';
+
+  it('frente de 510 mm SIN gola: avisa (rango ergonómico clásico)', () => {
+    const csv = [...MOD1, ...cajonAlto('11', 510)].join('\n');
+    const result = parseCSV(csv);
+    assert.ok(result.warnings.some((w) => w.includes('frente de cajón muy alto (510 mm)')));
+  });
+
+  it('frente de 510 mm CON gola: no avisa (la L-gola alarga el frente a propósito)', () => {
+    const csv = [...MOD1, ...cajonAlto('11', 510), tira].join('\n');
+    const result = parseCSV(csv);
+    assert.ok(
+      !result.warnings.some((w) => w.includes('frente de cajón muy alto')),
+      `aviso espurio: ${result.warnings.join(' | ')}`
+    );
+  });
+});

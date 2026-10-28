@@ -243,14 +243,18 @@ function validateDimensions(pieces, warnings) {
         const frontName = normalizeName(front.nombre);
         const esZapatera = frontName.includes('zapatera');
         const esAbatible = frontName.includes('abatible');
+        // Con gola activo los frentes se reescalan a propósito (la L-gola
+        // alarga el frente superior y las tiras redistribuyen alturas): el
+        // rango ergonómico clásico no aplica.
+        const esGola = modPieces.some((p) => inferRole(p) === 'gola_strip');
         const altoFrente = Number(front.alto) || 0;
-        if (esZapatera) {
+        if (esZapatera && !esGola) {
           if (altoFrente < 120) {
             warnings.push(`Módulo ${modId} → ${subId}: frente de zapatera muy bajo (${altoFrente} mm); lo habitual es 150-220 mm.`);
           } else if (altoFrente > 340) {
             warnings.push(`Módulo ${modId} → ${subId}: frente de zapatera muy alto (${altoFrente} mm); para calzado normal use 150-220 mm y deje las botas en vano abierto de 350-450 mm.`);
           }
-        } else if (!esAbatible && altoFrente > 320) {
+        } else if (!esAbatible && !esGola && altoFrente > 320) {
           warnings.push(`Módulo ${modId} → ${subId}: frente de cajón muy alto (${altoFrente} mm); lo profundo habitual es 250-300 mm (suéteres/sábanas).`);
         }
       }
