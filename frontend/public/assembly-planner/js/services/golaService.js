@@ -19,8 +19,11 @@
 //
 // Convenciones: unidades ordenadas por min pos_z de sus frentes (unidad 1 =
 // la más baja, unidad N = la más alta, que recibe la L). Gap gola entre
-// frentes G = golaPerfilHeight + golaFingerClearance (REEMPLAZA a
-// drawerFrontGap; no se suman ambos).
+// frentes G = golaPerfilHeight: la tira-U LLENA el gap y TOCA AMBOS
+// frentes (el inferior por arriba y el superior por abajo). El agarre lo
+// genera el retranqueo (golaStripSetback): los frentes quedan adelantados
+// respecto de la tira y se enganchan por el borde. golaFingerClearance solo
+// aplica a la L-gola (aire de agarre bajo la repisa).
 
 import { inferRole } from './classifierService.js';
 
@@ -194,7 +197,8 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   const techoUltimoFrente = Math.max(...unidades[N - 1].frentes.map((f) => Number(f.pos_z) + (Number(f.alto) || 0)));
   const topRef = topRefDe(pieces, modId, techoUltimoFrente, casco.techoInterior);
   const H_new = topRef - cfg.golaFingerClearance - bottom;
-  const G = cfg.golaPerfilHeight + cfg.golaFingerClearance;
+  // Gap entre frentes = alto de la tira-U: toca ambos frentes.
+  const G = cfg.golaPerfilHeight;
   const disponible = H_new - (N - 1) * G;
   // Vano mínimo real: cada frente debe cubrir su caja (lateral + 10 mm).
   const minSuma = unidades.reduce(
@@ -282,7 +286,8 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
       id: `${prefijo}${i}`,
       nombre: 'Perfil gola',
       ancho: anchoTira,
-      alto: cfg.golaPerfilHeight,
+      // Toca ambos frentes: ocupa todo el gap G.
+      alto: G,
       cantidad: 1,
       rotate: false,
       color,
@@ -438,7 +443,8 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
   const casco = cascoDims(pieces, modId);
   const techoInterior = casco ? casco.techoInterior : Infinity;
   const N = unidades.length;
-  const G = cfg.golaPerfilHeight + cfg.golaFingerClearance;
+  // Gap = alto de la tira-U (toca ambos frentes).
+  const G = cfg.golaPerfilHeight;
 
   // Frente cubre su caja (aᵢ' ≥ altoLateral + 10) y unidades ordenadas.
   for (const u of unidades) {
@@ -472,10 +478,12 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
         errors.push(`Gola: la tira "${t.id}" se solapa con el frente "${f.nombre}".`);
       }
     }
-    // Agarre: techo de la tira + clearance = borde inferior del frente superior.
-    const superior = frentes.find((f) => Math.abs(Number(f.pos_z) - (z + alto + cfg.golaFingerClearance)) <= 1.5);
-    if (!superior) {
-      warnings.push(`Gola: la tira "${t.id}" no deja exactamente ${cfg.golaFingerClearance} mm de agarre bajo ningún frente.`);
+    // Regla de contacto: la tira-U toca el techo del frente inferior y el
+    // borde inferior del frente superior (llena el gap).
+    const tocaInferior = frentes.some((f) => Math.abs(Number(f.pos_z) + (Number(f.alto) || 0) - z) <= 1.5);
+    const tocaSuperior = frentes.some((f) => Math.abs(Number(f.pos_z) - (z + alto)) <= 1.5);
+    if (!tocaInferior || !tocaSuperior) {
+      warnings.push(`Gola: la tira "${t.id}" debe tocar AMBOS frentes (borde inferior del superior y borde superior del inferior); queda flotando en el gap.`);
     }
   });
 

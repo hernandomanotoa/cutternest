@@ -122,10 +122,11 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
         // pos_z = techo del frente inferior
         assert.ok(Math.abs(tira.pos_z - (inferior.pos_z + inferior.alto)) <= 0.5,
           `tira ${i + 1}: pos_z ${tira.pos_z} = techo inferior ${inferior.pos_z + inferior.alto}`);
-        // agarre: techo tira + clearance = borde inferior del frente superior
-        assert.ok(Math.abs(tira.pos_z + tira.alto + GOLA_DEFAULTS.golaFingerClearance - superior.pos_z) <= 0.5,
-          `tira ${i + 1}: agarre ${GOLA_DEFAULTS.golaFingerClearance} mm bajo el frente superior`);
-        assert.equal(tira.alto, 30, 'alto de tira = golaPerfilHeight');
+        // La tira-U TOCA AMBOS frentes: techo tira = borde inferior del
+        // frente superior (llena el gap G = golaPerfilHeight).
+        assert.ok(Math.abs(tira.pos_z + tira.alto - superior.pos_z) <= 0.5,
+          `tira ${i + 1}: toca el frente superior (techo ${tira.pos_z + tira.alto} = borde ${superior.pos_z})`);
+        assert.equal(tira.alto, 30, 'alto de tira = gap G = golaPerfilHeight');
         assert.equal(tira.modulo, '1');
         assert.equal(tira.espesor, 15);
         assert.equal(tira.cantidad, 1);
@@ -142,7 +143,8 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
       const pieces = buildModule(n, { repisaZ: techoUlt + 150 });
       const repisaZ = pieces.find((p) => p.id === 'm1-repisa-1').pos_z;
       const bottom = ESP + 10;
-      const G = GOLA_DEFAULTS.golaPerfilHeight + GOLA_DEFAULTS.golaFingerClearance;
+      // Gap entre frentes = alto de la tira-U (toca ambos frentes).
+      const G = GOLA_DEFAULTS.golaPerfilHeight;
       const H_new = repisaZ - GOLA_DEFAULTS.golaFingerClearance - bottom;
 
       const r = applyGola(pieces, '1', {});
@@ -210,7 +212,7 @@ describe('applyGola — L-gola (cajón superior extendido)', () => {
 
   it('aviso cuando los frentes se reducen respecto de su alto original', () => {
     // Repisa baja: los frentes deben achicarse (pero sin perder la caja).
-    const pieces = buildModule(3, { repisaZ: 700 });
+    const pieces = buildModule(3, { repisaZ: 690 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     assert.ok(r.warnings.some((w) => w.includes('reducido')),
@@ -376,10 +378,10 @@ describe('límites', () => {
   });
 
   it('vano insuficiente: { ok: false } con explicación', () => {
-    // Repisa apenas 40 mm sobre la pila: tras los gaps gola no queda vano
-    // para que los frentes cubran sus cajas.
+    // Repisa apenas 20 mm sobre la pila: tras los gaps gola (G = alto de la
+    // tira) no queda vano para que los frentes cubran sus cajas.
     const techoUlt = ESP + 10 + 4 * 197 + 3 * DRAWER_FRONT_GAP;
-    const pieces = buildModule(4, { repisaZ: techoUlt + 40 });
+    const pieces = buildModule(4, { repisaZ: techoUlt + 20 });
     const r = applyGola(pieces, '1', {});
     assert.equal(r.ok, false);
     assert.ok(r.errors[0].includes('vano'));
@@ -429,12 +431,13 @@ describe('renderer (computeGeometries)', () => {
     const yFace = PROF - ESP + 15;
     grips.slice(0, 2).forEach((g, i) => {
       assert.equal(g.id, `m1-gola-${i + 1}-grip`);
-      // agarre de la tira: techo de la tira → borde inferior del frente superior
-      assert.ok(Math.abs(g.z - (tiras[i].pos_z + tiras[i].alto)) <= 0.5,
-        `grip ${i + 1}: z ${g.z} = techo tira`);
-      assert.equal(g.h, GOLA_DEFAULTS.golaFingerClearance);
+      // Canal de agarre: cubre todo el alto de la tira (el agarre es el
+      // retranqueo horizontal; la tira toca ambos frentes).
+      assert.ok(Math.abs(g.z - tiras[i].pos_z) <= 0.5,
+        `grip ${i + 1}: z ${g.z} = base de la tira`);
+      assert.equal(g.h, tiras[i].alto, 'marca de la altura completa de la tira');
       assert.ok(Math.abs(Number(frentes[i + 1].pos_z) - (g.z + g.h)) <= 0.5,
-        `grip ${i + 1}: termina en el borde inferior del frente superior`);
+        `grip ${i + 1}: termina en el borde inferior del frente superior (la tira lo toca)`);
       assert.equal(g.w, INTERIOR - 4, 'ancho = ancho de la tira');
       assert.equal(g.d, 2, 'marca fina en el plano de frentes');
       assert.equal(g.y, yFace, 'en el plano de frentes (no retranqueada)');

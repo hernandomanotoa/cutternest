@@ -4,11 +4,15 @@
  * inferior), entre dos frentes apilados. La vista 3D lo hereda gratis al
  * vivir en el pipeline de computeGeometries().
  *
- * Además de la tira, se emite una marca fina (rol `gola_grip`, caja de 2 mm
- * en el plano de frentes) del canal de agarre: el hueco entre el techo de
- * la tira y el borde inferior del frente superior, y el hueco bajo el frente
- * L (entre el techo del último frente y la repisa/techo inmediato superior).
- * Son solo geometría de renderer (no generan piezas ni BOM).
+ * La tira-U LLENA el gap entre frentes: toca el borde superior del frente
+ * inferior y el borde inferior del frente superior. El agarre lo genera el
+ * RETRANQUEO (la tira queda detrás del plano de frentes): la mano engancha
+ * el borde del frente superior por delante de la tira. Por eso la marca de
+ * agarre (rol `gola_grip`, caja de 2 mm en el plano de frentes) cubre todo
+ * el alto de la tira: señala el canal horizontal donde entran los dedos.
+ * También se emite la marca bajo el frente L (techo del último frente →
+ * repisa/techo inmediato superior). Solo geometría de renderer (sin piezas
+ * ni BOM).
  */
 
 import { ROLE_COLORS } from '../../../core/config.js';
@@ -72,18 +76,16 @@ export function buildGolaGeometries(moduleId, pieces, moduleBox, renderer, cfg =
     .filter((p) => inferRole(p) === 'drawer_face' && perteneceAModulo(p, modId))
     .sort((a, b) => (Number(a.pos_z) || 0) - (Number(b.pos_z) || 0));
 
-  // Agarre de cada tira: entre el techo de la tira y el borde inferior del
-  // frente inmediatamente superior (≈ golaFingerClearance por construcción).
+  // Canal de agarre de cada tira: la tira toca ambos frentes; el agarre es
+  // el hueco horizontal por delante de la tira (retranqueo), así que la
+  // marca cubre todo el alto de la tira en el plano de frentes.
   for (const t of strips) {
-    const zTop = (Number(t.pos_z) || 0) + (Number(t.alto) || golaCfg.golaPerfilHeight);
-    const superior = frentes.find((f) => Number(f.pos_z) >= zTop - 1.5);
-    if (!superior) continue;
-    const h = Number(superior.pos_z) - zTop;
-    if (h <= 0.5) continue;
+    const z = Number(t.pos_z) || 0;
+    const h = Number(t.alto) || golaCfg.golaPerfilHeight;
     geos.push({
       x,
       y: yFace,
-      z: zTop,
+      z,
       w: stripW,
       d: GRIP_MARK_DEPTH,
       h,

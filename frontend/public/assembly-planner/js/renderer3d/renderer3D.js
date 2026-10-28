@@ -123,11 +123,11 @@ export class Renderer3D {
       };
     });
 
-    // Foco gola: oculta las CAJAS (laterales/base/fondo/cara/división/tirador)
-    // de los módulos con gola activo, conservando frentes (incluida la L del
-    // cajón superior), tiras y marcas de agarre — para inspeccionar la
-    // ubicación de los perfiles sin el ruido de las cajas. Temporal: se
-    // restaura al recargar sin la opción.
+    // Foco gola: oculta los CAJONES/ZAPATERAS completos (frentes, laterales,
+    // base, fondo, cara, división y tiradores) de los módulos con gola activo,
+    // conservando el casco, las REPISAS, las tiras y las marcas de agarre —
+    // la vista del módulo con sus golas sin cajones. Temporal: se restaura
+    // al recargar sin la opción.
     if (opts.golaFocus) {
       const moduleIds = new Set(
         (pieces || []).map((p) => String(p.modulo || '').trim()).filter(Boolean),
@@ -149,7 +149,7 @@ export class Renderer3D {
           }
           return m;
         };
-        const CAJA = new Set(['drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part', 'drawer_divider', 'handle']);
+        const CAJA = new Set(['drawer_face', 'drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part', 'drawer_divider', 'handle']);
         this.geometries = this.geometries.filter((g) => {
           if (!CAJA.has(g.role)) return true;
           return !golaRoots.has(rootOf(g.modulo));

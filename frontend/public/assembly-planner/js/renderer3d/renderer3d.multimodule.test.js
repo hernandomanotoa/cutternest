@@ -281,18 +281,20 @@ describe('Renderer3D foco gola', () => {
   ];
   const tira = { id: 'm1-gola-1', nombre: 'Tira gola 1 M1', ancho: 764, alto: 30, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' };
 
-  it('oculta las cajas del módulo con gola y conserva frentes/tiras; se restaura al recargar', () => {
+  it('oculta cajones/zapateras del módulo con gola y conserva casco/repisas/tiras; se restaura al recargar', () => {
     const container = createContainer();
     const renderer = new Renderer3D(container, { width: 900, height: 600 });
-    const pieces = [...CASCO, ...cajon(1, 197), ...cajon(2, 197), tira];
+    const repisa = { id: 'm1-repisa-1', nombre: 'Repisa 1 M1', ancho: 764, alto: 570, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: '1', pos_z: 900 };
+    const pieces = [...CASCO, ...cajon(1, 197), ...cajon(2, 197), tira, repisa];
     renderer.load('all', pieces, { golaFocus: true });
-    const roles = renderer.geometries.map((g) => `${g.role}:${g.id}`);
+    assert.equal(renderer.geometries.some((g) => g.role === 'drawer_face'), false, 'sin frentes (cajones fuera)');
     assert.equal(renderer.geometries.some((g) => g.role === 'drawer_side'), false, 'sin laterales de caja');
     assert.equal(renderer.geometries.some((g) => g.role === 'drawer_bottom'), false, 'sin bases de caja');
-    assert.ok(renderer.geometries.some((g) => g.role === 'drawer_face'), 'frentes visibles (incluida la L)');
-    assert.ok(renderer.geometries.some((g) => g.role === 'gola_strip'), 'tira gola visible');
-    // Restauración: recargar sin la opción devuelve las cajas.
+    assert.ok(renderer.geometries.some((g) => g.id === 'm1-repisa-1'), 'repisa visible');
+    assert.ok(renderer.geometries.some((g) => g.id === 'm1-tapa'), 'casco visible');
+    assert.ok(renderer.geometries.some((g) => g.role === 'gola_strip'), 'tira-U visible');
+    // Restauración: recargar sin la opción devuelve los cajones.
     renderer.load('all', pieces);
-    assert.ok(renderer.geometries.some((g) => g.role === 'drawer_side'), 'cajas restauradas');
+    assert.ok(renderer.geometries.some((g) => g.role === 'drawer_side'), 'cajones restaurados');
   });
 });

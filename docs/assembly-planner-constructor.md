@@ -97,12 +97,17 @@ se editan en el mini-panel de la tarjeta o vía `userConfig`):
 
 1. **Tiras entre frentes**: en cada gap entre cajones apilados se genera una
    tira (`{mod}-gola-{i}`, rol `gola_strip`). Gap gola `G = golaPerfilHeight
-   + golaFingerClearance` **reemplaza** a `drawerFrontGap` (no se suman). La
+   **reemplaza** a `drawerFrontGap` (no se suman). La tira-U **llena el gap y
+   toca ambos frentes** (borde inferior del superior y borde superior del
+   inferior); el agarre lo genera el retranqueo (`golaStripSetback`): los
+   frentes quedan adelantados respecto de la tira y se enganchan por el
+   borde. La
    tira se apoya en el techo del frente inferior y deja el agarre hacia
    arriba; su largo = ancho interior − 2·`golaHolguraLateral` (nunca el
    ancho exterior).
 2. **L-gola del cajón superior**: el frente del último cajón se extiende
-   hasta `topRef − golaFingerClearance`, donde `topRef` es la repisa
+   hasta `topRef − golaFingerClearance` (el aire bajo la repisa es el agarre
+   de la L: la pata coincide con el techo del frente), donde `topRef` es la repisa
    inmediata superior (o el techo interior del casco si no hay). La caja no
    cambia. Si la sobrealtura sobre la caja supera `golaMaxOverhang`, se capa
    y se avisa (queda un hueco sobre el frente).

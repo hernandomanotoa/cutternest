@@ -245,9 +245,9 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-module-gap" ${Number(state.userConfig?.viewModuleGap) > 0 ? 'checked' : ''} style="cursor:pointer;">
               <span>Separar módulos</span>
             </label>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Foco gola: oculta las cajas (laterales/base/fondo) de los módulos con gola para inspeccionar las tiras, el canal de agarre y la L-gola. Volvé a pulsar para restaurar.">
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Foco gola: vista del módulo sin cajones ni zapateras — conserva el casco, las repisas, las tiras-U y la L-gola (con su canal de agarre) para inspeccionar la ubicación de los perfiles. Volvé a pulsar para restaurar.">
               <input type="checkbox" id="r3d-gola-focus" ${golaFocus ? 'checked' : ''} style="cursor:pointer;">
-              <span>Foco gola</span>
+              <span>Foco gola (sin cajones)</span>
             </label>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
