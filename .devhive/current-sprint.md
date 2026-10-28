@@ -59,6 +59,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A46 | Multi-módulo en vista 3D con gap 20 mm | assembly-planner-agent | ✅ Completado | Servicio puro `moduleLayout.js` (`ensureModuleGap`, gap exacto, nunca reduce gap mayor). `renderer3D.js` en `ALL_MODULE_ID` aplica gap y deriva `moduleW`/centro/perspDistance de la caja envolvente real. 8 tests nuevos. Selector "Vista completa" ya existía; explode/transparencia/selección siguen por pieza. |
 | A47 | Deuda catálogo + validación fondo por tipo de riel | assembly-planner-agent | ✅ Completado | (a) Catálogo docs↔data: 45 gemelos byte-idénticos verificados por test nuevo (`catalogoConsistency.test.mjs`); correspondencia documentada en `data/README.md`. (b) `railService.js`: helpers `drawerBoxInteriorWidth`/`drawerBoxMaxHeight` por tipo de riel (telescópica 12,7/lado, ruedas 12,5, ligera 10, oculta vano−42 / vano−23 alto); `csvParser.js` valida ancho y altura de fondo (embutido o apoyado), volquete exento. 94 CSV 0/0/0. |
 | A48 | Specs E2E Playwright ampliadas | test-agent | ✅ Completado | `planner-examples.spec.ts` (9 tests: 3 ejemplos × iso+3D con screenshots a `e2e/screenshots/`, ignorado por git) y `app-guest-pin.spec.ts` (3 tests con skip condicional por URLs de entorno). NO ejecutables en este entorno offline (sin browsers); listos para CI con `playwright install chromium`. |
+| A49 | Frente opcional de la zapatera (bandeja abierta por defecto) | Guardian | ✅ Completado | `conFrente=false` default en `addShoeTray` (sin frente ni tirador; la cara es el frente visible; botas y riel marco fuerzan frente). Anclaje pos_z por cara, promoción a `drawer_face` en `drawerGeometry`, chip de contenido vía cara en `renderContentList` (fix: la bandeja abierta desaparecía de la lista). Pref `contentFrenteZapatera` + checkbox. 5 tests DOM alineados al nuevo default + 3 DOM nuevos (`zapateraFrente.dom.test.js`). 979 unit + 121 DOM OK, 94 CSV 0/0/0. Commits `adcbaa8` + `1489e39`. |
 
 ## Leyenda estados
 
@@ -85,7 +86,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 - Tests backend: 43 passed (bcrypt puro desde A42; sin deprecation de crypt).
 - Tests frontend (React): 97 passed (Vitest, 21 archivos); build de producción OK con three/charts lazy (carga inicial −82 %, A43).
-- Tests Assembly Planner: 772 passed (node --test) + 18 tests DOM de vistas (happy-dom, `pnpm test:dom`).
+- Tests Assembly Planner: 979 passed (node --test) + 121 tests DOM de vistas (happy-dom, `pnpm test:dom`).
 - Ejemplos CSV: 94 archivos validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI); correspondencia docs↔data verificada por test (A47).
 - E2E: 12 specs Playwright nuevos (planner con screenshots + guest PIN), no ejecutables en este entorno offline — requieren `playwright install chromium` (A48).
 - CI: `.github/workflows/ci.yml` corre pytest, Vitest + build y la suite completa del planner en cada push/PR (requiere `pnpm-lock.yaml`, pendiente de generar con red).
