@@ -135,7 +135,7 @@ export class Renderer3D {
       const golaRoots = new Set(
         (pieces || [])
           .filter((p) => inferRole(p) === 'gola_strip')
-          .map((p) => String(p.id).match(/^m(\d+)-gola-/)?.[1])
+          .map((p) => String(p.id).match(/^m(\d+)gola-/)?.[1])
           .filter(Boolean),
       );
       if (golaRoots.size) {

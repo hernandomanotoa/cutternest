@@ -261,30 +261,17 @@ export function calculateHardware(piezas, dependencies, cfg = {}) {
     });
   }
 
-  // ── Perfiles gola ─────────────────────────────────────────────────────────
-  // Tiras de melamina entre frentes (rol gola_strip): agrupadas por largo de
-  // corte + tornillos de fijación por perfil (default PROVISIONAL).
-  const tirasGola = uniquePieces(piezas, (p) => inferRole(p) === 'gola_strip');
-  if (tirasGola.length > 0) {
+  // ── Canales gola ──────────────────────────────────────────────────────────
+  // Los canales (C y L) son PIEZAS de melamina: van en la lista de corte,
+  // no en el BOM. Solo se lista la fijación: tornillos por fondo de canal.
+  const fondosGola = uniquePieces(piezas, (p) =>
+    inferRole(p) === 'gola_strip' && /-fondo$/.test(String(p.id)));
+  if (fondosGola.length > 0) {
     const golaCfg = getGolaCfg(cfg);
-    const porLargo = new Map();
-    tirasGola.forEach((p) => {
-      const largo = Math.round(Number(p.ancho) || 0);
-      porLargo.set(largo, (porLargo.get(largo) || 0) + 1);
-    });
-    porLargo.forEach((cantidad, largo) => {
-      herrajes.push({
-        nombre: 'Perfil gola melamina',
-        cantidad,
-        especificacion: `corte ${largo} mm c/u · fijación: ${golaCfg.golaFijacion}`,
-        prioridad: 'Media',
-        bloqueante: false,
-      });
-    });
     herrajes.push({
       nombre: 'Tornillo fijación gola',
-      cantidad: tirasGola.length * (golaCfg.golaTornillosPorPerfil || 2),
-      especificacion: '3.5×16 mm (PROVISIONAL)',
+      cantidad: fondosGola.length * (golaCfg.golaTornillosPorPerfil || 2),
+      especificacion: `3.5×16 mm al fondo de canal (cuerpo ${golaCfg.golaPerfilHeight} mm + paso ${golaCfg.golaPaso} mm) — ${golaCfg.golaFijacion}`,
       prioridad: 'Media',
       bloqueante: false,
     });

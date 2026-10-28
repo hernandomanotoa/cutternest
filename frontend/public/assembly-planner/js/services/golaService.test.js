@@ -60,7 +60,8 @@ const frentesOrdenados = (pieces) =>
     .sort((a, b) => a.pos_z - b.pos_z);
 
 const tirasDe = (pieces) =>
-  pieces.filter((p) => /^m1-gola-\d+$/.test(String(p.id))).sort((a, b) => a.pos_z - b.pos_z);
+  pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).sort((a, b) => a.pos_z - b.pos_z);
+const fondoL = (pieces) => pieces.find((p) => /gola-l\d+-fondo$/.test(String(p.id)));
 
 const tiradoresDe = (pieces) =>
   pieces.filter((p) => String(p.id).startsWith('m1') && p.id.endsWith('-tirador'));
@@ -68,14 +69,14 @@ const tiradoresDe = (pieces) =>
 describe('getGolaCfg', () => {
   it('mergea defaults PROVISIONALES con overrides numéricos y string', () => {
     const cfg = getGolaCfg({});
-    assert.equal(cfg.golaPerfilHeight, 30);
+    assert.equal(cfg.golaPerfilHeight, 50);
     assert.equal(cfg.golaFingerClearance, 20);
     assert.equal(cfg.golaMaxOverhang, 120);
     assert.ok(cfg.golaFijacion.includes('PROVISIONAL'));
     const custom = getGolaCfg({ golaPerfilHeight: 40, golaFijacion: '  Cola + tarugos ' });
     assert.equal(custom.golaPerfilHeight, 40);
     assert.equal(custom.golaFijacion, 'Cola + tarugos');
-    assert.equal(getGolaCfg({ golaPerfilHeight: -5 }).golaPerfilHeight, 30, 'negativos caen a default');
+    assert.equal(getGolaCfg({ golaPerfilHeight: -5 }).golaPerfilHeight, 50, 'negativos caen a default');
   });
 
   it('moduleCfg: los overrides del módulo ganan sobre la config global', () => {
@@ -84,14 +85,14 @@ describe('getGolaCfg', () => {
     assert.equal(cfg.golaPerfilHeight, 50, 'override del módulo gana a la global');
     assert.equal(cfg.golaFingerClearance, 15, 'clave no tocada hereda la global');
     assert.equal(cfg.golaStripDepth, GOLA_DEFAULTS.golaStripDepth, 'y si nadie la toca, el default');
-    assert.equal(getGolaCfg({}, {}).golaPerfilHeight, 30, 'sin overrides → default');
+    assert.equal(getGolaCfg({}, {}).golaPerfilHeight, 50, 'sin overrides → default');
     assert.equal(getGolaCfg(global_).golaPerfilHeight, 40, 'sin moduleCfg → igual que antes');
   });
 
   it('moduleCfg: negativos/no numéricos caen al valor global/default', () => {
     const cfg = getGolaCfg({ golaPerfilHeight: 40 }, { golaPerfilHeight: -5 });
     assert.equal(cfg.golaPerfilHeight, 40, 'negativo del módulo cae a la global');
-    assert.equal(getGolaCfg({}, { golaPerfilHeight: 'abc' }).golaPerfilHeight, 30, 'no numérico cae al default');
+    assert.equal(getGolaCfg({}, { golaPerfilHeight: 'abc' }).golaPerfilHeight, 50, 'no numérico cae al default');
   });
 
   it('moduleCfg: golaFijacion del módulo gana; string vacío cae a la global', () => {
@@ -116,17 +117,16 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
       assert.equal(frentes.length, n);
 
       tiras.forEach((tira, i) => {
-        assert.equal(tira.id, `m1-gola-${i + 1}`);
+        assert.equal(tira.id, `m1gola-c${i + 1}-fondo`);
         const inferior = frentes[i]; // unidad i (más abajo)
         const superior = frentes[i + 1];
-        // pos_z = techo del frente inferior
-        assert.ok(Math.abs(tira.pos_z - (inferior.pos_z + inferior.alto)) <= 0.5,
-          `tira ${i + 1}: pos_z ${tira.pos_z} = techo inferior ${inferior.pos_z + inferior.alto}`);
-        // La tira-U TOCA AMBOS frentes: techo tira = borde inferior del
-        // frente superior (llena el gap G = golaPerfilHeight).
-        assert.ok(Math.abs(tira.pos_z + tira.alto - superior.pos_z) <= 0.5,
-          `tira ${i + 1}: toca el frente superior (techo ${tira.pos_z + tira.alto} = borde ${superior.pos_z})`);
-        assert.equal(tira.alto, 30, 'alto de tira = gap G = golaPerfilHeight');
+        // pos_z = techo del frente inferior + paso inferior
+        assert.ok(Math.abs(tira.pos_z - (inferior.pos_z + inferior.alto + GOLA_DEFAULTS.golaPaso)) <= 0.5,
+          `tira ${i + 1}: pos_z ${tira.pos_z} = techo inferior + paso ${inferior.pos_z + inferior.alto + GOLA_DEFAULTS.golaPaso}`);
+        // Canal centrado: paso + perfil + paso = borde inferior del frente superior.
+        assert.ok(Math.abs(tira.pos_z + tira.alto + GOLA_DEFAULTS.golaPaso - superior.pos_z) <= 0.5,
+          `tira ${i + 1}: paso superior ${GOLA_DEFAULTS.golaPaso} bajo el frente superior`);
+        assert.equal(tira.alto, GOLA_DEFAULTS.golaPerfilHeight, 'alto de tira = cuerpo del perfil C');
         assert.equal(tira.modulo, '1');
         assert.equal(tira.espesor, 15);
         assert.equal(tira.cantidad, 1);
@@ -143,8 +143,8 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
       const pieces = buildModule(n, { repisaZ: techoUlt + 150 });
       const repisaZ = pieces.find((p) => p.id === 'm1-repisa-1').pos_z;
       const bottom = ESP + 10;
-      // Gap entre frentes = alto de la tira-U (toca ambos frentes).
-      const G = GOLA_DEFAULTS.golaPerfilHeight;
+      // Gap entre frentes = paso + perfil + paso (canal centrado).
+      const G = GOLA_DEFAULTS.golaPaso + GOLA_DEFAULTS.golaPerfilHeight + GOLA_DEFAULTS.golaPaso;
       const H_new = repisaZ - GOLA_DEFAULTS.golaFingerClearance - bottom;
 
       const r = applyGola(pieces, '1', {});
@@ -296,17 +296,14 @@ describe('BOM (calculateHardware)', () => {
     assert.ok(r.ok, r.errors?.join('; '));
 
     const h = calculateHardware(r.pieces, [], {});
-    const perfiles = h.find((x) => x.nombre === 'Perfil gola melamina');
-    assert.ok(perfiles, 'ítem Perfil gola melamina');
-    assert.equal(perfiles.cantidad, 3, 'N−1 perfiles');
-    assert.ok(perfiles.especificacion.includes(`corte ${INTERIOR - 4} mm c/u`), 'corte por largo');
-    assert.ok(perfiles.especificacion.includes(GOLA_DEFAULTS.golaFijacion), 'fijación en la especificación');
-    assert.equal(perfiles.prioridad, 'Media');
-    assert.equal(perfiles.bloqueante, false);
-
+    // Los canales son PIEZAS de melamina (van en la lista de corte, no en
+    // el BOM); el BOM solo trae la fijación.
+    assert.equal(h.some((x) => x.nombre.includes('Perfil gola')), false, 'sin perfiles en el BOM');
     const tornillos = h.find((x) => x.nombre === 'Tornillo fijación gola');
     assert.ok(tornillos);
-    assert.equal(tornillos.cantidad, 3 * 2, '(N−1)·golaTornillosPorPerfil');
+    // Fondos de canal: (N−1) C + 1 L = N fondos.
+    assert.equal(tornillos.cantidad, 4 * 2, 'N fondos × golaTornillosPorPerfil');
+    assert.ok(tornillos.especificacion.includes(GOLA_DEFAULTS.golaFijacion), 'fijación en la especificación');
 
     // Sin gola no hay ítems gola.
     const h0 = calculateHardware(pieces, [], {});
@@ -319,8 +316,9 @@ describe('BOM (calculateHardware)', () => {
     assert.ok(r.ok, r.errors?.join('; '));
     const cfg = { golaTornillosPorPerfil: 4, golaFijacion: 'Cola blanca + tarugos' };
     const h = calculateHardware(r.pieces, [], cfg);
-    assert.equal(h.find((x) => x.nombre === 'Tornillo fijación gola').cantidad, 2 * 4);
-    assert.ok(h.find((x) => x.nombre === 'Perfil gola melamina').especificacion.includes('Cola blanca + tarugos'));
+    // 3 cajones ⇒ 3 fondos de canal (2 C + 1 L) × 4 tornillos.
+    assert.equal(h.find((x) => x.nombre === 'Tornillo fijación gola').cantidad, 3 * 4);
+    assert.ok(h.find((x) => x.nombre === 'Tornillo fijación gola').especificacion.includes('Cola blanca + tarugos'));
   });
 });
 
@@ -397,22 +395,30 @@ describe('renderer (computeGeometries)', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
     const { geometries } = renderer.computeGeometries('1', r.pieces);
     const golas = geometries.filter((g) => g.role === 'gola_strip');
-    assert.equal(golas.length, 2);
+    // 3 cajones ⇒ 2 canales C (fondo + 2 pestañas) + 1 canal L (fondo + 1)
+    // = 8 geometrías.
+    assert.equal(golas.length, 8);
 
-    const tiras = tirasDe(r.pieces);
-    golas.forEach((g, i) => {
-      assert.equal(g.id, tiras[i].id);
-      assert.equal(g.w, INTERIOR - 4);
-      assert.equal(g.h, 30);
-      assert.equal(g.d, GOLA_DEFAULTS.golaStripDepth);
-      assert.ok(Math.abs(g.z - tiras[i].pos_z) <= 0.5);
-      // y = yFace − setback; yFace = moduleD − thickness + drawerGap (15).
-      const yFace = PROF - ESP + 15;
-      assert.ok(Math.abs(g.y - (yFace - GOLA_DEFAULTS.golaStripSetback)) <= 0.5,
-        `y ${g.y} = yFace − setback`);
-      // centrada en el módulo
-      const moduleW = ANCHO;
-      assert.ok(Math.abs(g.x - (moduleW - g.w) / 2) <= 0.5);
+    const tiras = tirasDe(r.pieces); // fondos C
+    const yFace = PROF - ESP + 15;
+    const yBack = yFace - GOLA_DEFAULTS.golaStripSetback;
+    const fondosGeos = golas.filter((g) => g.id.endsWith('-fondo'));
+    assert.equal(fondosGeos.length, 3, '2 fondos C + 1 fondo L');
+    tiras.forEach((t, i) => {
+      const g = fondosGeos.find((fg) => fg.id === t.id);
+      assert.ok(g, `geo del ${t.id}`);
+      assert.equal(g.w, INTERIOR, 'ancho = interior (holgura 0)');
+      assert.equal(g.h, GOLA_DEFAULTS.golaPerfilHeight, 'alto = cuerpo del perfil');
+      assert.equal(g.d, 15, 'el fondo es un panel vertical de 15');
+      assert.ok(Math.abs(g.z - t.pos_z) <= 0.5);
+      assert.ok(Math.abs(g.y - (yBack - 15)) <= 0.5, 'cara frontal del fondo a yBack');
+    });
+    const pestanas = golas.filter((g) => g.id.includes('-pestana'));
+    assert.equal(pestanas.length, 5, '2 sup + 2 inf en C + 1 inf en L');
+    pestanas.forEach((g) => {
+      assert.equal(g.h, 15, 'pestaña: 15 de alto (tablero)');
+      assert.equal(g.d, GOLA_DEFAULTS.golaStripDepth, 'alcance de la pestaña');
+      assert.equal(g.y, yBack - 15, 'sale del fondo hacia el frente');
     });
   });
 
@@ -424,33 +430,35 @@ describe('renderer (computeGeometries)', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
     const { geometries } = renderer.computeGeometries('1', r.pieces);
     const grips = geometries.filter((g) => g.role === 'gola_grip');
-    assert.equal(grips.length, 3, '3 cajones ⇒ 2 agarres de tira + 1 agarre L');
+    // 2 marcas de paso (fondos C) + 1 marca del paso L + 1 agarre clásico
+    // (techo del último frente → repisa).
+    assert.equal(grips.length, 4, '3 marcas de paso (fondos) + 1 agarre L clásico');
 
     const tiras = tirasDe(r.pieces);
     const frentes = frentesOrdenados(r.pieces);
     const yFace = PROF - ESP + 15;
-    grips.slice(0, 2).forEach((g, i) => {
-      assert.equal(g.id, `m1-gola-${i + 1}-grip`);
-      // Canal de agarre: cubre todo el alto de la tira (el agarre es el
-      // retranqueo horizontal; la tira toca ambos frentes).
-      assert.ok(Math.abs(g.z - tiras[i].pos_z) <= 0.5,
-        `grip ${i + 1}: z ${g.z} = base de la tira`);
-      assert.equal(g.h, tiras[i].alto, 'marca de la altura completa de la tira');
+    grips.filter((g) => /-fondo-grip$/.test(g.id)).slice(0, 2).forEach((g, i) => {
+      assert.equal(g.id, `m1gola-c${i + 1}-fondo-grip`);
+      // Canal de agarre: el paso superior sobre la tira (por donde entran
+      // los dedos); termina en el borde inferior del frente superior.
+      assert.ok(Math.abs(g.z - (tiras[i].pos_z + tiras[i].alto)) <= 0.5,
+        `grip ${i + 1}: z ${g.z} = techo de la tira`);
+      assert.equal(g.h, GOLA_DEFAULTS.golaPaso, 'marca del paso de agarre');
       assert.ok(Math.abs(Number(frentes[i + 1].pos_z) - (g.z + g.h)) <= 0.5,
-        `grip ${i + 1}: termina en el borde inferior del frente superior (la tira lo toca)`);
-      assert.equal(g.w, INTERIOR - 4, 'ancho = ancho de la tira');
+        `grip ${i + 1}: termina en el borde inferior del frente superior`);
+      assert.equal(g.w, INTERIOR, 'ancho = interior');
       assert.equal(g.d, 2, 'marca fina en el plano de frentes');
       assert.equal(g.y, yFace, 'en el plano de frentes (no retranqueada)');
       assert.equal(g.color, '#4ECDC4', 'color de acento del rol');
     });
 
     const lGrip = grips.find((g) => g.id === 'm1-gola-l-grip');
-    assert.ok(lGrip, 'existe la marca del agarre L');
+    assert.ok(lGrip, 'existe la marca del agarre L (techo del último frente → repisa)');
     const ultimo = frentes[frentes.length - 1];
     assert.ok(Math.abs(lGrip.z - (ultimo.pos_z + ultimo.alto)) <= 0.5,
       'z = techo del último frente');
     assert.equal(lGrip.h, GOLA_DEFAULTS.golaFingerClearance, 'gap bajo la repisa = agarre');
-    assert.equal(lGrip.w, INTERIOR - 4);
+    assert.equal(lGrip.w, INTERIOR);
   });
 
   it('sin repisa, la marca L se coloca bajo el techo interior del casco', () => {
@@ -461,7 +469,8 @@ describe('renderer (computeGeometries)', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
     const { geometries } = renderer.computeGeometries('1', r.pieces);
     const grips = geometries.filter((g) => g.role === 'gola_grip');
-    assert.equal(grips.length, 2, '1 agarre de tira + 1 agarre L bajo el techo');
+    // 1 marca de paso (fondo C) + 1 marca de paso L + 1 agarre clásico.
+    assert.equal(grips.length, 3);
     const lGrip = grips.find((g) => g.id === 'm1-gola-l-grip');
     assert.ok(lGrip);
     // techo interior = ALTO − ESP (sin repisa): la L no está capeada (vano alto).

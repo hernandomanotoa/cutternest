@@ -59,42 +59,49 @@ export function buildGolaGeometries(moduleId, pieces, moduleBox, renderer, cfg =
   const stripW = Number(strips[0].ancho) || 0;
   const x = (moduleW - stripW) / 2;
 
-  const geos = strips.map((p) => ({
-    x,
-    y,
-    z: Number(p.pos_z) || 0,
-    w: Number(p.ancho) || 0,
-    d: golaCfg.golaStripDepth,
-    h: Number(p.alto) || golaCfg.golaPerfilHeight,
-    color: p.color || ROLE_COLORS.gola_strip,
-    role: 'gola_strip',
-    name: p.nombre,
-    id: p.id,
-  }));
+  // Cada canal se dibuja desde su FONDO (pieza ...-fondo): panel vertical
+  // retranqueado + pestañas horizontales (sup e inf) que forman el canal de
+  // agarre abierto hacia el frente. El canal L solo lleva pestaña inferior.
+  const fondos = strips.filter((p) => String(p.id).endsWith('-fondo'));
+  const yBack = yFace - golaCfg.golaStripSetback; // cara frontal del fondo
+  const geos = [];
+  for (const f of fondos) {
+    const z = Number(f.pos_z) || 0;
+    const h = Number(f.alto) || golaCfg.golaPerfilHeight;
+    const w = Number(f.ancho) || stripW;
+    const pref = String(f.id).slice(0, -'-fondo'.length);
+    const pestanaSup = strips.find((p) => p.id === `${pref}-pestana-sup`);
+    const pestanaInf = strips.find((p) => p.id === `${pref}-pestana-inf` || p.id === `${pref}-pestana`);
+    geos.push({
+      x, y: yBack - 15, z, w, d: 15, h,
+      color: f.color || ROLE_COLORS.gola_strip,
+      role: 'gola_strip', name: f.nombre, id: f.id,
+    });
+    const profP = golaCfg.golaStripDepth;
+    if (pestanaSup) {
+      geos.push({
+        x, y: yBack - 15, z: z + h - 15, w, d: profP, h: 15,
+        color: pestanaSup.color || ROLE_COLORS.gola_strip,
+        role: 'gola_strip', name: pestanaSup.nombre, id: pestanaSup.id,
+      });
+    }
+    if (pestanaInf) {
+      geos.push({
+        x, y: yBack - 15, z, w, d: profP, h: 15,
+        color: pestanaInf.color || ROLE_COLORS.gola_strip,
+        role: 'gola_strip', name: pestanaInf.nombre, id: pestanaInf.id,
+      });
+    }
+    // Marca del agarre: el paso superior (por donde entran los dedos al canal).
+    geos.push({
+      x, y: yFace, z: z + h, w, d: GRIP_MARK_DEPTH, h: golaCfg.golaPaso,
+      color: ROLE_COLORS.gola_grip, role: 'gola_grip', name: '', id: `${f.id}-grip`,
+    });
+  }
 
   const frentes = (pieces || [])
     .filter((p) => inferRole(p) === 'drawer_face' && perteneceAModulo(p, modId))
     .sort((a, b) => (Number(a.pos_z) || 0) - (Number(b.pos_z) || 0));
-
-  // Canal de agarre de cada tira: la tira toca ambos frentes; el agarre es
-  // el hueco horizontal por delante de la tira (retranqueo), así que la
-  // marca cubre todo el alto de la tira en el plano de frentes.
-  for (const t of strips) {
-    const z = Number(t.pos_z) || 0;
-    const h = Number(t.alto) || golaCfg.golaPerfilHeight;
-    geos.push({
-      x,
-      y: yFace,
-      z,
-      w: stripW,
-      d: GRIP_MARK_DEPTH,
-      h,
-      color: ROLE_COLORS.gola_grip,
-      role: 'gola_grip',
-      name: '',
-      id: `${t.id}-grip`,
-    });
-  }
 
   // Agarre de la L: entre el techo del último frente y la repisa inmediata
   // superior (solo repisas del módulo raíz); sin repisa, bajo el techo

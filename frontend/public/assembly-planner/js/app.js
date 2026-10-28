@@ -635,6 +635,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         // División central (apoyo de la fila delantera): por defecto va.
         division: opts.division !== false,
         riel: ['catalogo', 'telescopica26', 'oculta', 'marco'].includes(opts.riel) ? opts.riel : 'catalogo',
+        frenteLuz: Number(opts.frenteLuz) || 1,
       });
     } else {
       result = addDrawer(moduleId, idx, {
@@ -647,6 +648,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
         riel: ['catalogo', 'telescopica26', 'oculta'].includes(opts.riel) ? opts.riel : 'catalogo',
+        frenteLuz: Number(opts.frenteLuz) || 1,
       });
     }
   } else if (kind === 'divider') {
@@ -1099,7 +1101,7 @@ export function previewGola(moduleId) {
     tiras: Math.max(0, unidades.length - 1),
     frentes,
     agarre: cfg.golaFingerClearance,
-    gapGola: cfg.golaPerfilHeight + cfg.golaFingerClearance,
+    gapGola: cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso,
   };
   return { ok: true, warnings: dry.warnings || [], plan };
 }

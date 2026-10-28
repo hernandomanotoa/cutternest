@@ -269,6 +269,7 @@ export function addDrawer(moduleId, index, {
   altBandeja = 150,
   espesorFrente = 15,
   riel = RIEL_DEFAULT,
+  frenteLuz = 1,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -286,7 +287,7 @@ export function addDrawer(moduleId, index, {
   const ESP_BASE = 15;
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
-  const frenteAncho = nPorFila === 1 ? W - 2 : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
+  const frenteAncho = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
   const frenteAlto = altoVano - 3;
   const volquete = tipo === 'volquete';
   // El tipo de riel define las medidas de la caja (spec del taller).
@@ -390,6 +391,7 @@ export function addShoeTray(moduleId, index, {
   colorLateral = '#D9C2A3',
   division = true,
   riel = RIEL_DEFAULT,
+  frenteLuz = 1,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -405,7 +407,7 @@ export function addShoeTray(moduleId, index, {
   const ESP_BASE = 15;
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
-  const frenteAncho = W - 2;
+  const frenteAncho = W - 2 * frenteLuz;
   const frenteAlto = altoVano - 3;
   const profBandeja = D - 25; // corredera telescópica
   const latAlto = Math.min(altoLateral, frenteAlto - 2 * ESP_BASE); // lateral bajo

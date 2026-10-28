@@ -279,7 +279,7 @@ describe('Renderer3D foco gola', () => {
     { id: `m1cajon${sub}-fondo`, nombre: `Fondo cajon ${sub} M1`, ancho: 764, alto: 150, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, cantos: '', modulo: `1${sub}` },
     { id: `m1cajon${sub}-base`, nombre: `Base cajon ${sub} M1`, ancho: 764, alto: 515, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: `1${sub}` },
   ];
-  const tira = { id: 'm1-gola-1', nombre: 'Tira gola 1 M1', ancho: 764, alto: 30, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' };
+  const tira = { id: 'm1gola-c1-fondo', nombre: 'Fondo de canal Gola C 1', ancho: 820, alto: 50, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B', modulo: '1' };
 
   it('oculta cajones/zapateras del módulo con gola y conserva casco/repisas/tiras; se restaura al recargar', () => {
     const container = createContainer();

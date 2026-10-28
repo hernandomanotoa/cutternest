@@ -48,7 +48,7 @@ function armarModuloCon3Cajones() {
 }
 
 const tirasDe = (pieces) =>
-  pieces.filter((p) => /^m1-gola-\d+$/.test(String(p.id))).sort((a, b) => a.pos_z - b.pos_z);
+  pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).sort((a, b) => a.pos_z - b.pos_z);
 
 const frentesDe = (pieces) =>
   pieces.filter((p) => String(p.id).endsWith('-frente')).sort((a, b) => a.pos_z - b.pos_z);
@@ -56,8 +56,8 @@ const frentesDe = (pieces) =>
 const techoMaxFrentes = (pieces) =>
   Math.max(...frentesDe(pieces).map((f) => f.pos_z + f.alto));
 
-// anchoTira = anchoInterior − 2·golaHolguraLateral = (W − 2e) − 4.
-const anchoTiraEsperado = (W, e = 15) => W - 2 * e - 4;
+// ancho del canal = ancho interior (holgura lateral 0).
+const anchoTiraEsperado = (W, e = 15) => W - 2 * e;
 
 test('A1: editModuleDimensions con gola activo re-anchoa y reposiciona las tiras', () => {
   armarModuloCon3Cajones();

@@ -70,7 +70,8 @@ const TIPOS_CAJON = [
 // como overrides en cn-assembly-gola-cfg, con fallback a la userConfig
 // global): clave cfg, label, min, step.
 const GOLA_CFG_FIELDS = [
-  ['golaPerfilHeight', 'Alto tira (mm)', 10, 5],
+  ['golaPerfilHeight', 'Alto perfil (mm)', 10, 5],
+  ['golaPaso', 'Paso frente↔canal (mm)', 1, 1],
   ['golaFingerClearance', 'Agarre (mm)', 5, 5],
   ['golaStripDepth', 'Prof. tira (mm)', 20, 5],
   ['golaStripSetback', 'Retranqueo (mm)', 0, 5],
@@ -403,6 +404,9 @@ export function createConstructorView(store) {
       const division = container.querySelector(`${scoped} [data-division]`)?.checked !== false;
       // Tipo de riel: define las medidas de la caja (descuentos y fondo).
       const riel = container.querySelector(`${scoped} [data-tipo-riel]`)?.value || 'catalogo';
+      // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
+      const luzFrente = Math.max(0.5, Number(container.querySelector(`${scoped} [data-luz-frente]`)?.value) || 1);
+      saveUserConfig({ drawerFrontLuz: luzFrente });
       // Persistir las preferencias para los siguientes módulos (sesión).
       saveUserConfig({
         ...(altoVanoInput > 0 ? { contentVano: altoVanoInput } : {}),
@@ -413,7 +417,7 @@ export function createConstructorView(store) {
         contentRiel: riel,
       });
       store.set({ userConfig: loadUserConfig() });
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, riel });
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, riel, frenteLuz: luzFrente });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -975,6 +979,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
             <option value="1" ${prefNPorFila === 1 ? 'selected' : ''}>1</option>
             <option value="2" ${prefNPorFila === 2 ? 'selected' : ''}>2</option>
           </select>
+        </label>
+        <label class="form-group" style="margin:0;" title="Luz perimetral del frente por lado respecto del vano interior (spec gola: 3 mm)">Luz frente (mm)
+          <input type="number" data-luz-frente value="${Number(cfg.drawerFrontLuz ?? 1)}" min="0.5" max="5" step="0.5" />
         </label>
         <label class="form-group" style="margin:0;" title="Espesor del frente decorativo (puede diferir del cuerpo: frente 18 con cuerpo 15 es lo mas comun)">Esp. frente
           <select data-espesor-frente>

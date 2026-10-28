@@ -264,6 +264,7 @@ export const VERTICAL_POSITIONS = {
   // ── Gaps específicos (difieren del stackGap genérico) ─────────
   doorGap: 2,                // gap entre puertas
   drawerFrontGap: 2.5,       // gap entre frentes de cajón apilados (mueblería real: 2–3 mm)
+  drawerFrontLuz: 1,         // luz perimetral del frente por lado vs vano interior (mm; spec gola: 3)
 
   // ── Alturas absolutas desde el suelo ──────────────────────────
   seatHeight: 450,           // altura del asiento
@@ -304,11 +305,12 @@ export const VERTICAL_POSITIONS = {
   // ── Sistema gola (tiras de melamina entre frentes; PROVISIONAL) ──
   // Defaults de taller a confirmar contra catálogo antes de producción.
   // golaFijacion (STRING_PREF en userConfigService) acompaña estos valores.
-  golaPerfilHeight: 30,      // alto de la tira gola (mm)
+  golaPerfilHeight: 50,      // cuerpo del perfil C/L de aluminio (mm)
+  golaPaso: 3,               // paso entre frente y canal, arriba y abajo del perfil (mm)
   golaFingerClearance: 20,   // espacio de agarre; también el gap bajo repisa para la L (mm)
   golaStripDepth: 60,        // profundidad de la tira (mm)
   golaStripSetback: 10,      // retranqueo detrás del plano de frentes (mm)
-  golaHolguraLateral: 2,     // por lado respecto al ancho interior (mm)
+  golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
   golaTornillosPorPerfil: 2, // tornillos de fijación por perfil
   golaMaxOverhang: 120,      // máx. sobrealtura del frente L respecto a su caja (mm)
 };

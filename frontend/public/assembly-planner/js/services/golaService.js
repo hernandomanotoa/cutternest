@@ -19,11 +19,13 @@
 //
 // Convenciones: unidades ordenadas por min pos_z de sus frentes (unidad 1 =
 // la más baja, unidad N = la más alta, que recibe la L). Gap gola entre
-// frentes G = golaPerfilHeight: la tira-U LLENA el gap y TOCA AMBOS
-// frentes (el inferior por arriba y el superior por abajo). El agarre lo
-// genera el retranqueo (golaStripSetback): los frentes quedan adelantados
-// respecto de la tira y se enganchan por el borde. golaFingerClearance solo
-// aplica a la L-gola (aire de agarre bajo la repisa).
+// frentes G = golaPaso + golaPerfilHeight + golaPaso: el cuerpo del perfil
+// C queda centrado en el gap con 3 mm de paso arriba y abajo (los dedos
+// entran por el paso superior al canal). El agarre lo genera el retranqueo
+// (golaStripSetback): los frentes quedan adelantados respecto del perfil.
+// Regla de la L superior: la caja del último cajón se rebaja para pasar
+// bajo el cuerpo del perfil L (golaPerfilHeight + golaPaso bajo el techo).
+// golaFingerClearance solo aplica a la L (aire de agarre bajo la repisa).
 
 import { inferRole } from './classifierService.js';
 
@@ -31,11 +33,12 @@ import { inferRole } from './classifierService.js';
 // de core/config.js VERTICAL_POSITIONS para poder llamar al servicio desde
 // tests sin userConfig.
 export const GOLA_DEFAULTS = {
-  golaPerfilHeight: 30,
-  golaFingerClearance: 20,
+  golaPerfilHeight: 50,        // cuerpo del perfil C/L (aluminio, mm)
+  golaPaso: 3,                 // holgura de paso entre frente y canal (arriba y abajo del perfil)
+  golaFingerClearance: 20,     // aire de agarre de la L bajo la repisa (mm)
   golaStripDepth: 60,
   golaStripSetback: 10,
-  golaHolguraLateral: 2,
+  golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
   golaTornillosPorPerfil: 2,
   golaMaxOverhang: 120,
   golaFijacion: 'Tornillos 3.5×16 + soporte trasero (PROVISIONAL)',
@@ -43,6 +46,7 @@ export const GOLA_DEFAULTS = {
 
 export const GOLA_NUMERIC_KEYS = [
   'golaPerfilHeight',
+  'golaPaso',
   'golaFingerClearance',
   'golaStripDepth',
   'golaStripSetback',
@@ -82,7 +86,7 @@ function perteneceAModulo(p, moduleId) {
 const redondea1 = (v) => Math.round(v * 10) / 10;
 
 function stripPrefix(moduleId) {
-  return `m${moduleId}-gola-`;
+  return `m${moduleId}gola-`;
 }
 
 function esTiraGola(p) {
@@ -197,8 +201,8 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   const techoUltimoFrente = Math.max(...unidades[N - 1].frentes.map((f) => Number(f.pos_z) + (Number(f.alto) || 0)));
   const topRef = topRefDe(pieces, modId, techoUltimoFrente, casco.techoInterior);
   const H_new = topRef - cfg.golaFingerClearance - bottom;
-  // Gap entre frentes = alto de la tira-U: toca ambos frentes.
-  const G = cfg.golaPerfilHeight;
+  // Gap entre frentes = paso + perfil + paso (canal centrado).
+  const G = cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso;
   const disponible = H_new - (N - 1) * G;
   // Vano mínimo real: cada frente debe cubrir su caja (lateral + 10 mm).
   const minSuma = unidades.reduce(
@@ -275,27 +279,56 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
-  // Tiras i = 1..N−1: sobre el techo del frente inferior (unidad i),
-  // con el agarre hacia arriba, bajo el borde inferior del frente superior.
+  // Canales de MELAMINA (mismo material/color que el módulo). Por cada gap
+  // intermedio, un canal tipo C: fondo vertical que llena el cuerpo del gap
+  // (retranqueado) + dos pestañas horizontales (sup e inf) que forman el
+  // canal de agarre hacia adelante. Arriba de todo, un canal tipo L: fondo +
+  // pestaña inferior solamente (el agarre entra desde arriba).
   const prefijo = stripPrefix(modId);
-  const anchoTira = casco.anchoInterior - 2 * cfg.golaHolguraLateral;
+  const anchoCanal = casco.anchoInterior - 2 * cfg.golaHolguraLateral;
   const color = colorTira(pieces, modId, casco, unidades);
-  const tiras = [];
+  const mk = (id, nombre, ancho, alto, pos_z, rotate = false) => ({
+    id, nombre, ancho, alto, cantidad: 1, rotate,
+    color, espesor: 15, cantos: 'T,B', modulo: modId, pos_z,
+  });
+  const canales = [];
   for (let i = 1; i <= N - 1; i++) {
-    tiras.push({
-      id: `${prefijo}${i}`,
-      nombre: 'Perfil gola',
-      ancho: anchoTira,
-      // Toca ambos frentes: ocupa todo el gap G.
-      alto: G,
-      cantidad: 1,
-      rotate: false,
-      color,
-      espesor: 15,
-      cantos: '',
-      modulo: modId,
-      pos_z: redondea1(nuevasTops[i - 1] + nuevasAlturas[i - 1]),
-    });
+    const zBase = redondea1(nuevasTops[i - 1] + nuevasAlturas[i - 1] + cfg.golaPaso);
+    canales.push(mk(`${prefijo}c${i}-fondo`, `Fondo de canal Gola C ${i}`, anchoCanal, cfg.golaPerfilHeight, zBase, false));
+    canales.push(mk(`${prefijo}c${i}-pestana-sup`, `Pestana superior Gola C ${i}`, anchoCanal, cfg.golaStripDepth, redondea1(zBase + cfg.golaPerfilHeight - 15), true));
+    canales.push(mk(`${prefijo}c${i}-pestana-inf`, `Pestana inferior Gola C ${i}`, anchoCanal, cfg.golaStripDepth, zBase, true));
+  }
+  // Canal L bajo el techo (la repisa es topRef; el canal va pegado arriba).
+  {
+    const zL = redondea1(topRef - cfg.golaPaso - cfg.golaPerfilHeight);
+    canales.push(mk(`${prefijo}l${N}-fondo`, 'Fondo de canal Gola L', anchoCanal, cfg.golaPerfilHeight, zL, false));
+    canales.push(mk(`${prefijo}l${N}-pestana`, 'Pestana inferior Gola L', anchoCanal, cfg.golaStripDepth, zL, true));
+  }
+
+  // Regla de la L: la caja del cajón SUPERIOR se rebaja para pasar libre
+  // bajo el cuerpo del perfil L (perfil + paso bajo el techo interior). El
+  // frente se mantiene (tapa la pestaña inferior del perfil). Los cambios se
+  // aplican en el ensamblado (no se muta el array de entrada) y quedan en
+  // meta para el round-trip.
+  const alturaCajaPorPieza = new Map();
+  const techo = casco.techoInterior;
+  if (Number.isFinite(techo)) {
+    const ult = unidades[N - 1];
+    const techoCajaMax = techo - cfg.golaPerfilHeight - cfg.golaPaso;
+    const cajaMax = techoCajaMax - nuevasTops[N - 1];
+    for (const p of pieces || []) {
+      if (String(p.modulo || '') !== ult.sub) continue;
+      const rol = inferRole(p);
+      if (!['drawer_side', 'drawer_back', 'drawer_part'].includes(rol)) continue;
+      const altoActual = Number(p.alto) || 0;
+      if (cajaMax > 40 && altoActual > cajaMax) {
+        meta.origHeights[String(p.id)] = altoActual;
+        alturaCajaPorPieza.set(String(p.id), Math.round(cajaMax * 10) / 10);
+      }
+    }
+    if (alturaCajaPorPieza.size) {
+      warnings.push(`Gola: la caja del cajón superior se rebajó a ${Math.round(cajaMax)} mm para pasar bajo el perfil L (${cfg.golaPerfilHeight} + ${cfg.golaPaso} mm bajo el techo).`);
+    }
   }
 
   // Ensamblar: frentes reescalados/reposicionados, tiradores fuera, tiras
@@ -309,7 +342,7 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   const resultado = [];
   for (const p of pieces || []) {
     const id = String(p.id);
-    if (id.startsWith(prefijo)) continue; // tiras viejas (re-aplicación)
+    if (id.startsWith(prefijo)) continue; // canales viejos (re-aplicación)
     if (tiradoresOut.has(id)) continue;   // gola sin tiradores
     if (idsFrentes.has(id)) {
       resultado.push({
@@ -319,9 +352,13 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
       });
       continue;
     }
+    if (alturaCajaPorPieza.has(id)) {
+      resultado.push({ ...p, alto: alturaCajaPorPieza.get(id) });
+      continue;
+    }
     resultado.push(p);
   }
-  resultado.push(...tiras);
+  resultado.push(...canales);
 
   const validacion = validateGola(resultado, modId, cfg);
   if (validacion.errors.length) {
@@ -443,8 +480,8 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
   const casco = cascoDims(pieces, modId);
   const techoInterior = casco ? casco.techoInterior : Infinity;
   const N = unidades.length;
-  // Gap = alto de la tira-U (toca ambos frentes).
-  const G = cfg.golaPerfilHeight;
+  // Gap entre frentes = paso + perfil + paso (canal centrado).
+  const G = cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso;
 
   // Frente cubre su caja (aᵢ' ≥ altoLateral + 10) y unidades ordenadas.
   for (const u of unidades) {
@@ -462,28 +499,37 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
-  // Tiras: dentro del vano y sin solape con frentes; agarre correcto.
+  // Piezas del canal: dentro del vano y sin solape con frentes. La regla
+  // del paso (gap = paso + cuerpo + paso) se verifica sobre el FONDO del
+  // canal; las pestañas viven dentro del cuerpo del gap.
   const tiras = (pieces || []).filter((p) => esTiraGola(p) && perteneceAModulo(p, modId));
   const frentes = unidades.flatMap((u) => u.frentes);
   tiras.forEach((t) => {
     const z = Number(t.pos_z);
-    const alto = Number(t.alto) || 0;
-    if (!(z >= 0) || z + alto > techoInterior + 0.5) {
-      errors.push(`Gola: la tira "${t.id}" queda fuera del vano (z=${z}, alto=${alto}).`);
+    // Las pestañas son horizontales: su 'alto' es la PROFUNDIDAD; su altura
+    // vertical es el espesor (15).
+    const esPestana = /-pestana(-sup|-inf)?$/.test(String(t.id));
+    const altoZ = esPestana ? (Number(t.espesor) || 15) : (Number(t.alto) || 0);
+    if (!(z >= 0) || z + altoZ > techoInterior + 0.5) {
+      errors.push(`Gola: la pieza "${t.id}" queda fuera del vano (z=${z}, alto=${altoZ}).`);
     }
-    for (const f of frentes) {
-      const fz = Number(f.pos_z);
-      const fh = Number(f.alto) || 0;
-      if (z < fz + fh - 0.5 && fz < z + alto - 0.5) {
-        errors.push(`Gola: la tira "${t.id}" se solapa con el frente "${f.nombre}".`);
+    // El canal L queda parcialmente TAPADO por el frente superior a propósito
+    // (tapa la pestaña inferior): no es solape, es el mecanismo.
+    if (!/gola-l\d+-/.test(String(t.id))) {
+      for (const f of frentes) {
+        const fz = Number(f.pos_z);
+        const fh = Number(f.alto) || 0;
+        if (z < fz + fh - 0.5 && fz < z + altoZ - 0.5) {
+          errors.push(`Gola: la pieza "${t.id}" se solapa con el frente "${f.nombre}".`);
+        }
       }
     }
-    // Regla de contacto: la tira-U toca el techo del frente inferior y el
-    // borde inferior del frente superior (llena el gap).
-    const tocaInferior = frentes.some((f) => Math.abs(Number(f.pos_z) + (Number(f.alto) || 0) - z) <= 1.5);
-    const tocaSuperior = frentes.some((f) => Math.abs(Number(f.pos_z) - (z + alto)) <= 1.5);
-    if (!tocaInferior || !tocaSuperior) {
-      warnings.push(`Gola: la tira "${t.id}" debe tocar AMBOS frentes (borde inferior del superior y borde superior del inferior); queda flotando en el gap.`);
+    if (!String(t.id).endsWith('-fondo')) return; // pestañas: dentro del canal
+    const paso = cfg.golaPaso;
+    const inferior = frentes.find((f) => Math.abs(Number(f.pos_z) + (Number(f.alto) || 0) - (z - paso)) <= 1.5);
+    const superior = frentes.find((f) => Math.abs(Number(f.pos_z) - (z + altoZ + paso)) <= 1.5);
+    if (!inferior || !superior) {
+      warnings.push(`Gola: el fondo de canal "${t.id}" debe quedar centrado en el gap con ${paso} mm de paso arriba y abajo respecto de los frentes.`);
     }
   });
 

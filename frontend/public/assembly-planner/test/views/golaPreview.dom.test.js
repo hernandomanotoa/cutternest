@@ -51,7 +51,7 @@ function mountView() {
   return { store, view, container };
 }
 
-const tirasDe = (pieces) => pieces.filter((p) => /^m1-gola-\d+$/.test(String(p.id)));
+const tirasDe = (pieces) => pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id)));
 const tiradoresDe = (pieces) => pieces.filter((p) => String(p.id).endsWith('-tirador'));
 
 function clickGolaCheckbox(container) {
@@ -131,7 +131,7 @@ test('C2: previewGola (app.js) es un dry-run puro: devuelve plan y no muta el st
   assert.equal(pv.plan.unidades, 3);
   assert.equal(pv.plan.tiras, 2);
   assert.equal(pv.plan.agarre, 20);
-  assert.equal(pv.plan.gapGola, 50);
+  assert.equal(pv.plan.gapGola, 56); // 3 + 50 + 3
   assert.equal(pv.plan.frentes.length, 3);
   for (const f of pv.plan.frentes) {
     assert.equal(typeof f.antes, 'number');

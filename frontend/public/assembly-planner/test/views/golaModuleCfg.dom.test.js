@@ -68,7 +68,7 @@ function activarGola(container, idx) {
   confirmBtn.click();
 }
 
-const tira = (pieces, modId) => pieces.find((p) => p.id === `m${modId}-gola-1`);
+const tira = (pieces, modId) => pieces.find((p) => p.id === `m${modId}gola-c1-fondo`);
 const cfgInput = (container, modId, key) =>
   container.querySelector(`[data-module-scoped="${modId}"] [data-gola-cfg="${key}"]`);
 
@@ -84,22 +84,22 @@ test('panel de la tarjeta: cambiar golaPerfilHeight re-aplica SOLO ese módulo y
   activarGola(container, 2);
 
   let pieces = getStore().get().pieces;
-  assert.equal(tira(pieces, 1).alto, 30, 'tira m1 con alto default (global)');
-  assert.equal(tira(pieces, 2).alto, 30, 'tira m2 con alto default (global)');
+  assert.equal(tira(pieces, 1).alto, 50, 'tira m1 con alto default (global)');
+  assert.equal(tira(pieces, 2).alto, 50, 'tira m2 con alto default (global)');
 
   // El input muestra la config efectiva del módulo (global sin overrides).
   const input = cfgInput(container, 1, 'golaPerfilHeight');
   assert.ok(input, 'input golaPerfilHeight en la tarjeta del módulo 1');
-  assert.equal(input.value, '30');
+  assert.equal(input.value, '50');
 
   cambiarInput(input, 40);
 
   pieces = getStore().get().pieces;
   assert.equal(tira(pieces, 1).alto, 40, 'tira m1 re-aplicada con el override del módulo');
-  assert.equal(tira(pieces, 2).alto, 30, 'm2 sin overrides sigue con la config global');
+  assert.equal(tira(pieces, 2).alto, 50, 'm2 sin overrides sigue con la config global');
   // El panel re-renderiza con el valor nuevo tras la re-aplicación.
   assert.equal(cfgInput(container, 1, 'golaPerfilHeight').value, '40');
-  assert.equal(cfgInput(container, 2, 'golaPerfilHeight').value, '30');
+  assert.equal(cfgInput(container, 2, 'golaPerfilHeight').value, '50');
   // La config global queda intacta (el panel ya no escribe userConfig).
   const rawGlobal = localStorage.getItem('cn-assembly-config');
   assert.ok(!rawGlobal || !rawGlobal.includes('golaPerfilHeight'), 'userConfig global sin golaPerfilHeight');
