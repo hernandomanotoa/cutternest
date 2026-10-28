@@ -10,6 +10,7 @@ import { createConstructorView } from '../../js/views/constructorView.js';
 import { createContainer, resetDocument } from './setup.mjs';
 import { countVersions, deleteAllVersions } from '../../js/services/projectVersionsService.js';
 import { plinthTotalWidth } from '../../js/services/plinthFrameService.js';
+import { GOLA_DEFAULTS } from '../../js/services/golaService.js';
 
 beforeEach(() => {
   resetDocument();
@@ -1134,5 +1135,125 @@ test('Canto PVC configurable: reflejado en la lista de herrajes', () => {
   // happy-dom no refleja el atributo selected en .value: se lee la opción.
   const selOpt = container.querySelector('[data-obra="canto"] option[selected]');
   assert.equal(selOpt?.value, '2', 'canto persistido en el formulario');
+  view.destroy();
+});
+
+test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + caja superior rebajada + round-trip', () => {
+  const { store, view, container } = mountView();
+  // Vano exacto del taller: tipo "estandar" (vano 200 → frente 197) y alto 913
+  // → H útil 703 = 3×197 + 2×(3+50+3) + 20: el repartidor no estira ni capa.
+  container.querySelector('[data-cfg="alto"]').value = '913';
+  click(container, '[data-action="add-module"]'); // 850×600, cuerpo #C19A6B
+  const tipoSel = container.querySelector('[data-module-scoped="1"] [data-tipo-drawer]');
+  tipoSel.value = 'estandar';
+  for (let i = 0; i < 3; i++) click(container, '[data-action="add-content"][data-kind="drawer"]');
+  // Medidas originales (pre-gola) para el round-trip.
+  const pre = store.get().pieces;
+  const lat3Original = pre.find((p) => p.id === 'm1cajon3-lateral-izq').alto;
+  click(container, '[data-action="toggle-gola"][data-module="1"]');
+  click(container, '[data-action="confirm-gola"][data-module="1"]');
+  const pieces = store.get().pieces;
+  const pieza = (id) => pieces.find((p) => p.id === id);
+  // El vano exacto no estira ni capa: los tres frentes quedan en 197 mm.
+  for (const n of [1, 2, 3]) {
+    assert.equal(pieza(`m1cajon${n}-frente`).alto, 197, `frente ${n} conserva 197 mm`);
+  }
+
+  // Canal C 1: fondo 820×perfil a techo del cajón 1 + paso; pestañas 820×prof. tira.
+  const PROF = GOLA_DEFAULTS.golaPerfilHeight;
+  const TIRA = GOLA_DEFAULTS.golaStripDepth;
+  const PASO = GOLA_DEFAULTS.golaPaso;
+  const f1 = pieza('m1cajon1-frente');
+  const fondo1 = pieza('m1gola-c1-fondo');
+  assert.ok(fondo1, 'existe m1gola-c1-fondo');
+  assert.equal(fondo1.ancho, 820, 'fondo a lo ancho del interior (850−2×15)');
+  assert.equal(fondo1.alto, PROF, 'cuerpo del canal');
+  assert.equal(fondo1.pos_z, Math.round((f1.pos_z + f1.alto + PASO) * 10) / 10, 'techo del cajón 1 + paso');
+  const sup1 = pieza('m1gola-c1-pestana-sup');
+  const inf1 = pieza('m1gola-c1-pestana-inf');
+  assert.equal(sup1.ancho, 820);
+  assert.equal(sup1.alto, TIRA, 'alcance de la pestaña');
+  assert.equal(sup1.pos_z, Math.round((fondo1.pos_z + PROF - 15) * 10) / 10, 'pestaña sup en el techo del fondo');
+  assert.equal(inf1.pos_z, fondo1.pos_z, 'pestaña inf en la base del fondo');
+  assert.equal(fondo1.color.toLowerCase(), '#c19a6b', 'mismo material que el módulo');
+
+  // Canal C 2 y canal L (fondo + pestaña inferior solamente).
+  assert.ok(pieza('m1gola-c2-fondo'), 'canal C 2');
+  const lFondo = pieza('m1gola-l3-fondo');
+  assert.ok(lFondo, 'canal L');
+  assert.ok(pieza('m1gola-l3-pestana'), 'pestaña inferior del L');
+  assert.equal(pieza('m1gola-l3-pestana-sup'), undefined, 'el L no lleva pestaña superior');
+
+  // Regla de la L: la caja del cajón superior quedó rebajada y el frente no.
+  const lat3 = pieza('m1cajon3-lateral-izq');
+  const frente3 = pieza('m1cajon3-frente');
+  assert.ok(lat3.alto < lat3Original, `caja superior rebajada (${lat3.alto} < ${lat3Original}) para pasar bajo la L`);
+  assert.ok(frente3.alto > lat3.alto, 'el frente 3 tapa la pestaña (más alto que su caja)');
+  // Tapa la pestaña: el techo del frente 3 llega bajo la cara inferior de la
+  // tapa con el aire de agarre configurado (topRef = techoInterior del casco).
+  const tapa = pieza('m1-tapa');
+  const altoCasco = pieza('m1-lateral-izq').alto;
+  const techoUtil = altoCasco - tapa.espesor;
+  const esperado = techoUtil - GOLA_DEFAULTS.golaFingerClearance;
+  assert.ok(Math.abs(frente3.pos_z + frente3.alto - esperado) <= 1.5, `frente 3 a ${GOLA_DEFAULTS.golaFingerClearance} mm del techo útil (techo ${frente3.pos_z + frente3.alto} vs ${esperado})`);
+
+  // Sin tiradores en el módulo 1.
+  assert.equal(pieces.some((p) => p.id.endsWith('-tirador') && String(p.modulo).startsWith('1')), false);
+
+  // Round-trip: desactivar restaura frentes, caja y quita los canales.
+  click(container, '[data-action="toggle-gola"][data-module="1"]');
+  const off = store.get().pieces;
+  assert.equal(off.some((p) => p.id.includes('gola')), false, 'canales fuera');
+  assert.equal(off.find((p) => p.id === 'm1cajon3-lateral-izq').alto, lat3Original, 'caja 3 restaurada');
+  assert.equal(off.find((p) => p.id === 'm1cajon1-frente').alto, 197, 'frentes restaurados');
+  assert.ok(off.some((p) => p.id === 'm1cajon1-tirador'), 'tiradores regenerados');
+  view.destroy();
+});
+
+test('Gola robustez: reordenar módulo migra canales y meta (round-trip intacto)', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]'); // M1
+  click(container, '[data-action="add-module"]'); // M2
+  click(container, '[data-action="add-content"][data-kind="drawer"][data-module="2"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"][data-module="2"]');
+  const frenteOriginal = store.get().pieces.find((p) => p.id === 'm2cajon1-frente').alto;
+  click(container, '[data-action="toggle-gola"][data-module="2"]');
+  click(container, '[data-action="confirm-gola"][data-module="2"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm2gola-c1-fondo'), 'gola activa en M2');
+
+  // Intercambio M2 ↔ M1: los canales y el meta viajan con su módulo.
+  click(container, '[data-action="move-module"][data-module="2"][data-dir="izq"]');
+  let pieces = store.get().pieces;
+  const mods = [...new Set(pieces.map((p) => String(p.modulo)))];
+  assert.ok(!mods.some((m) => m.startsWith('x')), `sin módulos temporales: ${mods.join(',')}`);
+  assert.ok(pieces.some((p) => p.id === 'm1gola-c1-fondo'), 'canal C renombró a M1');
+  assert.ok(pieces.some((p) => p.id === 'm1gola-l2-fondo'), 'canal L renombró a M1');
+  assert.equal(pieces.some((p) => String(p.id).includes('gola') && String(p.id).startsWith('m2')), false, 'sin canales huérfanos de M2');
+
+  // Round-trip tras el reorden: el meta migrado restaura el frente exacto.
+  click(container, '[data-action="toggle-gola"][data-module="1"]');
+  const off = store.get().pieces;
+  assert.equal(off.some((p) => String(p.id).includes('gola')), false, 'canales fuera tras desactivar');
+  assert.equal(off.find((p) => p.id === 'm1cajon1-frente').alto, frenteOriginal, 'frente restaurado al original (meta migrado)');
+  view.destroy();
+});
+
+test('Gola robustez: eliminar módulo con gola limpia canales y meta', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="toggle-gola"][data-module="1"]');
+  click(container, '[data-action="confirm-gola"][data-module="1"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1gola-c1-fondo'), 'gola activa');
+  assert.ok(JSON.parse(globalThis.localStorage.getItem('cn-assembly-gola') || '{}')['1'], 'meta persistido para el módulo 1');
+
+  const btn = container.querySelector('[data-action="remove-module"][data-module="1"]');
+  btn.click(); // arma la confirmación
+  btn.dataset.confirm = '1';
+  btn.click(); // confirma
+
+  assert.equal(store.get().pieces.length, 0, 'módulo eliminado sin piezas');
+  assert.equal(JSON.parse(globalThis.localStorage.getItem('cn-assembly-gola') || '{}')['1'], undefined, 'meta del módulo limpio');
   view.destroy();
 });

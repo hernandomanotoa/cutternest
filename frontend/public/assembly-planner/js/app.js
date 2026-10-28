@@ -1102,6 +1102,7 @@ export function previewGola(moduleId) {
     frentes,
     agarre: cfg.golaFingerClearance,
     gapGola: cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso,
+    cuerpoPerfil: cfg.golaPerfilHeight,
   };
   return { ok: true, warnings: dry.warnings || [], plan };
 }
@@ -1232,9 +1233,39 @@ export function moveModule(moduleId, direction) {
   let pieces = renameModulePrefix(state.pieces, a, `x${a}`);
   pieces = renameModulePrefix(pieces, b, a);
   pieces = renameModulePrefix(pieces, `x${a}`, b);
+  // Los metas gola (round-trip de frentes/cajas) viajan con su módulo: sin
+  // esto el meta quedaba bajo la clave del vecino y el round-trip se perdía.
+  // Las claves internas (ids de piezas) se renombran con el mismo prefijo.
+  const golaMetas = loadGolaMetas();
+  if (
+    Object.prototype.hasOwnProperty.call(golaMetas, a)
+    || Object.prototype.hasOwnProperty.call(golaMetas, b)
+  ) {
+    const metaA = golaMetas[a] ? renombrarClavesMetaGola(golaMetas[a], a, b) : undefined;
+    const metaB = golaMetas[b] ? renombrarClavesMetaGola(golaMetas[b], b, a) : undefined;
+    if (metaB) golaMetas[a] = metaB; else delete golaMetas[a];
+    if (metaA) golaMetas[b] = metaA; else delete golaMetas[b];
+    saveGolaMetas(golaMetas);
+  }
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
   return { ok: true, moduleId: b };
+}
+
+// Renombra las claves de ids de un meta gola (origHeights/origTops) cuando su
+// módulo cambia de número (moveModule): los frentes se restauran por id.
+function renombrarClavesMetaGola(meta, oldId, newId) {
+  if (!meta || typeof meta !== 'object') return meta;
+  const oldPref = `m${oldId}`;
+  const re = (obj) => {
+    const out = {};
+    for (const [k, v] of Object.entries(obj || {})) {
+      const key = String(k);
+      out[key.startsWith(oldPref) ? `m${newId}` + key.slice(oldPref.length) : key] = v;
+    }
+    return out;
+  };
+  return { ...meta, moduleId: String(newId), origHeights: re(meta.origHeights), origTops: re(meta.origTops) };
 }
 
 // Renombra el prefijo de modulo de todas las piezas de un modulo raiz:
