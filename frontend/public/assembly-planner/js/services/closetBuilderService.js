@@ -379,12 +379,18 @@ export function rootModuleIds(pieces) {
 //     (frente interior) + gaps de apilado, como el cajón.
 //   - frenteCompleto=true (botas): el frente cubre todo el vano y va SIN
 //     cara ni gaps: se integra a la bandeja y cierra la abertura entera.
+//   - conFrente=false (default): bandeja ABIERTA — sin frente decorativo ni
+//     tirador (el tirador va atornillado al frente: sin frente, no va). La
+//     cara (tablero del cuerpo) queda como frente visible y de agarre. El
+//     riel 'marco' es la excepción: el herraje es solo frente + tirador, así
+//     que siempre lleva frente.
 // Mismas fórmulas de vano/corredera que addDrawer (W, holgura 12.7 mm/lado).
 export function addShoeTray(moduleId, index, {
   anchoModulo,
   profundidadModulo,
   altoVano,
   frenteCompleto = false,
+  conFrente = false,
   altoLateral = RAIL_SIDE_HEIGHT,
   espesorFrente = 15,
   colorFrente = '#8B5A2B',
@@ -421,10 +427,12 @@ export function addShoeTray(moduleId, index, {
   const num = ` ${index}`;
   // Herraje de catálogo: marco de aluminio regulable con rieles propios —
   // no se fabrica cajón; solo el frente (va atornillado al marco) y tirador.
+  // El herraje ES frente + tirador: conFrente no aplica (siempre lleva frente).
   if (riel === 'marco') {
     return {
       ok: true,
       submodulo: sub,
+      conFrente: true,
       frente: { ancho: frenteAncho, alto: frenteAlto },
       warnings: [`${RIEL_RULES.marco.nota} Vano de ${anchoModulo} mm (p. ej. marco regulable 800–900).`],
       pieces: [
@@ -437,14 +445,23 @@ export function addShoeTray(moduleId, index, {
   const profBandeja2 = rielRegla.fondoMm(profundidadModulo, E);
   const interior2 = Math.round(W - 2 * rielHolgura) - 2 * ESP_LAT;
   const rielTagZ = riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
-  const pieces = [
-    piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+  // Frente completo (botas): el frente ES el cierre estructural de la bandeja
+  // (no hay cara) — se fuerza aunque conFrente=false. En la bandeja abierta,
+  // la cara del cuerpo queda como frente visible y de agarre.
+  const llevaFrente = conFrente || frenteCompleto;
+  const pieces = [];
+  if (llevaFrente) {
+    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
+  }
+  pieces.push(
     piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, latAlto), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
-  ];
+  );
   if (!frenteCompleto) {
-    // Frente bajo: la cara cierra la abertura sobre la bandeja (como cajón).
+    // Frente bajo (o bandeja abierta): la cara cierra la abertura sobre la
+    // bandeja (como cajón). Sin frente decorativo, la cara ES la cara
+    // visible de la bandeja y por donde se jala.
     pieces.push(piece(`m${moduleId}zapatera${index}-cara`, `Cara zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, frenteAlto - 2 * ESP_BASE), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   if (division) {
@@ -457,8 +474,11 @@ export function addShoeTray(moduleId, index, {
   pieces.push(
     // Base confinada (perimetral): entre la cara y el fondo.
     piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior2, Math.max(50, profBandeja2 - 2 * ESP_LAT), { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-tirador`, `Tirador zapatera extraible${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
   );
+  if (llevaFrente) {
+    // El tirador va atornillado al frente decorativo: sin frente, no va.
+    pieces.push(piece(`m${moduleId}zapatera${index}-tirador`, `Tirador zapatera extraible${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }));
+  }
   const warnings = [];
   if (rielRegla.nota) warnings.push(rielRegla.nota);
   return {
@@ -466,7 +486,8 @@ export function addShoeTray(moduleId, index, {
     pieces,
     submodulo: sub,
     frenteCompleto,
-    frente: { ancho: frenteAncho, alto: frenteAlto },
+    conFrente: llevaFrente,
+    frente: llevaFrente ? { ancho: frenteAncho, alto: frenteAlto } : null,
     warnings,
   };
 }

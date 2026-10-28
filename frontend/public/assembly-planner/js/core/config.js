@@ -323,6 +323,7 @@ export const VERTICAL_POSITIONS = {
   contentVano: 200,          // alto de vano por defecto al agregar cajón/zapatera
   contentNPorFila: 1,        // cajones/zapateras por fila (1|2)
   contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
+  contentFrenteZapatera: 0,  // frente decorativo de la zapatera (0 = bandeja abierta por defecto; sin frente no va tirador)
   cantoEspesor: 0.8,         // espesor del canto PVC (mm) para la lista de herrajes
 
   // ── Sistema gola (tiras de melamina entre frentes) ─────────────

@@ -26,7 +26,15 @@ import { aperturaEfectivaGlobal } from './apertures.js';
 
 export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions = [], bottomPanelOffset = 0, topPanelOffset = null) {
   const geometries = [];
-  const faces = roles.filter((p) => inferRole(p) === 'drawer_face');
+  const frentes = roles.filter((p) => inferRole(p) === 'drawer_face');
+  // Zapatera sin frente (bandeja abierta): la cara del cuerpo hace de frente
+  // visible. Una cara solo se promueve cuando su unidad (prefijo) NO tiene
+  // frente propio; las caras de cajón con frente siguen siendo drawer_part.
+  const prefsConFrente = new Set(frentes.map((f) => String(f.id).replace(/-frente-\d+$|-frente$/, '')));
+  const carasSueltas = roles.filter((p) => inferRole(p) === 'drawer_part'
+    && /cara/.test(`${p.nombre} ${p.id}`)
+    && !prefsConFrente.has(String(p.id).replace(/-cara$/, '')));
+  const faces = [...frentes, ...carasSueltas];
   if (!faces.length) return geometries;
   // Piezas reales ya emparejadas a un frente: se excluyen de los siguientes
   // emparejamientos para que dos frentes no compartan la misma caja.

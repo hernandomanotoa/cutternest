@@ -440,6 +440,9 @@ export function createConstructorView(store) {
       // División central de la zapatera (apoyo de la fila delantera): el
       // checkbox por defecto va activado; solo aplica a zapateras.
       const division = container.querySelector(`${scoped} [data-division]`)?.checked !== false;
+      // Frente decorativo de la zapatera: por defecto NO (bandeja abierta).
+      // Con frente se añade también el tirador; sin frente, no hay tirador.
+      const conFrente = container.querySelector(`${scoped} [data-frente-zapatera]`)?.checked === true;
       // Tipo de riel: define las medidas de la caja (descuentos y fondo).
       const riel = container.querySelector(`${scoped} [data-tipo-riel]`)?.value || 'catalogo';
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
@@ -450,12 +453,13 @@ export function createConstructorView(store) {
         ...(altoVanoInput > 0 ? { contentVano: altoVanoInput } : {}),
         contentNPorFila: nPorFila,
         contentDivision: division ? 1 : 0,
+        contentFrenteZapatera: conFrente ? 1 : 0,
         contentTipoCajon: container.querySelector(`${scoped} [data-tipo-drawer]`)?.value || '',
         contentTipoZapatera: container.querySelector(`${scoped} [data-tipo-zapatera]`)?.value || '',
         contentRiel: riel,
       });
       store.set({ userConfig: loadUserConfig() });
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, riel, frenteLuz: luzFrente });
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, conFrente, riel, frenteLuz: luzFrente });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -913,6 +917,15 @@ function renderContentList(moduleId, allPieces) {
         const kind = id.includes('zapatera') ? 'shoeRack' : 'drawer';
         match = { refId: id, label: p.nombre, key: id, kind };
       }
+    } else if (/(cajon|zapatera)\d+-cara$/.test(id)) {
+      // Cajón/zapatera SIN frente (bandeja abierta, default): la cara hace de
+      // frente visible y referencia el chip — solo si el grupo no tiene frente.
+      const root = id.match(/^m(\d+)/)?.[1];
+      const pref = id.replace(/-cara$/, '');
+      if (root === String(moduleId) && !allPieces.some((q) => String(q.id) === `${pref}-frente`)) {
+        const kind = id.includes('zapatera') ? 'shoeRack' : 'drawer';
+        match = { refId: id, label: p.nombre, key: id, kind };
+      }
     } else if (/-repisa-\d+$/.test(id) && id.startsWith(`m${moduleId}-repisa-`)) {
       match = { refId: id, label: p.nombre, key: id, kind: 'shelf' };
     } else if (/-barra-(alta|baja)?-?\d*$/.test(id) && id.startsWith(`m${moduleId}-barra-`)) {
@@ -965,6 +978,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   const prefVano = Number(cfg.contentVano) || 200;
   const prefNPorFila = Number(cfg.contentNPorFila) || 1;
   const prefDivision = Number(cfg.contentDivision) !== 0;
+  // Frente decorativo de la zapatera: por defecto NO (bandeja abierta; el
+  // tirador va atornillado al frente, así que sin frente no va tirador).
+  const prefFrenteZapatera = Number(cfg.contentFrenteZapatera) !== 0;
   const sel = (actual, value) => (actual === value ? 'selected' : '');
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
@@ -1026,6 +1042,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
         </label>
         <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División zapatera
           <input type="checkbox" data-division ${prefDivision ? 'checked' : ''} />
+        </label>
+        <label class="form-group" style="margin:0;" title="Frente decorativo de la zapatera. Por defecto NO: bandeja abierta que se jala de la cara (sin tirador). Con frente: se añade frente decorativo + tirador">Frente zapatera
+          <input type="checkbox" data-frente-zapatera ${prefFrenteZapatera ? 'checked' : ''} />
         </label>
         <label class="form-group" style="margin:0;">Mecanismo
           <select data-mecanismo>

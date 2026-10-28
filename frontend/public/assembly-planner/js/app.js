@@ -627,11 +627,13 @@ export function addContentToModule(moduleId, kind, opts = {}) {
     const altoVano = Number(opts.altoVano) > 0 ? Number(opts.altoVano) : (tipo?.altoVano ?? 200);
     if (kind === 'shoeRack') {
       // Bandeja zapatera: laterales bajos (cubren la riel) y frente variable
-      // (completo = sin cara ni gaps; bajo = cara + gaps como el cajón).
+      // (completo = sin cara ni gaps; bajo = cara + gaps como el cajón;
+      // conFrente = false por default: bandeja abierta, sin frente ni tirador).
       result = addShoeTray(moduleId, idx, {
         anchoModulo, profundidadModulo: profModulo,
         altoVano,
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
+        conFrente: !!opts.conFrente,
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
@@ -947,7 +949,10 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
   } else if (kind === 'rail') {
     fijar(piezasNuevas[0], 25 + stackGap);
   } else if (kind === 'drawer' || kind === 'shoeRack') {
-    const frente = piezasNuevas.find((p) => p.id.endsWith('-frente'));
+    // Frente decorativo, o la cara del cuerpo cuando la zapatera va sin
+    // frente (bandeja abierta: la cara queda anclada y hace de frente visible).
+    const frente = piezasNuevas.find((p) => p.id.endsWith('-frente'))
+      || piezasNuevas.find((p) => p.id.endsWith('-cara'));
     // Frente completo (zapatera botas): cubre todo el vano y va sin gaps —
     // apilado flush, sin drawerFrontGap. Frente bajo: apila con gap.
     const sinGap = kind === 'shoeRack' && !piezasNuevas.some((p) => p.id.endsWith('-cara'));
@@ -1478,8 +1483,13 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   const grupos = [];
   for (const piezasGrupo of porSubmodulo.values()) {
     const frente = piezasGrupo.find((p) => inferRole(p) === 'drawer_face');
-    if (!frente) continue; // submodulo sin frente: no es una caja de cajon
-    const textoFrente = `${frente.nombre} ${frente.id}`.toLowerCase();
+    // Zapatera sin frente (bandeja abierta): la cara del cuerpo la identifica
+    // (el frente decorativo es opcional y puede no existir).
+    const cara = !frente
+      ? piezasGrupo.find((p) => sufijoDe(p.id) === 'cara' && /zapatera/i.test(`${p.nombre} ${p.id}`))
+      : null;
+    if (!frente && !cara) continue; // submodulo sin frente ni cara: no es una caja de cajon
+    const textoFrente = `${(frente || cara).nombre} ${(frente || cara).id}`.toLowerCase();
     const esZapatera = textoFrente.includes('zapatera');
     const esVolquete = !esZapatera && (!piezasGrupo.some((p) => sufijoDe(p.id) === 'cara')
       || textoFrente.includes('abatible'));
@@ -1488,14 +1498,18 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
       ? addShoeTray(moduleId, 1, {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
-        altoVano: (Number(frente.alto) || 200) + 3,
+        // frente.alto = vano − 3; sin frente, la cara = vano − 3 − 2·15.
+        altoVano: frente ? (Number(frente.alto) || 200) + 3 : (Number(cara.alto) || 140) + 33,
         frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
+        // Se preserva la opción: solo hay frente viejo si la bandeja lo llevaba.
+        conFrente: !!frente,
         altoLateral: Math.max(40, Number(lateral?.alto) || RAIL_SIDE_HEIGHT),
-        colorFrente: frente.color || '#8B5A2B',
+        colorFrente: (frente || cara).color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',
         division: piezasGrupo.some((p) => sufijoDe(p.id) === 'division'),
-        // El riel se preserva: se infiere del nombre del frente viejo.
-        riel: inferRailType(frente),
+        // El riel se preserva: se infiere del nombre del frente viejo (la cara
+        // no lleva el tag del riel; sin frente cae al catálogo).
+        riel: frente ? inferRailType(frente) : 'catalogo',
       })
       : addDrawer(moduleId, 1, {
         anchoModulo: dims.ancho,
@@ -1508,7 +1522,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         riel: esVolquete ? 'catalogo' : inferRailType(frente),
       });
     if (!regenerado.ok) {
-      return { ok: false, errors: [`${frente.nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
+      return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
     }
     // Renombrar piezas regeneradas a los ids viejos (par por sufijo):
     // conserva la convencion del catalogo/builder y las dependencias por id.
@@ -1519,8 +1533,9 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
       const out = { ...np, id: vieja.id, modulo: vieja.modulo };
       // Conservar el anclaje vertical (pos_z) de la pieza vieja: sin esto,
       // al editar dimensiones los cajones perden su posicion y el renderer
-      // los re-apila por zonas, rompiendo el orden de insercion.
-      if (sufijoDe(np.id) === 'frente' && Number.isFinite(vieja.pos_z)) {
+      // los re-apila por zonas, rompiendo el orden de insercion. En la
+      // zapatera sin frente, el ancla es la cara (hace de frente visible).
+      if ((sufijoDe(np.id) === 'frente' || sufijoDe(np.id) === 'cara') && Number.isFinite(vieja.pos_z)) {
         out.pos_z = vieja.pos_z;
       }
       return out;
