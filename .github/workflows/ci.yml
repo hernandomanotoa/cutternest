@@ -47,5 +47,7 @@ jobs:
           node-version: '22'
       - name: Full Assembly Planner suite (unit + integration .mjs)
         run: cd frontend/public/assembly-planner && node --test 'test/*.test.mjs' 'js/**/*.test.js'
+      - name: Assembly Planner DOM tests (happy-dom)
+        run: cd frontend/public/assembly-planner && node --test 'test/**/*.dom.test.js'
       - name: Validate all example CSVs (0 errors / 0 warnings / 0 generic roles)
         run: node frontend/public/assembly-planner/test/validate-examples.mjs

@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "test": "node --test \"js/**/*.test.js\"",
-    "test:dom": "node --test test/views/*.dom.test.js"
+    "test:dom": "node --test \"test/**/*.dom.test.js\""
   },
   "devDependencies": {
     "happy-dom": "^20.14.5"
