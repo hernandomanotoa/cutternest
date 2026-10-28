@@ -94,3 +94,25 @@ test('eliminar el frente (contenido completo) elimina también el tirador', () =
   const zap = piezasZapatera();
   assert.equal(zap.length, 0, 'el grupo completo (frente, caja y tirador) se eliminó');
 });
+
+test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin frente)', () => {
+  const { container } = armarModuloYVista();
+  const label = () => container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').textContent;
+  assert.match(label(), /\(0\)/, 'sin zapateras: contador 0');
+
+  // Bandeja abierta (default): no hay frente, pero la unidad cuenta.
+  agregarZapatera(container);
+  assert.match(label(), /\(1\)/, 'la bandeja abierta cuenta aunque no tenga frente');
+  agregarZapatera(container);
+  assert.match(label(), /\(2\)/, 'segunda zapatera: contador 2');
+
+  // Con frente decorativo también cuenta (y no duplica: frente+cara = 1).
+  container.querySelector('[data-frente-zapatera]').checked = true;
+  agregarZapatera(container);
+  assert.match(label(), /\(3\)/, 'con frente cuenta 1 por grupo (frente+cara no duplican)');
+
+  // Eliminar una unidad baja el contador.
+  const r = removeContentPiece('m1zapatera2-cara');
+  assert.ok(r.ok);
+  assert.match(label(), /\(2\)/, 'tras eliminar una unidad el contador baja a 2');
+});

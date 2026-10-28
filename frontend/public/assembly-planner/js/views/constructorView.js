@@ -985,14 +985,28 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
   // Contar por tipo en TODO el mueble (las piezas de caja viven en
-  // submodulos '11'/'12', fuera del modulo raiz). Cajón/zapatera: solo el
-  // frente (1 por caja); repisa/barra: cada pieza.
+  // submodulos '11'/'12', fuera del modulo raiz). Cajón/zapatera: unidades por
+  // GRUPO (prefijo m{mod}cajonN/zapateraN); por frente no sirve: la zapatera
+  // de bandeja abierta no lleva frente (contaba 0) y el 2-por-fila lleva 2
+  // frentes en un solo grupo. Por grupo se cuenta max(frentes, caras): botas/
+  // marco tienen frente sin cara, la abierta tiene cara sin frente, y el
+  // 2-por-fila conserva su doble cuenta. Repisa/barra: cada pieza.
   const countByKind = (kind) => {
-    const pref = { shelf: `m${moduleId}-repisa-`, drawer: `m${moduleId}cajon`, shoeRack: `m${moduleId}zapatera`, rail: `m${moduleId}-barra-`, divider: `m${moduleId}-divisor-` }[kind];
-    const matches = allPieces.filter((p) => String(p.id).startsWith(pref));
-    return (kind === 'drawer' || kind === 'shoeRack')
-      ? matches.filter((p) => p.id.endsWith('-frente')).length
-      : matches.length;
+    const pref = { shelf: `m${moduleId}-repisa-`, rail: `m${moduleId}-barra-`, divider: `m${moduleId}-divisor-` }[kind];
+    if (kind !== 'drawer' && kind !== 'shoeRack') {
+      return allPieces.filter((p) => String(p.id).startsWith(pref)).length;
+    }
+    const re = new RegExp(`^m${moduleId}${kind === 'drawer' ? 'cajon' : 'zapatera'}\\d+(?=-|$)`);
+    const grupos = new Map();
+    for (const p of allPieces) {
+      const g = String(p.id).match(re)?.[0];
+      if (!g) continue;
+      const e = grupos.get(g) || { frente: 0, cara: 0 };
+      if (p.id.endsWith('-frente')) e.frente += 1;
+      else if (p.id.endsWith('-cara')) e.cara += 1;
+      grupos.set(g, e);
+    }
+    return [...grupos.values()].reduce((n, e) => n + Math.max(e.frente, e.cara), 0);
   };
   const altoModulo = piezas.find((p) => p.id.endsWith('lateral-izq'))?.alto || null;
   // Zócalo: frente simple del módulo o marco estructural global (el marco
