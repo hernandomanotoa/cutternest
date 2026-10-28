@@ -46,7 +46,12 @@ import {
   setGolaModuleConfig,
   loadGolaModuleCfgs,
   recalculateAll,
+  restoreAutosave,
+  discardAutosave,
+  hasAutosave,
 } from '../app.js';
+import { createTour, hasSeenTour } from '../components/tour/driver.js';
+import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { isGolaEnabled, drawerUnits, getGolaCfg } from '../services/golaService.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
@@ -109,6 +114,32 @@ export function createConstructorView(store) {
   // Vista previa de activación gola (dry-run sin mutar el store): se confirma
   // o cancela desde el panel inline de la tarjeta del módulo.
   let golaPreview = null;
+  // Tour guiado del sistema gola (components/tour/driver.js): se ofrece con
+  // store vacío y tour no visto; la vista decide cuándo lanzarlo.
+  let tour = null;
+
+  function startTour() {
+    if (tour && tour.isActive()) return;
+    tour = createTour(GOLA_TOUR_STEPS, {
+      onFinish: () => { tour = null; },
+      onDismiss: () => { tour = null; },
+    });
+    tour.start();
+  }
+
+  // Auto-inicio del tour: una sola vez (el driver persiste "visto" en
+  // localStorage al cerrar/terminar). Se dispara solo con el Constructor
+  // vacío, tras dejar que el primer render pinte el encabezado.
+  function maybeAutostartTour() {
+    if (store.get().pieces.length) return;
+    if (hasSeenTour()) return;
+    setTimeout(() => {
+      if (!container) return;
+      if (store.get().pieces.length) return;
+      if (hasSeenTour()) return;
+      startTour();
+    }, 800);
+  }
 
   function mount(parent) {
     container = parent;
@@ -117,9 +148,16 @@ export function createConstructorView(store) {
     container.addEventListener('keydown', onKeydown);
     container.addEventListener('change', onChange);
     render();
+    maybeAutostartTour();
   }
 
   function destroy() {
+    if (tour) {
+      // 'destroyed' limpia el DOM del tour sin marcarlo como visto: cambiar
+      // de pestaña a mitad de recorrido no debe suprimirlo para siempre.
+      tour.stop('destroyed');
+      tour = null;
+    }
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
@@ -613,6 +651,15 @@ export function createConstructorView(store) {
         toast('Todas las versiones eliminadas', { type: 'info' });
         refresh();
       });
+    } else if (action === 'start-tour') {
+      startTour();
+    } else if (action === 'restore-autosave') {
+      const r = restoreAutosave();
+      if (r.ok) toast(`Mueble recuperado: ${r.pieceCount} pieza(s) restauradas`, { type: 'success' });
+      else toast(r.error || 'No se pudo recuperar el autoguardado', { type: 'error' });
+    } else if (action === 'discard-autosave') {
+      discardAutosave();
+      refresh();
     } else if (action === 'goto-view') {
       switchTab(btn.dataset.view);
     }
@@ -648,9 +695,11 @@ export function createConstructorView(store) {
     const versions = listVersions();
     const dirty = isDesignDirty();
     container.innerHTML = `
+      ${pieces.length === 0 && hasAutosave() ? renderAutosaveBanner() : ''}
       <div class="card mb-2">
         <div class="card__header">
           <h2 class="card__title">Constructor de clóset — agregar módulo</h2>
+          ${pieces.length === 0 && !hasSeenTour() ? '<button class="btn btn--secondary btn--sm" data-action="start-tour" title="Recorrido guiado del sistema gola">Tour gola</button>' : ''}
           <span class="cn-constructor__summary" data-resumen>${resumenMueble(pieces, state)}</span>
           ${dirty ? '<span class="badge badge--secondary" title="Hay cambios sin guardar en una versión">● sin guardar</span>' : ''}
         </div>
@@ -816,9 +865,26 @@ export function createConstructorView(store) {
         </div>
       </div>
     `;
+    // Re-render del Constructor: el innerHTML reemplazó los nodos objetivo del
+    // tour; si hay uno activo, se re-ancla al paso actual.
+    if (tour && tour.isActive()) tour.refresh();
   }
 
   return { mount, destroy };
+}
+
+// Banner de recuperación del autoguardado: solo con el Constructor vacío y
+// una clave cn-assembly-autosave con piezas. Recuperar restaura y limpia la
+// clave; Descartar solo la limpia.
+function renderAutosaveBanner() {
+  return `
+    <div class="cn-autosave-banner" role="status">
+      <span>Hay un mueble en construcción autoguardado en este navegador.</span>
+      <span class="cn-constructor__spacer"></span>
+      <button class="btn btn--primary btn--sm" data-action="restore-autosave">Recuperar último mueble</button>
+      <button class="btn btn--secondary btn--sm" data-action="discard-autosave">Descartar</button>
+    </div>
+  `;
 }
 
 // Lista de contenido agregado al modulo (cajones, zapateras, repisas,

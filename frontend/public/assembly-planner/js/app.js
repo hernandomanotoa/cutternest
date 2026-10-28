@@ -73,6 +73,9 @@ import {
   renameVersion,
   duplicateVersion,
   versionCsv,
+  saveAutosave,
+  readAutosave,
+  clearAutosave,
 } from './services/projectVersionsService.js';
 import {
   applyGola,
@@ -1776,6 +1779,72 @@ export async function deleteCloudVersionById(id) {
   return deleteCloudVersion(id);
 }
 
+// ── Autoguardado del mueble en construcción ───────────────────────
+// Suscripción con debounce: persiste las piezas ~2 s después del último
+// cambio, bajo la clave cn-assembly-autosave. Solo LEE el store: no toca la
+// pila de deshacer. Si el mueble se vacía ("Nuevo mueble"), se conserva el
+// último autoguardado como red de seguridad; la clave solo se limpia al
+// recuperar o descartar desde el aviso de la vista Constructor.
+
+const AUTOSAVE_DEBOUNCE_MS = 2000;
+let autosaveTimer = null;
+let autosaveUnsubscribe = null;
+let autosaveStoreRef = null;
+// Referencia de las piezas restauradas: evita que la suscripción re-escriba
+// la clave inmediatamente tras recuperar (el contrato es "restaurar y limpiar").
+let autosaveSkipRef = null;
+
+// Se re-suscribe si el store cambió (setStore en tests o en la app shell).
+export function initAutosave({ debounceMs = AUTOSAVE_DEBOUNCE_MS } = {}) {
+  const store = getStore();
+  if (autosaveUnsubscribe && autosaveStoreRef === store) return;
+  if (autosaveUnsubscribe) autosaveUnsubscribe();
+  autosaveStoreRef = store;
+  autosaveUnsubscribe = store.subscribe('state:changed', ({ prev, state }) => {
+    if (prev.pieces === state.pieces) return;
+    clearTimeout(autosaveTimer);
+    if (state.pieces === autosaveSkipRef) {
+      autosaveSkipRef = null;
+      return;
+    }
+    if (!state.pieces.length) return;
+    autosaveTimer = setTimeout(() => {
+      saveAutosave(getStore().get().pieces);
+    }, debounceMs);
+  });
+}
+
+export function hasAutosave() {
+  const r = readAutosave();
+  return r.ok && r.pieces.length > 0;
+}
+
+// Restaura el mueble autoguardado. Sin pisar el undo: hace SU snapshot
+// (Ctrl+Z vuelve al estado previo, típicamente el mueble vacío).
+export function restoreAutosave() {
+  const r = readAutosave();
+  if (!r.ok) return r;
+  snapshotUndo('Recuperar último mueble');
+  setActivePreset(CONSTRUCTOR_PRESET);
+  autosaveSkipRef = r.pieces;
+  getStore().set({
+    userConfig: loadUserConfig(),
+    pieces: r.pieces,
+    dependencies: sugerirDependencias(r.pieces),
+    warnings: r.warnings || [],
+    currentStep: 0,
+    ...(countRootModules(r.pieces) > 1 ? { currentModule: 'all' } : {}),
+  });
+  recalculateAll();
+  clearAutosave();
+  return { ok: true, pieceCount: r.pieces.length };
+}
+
+export function discardAutosave() {
+  clearAutosave();
+  return { ok: true };
+}
+
 export function addDependency(from, to, type = 'estructural') {
   const store = getStore();
   const state = store.get();
@@ -1921,6 +1990,7 @@ function init() {
   if (!getStore()) {
     setStore(createStore());
   }
+  initAutosave();
 
   $$('.tab').forEach((tab) => {
     tab.addEventListener('click', () => switchTab(tab.dataset.view));

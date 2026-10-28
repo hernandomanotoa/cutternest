@@ -1223,3 +1223,67 @@ input[type="search"]:focus-visible {
 .cn-chip__move:hover {
   color: var(--accent);
 }
+
+/* Tour guiado (js/components/tour/driver.js) */
+.cn-tour__tooltip {
+  position: fixed;
+  z-index: 11000;
+  max-width: 300px;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.cn-tour__tooltip--waiting {
+  border-style: dashed;
+  border-color: var(--text-secondary);
+}
+
+.cn-tour__step-count {
+  margin: 0 0 0.15rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cn-tour__title {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.cn-tour__text {
+  margin: 0 0 0.6rem;
+}
+
+.cn-tour__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.cn-tour__highlight {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Banner de recuperación del autoguardado (vista Constructor) */
+.cn-autosave-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--info);
+  border-radius: var(--radius-sm);
+  background: rgba(59, 130, 246, 0.08);
+  font-size: 0.85rem;
+}

@@ -12,6 +12,10 @@ import {
   duplicateVersion,
   suggestedVersionName,
   versionCsv,
+  saveAutosave,
+  readAutosave,
+  clearAutosave,
+  AUTOSAVE_KEY,
 } from './projectVersionsService.js';
 import { createModule, addDrawer } from './closetBuilderService.js';
 import { buildPlinthFrame, plinthTotalWidth } from './plinthFrameService.js';
@@ -276,5 +280,47 @@ describe('projectVersionsService/zócalo estructural a marco', () => {
       !(loaded.warnings || []).some((w) => w.includes('no coincide con suma de bases')),
       `aviso espurio: ${(loaded.warnings || []).join(' | ')}`
     );
+  });
+});
+
+describe('projectVersionsService/autoguardado (cn-assembly-autosave)', () => {
+  beforeEach(() => {
+    globalThis.localStorage = createMockStorage();
+  });
+
+  it('round-trip: autoguardar y leer reproduce las piezas', () => {
+    const pieces = muebleDePrueba();
+    const saved = saveAutosave(pieces);
+    assert.ok(saved.ok, saved.error);
+
+    const auto = readAutosave();
+    assert.ok(auto.ok, auto.error);
+    assert.ok(auto.savedAt, 'guarda la marca de tiempo');
+    assert.equal(auto.pieces.length, pieces.length);
+    assert.deepEqual(
+      auto.pieces.map((p) => `${p.id}:${p.ancho}x${p.alto}`),
+      pieces.map((p) => `${p.id}:${p.ancho}x${p.alto}`),
+    );
+  });
+
+  it('readAutosave sin clave, con JSON corrupto o con CSV corrupto devuelve ok:false', () => {
+    assert.equal(readAutosave().ok, false);
+
+    globalThis.localStorage.setItem(AUTOSAVE_KEY, '{corrupto');
+    assert.equal(readAutosave().ok, false);
+
+    globalThis.localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ savedAt: 'x', csv: 'esto,no,es,csv,valido' }));
+    assert.equal(readAutosave().ok, false);
+  });
+
+  it('clearAutosave elimina la clave', () => {
+    saveAutosave(muebleDePrueba());
+    assert.equal(readAutosave().ok, true);
+    clearAutosave();
+    assert.equal(readAutosave().ok, false);
+  });
+
+  it('saveAutosave rechaza una lista vacía de piezas', () => {
+    assert.equal(saveAutosave([]).ok, false);
   });
 });

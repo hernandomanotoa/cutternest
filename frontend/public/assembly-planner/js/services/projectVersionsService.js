@@ -7,6 +7,7 @@
 import { piecesToCSV, parseCSV } from './csvParser.js';
 
 const STORAGE_KEY = 'cn-assembly-versions';
+export const AUTOSAVE_KEY = 'cn-assembly-autosave';
 const SCHEMA = 1;
 const MAX_VERSIONS = 50;
 
@@ -190,6 +191,62 @@ export function versionCsv(id) {
 
 export function countVersions() {
   return readContainer().versions.length;
+}
+
+// ── Autoguardado del mueble en construcción ───────────────────────
+// Mismo formato serializado (CSV) que las versiones: al recuperar se
+// re-parsea y las piezas vuelven "limpias" (derivados recalculados).
+// La suscripción con debounce y la decisión de mostrar el aviso viven en
+// app.js / la vista (el servicio es puro, sin store ni DOM).
+
+// Persiste el autoguardado. Devuelve { ok, error? }.
+export function saveAutosave(pieces) {
+  if (!Array.isArray(pieces) || pieces.length === 0) {
+    return { ok: false, error: 'No hay piezas que autoguardar' };
+  }
+  const storage = getStorage();
+  if (!storage) return { ok: false, error: 'localStorage no disponible' };
+  try {
+    storage.setItem(AUTOSAVE_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      csv: piecesToCSV(pieces),
+    }));
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'No se pudo persistir el autoguardado' };
+  }
+}
+
+// Lee el autoguardado y re-parsea el CSV. Devuelve
+// { ok, savedAt?, pieces?, warnings? } o { ok:false, error } (ausente,
+// JSON corrupto o CSV ilegible).
+export function readAutosave() {
+  const storage = getStorage();
+  if (!storage) return { ok: false, error: 'localStorage no disponible' };
+  try {
+    const raw = storage.getItem(AUTOSAVE_KEY);
+    if (!raw) return { ok: false, error: 'No hay autoguardado' };
+    const parsed = JSON.parse(raw);
+    const result = parseCSV(String(parsed.csv || ''));
+    if (!result.ok) return { ok: false, error: 'CSV corrupto en el autoguardado' };
+    return {
+      ok: true,
+      savedAt: parsed.savedAt || null,
+      pieces: result.pieces,
+      warnings: result.warnings,
+    };
+  } catch {
+    return { ok: false, error: 'Autoguardado ilegible' };
+  }
+}
+
+export function clearAutosave() {
+  try {
+    getStorage()?.removeItem(AUTOSAVE_KEY);
+  } catch {
+    // Falla silenciosa en entornos sin localStorage.
+  }
+  return { ok: true };
 }
 
 function publicVersion(v) {
