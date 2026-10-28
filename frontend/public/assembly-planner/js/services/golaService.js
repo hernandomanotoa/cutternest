@@ -619,39 +619,39 @@ export function golaReport(pieces, userConfig = {}, opts = {}) {
   }
   if (!raices.size) return [];
 
+  // Filas por PIEZA de canal (fondo / pestañas), agrupadas por canal C o L.
   const rows = [];
   for (const raiz of raices) {
-    const unidades = drawerUnits(lista, raiz);
-    const tirasMod = tiras
-      .filter((t) => String(t.modulo) === raiz)
-      .sort((a, b) => Number(a.pos_z) - Number(b.pos_z));
-    tirasMod.forEach((t, i) => {
-      rows.push({
-        id: String(t.id),
-        ubicacion: `Entre cajón ${i + 1} e ${i + 2}`,
-        corteMm: Math.round(Number(t.ancho) || 0),
-        cantidad: Math.max(1, Math.round(Number(t.cantidad) || 1)),
-        material: materialDe(t),
-        fijacion: cfg.golaFijacion,
-      });
-    });
-    const esL = new Set(lFrontIds);
-    if (tirasMod.length && unidades.length) {
-      for (const f of unidades[unidades.length - 1].frentes) esL.add(String(f.id));
+    const canales = new Map(); // prefijo → {tipo, indice, piezas[]}
+    for (const t of tiras.filter((t2) => String(t2.modulo) === raiz)) {
+      const m = String(t.id).match(/^(.+gola-)(c(\d+)|l(\d+))-(fondo|pestana(-sup|-inf)?)$/);
+      if (!m) continue;
+      const pref = m[1] + m[2];
+      if (!canales.has(pref)) canales.set(pref, { tipo: m[2][0], indice: Number(m[3] || m[4]), piezas: [] });
+      canales.get(pref).piezas.push(t);
     }
-    for (const u of unidades) {
-      for (const f of u.frentes) {
-        if (!esL.has(String(f.id))) continue;
-        rows.push({
-          id: String(f.id),
-          ubicacion: 'L-gola: bajo la repisa',
-          corteMm: Math.round(Number(f.ancho) || 0),
-          cantidad: Math.max(1, Math.round(Number(f.cantidad) || 1)),
-          material: materialDe(f),
-          fijacion: cfg.golaFijacion,
+    const ordenados = [...canales.entries()].sort((a, b) => a[1].indice - b[1].indice);
+    for (const [pref, canal] of ordenados) {
+      const base = canal.tipo === 'c'
+        ? `Canal C ${canal.indice} (entre cajones)`
+        : 'Canal L (bajo la repisa)';
+      canal.piezas
+        .slice()
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+        .forEach((t) => {
+          const rol = String(t.id).slice(pref.length + 1);
+          rows.push({
+            id: String(t.id),
+            ubicacion: `${base} — ${rol}`,
+            corteMm: Math.round(Number(t.ancho) || 0),
+            altoMm: Math.round(Number(t.alto) || 0),
+            cantidad: Math.max(1, Math.round(Number(t.cantidad) || 1)),
+            material: materialDe(t),
+            fijacion: rol === 'fondo' ? cfg.golaFijacion : 'Encolado/atornillado al fondo de canal',
+          });
         });
-      }
     }
   }
   return rows;
 }
+

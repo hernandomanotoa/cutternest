@@ -534,7 +534,7 @@ export function createConstructorView(store) {
         render();
         return;
       }
-      toast(`Gola activada en el módulo ${moduleId}: sin tiradores, agarre en los perfiles`, { type: 'success' });
+      toast(`Gola activada en el módulo ${moduleId}: sin tiradores, canales C/L de melamina`, { type: 'success' });
       warnIfAny(r.warnings);
     } else if (action === 'cancel-gola') {
       // El dry-run nunca tocó el store: basta re-render para volver a off.
@@ -997,7 +997,7 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
           <input type="color" data-color-cuerpo value="#c19a6b" />
         </label>
         ${golaUnidades >= 2 ? `
-        <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: tiras de melamina entre frentes (sin tiradores, agarre en los perfiles) y frente del cajón superior extendido en L">
+        <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: canales de melamina entre frentes (sin tiradores — tipo C entre cajones, tipo L bajo la repisa) y caja del cajón superior rebajada">
           <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn || golaPreviewHere ? 'checked' : ''} /> Gola
         </label>` : ''}
         <button class="btn btn--secondary btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica">👁 Ver</button>
@@ -1039,7 +1039,7 @@ function renderGolaPanel(cfg = {}) {
       <label class="form-group" style="margin:0;" title="Fijación de los perfiles (preferencia de texto persistida)">Fijación
         <input type="text" data-gola-cfg="golaFijacion" value="${escapeHtml(cfg.golaFijacion || '')}" placeholder="Tornillos 3.5×16…" />
       </label>
-      <small>Tiras de melamina entre frentes (agarre hacia arriba); el cajón superior cierra en L. Sin mecanizados — parámetros PROVISIONALES.</small>
+      <small>Canales de melamina (C entre cajones, L bajo la repisa); la caja superior se rebaja para pasar bajo la L. Parámetros editables abajo.</small>
     </div>
   `;
 }
@@ -1054,7 +1054,7 @@ function renderGolaPreviewPanel(preview) {
   return `
     <div class="cn-constructor__edit-form" data-gola-preview>
       <p style="margin:0;"><strong>Vista previa — sistema gola</strong></p>
-      <p style="margin:0;">Se eliminarán los tiradores y se crearán ${plan.tiras} perfil(es) gola (gap ${plan.gapGola} mm, agarre ${plan.agarre} mm). Los frentes quedarán:</p>
+      <p style="margin:0;">Se eliminarán los tiradores y se crearán ${plan.tiras} canal(es) tipo C (fondo + 2 pestañas de melamina) y 1 canal tipo L bajo la repisa — gap de ${plan.gapGola} mm (3 + ${plan.cuerpoPerfil ?? 50} + 3), agarre de ${plan.agarre} mm. La caja del cajón superior queda rebajada para pasar bajo el canal L. Los frentes quedarán:</p>
       <ul style="margin:0;padding-left:1.25rem;">${frentes}</ul>
       ${(warnings || []).map((w) => `<p class="cn-constructor__warnings" style="margin:0;">⚠ ${escapeHtml(w)}</p>`).join('')}
       <div class="cn-constructor__content-btns">

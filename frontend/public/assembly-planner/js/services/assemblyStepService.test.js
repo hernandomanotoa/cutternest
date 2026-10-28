@@ -436,3 +436,36 @@ describe('assemblyStepService/zócalo estructural a marco', () => {
     assert.equal(steps[steps.length - 1].piezas[0], 'glb-zocalo');
   });
 });
+
+describe('assemblyStepService/gola — orden físico de canales en el modo paso', () => {
+  it('cada canal C queda entre su frente inferior y el superior; la L al final', async () => {
+    const { applyGola } = await import('./golaService.js');
+    const { createModule, addDrawer } = await import('./closetBuilderService.js');
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    const pieces = [...casco.pieces];
+    let cursor = 25;
+    for (let i = 1; i <= 3; i++) {
+      const d = addDrawer('1', i, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+      const frente = d.pieces.find((p) => p.id.endsWith('-frente'));
+      frente.pos_z = cursor;
+      cursor += frente.alto + 2.5;
+      pieces.push(...d.pieces);
+    }
+    const g = applyGola(pieces, '1', {});
+    assert.ok(g.ok, g.errors?.join('; '));
+    const { steps } = buildAssemblySequence(g.pieces);
+    const ids = steps.map((s2) => s2.piezas[0]);
+    const iF1 = ids.indexOf('m1cajon1-frente');
+    const iC1 = ids.indexOf('m1gola-c1-fondo');
+    const iF2 = ids.indexOf('m1cajon2-frente');
+    const iC2 = ids.indexOf('m1gola-c2-fondo');
+    const iF3 = ids.indexOf('m1cajon3-frente');
+    const iL = ids.indexOf('m1gola-l3-fondo');
+    assert.ok(iF1 < iC1 && iC1 < iF2, 'canal C1 entre frente 1 y 2');
+    assert.ok(iF2 < iC2 && iC2 < iF3, 'canal C2 entre frente 2 y 3');
+    assert.ok(iF3 < iL, 'canal L tras el último frente');
+    // Las pestañas van con su fondo (mismo paso, inmediatas).
+    const iP1 = ids.indexOf('m1gola-c1-pestana-inf');
+    assert.ok(Math.abs(iP1 - iC1) <= 3, 'pestañas del canal junto a su fondo');
+  });
+});

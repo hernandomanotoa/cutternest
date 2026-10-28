@@ -71,8 +71,9 @@ test('C2: activar el checkbox muestra la vista previa con el plan (sin mutar el 
   assert.ok(panel, 'se muestra el panel de vista previa');
   assert.match(panel.textContent, /Vista previa — sistema gola/);
   assert.match(panel.textContent, /Se eliminarán los tiradores/, 'avisa que quita tiradores');
-  assert.match(panel.textContent, /2 perfil\(es\)/, 'N−1 perfiles para 3 cajones');
-  assert.match(panel.textContent, /agarre 20 mm/, 'muestra el agarre del cfg');
+  assert.match(panel.textContent, /2 canal\(es\) tipo C/, 'N−1 canales C para 3 cajones');
+  assert.match(panel.textContent, /1 canal tipo L/, 'y 1 canal L bajo la repisa');
+  assert.match(panel.textContent, /agarre de 20 mm/, 'muestra el agarre del cfg');
   assert.match(panel.textContent, /→ \d+ mm/, 'muestra las alturas nuevas de frentes');
 
   // El dry-run no tocó el store: sin tiras y con tiradores intactos.

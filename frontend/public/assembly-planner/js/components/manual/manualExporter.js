@@ -95,27 +95,27 @@ function renderPlinthPlanSection(plan) {
   `;
 }
 
-// Sección "Perfiles gola" (solo con piezas rol gola_strip o frentes L):
-// tabla con identificador, ubicación relativa a los frentes, longitud de
-// corte, cantidad, material/acabado y observaciones de fijación.
+// Sección "Canales gola" (piezas rol gola_strip): tabla por pieza del
+// canal (fondo y pestañas) con ubicación, corte ancho×alto, cantidad,
+// material (melamina del módulo) y fijación.
 function renderGolaSection(rows) {
   if (!rows.length) return '';
   const body = rows.map((r) => `
     <tr>
       <td>${r.id}</td>
       <td>${r.ubicacion}</td>
-      <td>${r.corteMm} mm</td>
+      <td>${r.corteMm} × ${r.altoMm} mm</td>
       <td>${r.cantidad}</td>
       <td>${r.material}</td>
       <td>${r.fijacion}</td>
     </tr>`).join('');
   return `
     <section style="page-break-after: always; margin-bottom: 2rem;">
-      <h2>Perfiles gola</h2>
-      <p>Sistema de apertura sin tiradores: tira de melamina retranqueada en cada gap entre frentes de cajones y frente superior extendido (L-gola).</p>
+      <h2>Canales gola (melamina)</h2>
+      <p>Sistema de apertura sin tiradores construido con el mismo tablero del módulo: por cada gap entre frentes, un canal tipo C (fondo retranqueado + pestaña superior e inferior) y, bajo la repisa, un canal tipo L (fondo + pestaña inferior). El frente superior se estira para tapar la pestaña de la L; su caja queda rebajada para pasar bajo el canal.</p>
       <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;">
         <thead>
-          <tr><th>Identificador</th><th>Ubicación</th><th>Longitud de corte</th><th>Cantidad</th><th>Material/acabado</th><th>Observaciones de fijación</th></tr>
+          <tr><th>Identificador</th><th>Ubicación</th><th>Corte (ancho × alto)</th><th>Cantidad</th><th>Material/acabado</th><th>Observaciones de fijación</th></tr>
         </thead>
         <tbody>${body}</tbody>
       </table>

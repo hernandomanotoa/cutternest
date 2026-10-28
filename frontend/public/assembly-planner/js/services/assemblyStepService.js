@@ -33,6 +33,7 @@
 import { normalizeName } from '../utils/normalize.js';
 import { isGlobalPiece } from './moduleService.js';
 import { getModuleDimensions, classifyTopBottomMountAxes } from './geometryService.js';
+import { inferRole } from './classifierService.js';
 
 const CATEGORY_ORDER = {
   inferior: 1,
@@ -319,8 +320,50 @@ export function buildAssemblySequence(pieces, positions = null) {
     return String(a.nombre).localeCompare(String(b.nombre));
   });
 
-  const steps = sorted.map((p, i) => ({ paso: i + 1, piezas: [p.id] }));
-  return { steps, totalPasos: steps.length, totalPiezas: sorted.length };
+  const ordenado = reordenarGolaPorAltura(sorted);
+  const steps = ordenado.map((p, i) => ({ paso: i + 1, piezas: [p.id] }));
+  return { steps, totalPasos: steps.length, totalPiezas: ordenado.length };
+}
+
+// En módulos CON gola, el orden físico de armado intercala los canales entre
+// los frentes: cada canal C se monta sobre el techo del frente inferior (su
+// pos_z queda entre ambos frentes) y el canal L después del último frente.
+// Como frentes y piezas de canal tienen pos_z monótono creciente, ordenar
+// ese subconjunto por altura reproduce el armado real. Módulos sin gola no
+// se tocan (no se altera el orden histórico).
+function reordenarGolaPorAltura(sorted) {
+  // Agrupa por módulo RAÍZ: los canales viven en el módulo ('1') y los
+  // frentes en sus submódulos ('11', '12'...). Raíz = prefijo más corto que
+  // exista como módulo ('11' → '1'; si no existe '1', '11' es raíz).
+  const modulos = new Set(sorted.map((p) => String(p.modulo || '').trim()).filter(Boolean));
+  const raizDe = (m) => {
+    for (let i = m.length - 1; i >= 1; i -= 1) {
+      const pref = m.slice(0, i);
+      if (modulos.has(pref)) return pref;
+    }
+    return m;
+  };
+  const porRaiz = new Map();
+  sorted.forEach((p, i) => {
+    const r = raizDe(String(p.modulo || ''));
+    if (!porRaiz.has(r)) porRaiz.set(r, []);
+    porRaiz.get(r).push(i);
+  });
+  const resultado = sorted.slice();
+  for (const indices of porRaiz.values()) {
+    const hayGola = indices.some((i) => inferRole(sorted[i]) === 'gola_strip');
+    if (!hayGola) continue;
+    const rolDe = (i) => inferRole(sorted[i]);
+    const esIntercalable = (i) => ['drawer_face', 'gola_strip'].includes(rolDe(i));
+    const intercalados = indices
+      .filter(esIntercalable)
+      .sort((a, b) => (Number(sorted[a].pos_z) || 0) - (Number(sorted[b].pos_z) || 0));
+    const slots = indices.filter(esIntercalable);
+    slots.forEach((slot, k) => {
+      resultado[slot] = sorted[intercalados[k]];
+    });
+  }
+  return resultado;
 }
 
 /**
