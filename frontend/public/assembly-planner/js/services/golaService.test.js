@@ -14,6 +14,7 @@ import {
   isGolaEnabled,
   getGolaCfg,
   drawerUnits,
+  golaReport,
   GOLA_DEFAULTS,
 } from './golaService.js';
 import { GOLA_PERFIL_TALLER } from '../core/config.js';
@@ -478,5 +479,41 @@ describe('renderer (computeGeometries)', () => {
     // techo interior = ALTO − ESP (sin repisa): la L no está capeada (vano alto).
     assert.ok(Math.abs(lGrip.z + lGrip.h - TECHO_INTERIOR) <= 1,
       `agarre L termina en el techo interior (${lGrip.z} + ${lGrip.h} ≈ ${TECHO_INTERIOR})`);
+  });
+});
+
+describe('golaReport — sección del manual', () => {
+  it('módulo de 1 solo cajón: el canal L propio lo incluye sin golaLFrontIds', () => {
+    // applyGola siempre emite el canal L (m{mod}gola-l1-fondo/pestana), así
+    // que el reporte cubre el módulo aunque no tenga canales C (0 gaps).
+    const pieces = buildModule(1, { repisaZ: 500 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+
+    const rows = golaReport(r.pieces, {});
+    const ids = rows.map((x) => x.id);
+    assert.ok(ids.includes('m1gola-l1-fondo'), 'fondo del canal L reportado');
+    assert.ok(ids.includes('m1gola-l1-pestana'), 'pestaña del canal L reportada');
+    assert.equal(ids.filter((id) => id.includes('gola-c')).length, 0, 'sin canales C');
+    for (const row of rows) {
+      assert.match(row.ubicacion, /Canal L \(bajo la repisa\)/);
+      assert.equal(row.corteMm, INTERIOR - 2 * GOLA_DEFAULTS.golaHolguraLateral);
+      assert.equal(row.cantidad, 1);
+      assert.ok(row.material.length > 0, 'material/acabado presente');
+    }
+    assert.equal(rows.find((x) => x.id.endsWith('-fondo')).fijacion, GOLA_DEFAULTS.golaFijacion);
+  });
+
+  it('módulo con N cajones: filas de cada canal C y del canal L', () => {
+    const pieces = buildModule(3, { repisaZ: 900 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const rows = golaReport(r.pieces, {});
+    // 2 canales C (fondo + 2 pestañas = 3 filas c/u) + 1 canal L (2 filas).
+    assert.equal(rows.filter((x) => x.id.includes('gola-c')).length, 2 * 3);
+    assert.equal(rows.filter((x) => x.id.includes('gola-l')).length, 2);
+    assert.ok(rows.some((x) => /Canal C 1 \(entre cajones\)/.test(x.ubicacion)));
+    // Sin piezas gola no hay sección.
+    assert.deepEqual(golaReport(pieces, {}), []);
   });
 });

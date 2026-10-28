@@ -158,17 +158,19 @@ warnings si redujo frentes o aplicó el cap.
   una caja fina sobre cada tira (alto = gap real al frente superior) y otra
   bajo el frente L; color en `ROLE_COLORS.gola_grip` (config, no en la
   vista); sin etiqueta de pieza (`pieceStyling.makeLabel` devuelve `''`).
-- Materiales/planos: `calculateHardware` lista "Perfil gola melamina"
-  agrupado por largo de corte + "Tornillo fijación gola"
-  (tiras × `golaTornillosPorPerfil`); paso de montaje "interior" en
+- Materiales/planos: `calculateHardware` lista "Tornillo fijación gola"
+  (tiras × `golaTornillosPorPerfil`); los canales son piezas de corte y van
+  al despiece (salen del BOM); paso de montaje "interior" en
   `assemblyStepService` con instrucción en `instructions.js`. El manual
   (`manualExporter.buildStandaloneHtml`, 6º parámetro opcional
   retrocompatible `{userConfig, golaLFrontIds}`) renderiza la sección
-  **"Perfiles gola"** vía `golaReport(pieces, userConfig, opts)` (filas:
-  identificador, ubicación "Entre cajón i e i+1" / "L-gola: bajo la
-  repisa", longitud de corte, cantidad, material/acabado, fijación).
-  Nota: el frente L de módulos de 1 solo cajón solo aparece si el caller
-  pasa `opts.golaLFrontIds` (app.js conoce el meta persistido).
+  **"Perfiles gola"** vía `golaReport(pieces, userConfig, opts)` (filas por
+  pieza de canal: identificador, ubicación "Canal C N (entre cajones)" /
+  "Canal L (bajo la repisa) — fondo/pestaña", longitud de corte, cantidad,
+  material/acabado, fijación). Todo módulo con gola activo genera su canal L
+  (`m{mod}gola-l{N}-fondo/pestana`), así que también los de 1 solo cajón
+  aparecen en el reporte sin acción del caller; `opts.golaLFrontIds` solo
+  cubre el caso de piezas editadas a mano (canal L borrado).
 - **Validación geométrica**: `validateGola` además del chequeo aritmético
   vigila la **interferencia tira↔caja en profundidad** (eje Y del renderer,
   y=0 en el fondo): error si `yTira < espesor` (retranqueo excesivo) o si la
