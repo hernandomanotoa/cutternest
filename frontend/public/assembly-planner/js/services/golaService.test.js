@@ -16,6 +16,7 @@ import {
   drawerUnits,
   GOLA_DEFAULTS,
 } from './golaService.js';
+import { GOLA_PERFIL_TALLER } from '../core/config.js';
 import { calculateHardware } from './hardware.js';
 import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
 
@@ -67,12 +68,13 @@ const tiradoresDe = (pieces) =>
   pieces.filter((p) => String(p.id).startsWith('m1') && p.id.endsWith('-tirador'));
 
 describe('getGolaCfg', () => {
-  it('mergea defaults PROVISIONALES con overrides numéricos y string', () => {
+  it('mergea defaults del perfil de taller con overrides numéricos y string', () => {
     const cfg = getGolaCfg({});
-    assert.equal(cfg.golaPerfilHeight, 50);
+    assert.equal(cfg.golaPerfilHeight, GOLA_PERFIL_TALLER.golaPerfilHeight);
     assert.equal(cfg.golaFingerClearance, 20);
     assert.equal(cfg.golaMaxOverhang, 120);
-    assert.ok(cfg.golaFijacion.includes('PROVISIONAL'));
+    assert.equal(cfg.golaFijacion, GOLA_PERFIL_TALLER.golaFijacion);
+    assert.ok(!cfg.golaFijacion.includes('PROVISIONAL'), 'la fijación default ya no marca PROVISIONAL');
     const custom = getGolaCfg({ golaPerfilHeight: 40, golaFijacion: '  Cola + tarugos ' });
     assert.equal(custom.golaPerfilHeight, 40);
     assert.equal(custom.golaFijacion, 'Cola + tarugos');

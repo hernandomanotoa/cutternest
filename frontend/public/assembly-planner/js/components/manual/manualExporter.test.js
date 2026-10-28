@@ -131,7 +131,7 @@ describe('manualExporter', () => {
     assert.ok(html.includes('820 × 40 mm'), 'corte de la pestaña');
     assert.ok(html.includes('Canal L (bajo la repisa) — pestana'), 'ubicación de la pestaña L');
     assert.ok(html.includes('Melamina (#C19A6B)'), 'material/acabado');
-    assert.ok(html.includes('Tornillos 3.5×16'), 'observaciones de fijación (default PROVISIONAL)');
+    assert.ok(html.includes('Tornillos 3.5×16'), 'observaciones de fijación (default según taller)');
   });
 
   it('respeta golaFijacion del userConfig y omite la sección sin gola', () => {

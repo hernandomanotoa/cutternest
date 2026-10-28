@@ -108,3 +108,34 @@ test('destroy desuscribe y no lanza', () => {
   store.setField('pieces', [makePiece(), makePiece({ id: 'glb-x', nombre: 'X' })]);
   assert.equal(container.innerHTML, htmlAfterMount, 'el contenedor quedó congelado tras destroy');
 });
+
+test('los listeners delegados del contenedor no fugan entre renders ni mounts', () => {
+  const store = createStore({ pieces: [makePiece()] });
+  const view = createCSVView(store);
+  const container = createContainer();
+
+  const adds = [];
+  const removes = [];
+  const origAdd = container.addEventListener.bind(container);
+  const origRemove = container.removeEventListener.bind(container);
+  container.addEventListener = (type, fn, opts) => { adds.push(type); return origAdd(type, fn, opts); };
+  container.removeEventListener = (type, fn, opts) => { removes.push(type); return origRemove(type, fn, opts); };
+
+  view.mount(container);
+  assert.deepEqual(adds.slice().sort(), ['click', 'input'], 'mount registra la delegación una sola vez');
+
+  // Cada cambio de estado re-renderiza innerHTML: los listeners delegados
+  // no deben re-registrarse (antes del fix se acumulaban en cada render).
+  store.setField('pieces', [makePiece(), makePiece({ id: 'glb-y', nombre: 'Y' })]);
+  store.setField('pieces', [makePiece()]);
+  assert.equal(adds.filter((t) => t === 'input').length, 1, 'sin re-registro tras re-renders');
+  assert.equal(adds.filter((t) => t === 'click').length, 1, 'sin re-registro tras re-renders');
+
+  view.destroy();
+  assert.deepEqual(removes.slice().sort(), ['click', 'input'], 'destroy remueve ambos listeners');
+
+  // Un segundo ciclo mount/destroy tampoco acumula.
+  view.mount(container);
+  view.destroy();
+  assert.equal(adds.filter((t) => t === 'input').length, 2, 'segundo mount registra de nuevo, sin restos del primero');
+});

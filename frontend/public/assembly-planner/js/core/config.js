@@ -244,6 +244,29 @@ export const Z_INDEX = {
   bed_slat: 8,
 };
 
+// ── Sistema gola: perfil medido en taller ───────────────────────
+// Fuente de los valores: 'taller-medido' (levantamiento propio, no de
+// catálogo comercial). Son editables vía userConfigService (global) y por
+// módulo; verificar contra catálogo antes de producción.
+export const GOLA_PERFIL_TALLER = {
+  fuente: 'taller-medido',
+  editable: true,
+  golaPerfilHeight: 50,      // cuerpo del perfil C/L de aluminio (mm)
+  golaPaso: 3,               // paso entre frente y canal, arriba y abajo del perfil (mm)
+  golaFingerClearance: 20,   // espacio de agarre; también el gap bajo repisa para la L (mm)
+  golaStripDepth: 60,        // profundidad de la tira (mm)
+  golaStripSetback: 10,      // retranqueo detrás del plano de frentes (mm)
+  golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
+  golaTornillosPorPerfil: 2, // tornillos de fijación por perfil
+  golaMaxOverhang: 120,      // máx. sobrealtura del frente L respecto a su caja (mm)
+  golaFijacion: 'Tornillos 3.5×16 + soporte trasero — según taller, verificar con catálogo',
+};
+
+// Vista numérica pura del perfil: VERTICAL_POSITIONS solo admite claves
+// numéricas (userConfigService las trata como offsets), así que se excluyen
+// la metadata (fuente/editable) y el texto de fijación.
+const { fuente: _golaFuente, editable: _golaEditable, golaFijacion: _golaFijacionTaller, ...GOLA_PERFIL_TALLER_NUM } = GOLA_PERFIL_TALLER;
+
 export const VERTICAL_POSITIONS = {
   // ── Offset: distancia desde un borde de referencia ───────────
   bottomPanelOffset: 0,      // distancia suelo → cara inferior de la base (bottom_panel)
@@ -302,17 +325,11 @@ export const VERTICAL_POSITIONS = {
   contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
   cantoEspesor: 0.8,         // espesor del canto PVC (mm) para la lista de herrajes
 
-  // ── Sistema gola (tiras de melamina entre frentes; PROVISIONAL) ──
-  // Defaults de taller a confirmar contra catálogo antes de producción.
+  // ── Sistema gola (tiras de melamina entre frentes) ─────────────
+  // Valores de taller extraídos de GOLA_PERFIL_TALLER (fuente:
+  // 'taller-medido'); verificar contra catálogo antes de producción.
   // golaFijacion (STRING_PREF en userConfigService) acompaña estos valores.
-  golaPerfilHeight: 50,      // cuerpo del perfil C/L de aluminio (mm)
-  golaPaso: 3,               // paso entre frente y canal, arriba y abajo del perfil (mm)
-  golaFingerClearance: 20,   // espacio de agarre; también el gap bajo repisa para la L (mm)
-  golaStripDepth: 60,        // profundidad de la tira (mm)
-  golaStripSetback: 10,      // retranqueo detrás del plano de frentes (mm)
-  golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
-  golaTornillosPorPerfil: 2, // tornillos de fijación por perfil
-  golaMaxOverhang: 120,      // máx. sobrealtura del frente L respecto a su caja (mm)
+  ...GOLA_PERFIL_TALLER_NUM,
 };
 
 // Separación estándar entre módulos en la vista multi-módulo (mm). Vive en

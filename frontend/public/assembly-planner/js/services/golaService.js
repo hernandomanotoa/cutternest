@@ -28,21 +28,17 @@
 // golaFingerClearance solo aplica a la L (aire de agarre bajo la repisa).
 
 import { inferRole } from './classifierService.js';
+import { GOLA_PERFIL_TALLER } from '../core/config.js';
 
-// Defaults PROVISIONALES (de taller; confirmar contra catálogo). Duplican los
-// de core/config.js VERTICAL_POSITIONS para poder llamar al servicio desde
-// tests sin userConfig.
-export const GOLA_DEFAULTS = {
-  golaPerfilHeight: 50,        // cuerpo del perfil C/L (aluminio, mm)
-  golaPaso: 3,                 // holgura de paso entre frente y canal (arriba y abajo del perfil)
-  golaFingerClearance: 20,     // aire de agarre de la L bajo la repisa (mm)
-  golaStripDepth: 60,
-  golaStripSetback: 10,
-  golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
-  golaTornillosPorPerfil: 2,
-  golaMaxOverhang: 120,
-  golaFijacion: 'Tornillos 3.5×16 + soporte trasero (PROVISIONAL)',
-};
+// Metadata del perfil de taller (origen y editabilidad de los valores).
+const { fuente, editable, ...GOLA_PERFIL_TALLER_VALORES } = GOLA_PERFIL_TALLER;
+export const GOLA_PERFIL_TALLER_INFO = { fuente, editable };
+
+// Defaults del perfil de taller (fuente: 'taller-medido'; verificar contra
+// catálogo antes de producción). Se derivan de GOLA_PERFIL_TALLER
+// (core/config.js) para tener una sola fuente de verdad y poder llamar al
+// servicio desde tests sin userConfig.
+export const GOLA_DEFAULTS = { ...GOLA_PERFIL_TALLER_VALORES };
 
 export const GOLA_NUMERIC_KEYS = [
   'golaPerfilHeight',
@@ -55,7 +51,7 @@ export const GOLA_NUMERIC_KEYS = [
   'golaMaxOverhang',
 ];
 
-/** Mergea defaults PROVISIONALES con overrides numéricos/string persistidos.
+/** Mergea defaults del perfil de taller con overrides numéricos/string persistidos.
  * Orden: `GOLA_DEFAULTS ← userConfig (global) ← moduleCfg (del módulo)`; los
  * overrides del módulo ganan sobre los globales. Mismas reglas de validación
  * en ambas capas: numéricos finitos ≥0, `golaFijacion` string no vacío. Sin

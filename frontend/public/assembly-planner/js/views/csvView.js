@@ -11,9 +11,18 @@ import { UI_COLORS } from '../core/config.js';
 export function createCSVView(store) {
   let unsubscribe = null;
   let container = null;
+  let onContainerInput = null;
+  let onContainerClick = null;
 
   function mount(parent) {
     container = parent;
+    // Delegación a nivel contenedor: se registra UNA vez por mount y se
+    // remueve en destroy. Leen el estado vivo del store, así sobreviven al
+    // re-render de innerHTML sin necesidad de re-registrarse.
+    onContainerInput = (e) => handleFieldInput(e, store.get());
+    onContainerClick = (e) => handleRowDelete(e, store.get());
+    container.addEventListener('input', onContainerInput);
+    container.addEventListener('click', onContainerClick);
     unsubscribe = store.subscribe('state:changed', () => render(container, store.get()));
     render(container, store.get());
   }
@@ -23,6 +32,12 @@ export function createCSVView(store) {
       unsubscribe();
       unsubscribe = null;
     }
+    if (container) {
+      if (onContainerInput) container.removeEventListener('input', onContainerInput);
+      if (onContainerClick) container.removeEventListener('click', onContainerClick);
+    }
+    onContainerInput = null;
+    onContainerClick = null;
     container = null;
   }
 
@@ -178,41 +193,43 @@ function bindEvents(container, state) {
     a.remove();
     URL.revokeObjectURL(url);
   });
+}
 
-  container.addEventListener('input', (e) => {
-    const input = e.target.closest('input[data-field]');
-    if (!input) return;
-    const tr = input.closest('tr');
-    if (!tr) return;
-    const idx = Number(tr.dataset.index);
-    if (!Number.isFinite(idx) || !state.pieces[idx]) return;
+// Delegación de edición de celdas (listener de `container`, se registra en mount).
+function handleFieldInput(e, state) {
+  const input = e.target.closest('input[data-field]');
+  if (!input) return;
+  const tr = input.closest('tr');
+  if (!tr) return;
+  const idx = Number(tr.dataset.index);
+  if (!Number.isFinite(idx) || !state.pieces[idx]) return;
 
-    const field = input.dataset.field;
-    let value = input.value;
+  const field = input.dataset.field;
+  let value = input.value;
 
-    if (field === 'pos_z') {
-      const trimmed = value.trim();
-      value = trimmed === '' ? null : parseFloat(trimmed);
-      if (value !== null && !Number.isFinite(value)) return;
-    } else if (['ancho', 'alto', 'espesor'].includes(field)) {
-      value = parseFloat(value);
-      if (!Number.isFinite(value) || value <= 0) return;
-    } else if (field === 'cantidad') {
-      value = parseInt(value, 10);
-      if (!Number.isInteger(value) || value < 1) return;
-    } else if (field === 'rotate') {
-      value = input.checked;
-    }
+  if (field === 'pos_z') {
+    const trimmed = value.trim();
+    value = trimmed === '' ? null : parseFloat(trimmed);
+    if (value !== null && !Number.isFinite(value)) return;
+  } else if (['ancho', 'alto', 'espesor'].includes(field)) {
+    value = parseFloat(value);
+    if (!Number.isFinite(value) || value <= 0) return;
+  } else if (field === 'cantidad') {
+    value = parseInt(value, 10);
+    if (!Number.isInteger(value) || value < 1) return;
+  } else if (field === 'rotate') {
+    value = input.checked;
+  }
 
-    updatePiece(idx, field, value);
-  });
+  updatePiece(idx, field, value);
+}
 
-  container.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-delete]');
-    if (!btn) return;
-    const idx = Number(btn.dataset.delete);
-    if (Number.isFinite(idx) && state.pieces[idx]) {
-      removePiece(idx);
-    }
-  });
+// Delegación del botón × por fila (listener de `container`, se registra en mount).
+function handleRowDelete(e, state) {
+  const btn = e.target.closest('button[data-delete]');
+  if (!btn) return;
+  const idx = Number(btn.dataset.delete);
+  if (Number.isFinite(idx) && state.pieces[idx]) {
+    removePiece(idx);
+  }
 }
