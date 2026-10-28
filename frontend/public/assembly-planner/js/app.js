@@ -577,6 +577,11 @@ export function addContentToModule(moduleId, kind, opts = {}) {
 
   let result = null;
   let piecesMutadas = null;
+  // Vano del tipo de contenido (tenis 200, botas 450...): la unidad reserva
+  // SU vano completo en el apilado, aunque la pieza ancla (cara de la
+  // bandeja abierta) sea mas baja que el vano.
+  const tipo = opts.tipo ? getContentType(kind, opts.tipo) : null;
+  const altoVano = Number(opts.altoVano) > 0 ? Number(opts.altoVano) : (tipo?.altoVano ?? 200);
   if (kind === 'shelf') {
     result = addShelf(moduleId, {
       anchoUtil, profReal: profUtil, espesor,
@@ -623,8 +628,6 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       nextContentIndex(state.pieces, moduleId, 'drawer'),
       nextContentIndex(state.pieces, moduleId, 'shoeRack'),
     );
-    const tipo = opts.tipo ? getContentType(kind, opts.tipo) : null;
-    const altoVano = Number(opts.altoVano) > 0 ? Number(opts.altoVano) : (tipo?.altoVano ?? 200);
     if (kind === 'shoeRack') {
       // Bandeja zapatera: laterales bajos (cubren la riel) y frente variable
       // (completo = sin cara ni gaps; bajo = cara + gaps como el cajón;
@@ -682,6 +685,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
     separacion: Number(opts.separacion) > 0 ? Number(opts.separacion) : 0,
     insetTapa: Number(opts.insetTapa) > 0 ? Number(opts.insetTapa) : 0,
     hangerRailHeight: state.userConfig?.hangerRailHeight ?? 1700,
+    altoVano,
   });
   if (errorAncla) return { ok: false, errors: [errorAncla] };
   const basePieces = piecesMutadas || state.pieces;
@@ -883,6 +887,18 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
         return String(q.id).startsWith(pref) && q.id.endsWith('-cara');
       });
       cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
+    } else if (/-cara$/.test(String(p.id))) {
+      // Cara ancla de cajón/zapatera SIN frente (bandeja abierta): la unidad
+      // reserva su vano completo (cara + 2·ESP_BASE 15 + luz 3 = cara + 33),
+      // no solo el espesor de la pieza; si no, lo que se agregue después
+      // quedaría pisando la zona de la bandeja. Con frente propio la cara no
+      // es ancla (no lleva pos_z) y esta rama es solo defensiva.
+      const pref = String(p.id).slice(0, -'-cara'.length);
+      const conFrente = (pieces || []).some((q) => String(q.id) === `${pref}-frente`);
+      const avance = conFrente
+        ? (Number(p.espesor) || 15) + stackGap
+        : (Number(p.alto) || 0) + 33 + drawerFrontGap;
+      cursor = Math.max(cursor, Number(p.pos_z) + avance);
     } else {
       cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.espesor) || 15) + stackGap);
     }
@@ -891,7 +907,7 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
 }
 
 // Asigna pos_z a las piezas recien agregadas segun el cursor del modulo.
-function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap, separacion = 0, insetTapa = 0, hangerRailHeight = 1700 }) {
+function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap, separacion = 0, insetTapa = 0, hangerRailHeight = 1700, altoVano = 0 }) {
   // Geometria vertical del modulo: cara inferior de la tapa (techo del vano
   // util) y cara superior de la base (piso).
   const altoModulo = Number(piecesActuales.find((p) => p.id === `m${moduleId}-lateral-izq`)?.alto) || 0;
@@ -956,7 +972,15 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
     // Frente completo (zapatera botas): cubre todo el vano y va sin gaps —
     // apilado flush, sin drawerFrontGap. Frente bajo: apila con gap.
     const sinGap = kind === 'shoeRack' && !piezasNuevas.some((p) => p.id.endsWith('-cara'));
-    fijar(frente, (Number(frente?.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
+    // La unidad reserva SU vano completo (altoVano del tipo), no solo el
+    // alto de la pieza ancla: la bandeja abierta sin frente tiene la cara
+    // mas baja que el vano (cara = vano − 2·ESP_BASE − 3) y si el cursor
+    // avanzara solo eso, la siguiente pieza quedaría pisando la zona de
+    // la bandeja. Con frente se conserva el avance histórico (frente.alto).
+    const ocupa = frente && frente.id.endsWith('-frente')
+      ? (Number(frente.alto) || 0)
+      : (altoVano || (Number(frente?.alto) || 0));
+    fijar(frente, ocupa + (sinGap ? 0 : drawerFrontGap));
   }
   // doubleRail trae pos_z absolutos ergonomicos (2100/1000); zocalo no ancla.
   return error;

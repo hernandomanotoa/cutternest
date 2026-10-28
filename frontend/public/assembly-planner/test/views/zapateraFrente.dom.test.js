@@ -95,8 +95,7 @@ test('eliminar el frente (contenido completo) elimina también el tirador', () =
   assert.equal(zap.length, 0, 'el grupo completo (frente, caja y tirador) se eliminó');
 });
 
-test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin frente)', () => {
-  const { container } = armarModuloYVista();
+test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin frente)', () => {  const { container } = armarModuloYVista();
   const label = () => container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').textContent;
   assert.match(label(), /\(0\)/, 'sin zapateras: contador 0');
 
@@ -115,4 +114,24 @@ test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin fre
   const r = removeContentPiece('m1zapatera2-cara');
   assert.ok(r.ok);
   assert.match(label(), /\(2\)/, 'tras eliminar una unidad el contador baja a 2');
+});
+
+test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {
+  const { container } = armarModuloYVista();
+  // Tipo tenis: vano 200. La bandeja abierta (sin frente) debe reservar esos
+  // 200 mm de zona aunque su cara mida 167 (vano − 2·ESP_BASE − 3).
+  const sel = container.querySelector('[data-tipo-zapatera]');
+  sel.value = 'tenis';
+  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+  agregarZapatera(container);
+  agregarZapatera(container);
+  const z = (n) => Number(getStore().get().pieces.find((p) => p.id === `m1zapatera${n}-cara`).pos_z);
+  assert.equal(Math.round((z(2) - z(1)) * 10) / 10, 202.5,
+    'segunda bandeja a vano(200) + drawerFrontGap(2.5) de la primera — no pisando su zona');
+
+  // Lo que se agregue después queda sobre la zona completa de la 2.ª bandeja.
+  container.querySelector('[data-action="add-content"][data-kind="shelf"]').click();
+  const repisa = getStore().get().pieces.find((p) => p.id === 'm1-repisa-1');
+  assert.ok(Number(repisa.pos_z) > z(2), 'la repisa posterior queda sobre la zona de la bandeja');
 });
