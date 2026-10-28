@@ -307,11 +307,56 @@ describe('zapatera: división central (apoyo de la fila delantera)', () => {
   });
 
   it('division: false la omite', () => {
-    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, division: false });
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, division: false, conFrente: true });
     assert.ok(r.ok);
     assert.equal(r.pieces.some((p) => p.id.endsWith('-division')), false);
     // El resto del conjunto intacto (frente, laterales, fondo, cara, base, tirador).
     assert.equal(r.pieces.length, 7);
+  });
+});
+
+describe('zapatera: frente opcional (bandeja abierta por defecto)', () => {
+  it('por defecto (conFrente omitido) NO genera frente ni tirador; la cara queda como frente visible', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    assert.ok(r.ok);
+    assert.equal(r.conFrente, false);
+    assert.equal(r.frente, null, 'sin medidas de frente: no existe');
+    // laterales ×2 + fondo + cara + división + base = 6; sin frente ni tirador.
+    assert.equal(r.pieces.length, 6);
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-frente')), false, 'sin pieza de frente');
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador (va atornillado al frente)');
+    const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+    assert.ok(cara, 'la cara del cuerpo queda como frente visible/de agarre');
+    // division: false => 5 piezas.
+    const r5 = addShoeTray('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, division: false });
+    assert.equal(r5.pieces.length, 5);
+  });
+
+  it('conFrente: true genera frente decorativo + tirador (8 piezas con división)', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: true });
+    assert.ok(r.ok);
+    assert.equal(r.conFrente, true);
+    assert.deepEqual(r.frente, { ancho: 818, alto: 197 });
+    assert.equal(r.pieces.length, 8);
+    assert.ok(r.pieces.some((p) => p.id.endsWith('-frente')));
+    assert.ok(r.pieces.some((p) => p.id.endsWith('-tirador')));
+  });
+
+  it('con frente completo (botas) el frente sigue siendo obligatorio de la bandeja', () => {
+    // frenteCompleto integra el frente a la bandeja (sin cara): conFrente no
+    // aplica porque el propio cierre de la bandeja es el frente.
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, frenteCompleto: true });
+    assert.ok(r.ok);
+    assert.ok(r.pieces.some((p) => p.id.endsWith('-frente')), 'el frente cierra la bandeja (botas)');
+    assert.ok(r.pieces.some((p) => p.id.endsWith('-tirador')), 'con tirador para jalar');
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-cara')), false, 'sin cara (frente completo)');
+  });
+
+  it('riel marco siempre lleva frente + tirador (el herraje es solo el frente)', () => {
+    const r = addShoeTray('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'marco', conFrente: false });
+    assert.ok(r.ok);
+    assert.equal(r.conFrente, true, 'marco fuerza frente aunque conFrente=false');
+    assert.deepEqual(r.pieces.map((p) => p.id.split('-').pop()), ['frente', 'tirador']);
   });
 });
 

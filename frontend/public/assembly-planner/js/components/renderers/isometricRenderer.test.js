@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { IsometricRenderer, sortByDepth } from './isometricRenderer.js';
 import { buildPlinthFrame } from '../../services/plinthFrameService.js';
-import { createModule } from '../../services/closetBuilderService.js';
+import { createModule, addDrawer, addShoeTray } from '../../services/closetBuilderService.js';
 
 function parsePolygons(svg) {
   const regex = /<polygon[^>]*>/g;
@@ -117,6 +117,33 @@ describe('IsometricRenderer drawer pos_z anchor', () => {
     const face = geometries.find((g) => g.id === 'm1-cajon-frente');
     assert.ok(face, 'drawer face geometry should exist');
     assert.ok(face.z >= 15 && face.z < 300, `floating drawer should stack from the module base, got z=${face.z}`);
+  });
+
+  it('zapatera sin frente: la cara se promueve a frente visible (con caja) y no se omite la unidad', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const zapatera = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    assert.ok(zapatera.ok);
+    const cara = zapatera.pieces.find((p) => p.id.endsWith('-cara'));
+    cara.pos_z = 300; // ancla como la fija app.js al insertar la bandeja
+    const pieces = [...basePieces, ...zapatera.pieces];
+    const { geometries } = renderer.computeGeometries('1', pieces);
+    const caraGeo = geometries.find((g) => g.id === cara.id);
+    assert.ok(caraGeo, 'la cara de la zapatera sin frente debe dibujarse como frente');
+    assert.equal(caraGeo.role, 'drawer_face');
+    assert.equal(caraGeo.z, 300, 'la cara anclada respeta su pos_z');
+    // La caja acompaña: al menos los laterales y la base se dibujan.
+    assert.ok(geometries.some((g) => g.id.endsWith('-lateral-izq')), 'la caja (laterales) se dibuja con la cara');
+    // Sin promoción espuria: la cara de un cajón CON frente sigue sin ser frente.
+    const cajon = addDrawer('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    const renderer2 = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
+    const caraCajon = cajon.pieces.find((p) => p.id.endsWith('-cara'));
+    const { geometries: geos2 } = renderer2.computeGeometries('1', [
+      ...basePieces,
+      ...cajon.pieces.map((p) => (p.id.endsWith('-frente') ? { ...p, pos_z: 600 } : p)),
+    ]);
+    assert.ok(geos2.some((g) => g.id === cajon.pieces.find((p) => p.id.endsWith('-frente')).id), 'el frente del cajón se dibuja');
+    assert.equal(geos2.filter((g) => g.role === 'drawer_face' && g.id === caraCajon.id).length, 0,
+      'la cara de un cajón con frente NO se promueve a drawer_face');
   });
 });
 

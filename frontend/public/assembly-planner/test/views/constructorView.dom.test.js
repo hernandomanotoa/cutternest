@@ -159,10 +159,13 @@ test('orden de agregado intercalado: cajón→zapatera→cajón→zapatera = sub
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
 
-  const frentes = store.get().pieces.filter((p) => p.id.includes('-frente'));
-  assert.deepEqual(frentes.map((p) => p.modulo), ['11', '12', '13', '14']);
+  // La zapatera nueva va sin frente (bandeja abierta): se identifica cada
+  // submódulo por su lateral (pieza que siempre llevan cajón y zapatera).
+  // Se excluye el lateral del casco (m1-lateral-izq, módulo '1').
+  const laterales = store.get().pieces.filter((p) => p.id.includes('-lateral-izq') && p.id !== 'm1-lateral-izq');
+  assert.deepEqual(laterales.map((p) => p.modulo), ['11', '12', '13', '14']);
   // Sin colisiones de submódulo (antes cajón 1 y zapatera 1 compartían '11').
-  assert.equal(new Set(frentes.map((p) => p.modulo)).size, 4);
+  assert.equal(new Set(laterales.map((p) => p.modulo)).size, 4);
   view.destroy();
 });
 
@@ -264,7 +267,7 @@ test('orden de inserción define el orden vertical (repisa entre cajones se resp
     return Number(p?.pos_z);
   };
   const orden = [
-    z('repisa-1'), z('zapatera1-frente'), z('zapatera2-frente'),
+    z('repisa-1'), z('zapatera1-cara'), z('zapatera2-cara'),
     z('repisa-3'), z('cajon3-frente'), z('repisa-4'),
   ];
   assert.deepEqual(orden.map((v) => Number.isFinite(v)), [true, true, true, true, true, true], 'todas ancladas con pos_z');
@@ -272,7 +275,8 @@ test('orden de inserción define el orden vertical (repisa entre cajones se resp
     assert.ok(orden[i] > orden[i - 1], `pos_z creciente: ${orden.map((v) => Math.round(v)).join(' < ')}`);
   }
   // La repisa 3 queda SOBRE las zapateras (zona de la columna que le toca).
-  assert.ok(z('repisa-3') > z('zapatera2-frente'), 'repisa agregada despues de las zapateras queda arriba');
+  // La zapatera sin frente se ancla por su cara (hace de frente visible).
+  assert.ok(z('repisa-3') > z('zapatera2-cara'), 'repisa agregada despues de las zapateras queda arriba');
   view.destroy();
 });
 
@@ -300,6 +304,9 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   click(container, '[data-action="add-module"]');
   const scoped = '[data-module-scoped="1"]';
   // Elegir el tipo botas (frente completo 450) y una estándar para comparar.
+  // La tenis lleva frente decorativo: se marca el checkbox (por defecto la
+  // bandeja va abierta, sin frente; el botas lo fuerza igual).
+  container.querySelector(`${scoped} [data-frente-zapatera]`).checked = true;
   const sel = container.querySelector(`${scoped} [data-tipo-zapatera]`);
   sel.value = 'tenis';
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
@@ -1052,13 +1059,14 @@ test('Reordenar módulo con cajones/zapateras: los submódulos viajan sin quedar
   const mods = new Set(pieces.map((p) => String(p.modulo)));
   assert.ok(![...mods].some((m) => m.startsWith('x')), `sin módulos temporales huérfanos: ${[...mods].join(',')}`);
   assert.equal(pieces.some((p) => p.id === 'm1cajon1-frente'), true, 'el cajón renombró a M1');
-  assert.ok(pieces.some((p) => p.id === 'm1zapatera2-frente'), 'la zapatera renombró a M1');
+  // La zapatera nueva va sin frente: se identifica por su cara (frente visible).
+  assert.ok(pieces.some((p) => p.id === 'm1zapatera2-cara'), 'la zapatera renombró a M1');
   assert.equal(pieces.filter((p) => p.id === 'm1-base').length, 1, 'casco de M1 intacto (una sola base)');
   // De vuelta a la derecha: todo regresa.
   click(container, '[data-action="move-module"][data-module="1"][data-dir="der"]');
   const p2 = store.get().pieces;
   assert.ok(p2.some((p) => p.id === 'm2cajon1-frente'), 'el cajón volvió a M2');
-  assert.ok(p2.some((p) => p.id === 'm2zapatera2-frente'), 'la zapatera volvió a M2');
+  assert.ok(p2.some((p) => p.id === 'm2zapatera2-cara'), 'la zapatera volvió a M2');
   assert.ok(![...new Set(p2.map((p) => String(p.modulo)))].some((m) => m.startsWith('x')));
   view.destroy();
 });
@@ -1077,8 +1085,9 @@ test('Zapatera: división central por defecto, opcional, y se elimina con el gru
   assert.equal(pieces.some((p) => p.id === 'm1zapatera2-division'), false, 'sin división cuando se desmarca');
   assert.ok(pieces.some((p) => p.id === 'm1zapatera2-fondo'), 'el resto del conjunto intacto');
   // Eliminar la zapatera 1 (con división) limpia también la división.
-  click(container, '[data-action="remove-content"][data-ref="m1zapatera1-frente"]');
-  click(container, '[data-action="remove-content"][data-ref="m1zapatera1-frente"]');
+  // La bandeja va sin frente: la referencia del grupo es su cara.
+  click(container, '[data-action="remove-content"][data-ref="m1zapatera1-cara"]');
+  click(container, '[data-action="remove-content"][data-ref="m1zapatera1-cara"]');
   pieces = store.get().pieces;
   assert.equal(pieces.some((p) => p.id === 'm1zapatera1-division'), false, 'la división se elimina con el grupo');
   assert.equal(pieces.some((p) => /^m1zapatera1-/.test(p.id)), false, 'sin residuos del submódulo 1');
