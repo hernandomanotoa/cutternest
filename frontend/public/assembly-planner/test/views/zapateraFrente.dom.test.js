@@ -116,8 +116,7 @@ test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin fre
   assert.match(label(), /\(2\)/, 'tras eliminar una unidad el contador baja a 2');
 });
 
-test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {
-  const { container } = armarModuloYVista();
+test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {  const { container } = armarModuloYVista();
   // Tipo tenis: vano 200. La bandeja abierta (sin frente) debe reservar esos
   // 200 mm de zona aunque su cara mida 167 (vano − 2·ESP_BASE − 3).
   const sel = container.querySelector('[data-tipo-zapatera]');
@@ -134,4 +133,21 @@ test('la bandeja abierta reserva el vano completo del tipo en el apilado', () =>
   container.querySelector('[data-action="add-content"][data-kind="shelf"]').click();
   const repisa = getStore().get().pieces.find((p) => p.id === 'm1-repisa-1');
   assert.ok(Number(repisa.pos_z) > z(2), 'la repisa posterior queda sobre la zona de la bandeja');
+});
+
+test('tipo "bandeja a la vista": todos los lados al mismo alto, sin frente', () => {
+  const { container } = armarModuloYVista();
+  const sel = container.querySelector('[data-tipo-zapatera]');
+  sel.value = 'bandeja';
+  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  agregarZapatera(container);
+
+  const zap = piezasZapatera();
+  const altos = ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division']
+    .map((s) => zap.find((p) => p.id.endsWith(s))?.alto);
+  assert.ok(altos.every(Boolean), 'todas las piezas de lado existen');
+  assert.ok(altos.every((a) => a === 120),
+    `cara, laterales, fondo y división al MISMO alto (rim 120): ${JSON.stringify(altos)}`);
+  assert.equal(zap.some((p) => p.id.endsWith('-frente')), false, 'sin frente decorativo');
+  assert.equal(zap.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador');
 });

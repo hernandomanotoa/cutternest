@@ -392,3 +392,44 @@ describe('tipo de riel: define las medidas de la caja', () => {
     assert.equal(r.pieces.find((p) => p.id.endsWith('-base')).ancho, 765, 'catálogo: 820 − 25,4 − 30');
   });
 });
+
+describe('zapatera: bandeja a la vista (ladosIguales)', () => {
+  const altoDe = (r, suf) => r.pieces.find((p) => p.id.endsWith(suf))?.alto;
+  const LADOS = ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division'];
+
+  it('sin frente: cara, laterales, fondo y división al MISMO alto (rim 120)', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true });
+    assert.ok(r.ok);
+    for (const suf of LADOS) {
+      assert.equal(altoDe(r, suf), 120, `${suf} al alto del rim`);
+    }
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-frente')), false, 'sin frente decorativo');
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador');
+    // El rim queda un poco por encima de la riel (RAIL_SIDE_HEIGHT = 100).
+    assert.ok(120 > 100, 'rim un poco más alto que la riel');
+  });
+
+  it('el rim respeta el vano: vano bajo → todos al vano − 33', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 120, ladosIguales: true });
+    assert.ok(r.ok);
+    for (const suf of LADOS) {
+      assert.equal(altoDe(r, suf), 87, `${suf} = vano − 3 − 2·15`);
+    }
+  });
+
+  it('con frente la geometría es la habitual (cara detrás del frente, lateral bajo)', () => {
+    // ladosIguales solo aplica cuando la bandeja va SIN frente.
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true, conFrente: true });
+    assert.ok(r.ok);
+    assert.equal(altoDe(r, '-frente'), 157, 'frente = vano − 3');
+    assert.equal(altoDe(r, '-cara'), 127, 'cara = frente − 2·15 (detrás del frente)');
+    assert.equal(altoDe(r, '-lateral-izq'), 100, 'lateral bajo: cubre solo la riel');
+  });
+
+  it('sin ladosIguales (tipos normales) la cara sigue más alta que los laterales', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160 });
+    assert.ok(r.ok);
+    assert.equal(altoDe(r, '-cara'), 127, 'cara = frente − 30');
+    assert.equal(altoDe(r, '-lateral-izq'), 100, 'lateral bajo (riel)');
+  });
+});

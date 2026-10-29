@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   RAIL_SIDE_HEIGHT,
+  BANDEJA_RIM_HEIGHT,
   DRAWER_TYPES,
   SHOE_RACK_TYPES,
   getContentType,
@@ -93,6 +94,17 @@ describe('getContentType', () => {
     assert.ok(t);
     assert.equal(t.frenteCompleto, true);
     assert.equal(t.altoVano, 450);
+  });
+
+  it("la bandeja a la vista trae ladosIguales y rim apenas más alto que la riel", () => {
+    const t = getContentType('shoeRack', 'bandeja');
+    assert.ok(t);
+    assert.equal(t.ladosIguales, true, 'lados iguales cuando va sin frente');
+    assert.equal(t.frenteCompleto, false);
+    assert.equal(t.altoVano, 160);
+    assert.ok(BANDEJA_RIM_HEIGHT > RAIL_SIDE_HEIGHT, 'rim un poco más alto que la riel');
+    assert.ok(BANDEJA_RIM_HEIGHT <= t.altoVano - 33 + 1,
+      'el rim cabe en el vano de su tipo (o queda saturado)');
   });
 
   it('kind desconocido cae al catálogo de cajones', () => {

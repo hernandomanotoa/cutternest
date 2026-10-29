@@ -18,6 +18,11 @@
 // telescópica (~45 mm de perfil) con margen de rigidez.
 export const RAIL_SIDE_HEIGHT = 100;
 
+// Altura del borde de la "bandeja a la vista" (tipo 'bandeja'): un poco más
+// alto que la riel (RAIL_SIDE_HEIGHT), para que la bandeja se vea completa
+// por arriba y por el frente cuando va sin frente decorativo.
+export const BANDEJA_RIM_HEIGHT = 120;
+
 export const DRAWER_TYPES = [
   {
     id: 'delgado',
@@ -69,6 +74,16 @@ export const SHOE_RACK_TYPES = [
     label: 'Botas altas — vano 450, frente completo (sin cara)',
     altoVano: 450,
     frenteCompleto: true,
+  },
+  {
+    // Bandeja a la vista: sin frente decorativo, TODOS los lados (cara,
+    // laterales, fondo y división) quedan al MISMO alto (borde un poco
+    // más alto que la riel) — la cara no sobresale del lateral.
+    id: 'bandeja',
+    label: 'Bandeja a la vista — lados iguales (vano 160)',
+    altoVano: 160,
+    frenteCompleto: false,
+    ladosIguales: true,
   },
 ];
 

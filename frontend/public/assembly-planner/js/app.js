@@ -637,6 +637,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         altoVano,
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
         conFrente: !!opts.conFrente,
+        ladosIguales: tipo ? !!tipo.ladosIguales : !!opts.ladosIguales,
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
@@ -1527,6 +1528,11 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
         // Se preserva la opción: solo hay frente viejo si la bandeja lo llevaba.
         conFrente: !!frente,
+        // Bandeja a la vista (ladosIguales): sin frente y la cara quedó al
+        // mismo alto que el lateral. El vano se infiere de la cara: con el
+        // rim saturado (120 = min(120, vano−33)) regenera idéntico.
+        ladosIguales: esZapatera && !frente && !!cara && !!lateral
+          && Number(cara.alto) === Number(lateral.alto),
         altoLateral: Math.max(40, Number(lateral?.alto) || RAIL_SIDE_HEIGHT),
         colorFrente: (frente || cara).color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',
