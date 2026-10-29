@@ -21,13 +21,16 @@ dist/
 *.sqlite
 *.sqlite3
 backups/*.sql
+backups/*.png
 !backups/.gitkeep
 data/exports/*
 !data/exports/.gitkeep
 
-# Agent / internal memory (not for public repo)
-.agents/
-.kimi-memory.md
+# Agentes: se versiona el equipo (SKILL.md, skills, plantillas, políticas,
+# memorias del proyecto) para trabajar desde cualquier máquina. Se excluye
+# la memoria regenerable por agente (aprendizajes en caliente) y logs (*.log
+# ya quedan ignorados arriba).
+.agents/**/memory/
 
 # Environment
 .env

@@ -1,0 +1,119 @@
+{
+  "version": "2.2.1",
+  "project": "cutternest-kit",
+  "workspace_path": "/workspace/cutternest-kit",
+  "source_of_truth": {
+    "policies": ".agents/guardian/policies.json",
+    "profile": ".devhive/profile.yaml",
+    "skills": ".agents/{agent}/SKILL.md"
+  },
+  "agents": {
+    "architect": {
+      "role": "architect",
+      "scope": [".devhive/", ".agents/*/SKILL.md"],
+      "denied": ["backend/app/**", "frontend/src/**", "scripts/**", "docker-compose.yml", "Dockerfile.*", ".env*", "certs/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 60
+    },
+    "backend-agent": {
+      "role": "backend",
+      "scope": ["backend/app/**/*.py"],
+      "denied": ["backend/app/auth.py", "backend/app/database.py", "backend/requirements*.txt", "backend/Dockerfile", "pyproject.toml", "backend/pytest.ini", "docker-compose*.yml", "Dockerfile.*", ".env*", "certs/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 15
+    },
+    "frontend-agent": {
+      "role": "frontend",
+      "scope": ["frontend/src/**/*.tsx", "frontend/src/**/*.ts", "frontend/src/**/*.css", "frontend/src/**/*.html"],
+      "denied": ["frontend/tsconfig.json", "frontend/tsconfig.node.json", "frontend/index.html", "frontend/package.json", "frontend/pnpm-lock.yaml", ".env*"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 15
+    },
+    "assembly-planner-agent": {
+      "role": "assembly-planner",
+      "scope": ["frontend/public/assembly-planner/**/*.js", "frontend/public/assembly-planner/**/*.mjs", "frontend/public/assembly-planner/**/*.html", "frontend/public/assembly-planner/**/*.css", "frontend/public/assembly-planner/data/**/*"],
+      "denied": ["frontend/src/**", "frontend/package.json", "frontend/pnpm-lock.yaml", ".env*"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 15
+    },
+    "db-agent": {
+      "role": "database",
+      "scope": ["scripts/*.sql", "scripts/*.py", "backend/app/models.py", "init.sql"],
+      "denied": ["backend/app/auth.py", ".env*", "docker-compose*.yml"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 10
+    },
+    "auth-agent": {
+      "role": "authentication",
+      "scope": ["backend/app/auth.py", "backend/app/models.py", "backend/app/database.py"],
+      "denied": [".env*", "certs/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 5
+    },
+    "deploy-agent": {
+      "role": "deploy",
+      "scope": ["docker-compose.yml", "docker-compose.fase2.yml", "docker-compose.fase4.yml", "backend/Dockerfile", "frontend/Dockerfile", "frontend/nginx.conf", "whatsapp-gateway/Dockerfile", "scripts/*.sh"],
+      "denied": ["backend/app/**", "frontend/src/**", ".env*", "certs/**", "data/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 30
+    },
+    "test-agent": {
+      "role": "test",
+      "scope": ["backend/tests/**/*.py", "frontend/**/*.test.ts", "frontend/**/*.test.tsx", "frontend/vitest.config.ts", "backend/pytest.ini", "pyproject.toml"],
+      "denied": [".env*"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 2,
+      "token_ttl_minutes": 15
+    },
+    "docs-agent": {
+      "role": "docs",
+      "scope": ["*.md", "docs/**"],
+      "denied": ["src/**", "frontend/src/**", "scripts/**", ".env*", "certs/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 2,
+      "token_ttl_minutes": 15
+    },
+    "knowledge-graph-agent": {
+      "role": "knowledge-graph",
+      "scope": [".agents/knowledge-graph-agent/memory/graph/*.md", ".agents/knowledge-graph-agent/memory/edges.md", ".agents/knowledge-graph-agent/memory/queries.md", ".agents/knowledge-graph-agent/memory/orphans.md"],
+      "denied": ["backend/app/**", "frontend/src/**", "scripts/**", "docker-compose.yml", "Dockerfile.*", ".env*", "certs/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 30
+    },
+    "guardian": {
+      "role": "orchestrator",
+      "scope": [".agents/", ".devhive/"],
+      "denied": ["backend/app/**", "frontend/src/**", ".env*", "certs/**"],
+      "allowed_tools": ["Read", "Edit", "Write", "Bash", "Grep", "Glob"],
+      "denied_tools": [],
+      "max_concurrent_tokens": 1,
+      "token_ttl_minutes": 60
+    }
+  },
+  "runtime_limits": {
+    "max_iterations_per_plan": 5,
+    "max_agent_depth": 3,
+    "max_handoffs_per_task": 5,
+    "max_tool_calls_per_turn": 50,
+    "max_retries_per_tool": 3,
+    "max_execution_time_minutes": 30
+  }
+}

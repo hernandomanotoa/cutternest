@@ -1,0 +1,124 @@
+---
+name: Agent Deliverable Template
+version: "1.0.0"
+description: Standard format every DevHive agent must use when reporting a completed task to the Guardian
+---
+
+## 🎯 PURPOSE
+
+This template ensures every agent deliverable is complete, auditable and actionable. Use it for task completion reports, inter-agent responses and plugin outputs. Do not submit a task to the Guardian without filling every mandatory section.
+
+## ✅ PRE-CONDITIONS (mandatory)
+
+Before reporting completion, verify:
+
+- [ ] **CWD**: `process.cwd()` is `{{project.workspace_path}}`.
+- [ ] **Context**: L0-L3 are loaded and the current file path is referenced.
+- [ ] **Token**: A valid Guardian token is active for the exact action and resource.
+- [ ] **Scope**: All touched files are within the agent's allowed scope.
+- [ ] **No secrets**: No `.env*`, certificates, or real credentials were read or written.
+- [ ] **Lockfiles**: If any `package.json` was modified, `pnpm install` was run and lockfiles are updated and in sync.
+- [ ] **audit.log**: The Guardian protected `audit.log`; the agent did not write to it.
+- [ ] **Memory**: The agent did not write its own memory files; memory updates are reported in the 🧠 MEMORY BATCH REQUEST section for the Guardian to apply in batch.
+
+## 📦 DELIVERABLE FORMAT
+
+```markdown
+📦 DELIVERABLE: [short task title]
+👤 AGENT: [agent name]
+🔑 TOKEN: [token]
+📁 PATHS TOUCHED:
+- /workspace/cutternest-kit/[relative path]
+- ...
+
+📋 PRE-CONDITIONS MET:
+- [x] CWD: /workspace/cutternest-kit
+- [x] Context loaded: L0-L3 ✅
+- [x] Token valid: [token]
+- [x] Scope compliant
+- [x] No secrets touched
+- [x] Lockfiles in sync (or n/a)
+- [x] audit.log protected
+- [x] Memory batch request provided (or none)
+- [x] MCP consulted: [yes/no — command used, if applicable]
+- [x] MCP graph reindex requested: [yes/no — only if source code changed and knowledge-graph-agent should refresh stubs]
+
+📝 EXECUTIVE SUMMARY:
+[2-3 sentences describing what was done and why]
+
+🔧 CHANGES:
+1. [File/path]: [what changed and why]
+2. [File/path]: [what changed and why]
+...
+
+✅ VERIFICATION:
+- [ ] Unit tests added/updated (if applicable)
+- [ ] Unit tests pass: `pnpm test` (backend) / `cd frontend && pnpm test` (frontend)
+- [ ] Build passes: `pnpm build` (backend) / `cd frontend && pnpm build` (frontend)
+- [ ] Lint/type-check passes (if applicable)
+- [ ] Manual verification performed (describe briefly)
+
+🔒 SECURITY REVIEW:
+- [ ] No secrets or credentials introduced
+- [ ] No new dependencies with known vulnerabilities (run `pnpm audit` if dependencies changed)
+- [ ] Auth/crypto changes reviewed by `@auth-agent` if applicable
+- [ ] RBAC/permission changes reviewed by `@auth-agent` if applicable
+- [ ] Changes comply with `.devhive/security-policy.md` and `.devhive/domain-rules.md`
+
+📊 OBSERVABILITY:
+- Agent: [name]
+- Task duration: [ms]
+- Tokens in/out: [N / N]
+- Tools used: [list]
+- Model: [name]
+
+🧠 MEMORY BATCH REQUEST:
+- Agent: [name]
+- Token: [token]
+- active-tasks.md: [COMPLETED | FAILED] — [task summary]
+- queue.md: [completed / revoked] — [note]
+- learnings.md: [lesson/snippet/decision to add, or "none"]
+- blockers.md: [none | active blocker with proposed resolution]
+
+⚠️ RISKS / BLOCKERS:
+- [none | list known risks, unresolved issues, or follow-up tasks]
+
+⏭️ NEXT:
+[recommended next action: test, merge, review, escalate to user, etc.]
+
+📋 CONTEXT FOR NEXT:
+[what the next agent or user needs to know]
+```
+
+## 🧠 MEMORY BATCH REQUEST FORMAT
+
+When the agent needs a memory update, use this exact block inside the deliverable:
+
+```markdown
+🧠 MEMORY BATCH REQUEST:
+- Agent: [name]
+- Token: [token]
+- active-tasks.md: [IN_PROGRESS | COMPLETED | FAILED] — [task summary]
+- queue.md: [queued | completed | revoked] — [note]
+- learnings.md: [lesson/snippet/decision to add, or "none"]
+- blockers.md: [none | active blocker with proposed resolution]
+```
+
+## 🛡️ GUARDIAN CHECKLIST
+
+Before the Guardian revokes the token and applies the batch memory update, it must verify:
+
+1. The deliverable uses this template.
+2. All pre-conditions are checked.
+3. Every touched file is within the agent's allowed scope.
+4. No `.env*`, certificates or secrets were accessed.
+5. If `package.json` was modified, lockfiles are updated and in sync.
+6. The agent did not write any `.agents/*/memory/*` file directly.
+7. Security review is complete for auth/crypto changes.
+8. The memory batch request is well-formed.
+9. Security-sensitive changes comply with `.devhive/security-policy.md` and `.devhive/domain-rules.md`.
+10. If source code changed, verify whether `knowledge-graph-agent` should re-index MCP and refresh stubs; if yes, emit a token to `knowledge-graph-agent` before closing the swarm.
+
+---
+
+*DevHive 2.2.0 - Deliverable template for Wiki DITIC*

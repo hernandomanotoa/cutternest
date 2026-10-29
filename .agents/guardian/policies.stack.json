@@ -1,0 +1,470 @@
+{
+  "$schema": "https://devhive.local/policies.schema.json",
+  "version": "2.2.0-devhive-stack",
+  "system": "DevHive",
+  "updated": "2026-08-12T15:30:00Z",
+  "comment": "Stack-specific policy layer for Python 3.11 + FastAPI + React 18 + Vite + TypeScript + Three.js + Tailwind CSS + SQLite projects. This layer overrides or extends policies.base.json for the target technology stack.",
+  "agents": {
+    "architect": {
+      "directories": [
+        ".devhive/",
+        ".agents/*/SKILL.md"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create",
+        "review"
+      ],
+      "allowed_file_patterns": [
+        ".devhive/*.md",
+        ".devhive/decisions/*.md",
+        ".devhive/sessions/*.md",
+        ".agents/*/SKILL.md"
+      ],
+      "denied_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**",
+        "scripts/**",
+        "docker-compose.yml",
+        "Dockerfile.*",
+        ".env*",
+        "certs/**"
+      ],
+      "require_approval_for": [
+        "Change technology stack",
+        "Modify base conventions",
+        "Modify project-brief.md stack section",
+        "Remove agents from the team"
+      ],
+      "max_file_size_mb": 5,
+      "token_ttl_minutes": 60,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 90
+    },
+    "knowledge-graph-agent": {
+      "directories": [
+        ".agents/knowledge-graph-agent/memory/"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create"
+      ],
+      "allowed_file_patterns": [
+        ".agents/knowledge-graph-agent/memory/graph/*.md",
+        ".agents/knowledge-graph-agent/memory/edges.md",
+        ".agents/knowledge-graph-agent/memory/queries.md",
+        ".agents/knowledge-graph-agent/memory/orphans.md"
+      ],
+      "denied_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**",
+        "scripts/**",
+        "docker-compose.yml",
+        "Dockerfile.*",
+        ".env*",
+        "certs/**"
+      ],
+      "require_approval_for": [
+        "Delete a graph node",
+        "Change the type of a critical node",
+        "Modify auth-service, jwt-utils or session-redis edges"
+      ],
+      "max_file_size_mb": 2,
+      "token_ttl_minutes": 30,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 45
+    },
+    "backend-agent": {
+      "directories": [
+        "backend/app/"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create",
+        "delete"
+      ],
+      "allowed_file_patterns": [
+        "backend/app/**/*.py"
+      ],
+      "denied_file_patterns": [
+        "backend/app/auth.py",
+        "backend/app/database.py",
+        "backend/requirements*.txt",
+        "backend/Dockerfile",
+        "pyproject.toml",
+        "backend/pytest.ini",
+        "docker-compose*.yml",
+        "Dockerfile.*",
+        ".env*",
+        "certs/**"
+      ],
+      "require_approval_for": [
+        "backend/app/main.py",
+        "backend/app/dependencies.py",
+        "Modify rate limiting or brute-force protection",
+        "Modify audit logging behavior"
+      ],
+      "max_file_size_mb": 5,
+      "token_ttl_minutes": 15,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 25
+    },
+    "frontend-agent": {
+      "directories": [
+        "frontend/src/"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create",
+        "delete"
+      ],
+      "allowed_file_patterns": [
+        "frontend/src/**/*.tsx",
+        "frontend/src/**/*.ts",
+        "frontend/src/**/*.css",
+        "frontend/src/**/*.html"
+      ],
+      "denied_file_patterns": [
+        "frontend/tsconfig.json",
+        "frontend/tsconfig.node.json",
+        "frontend/index.html",
+        "frontend/package.json",
+        "frontend/pnpm-lock.yaml",
+        ".env*"
+      ],
+      "require_approval_for": [
+        "frontend/src/services/api.ts",
+        "frontend/vite.config.ts",
+        "frontend/tailwind.config.js",
+        "frontend/postcss.config.js"
+      ],
+      "max_file_size_mb": 3,
+      "token_ttl_minutes": 15,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 25
+    },
+    "frontend-template-agent": {
+      "directories": [
+        "frontend/src/components/ui/",
+        "frontend/src/hooks/"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create",
+        "delete"
+      ],
+      "allowed_file_patterns": [
+        "frontend/src/components/ui/**/*.tsx",
+        "frontend/src/components/ui/**/*.ts",
+        "frontend/src/components/ui/**/*.css",
+        "frontend/src/hooks/**/*.ts",
+        "frontend/src/hooks/**/*.tsx",
+        "frontend/src/theme*.{ts,css}",
+        "frontend/src/styles/theme*.{ts,css}"
+      ],
+      "denied_file_patterns": [
+        "frontend/src/components/**/!(ui)/*.tsx",
+        "frontend/src/pages/**",
+        "frontend/src/App.tsx",
+        "frontend/src/main.tsx",
+        "frontend/src/router.tsx",
+        "frontend/src/routes.tsx",
+        "frontend/src/services/api.ts",
+        "frontend/tsconfig.json",
+        "frontend/tsconfig.node.json",
+        "frontend/index.html",
+        "frontend/package.json",
+        "frontend/pnpm-lock.yaml",
+        ".env*"
+      ],
+      "require_approval_for": [
+        "frontend/package.json",
+        "frontend/vite.config.ts",
+        "Change design-token schema or naming convention",
+        "Remove or rename an existing ui/ component used by feature components",
+        "Introduce a new CSS-in-JS or styling strategy"
+      ],
+      "max_file_size_mb": 3,
+      "token_ttl_minutes": 15,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 25
+    },
+    "db-agent": {
+      "directories": [
+        "scripts/",
+        "./"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create"
+      ],
+      "allowed_file_patterns": [
+        "scripts/*.sql",
+        "scripts/*.py",
+        "backend/app/models.py",
+        "init.sql"
+      ],
+      "denied_actions": [
+        "execute_raw_sql"
+      ],
+      "denied_file_patterns": [
+        "backend/app/auth.py",
+        ".env*",
+        "docker-compose*.yml"
+      ],
+      "require_approval_for": [
+        "init.sql",
+        "ALTER TABLE",
+        "CREATE INDEX",
+        "DROP",
+        "DELETE",
+        "TRUNCATE"
+      ],
+      "max_file_size_mb": 2,
+      "token_ttl_minutes": 10,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 20
+    },
+    "auth-agent": {
+      "directories": [
+        "backend/app/"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create"
+      ],
+      "allowed_file_patterns": [
+        "backend/app/auth.py",
+        "backend/app/models.py",
+        "backend/app/database.py"
+      ],
+      "denied_file_patterns": [
+        ".env*",
+        "certs/**"
+      ],
+      "require_approval_for": [
+        "Change token expiration",
+        "Switch identity strategy",
+        "Modify hardcoded roles",
+        "Change hash algorithms",
+        "Modify secret keys",
+        "Change TOTP issuer or encryption key handling",
+        "Add or remove MFA methods (TOTP, guest PIN)"
+      ],
+      "max_file_size_mb": 3,
+      "token_ttl_minutes": 5,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 15
+    },
+    "deploy-agent": {
+      "directories": [
+        "./"
+      ],
+      "allowed_actions": [
+        "read",
+        "write"
+      ],
+      "allowed_file_patterns": [
+        "docker-compose.yml",
+        "docker-compose.fase2.yml",
+        "docker-compose.fase4.yml",
+        "backend/Dockerfile",
+        "frontend/Dockerfile",
+        "frontend/nginx.conf",
+        "whatsapp-gateway/Dockerfile",
+        "scripts/*.sh"
+      ],
+      "denied_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**",
+        ".env*",
+        "certs/**",
+        "data/**"
+      ],
+      "require_approval_for": [
+        "Change exposed ports",
+        "Modify certificate volumes",
+        "Deploy to production",
+        "Change Docker network",
+        "Modify healthchecks",
+        "Change base image"
+      ],
+      "max_file_size_mb": 10,
+      "token_ttl_minutes": 30,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 45
+    },
+    "tunnel-agent": {
+      "directories": [
+        "scripts/tunnel/",
+        "./"
+      ],
+      "allowed_actions": [
+        "read",
+        "write"
+      ],
+      "allowed_file_patterns": [
+        "docker-compose.tunnels.yml",
+        "scripts/tunnel/*.sh",
+        "scripts/tunnel/*.mjs",
+        "scripts/tunnel/*.md",
+        "scripts/tunnel/README.md"
+      ],
+      "denied_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**",
+        "docker-compose.yml",
+        "docker-compose.dev.yml",
+        "Dockerfile.*",
+        "infra/docker/Dockerfile.*",
+        ".env*",
+        "certs/**",
+        "data/**"
+      ],
+      "require_approval_for": [
+        "Expose a new service through a tunnel",
+        "Change Cloudflare account credentials path",
+        "Modify named tunnel DNS records",
+        "Add a new tunnel provider"
+      ],
+      "max_file_size_mb": 5,
+      "token_ttl_minutes": 20,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 30
+    },
+    "test-agent": {
+      "directories": [
+        "backend/tests/",
+        "frontend/"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create",
+        "execute"
+      ],
+      "allowed_file_patterns": [
+        "backend/tests/**/*.py",
+        "frontend/**/*.test.ts",
+        "frontend/**/*.test.tsx",
+        "frontend/vitest.config.ts",
+        "backend/pytest.ini",
+        "pyproject.toml"
+      ],
+      "read_only_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**"
+      ],
+      "denied_file_patterns": [
+        ".env*"
+      ],
+      "require_approval_for": [
+        "pyproject.toml",
+        "backend/pytest.ini",
+        "frontend/vitest.config.ts"
+      ],
+      "max_file_size_mb": 2,
+      "token_ttl_minutes": 15,
+      "max_concurrent_tokens": 2,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 25
+    },
+    "docs-agent": {
+      "directories": [
+        "./"
+      ],
+      "allowed_actions": [
+        "read",
+        "write",
+        "create"
+      ],
+      "allowed_file_patterns": [
+        "*.md",
+        "docs/**"
+      ],
+      "denied_file_patterns": [
+        "src/**",
+        "frontend/src/**",
+        "scripts/**",
+        ".env*",
+        "certs/**"
+      ],
+      "require_approval_for": [
+        "docs/SECURITY.md"
+      ],
+      "max_file_size_mb": 5,
+      "token_ttl_minutes": 15,
+      "max_concurrent_tokens": 2,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 25
+    },
+    "integration-validator": {
+      "directories": [
+        "./"
+      ],
+      "allowed_actions": [
+        "read",
+        "execute"
+      ],
+      "allowed_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**",
+        "backend/tests/**",
+        "frontend/**",
+        "package.json",
+        "frontend/package.json",
+        "pnpm-lock.yaml",
+        "frontend/pnpm-lock.yaml",
+        "docker-compose*.yml",
+        "scripts/**",
+        "whatsapp-gateway/**",
+        ".agents/**"
+      ],
+      "denied_file_patterns": [
+        ".env*",
+        "certs/server.key",
+        "certs/ca.key"
+      ],
+      "read_only_file_patterns": [
+        "backend/app/**",
+        "frontend/src/**",
+        "backend/tests/**",
+        "frontend/**",
+        "package.json",
+        "frontend/package.json",
+        "pnpm-lock.yaml",
+        "frontend/pnpm-lock.yaml",
+        "docker-compose*.yml",
+        "scripts/**",
+        "whatsapp-gateway/**",
+        ".agents/**"
+      ],
+      "require_approval_for": [
+        "Modify test configuration",
+        "Approve deployment",
+        "Waive any validation step"
+      ],
+      "max_file_size_mb": 5,
+      "token_ttl_minutes": 20,
+      "max_concurrent_tokens": 1,
+      "queue_policy": "enqueue",
+      "orphan_token_timeout_minutes": 30
+    }
+  }
+}

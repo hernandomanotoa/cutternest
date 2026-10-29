@@ -1,0 +1,79 @@
+{
+  "$schema": "https://devhive.local/policies.schema.json",
+  "version": "2.2.0-devhive",
+  "system": "DevHive",
+  "updated": "2026-07-14T16:44:00Z",
+  "agents": {},
+  "global_rules": {
+    "no_agent_can": {
+      "paths": [
+        ".env*",
+        "certs/server.key",
+        "certs/ca.key"
+      ],
+      "commands": [
+        "rm -rf /",
+        "DROP DATABASE",
+        "docker system prune",
+        "chmod -R 777 /"
+      ],
+      "actions": [
+        "modify .env files",
+        "read private keys",
+        "modify guardian SKILL.md",
+        "modify policies.json"
+      ]
+    },
+    "token_format": "GUARD-[AGENT]-[ACTION]-[RESOURCE]-[TIMESTAMP]-[HASH]",
+    "audit_log": ".agents/guardian/audit.log",
+    "escalation_required": [
+      "any agent reading server.key",
+      "any agent modifying .env",
+      "any agent holding more than max_concurrent_tokens active tokens",
+      "any agent accepting a new task without revoking the previous token"
+    ]
+  },
+  "token_concurrency_rules": {
+    "principle": "One active token per agent by default; queued when busy.",
+    "max_concurrent_tokens_default": 1,
+    "queue_policy_default": "enqueue",
+    "orphan_token_timeout_minutes_default": 30,
+    "token_states": {
+      "active": "Token emitted and not yet completed or revoked.",
+      "queued": "Task waiting because agent is at max_concurrent_tokens.",
+      "orphan": "Token active beyond orphan_token_timeout_minutes without completion report.",
+      "revoked": "Token manually or automatically invalidated."
+    },
+    "guardian_actions": {
+      "emit": "Issue token if agent is below max_concurrent_tokens.",
+      "enqueue": "Add request to agent queue if at limit and queue_policy is enqueue.",
+      "reject": "Reject request if at limit and queue_policy is reject.",
+      "revoke_orphan": "Automatically revoke orphan tokens and notify the agent.",
+      "promote_next": "After token revocation, emit token to the next queued task."
+    },
+    "audit_format": "[ISO_TIMESTAMP] [AGENT] [ACTION] [RESOURCE] [RESULT] [TOKEN] [QUEUE_LEN]"
+  },
+  "inter_agent_availability_check": {
+    "required": true,
+    "protocol": "Before sending an inter-agent request, query the Guardian for the target agent's availability.",
+    "response_available": "Target is below max_concurrent_tokens; proceed with request.",
+    "response_busy": "Target is at limit; enqueue request or escalate to Guardian.",
+    "format": "[AGENT: source] → [guardian] Availability check for [target-agent]"
+  },
+  "memory_layers": {
+    "L0": ".devhive/project-brief.md",
+    "L1": ".devhive/conventions.md",
+    "L2": ".devhive/current-sprint.md",
+    "L3": ".agents/{agent}/SKILL.md",
+    "L4": ".agents/{agent}/memory/active-tasks.md (agent status only)"
+  },
+  "knowledge_graph": {
+    "enabled": true,
+    "agent": "knowledge-graph-agent",
+    "location": ".agents/knowledge-graph-agent/memory/",
+    "nodes_dir": "graph/",
+    "edges_file": "edges.md",
+    "queries_file": "queries.md",
+    "benefit": "Reduces token consumption by 70-80% for architecture queries"
+  }
+}

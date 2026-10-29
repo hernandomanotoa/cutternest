@@ -1,0 +1,72 @@
+{
+  "$schema": "https://devhive.local/policies.schema.json",
+  "version": "2.2.0-devhive-project",
+  "system": "DevHive",
+  "project": "cutternest-kit",
+  "updated": "2026-08-12T15:30:00Z",
+  "comment": "Project-specific policy layer for cutternest-kit. This layer overrides or extends policies.base.json and policies.stack.json with domain-specific rules for local TOTP, guest PIN, SQLite MVP, optional PostgreSQL/Redis in Fase 2, and optional WhatsApp gateway in Fase 4.",
+  "agents": {
+    "architect": {
+      "require_approval_for": [
+        "Change technology stack",
+        "Modify base conventions",
+        "Modify project-brief.md stack section",
+        "Remove agents from the team"
+      ]
+    },
+    "auth-agent": {
+      "require_approval_for": [
+        "Change token expiration",
+        "Switch identity strategy",
+        "Modify hardcoded roles",
+        "Change hash algorithms",
+        "Modify secret keys",
+        "Change TOTP issuer or encryption key handling",
+        "Add or remove MFA methods (TOTP, guest PIN)"
+      ]
+    },
+    "backend-agent": {
+      "require_approval_for": [
+        "backend/app/main.py",
+        "backend/app/dependencies.py",
+        "Modify audit logging behavior"
+      ]
+    },
+    "deploy-agent": {
+      "require_approval_for": [
+        "Change exposed ports",
+        "Modify certificate volumes",
+        "Deploy to production",
+        "Change Docker network",
+        "Modify healthchecks",
+        "Change base image"
+      ]
+    },
+    "docs-agent": {
+      "allowed_file_patterns": [
+        "*.md",
+        "docs/**"
+      ],
+      "require_approval_for": [
+        "docs/SECURITY.md"
+      ]
+    }
+  },
+  "global_rules": {
+    "escalation_required": [
+      "any agent reading server.key",
+      "any agent modifying .env",
+      "any agent holding more than max_concurrent_tokens active tokens",
+      "any agent accepting a new task without revoking the previous token",
+      "auth-agent modifying backend/app/auth.py",
+      "backend-agent modifying backend/app/auth.py",
+      "deploy-agent changing backend/Dockerfile base image",
+      "db-agent executing DROP or DELETE without WHERE",
+      "backend-agent leaving orphaned service, route, util or test file after a refactor",
+      "db-agent adding or modifying a table not consumed by any backend service or route",
+      "db-agent keeping legacy scripts with conflicting table definitions",
+      "any agent creating duplicate or conflicting schema definitions for the same entity",
+      "any agent exposing TOTP encryption key or guest PIN secrets"
+    ]
+  }
+}
