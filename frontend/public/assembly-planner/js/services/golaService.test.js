@@ -525,14 +525,14 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
   // como app.js y repisa que ancla el topRef. El proporcional puro dejaría
   // los frentes de cajón (~156) bajo su caja (177): el reparto con piso debe
   // quitarle aire a las zapateras (holgura 107) y dárselo a los cajones.
-  function buildMix(repisaZ) {
+  function buildMix(repisaZ, { tipoId = 'tacones' } = {}) {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     assert.ok(casco.ok);
     const pieces = [...casco.pieces];
     let cursor = 15 + 10; // cara superior de la base + drawerBaseOffset
     const unidades = [
-      addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, conFrente: true }),
-      addShoeTray('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, conFrente: true }),
+      addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, conFrente: true, tipoId }),
+      addShoeTray('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, conFrente: true, tipoId }),
       addDrawer('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }),
       addDrawer('1', 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }),
     ];
@@ -603,5 +603,29 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
     assert.equal(r.ok, false);
     assert.match(r.errors[0], /el vano no alcanza/);
     assert.match(r.errors[0], /mínimo 354 mm/);
+  });
+
+  it('con tag manda el CONTRATO aunque el nombre no diga "zapatera"', () => {
+    // Frentes con tag [tacones] pero SIN la palabra clave: el contrato los
+    // marca fijos (la regex histórica no los reconocería).
+    const pieces = buildMix(1010);
+    for (const id of ['m1zapatera1-frente', 'm1zapatera2-frente']) {
+      const f = pieces.find((p) => p.id === id);
+      f.nombre = f.nombre.replace(/zapatera/gi, 'calzado');
+      assert.ok(!/zapatera/i.test(f.nombre));
+    }
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 217, 'fija por contrato [tacones]');
+    assert.equal(alturaFrente(r.pieces, 'm1zapatera2-frente'), 217);
+    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177, 'los cajones siguen reescalando');
+  });
+
+  it('sin tag: la heurística por nombre sigue marcando la zapatera como fija', () => {
+    const pieces = buildMix(1010, { tipoId: null });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 217, 'fija por palabra clave (retrocompatibilidad)');
+    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177);
   });
 });

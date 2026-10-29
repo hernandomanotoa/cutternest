@@ -5,7 +5,7 @@
 // Todas las funciones devuelven { ok: true, pieces } o { ok: false, errors }
 // y nunca lanzan: la vista muestra los errors en un toast.
 
-import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT } from '../core/contentTypes.js';
+import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, stampTipoTag } from '../core/contentTypes.js';
 
 const ESPESORES_VALIDOS = [15, 18, 25];
 const HOLGURA_CORREDERA = 12.7; // mm por lado (RAIL_TYPES.telescopica)
@@ -270,6 +270,7 @@ export function addDrawer(moduleId, index, {
   espesorFrente = 15,
   riel = RIEL_DEFAULT,
   frenteLuz = 1,
+  tipoId = null, // tag [tipo] en frente/cara: el contrato sobrevive al CSV
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -319,7 +320,7 @@ export function addDrawer(moduleId, index, {
   // tabla de offsets y en el manual (antes todos decian "Frente cajon M1").
   const num = ` ${index}`;
   const pieces = [
-    piece(`m${moduleId}${idp}${index}-frente`, `Frente ${frenteVocab}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-frente`, stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
     // Fondo ESTRUCTURAL: interno a los laterales y a piso (par trasero de
@@ -327,7 +328,7 @@ export function addDrawer(moduleId, index, {
     piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, interior, latAlto, { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
   ];
   if (!volquete) {
-    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, `Cara ${vocab}${num} M${moduleId}`, interior, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, stampTipoTag(`Cara ${vocab}${num} M${moduleId}`, tipoId), interior, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     // Convención perimetral (auditoría estructural): la base queda confinada
@@ -397,6 +398,7 @@ export function addShoeTray(moduleId, index, {
   conFrente = false,
   altoLateral = RAIL_SIDE_HEIGHT,
   ladosIguales = false,
+  tipoId = null, // tag [tipo] en frente/cara: el contrato sobrevive al CSV
   espesorFrente = 15,
   colorFrente = '#8B5A2B',
   colorLateral = '#D9C2A3',
@@ -441,7 +443,7 @@ export function addShoeTray(moduleId, index, {
       frente: { ancho: frenteAncho, alto: frenteAlto },
       warnings: [`${RIEL_RULES.marco.nota} Vano de ${anchoModulo} mm (p. ej. marco regulable 800–900).`],
       pieces: [
-        piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera marco regulable${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+        piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
         piece(`m${moduleId}zapatera${index}-tirador`, `Tirador zapatera marco regulable${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
       ],
     };
@@ -464,7 +466,7 @@ export function addShoeTray(moduleId, index, {
   const altoLado = altoBandeja ?? latAlto;
   const pieces = [];
   if (llevaFrente) {
-    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, `Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
@@ -477,7 +479,7 @@ export function addShoeTray(moduleId, index, {
     // visible de la bandeja y por donde se jala. En la bandeja a la vista
     // (ladosIguales) la cara va al mismo alto que los laterales.
     const altoCara = altoBandeja ?? Math.max(20, frenteAlto - 2 * ESP_BASE);
-    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, `Cara zapatera extraible${num} M${moduleId}`, interior2, altoCara, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
   }
   if (division) {
     // División central (por defecto): apoyo paralelo al fondo a media

@@ -151,3 +151,26 @@ test('tipo "bandeja a la vista": todos los lados al mismo alto, sin frente', () 
   assert.equal(zap.some((p) => p.id.endsWith('-frente')), false, 'sin frente decorativo');
   assert.equal(zap.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador');
 });
+
+test('editar dimensiones preserva la bandeja a la vista (rim y lados iguales)', () => {
+  const { container } = armarModuloYVista();
+  const sel = container.querySelector('[data-tipo-zapatera]');
+  sel.value = 'bandeja';
+  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  agregarZapatera(container);
+
+  // Editar el ancho del módulo: el tray se regenera y el contrato (tag
+  // [bandeja] en la cara) preserva ladosIguales y el rim de 120.
+  const scoped = '[data-module-scoped="1"]';
+  container.querySelector(`${scoped} [data-action="edit-module"]`).click();
+  container.querySelector(`${scoped} [data-edit-ancho]`).value = '700';
+  container.querySelector(`${scoped} [data-action="apply-edit-module"]`).click();
+
+  const zap = piezasZapatera();
+  const altos = ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division']
+    .map((s) => zap.find((p) => p.id.endsWith(s))?.alto);
+  assert.ok(altos.every(Boolean), 'todas las piezas del tray regeneradas');
+  assert.ok(altos.every((a) => a === 120),
+    `rim y lados iguales preservados tras editar dims: ${JSON.stringify(altos)}`);
+  assert.equal(zap.some((p) => p.id.endsWith('-frente')), false, 'sigue sin frente');
+});

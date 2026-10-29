@@ -966,8 +966,10 @@ function renderContentList(moduleId, allPieces) {
 // "Barra colgadora 1 M1" -> "Barra 1". El tooltip conserva el nombre completo.
 function nombreCorto(nombre) {
   let out = String(nombre || '');
-  out = out.replace(/^Frente (cajon|zapatera extraible)( abatible)?/i, (m, g) => (g.toLowerCase().includes('zapatera') ? 'Zapatera' : 'Cajón'));
+  out = out.replace(/^Frente (?:\[[a-z][a-z0-9-]*\]\s*)?(cajon|zapatera extraible)( abatible)?/i, (m, g) => (g.toLowerCase().includes('zapatera') ? 'Zapatera' : 'Cajón'));
   out = out.replace(/^Barra (colgadora|alta|baja)/i, 'Barra');
+  // El tag de contrato [tipo] es interno (sobrevive al CSV): no se muestra.
+  out = out.replace(/\s*\[[a-z][a-z0-9-]*\]/i, '');
   out = out.replace(/\s*M\d+\s*$/, '');
   return out.trim();
 }

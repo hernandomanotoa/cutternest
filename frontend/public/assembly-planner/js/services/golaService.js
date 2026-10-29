@@ -29,6 +29,17 @@
 
 import { inferRole } from './classifierService.js';
 import { GOLA_PERFIL_TALLER } from '../core/config.js';
+import { getContentType, tipoTagDe } from '../core/contentTypes.js';
+
+// Una unidad es de altura FIJA en el gola según su CONTRATO (tag [tipo] en el
+// nombre del frente, sobrevive al CSV). Sin tag (catálogo o diseños previos),
+// la regla histórica por palabra clave: 'zapatera' en nombre/id.
+function esUnidadFijaGola(u) {
+  const ref = u.frentes[0];
+  const t = tipoTagDe(ref.nombre);
+  const tipo = t ? getContentType('shoeRack', t) : null;
+  return tipo ? !!tipo.fijoEnGola : /zapatera/i.test(`${ref.id} ${ref.nombre}`);
+}
 
 // Metadata del perfil de taller (origen y editabilidad de los valores).
 const { fuente, editable, ...GOLA_PERFIL_TALLER_VALORES } = GOLA_PERFIL_TALLER;
@@ -246,7 +257,7 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   // Si se reescalara podría quedar bajo la cara de la bandeja (cara = frente
   // − 2·ESP_BASE) y la cara asomaría por arriba del frente. Solo los cajones
   // absorben el aire del span.
-  const fijas = unidades.map((u) => /zapatera/i.test(`${u.frentes[0].id} ${u.frentes[0].nombre}`));
+  const fijas = unidades.map(esUnidadFijaGola);
   const sumFijas = fijas.reduce((s, f, i) => s + (f ? Math.max(...unidades[i].frentes.map((fr) => Number(fr.alto) || 0)) : 0), 0);
   const minSuma = sumFijas + pisos.reduce((s, p, i) => s + (fijas[i] ? 0 : p), 0);
   if (disponible < minSuma) {
@@ -499,7 +510,7 @@ export function removeGola(pieces, moduleId, userConfig = {}, meta = null) {
         // Mismo reparto que applyGola: zapateras fijas en su altura de tipo,
         // cajones con piso (cada frente ≥ su caja) repartiendo el aire.
         const pisos = unidades.map((u) => (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30));
-        const fijas = unidades.map((u) => /zapatera/i.test(`${u.frentes[0].id} ${u.frentes[0].nombre}`));
+        const fijas = unidades.map(esUnidadFijaGola);
         const sumFijas = fijas.reduce((s, f, i) => s + (f ? orig[i] : 0), 0);
         const alturas = orig.slice();
         const idxMoviles = unidades.map((_, i) => i).filter((i) => !fijas[i]);

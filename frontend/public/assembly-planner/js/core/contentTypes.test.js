@@ -11,6 +11,8 @@ import {
   DRAWER_TYPES,
   SHOE_RACK_TYPES,
   getContentType,
+  stampTipoTag,
+  tipoTagDe,
 } from './contentTypes.js';
 
 const TODOS = [...DRAWER_TYPES, ...SHOE_RACK_TYPES];
@@ -117,5 +119,30 @@ describe('getContentType', () => {
     assert.equal(getContentType('drawer', 'nope'), null);
     assert.equal(getContentType('drawer', null), null);
     assert.equal(getContentType('drawer', undefined), null);
+  });
+});
+
+describe('tag de tipo en el nombre (contrato que sobrevive al CSV)', () => {
+  it('stampTipoTag inserta [id] tras la primera palabra; tipoTagDe lo extrae', () => {
+    const n = stampTipoTag('Frente zapatera extraible 1 M1', 'bandeja');
+    assert.equal(n, 'Frente [bandeja] zapatera extraible 1 M1');
+    assert.equal(tipoTagDe(n), 'bandeja');
+    assert.equal(tipoTagDe('Cara [tenis] zapatera extraible 2 M1'), 'tenis');
+  });
+
+  it('sin tipoId no-op; sin tag / nulo → null', () => {
+    assert.equal(stampTipoTag('Frente cajon 1 M1', null), 'Frente cajon 1 M1');
+    assert.equal(tipoTagDe('Frente cajon 1 M1'), null);
+    assert.equal(tipoTagDe(''), null);
+    assert.equal(tipoTagDe(null), null);
+  });
+
+  it('fijoEnGola: todas las zapateras fijas en el gola, ningún cajón', () => {
+    for (const t of SHOE_RACK_TYPES) {
+      assert.equal(t.fijoEnGola, true, `${t.id}: el frente de zapatera conserva su tipo`);
+    }
+    for (const t of DRAWER_TYPES) {
+      assert.ok(!t.fijoEnGola, `${t.id}: el cajón reescala en el gola`);
+    }
   });
 });

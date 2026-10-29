@@ -23,6 +23,25 @@ export const RAIL_SIDE_HEIGHT = 100;
 // por arriba y por el frente cuando va sin frente decorativo.
 export const BANDEJA_RIM_HEIGHT = 120;
 
+// ── Tag de tipo en el nombre (sobrevive al CSV) ────────────────────────────
+// El tipo de una unidad-cajón/zapatera se estampa entre corchetes en el
+// nombre de su pieza ancla (frente, o cara si va sin frente): las versiones
+// y exportaciones re-parsean el CSV y solo las columnas sobreviven — el
+// nombre es la única portadora fiable del contrato. Sin tag (catálogo o
+// diseños previos), los consumidores caen a su heurística histórica.
+
+// Estampa el tag en el nombre: 'Frente zapatera [bandeja] extraible 1 M1'.
+export function stampTipoTag(nombre, tipoId) {
+  if (!tipoId) return nombre;
+  return String(nombre).replace(/(\S+)/, `$1 [${tipoId}]`);
+}
+
+// Extrae el id de tipo del nombre ('Frente zapatera [bandeja] …' → 'bandeja').
+export function tipoTagDe(nombre) {
+  const m = String(nombre || '').match(/\[([a-z][a-z0-9-]*)\]/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
 export const DRAWER_TYPES = [
   {
     id: 'delgado',
@@ -50,30 +69,35 @@ export const SHOE_RACK_TYPES = [
     label: 'Zapatos planos — vano 180',
     altoVano: 180,
     frenteCompleto: false,
+    fijoEnGola: true, // el frente de zapatera no se reescala: conserva su tipo
   },
   {
     id: 'tenis',
     label: 'Tenis / calzado grueso — vano 200',
     altoVano: 200,
     frenteCompleto: false,
+    fijoEnGola: true,
   },
   {
     id: 'tacones',
     label: 'Tacones — vano 220',
     altoVano: 220,
     frenteCompleto: false,
+    fijoEnGola: true,
   },
   {
     id: 'botines',
     label: 'Botines — vano 220',
     altoVano: 220,
     frenteCompleto: false,
+    fijoEnGola: true,
   },
   {
     id: 'botas',
     label: 'Botas altas — vano 450, frente completo (sin cara)',
     altoVano: 450,
     frenteCompleto: true,
+    fijoEnGola: true, // el frente es el cierre estructural de la bandeja
   },
   {
     // Bandeja a la vista: sin frente decorativo, TODOS los lados (cara,
@@ -84,6 +108,7 @@ export const SHOE_RACK_TYPES = [
     altoVano: 160,
     frenteCompleto: false,
     ladosIguales: true,
+    fijoEnGola: true,
   },
 ];
 

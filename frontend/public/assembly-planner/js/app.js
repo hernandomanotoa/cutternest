@@ -49,7 +49,7 @@ import {
   rootModuleDims,
   MARCO_PIECE_RE,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT } from './core/contentTypes.js';
+import { getContentType, RAIL_SIDE_HEIGHT, tipoTagDe } from './core/contentTypes.js';
 import {
   createModule,
   addZocalo,
@@ -638,6 +638,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
         conFrente: !!opts.conFrente,
         ladosIguales: tipo ? !!tipo.ladosIguales : !!opts.ladosIguales,
+        tipoId: tipo ? tipo.id : null,
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
@@ -658,6 +659,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         colorLateral: opts.colorLateral || '#D9C2A3',
         riel: ['catalogo', 'telescopica26', 'oculta'].includes(opts.riel) ? opts.riel : 'catalogo',
         frenteLuz: Number(opts.frenteLuz) || 1,
+        tipoId: tipo ? tipo.id : null,
       });
     }
   } else if (kind === 'divider') {
@@ -1519,20 +1521,27 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     const esVolquete = !esZapatera && (!piezasGrupo.some((p) => sufijoDe(p.id) === 'cara')
       || textoFrente.includes('abatible'));
     const lateral = piezasGrupo.find((p) => sufijoDe(p.id) === 'lateral-izq');
+    // Contrato por tag (sobrevive al CSV): con tag la inferencia es exacta;
+    // sin tag (catálogo/diseños previos) cae a la heurística histórica.
+    const tipoTag = tipoTagDe(`${(frente || cara)?.nombre || ''}`);
+    const tipoUnidad = tipoTag ? getContentType('shoeRack', tipoTag) : null;
     const regenerado = esZapatera
       ? addShoeTray(moduleId, 1, {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
-        // frente.alto = vano − 3; sin frente, la cara = vano − 3 − 2·15.
-        altoVano: frente ? (Number(frente.alto) || 200) + 3 : (Number(cara.alto) || 140) + 33,
+        // frente.alto = vano − 3; sin frente, la cara = vano − 3 − 2·15. Con
+        // tag, el vano del tipo es exacto (la bandeja a la vista satura el
+        // rim y la cara no lo refleja).
+        altoVano: frente ? (Number(frente.alto) || 200) + 3 : (tipoUnidad?.altoVano ?? (Number(cara.alto) || 140) + 33),
         frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
         // Se preserva la opción: solo hay frente viejo si la bandeja lo llevaba.
         conFrente: !!frente,
-        // Bandeja a la vista (ladosIguales): sin frente y la cara quedó al
-        // mismo alto que el lateral. El vano se infiere de la cara: con el
-        // rim saturado (120 = min(120, vano−33)) regenera idéntico.
+        // Bandeja a la vista (ladosIguales): con tag, del contrato; sin tag,
+        // la cara al mismo alto que el lateral.
         ladosIguales: esZapatera && !frente && !!cara && !!lateral
-          && Number(cara.alto) === Number(lateral.alto),
+          && (tipoUnidad ? !!tipoUnidad.ladosIguales
+            : Number(cara.alto) === Number(lateral.alto)),
+        tipoId: tipoUnidad ? tipoUnidad.id : null,
         altoLateral: Math.max(40, Number(lateral?.alto) || RAIL_SIDE_HEIGHT),
         colorFrente: (frente || cara).color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',

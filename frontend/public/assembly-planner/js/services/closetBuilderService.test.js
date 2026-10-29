@@ -433,3 +433,25 @@ describe('zapatera: bandeja a la vista (ladosIguales)', () => {
     assert.equal(altoDe(r, '-lateral-izq'), 100, 'lateral bajo (riel)');
   });
 });
+
+describe('tipo tag [tipo] en frente/cara (contrato que sobrevive al CSV)', () => {
+  it('addShoeTray con tipoId estampa el tag en frente y cara', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: true, tipoId: 'tenis' });
+    assert.ok(r.ok);
+    assert.match(r.pieces.find((p) => p.id.endsWith('-frente')).nombre, /\[tenis\]/);
+    assert.match(r.pieces.find((p) => p.id.endsWith('-cara')).nombre, /\[tenis\]/);
+  });
+
+  it('sin tipoId no hay tag (compatibilidad con catálogo y diseños previos)', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    assert.ok(r.ok);
+    assert.ok(!r.pieces.some((p) => /\[[a-z0-9-]+\]/i.test(p.nombre)), 'ningún nombre lleva tag');
+  });
+
+  it('addDrawer estampa el tag en frente y cara', () => {
+    const r = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, tipoId: 'estandar' });
+    assert.ok(r.ok);
+    assert.match(r.pieces.find((p) => p.id.endsWith('-frente')).nombre, /\[estandar\]/);
+    assert.match(r.pieces.find((p) => p.id.endsWith('-cara')).nombre, /\[estandar\]/);
+  });
+});
