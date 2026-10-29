@@ -6,7 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createModule, addDrawer, addShelf } from './closetBuilderService.js';
+import { createModule, addDrawer, addShelf, addShoeTray } from './closetBuilderService.js';
 import {
   applyGola,
   removeGola,
@@ -515,5 +515,72 @@ describe('golaReport — sección del manual', () => {
     assert.ok(rows.some((x) => /Canal C 1 \(entre cajones\)/.test(x.ubicacion)));
     // Sin piezas gola no hay sección.
     assert.deepEqual(golaReport(pieces, {}), []);
+  });
+});
+
+describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', () => {
+  const GAP = 56; // 3 + 50 + 3
+  // Casco 850×2400×600 + 2 zapateras con frente (vano 220 → frente 217,
+  // lateral 100) + 2 cajones (vano 200 → frente 197, lateral 167), apilados
+  // como app.js y repisa que ancla el topRef. El proporcional puro dejaría
+  // los frentes de cajón (~156) bajo su caja (177): el reparto con piso debe
+  // quitarle aire a las zapateras (holgura 107) y dárselo a los cajones.
+  function buildMix(repisaZ) {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    assert.ok(casco.ok);
+    const pieces = [...casco.pieces];
+    let cursor = 15 + 10; // cara superior de la base + drawerBaseOffset
+    const unidades = [
+      addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, conFrente: true }),
+      addShoeTray('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 220, conFrente: true }),
+      addDrawer('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }),
+      addDrawer('1', 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }),
+    ];
+    for (const u of unidades) {
+      assert.ok(u.ok);
+      const frente = u.pieces.find((p) => p.id.endsWith('-frente'));
+      frente.pos_z = cursor;
+      cursor += frente.alto + 2.5;
+      pieces.push(...u.pieces);
+    }
+    const s = addShelf('1', { anchoUtil: 850 - 2 * 15, profReal: 600 - 2 * 15, index: 1 });
+    assert.ok(s.ok);
+    s.pieces[0].pos_z = repisaZ;
+    pieces.push(...s.pieces);
+    return pieces;
+  }
+
+  const alturaFrente = (pieces, id) => Number(pieces.find((p) => p.id === id)?.alto) || 0;
+
+  it('span ajustado: cada frente queda ≥ su caja + 10 y Σ + gaps = span', () => {
+    const pieces = buildMix(870);
+    const bottom = 25;
+    const span = 870 - 20 /* finger clearance */ - bottom; // 825
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    // Pisos: zapatera 100+10, cajón 167+10.
+    assert.ok(alturaFrente(r.pieces, 'm1zapatera1-frente') >= 110, 'zapatera 1 ≥ 110');
+    assert.ok(alturaFrente(r.pieces, 'm1zapatera2-frente') >= 110, 'zapatera 2 ≥ 110');
+    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177, 'cajón 3 cubre su caja (167+10)');
+    assert.ok(alturaFrente(r.pieces, 'm1cajon4-frente') >= 177, 'cajón 4 cubre su caja (167+10)');
+    // El aire se tomó de las zapateras: crecieron poco respecto al mínimo.
+    assert.ok(alturaFrente(r.pieces, 'm1zapatera1-frente') < 160,
+      `el aire va a las zapateras (holgura), no a los cajones: ${alturaFrente(r.pieces, 'm1zapatera1-frente')}`);
+    // Invariante: Σ alturas + (N−1)·G = span.
+    const suma = ['m1zapatera1-frente', 'm1zapatera2-frente', 'm1cajon3-frente', 'm1cajon4-frente']
+      .reduce((s, id) => s + alturaFrente(r.pieces, id), 0);
+    assert.ok(Math.abs(suma + 3 * GAP - span) <= 0.5, `Σ${suma} + 3·56 ≈ span ${span}`);
+    // Canales entre TODAS las unidades (zapatera↔zapatera y zapatera↔cajón).
+    assert.equal(r.pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).length, 3);
+  });
+
+  it('span insuficiente: sigue rechazando con "el vano no alcanza"', () => {
+    // Módulo corto (460) con la repisa justo sobre los cajones: span 385,
+    // disponible 329 < 354 (2 cajones × (167+10)) → rechazo.
+    const pieces = buildModule(2, { alto: 460, repisaZ: 430 });
+    const r = applyGola(pieces, '1', {});
+    assert.equal(r.ok, false);
+    assert.match(r.errors[0], /el vano no alcanza/);
+    assert.match(r.errors[0], /mínimo 354 mm/);
   });
 });

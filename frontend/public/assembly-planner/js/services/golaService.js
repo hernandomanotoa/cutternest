@@ -174,6 +174,46 @@ function colorTira(pieces, moduleId, casco, unidades) {
 }
 
 /**
+ * Reparte `disponible` mm entre las unidades respetando el PISO de cada una
+ * (mínimo para cubrir su caja). El proporcional puro puede dejar un frente
+ * bajo su piso cuando el span alcanza justo (p. ej. zapateras con mucha
+ * holgura + cajones sin holgura en el mismo módulo): aquí el aire
+ * (disponible − Σpisos) se reparte SOLO entre las unidades con holgura
+ * (orig > piso), proporcional a ella, con redondeo por mayor resto.
+ * Devuelve alturas con Σ = disponible exacto y ninguna unidad bajo su piso.
+ */
+function reparteConPiso(orig, pisos, disponible) {
+  const N = orig.length;
+  const sumPisos = pisos.reduce((s, f) => s + f, 0);
+  const exceso = orig.map((h, i) => Math.max(0, h - pisos[i]));
+  const sumExceso = exceso.reduce((s, e) => s + e, 0);
+  if (sumExceso === 0 || disponible - sumPisos <= 0) {
+    // Sin holgura (o sin aire): cada una en su piso; el sobrante, si hay,
+    // a la primera unidad (el piso es mínimo: cualquiera puede crecer).
+    const alturas = pisos.slice();
+    alturas[0] += disponible - sumPisos;
+    return alturas;
+  }
+  const aire = disponible - sumPisos;
+  const crudo = exceso.map((e) => (e * aire) / sumExceso);
+  const alturas = crudo.map((c, i) => pisos[i] + Math.floor(c));
+  // Mayor resto primero: lo que el floor quita se devuelve mm a mm.
+  let resto = Math.round(aire) - (alturas.reduce((s, h) => s + h, 0) - sumPisos);
+  const orden = crudo.map((c, i) => [c - Math.floor(c), i]).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; k < resto; k += 1) alturas[orden[k % N][1]] += 1;
+  // Σ exacta con decimales (invariante Σaᵢ' + (N−1)·G = H_new):
+  alturas[0] += disponible - alturas.reduce((s, h) => s + h, 0);
+  // Seguridad: si el ajuste decimal dejó a la unidad 0 bajo su piso, el
+  // ajuste pasa a la unidad con más holgura (existe: hay aire repartido).
+  if (alturas[0] < pisos[0]) {
+    const iMax = alturas.reduce((best, h, j) => (h - pisos[j] > alturas[best] - pisos[best] ? j : best), 0);
+    alturas[iMax] += alturas[0] - pisos[0];
+    alturas[0] = pisos[0];
+  }
+  return alturas;
+}
+
+/**
  * Aplica el sistema gola a un módulo. Reescala SOLO los frentes (las cajas
  * no cambian), crea N−1 tiras y elimina los tiradores del módulo.
  *
@@ -200,11 +240,9 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   // Gap entre frentes = paso + perfil + paso (canal centrado).
   const G = cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso;
   const disponible = H_new - (N - 1) * G;
-  // Vano mínimo real: cada frente debe cubrir su caja (lateral + 10 mm).
-  const minSuma = unidades.reduce(
-    (s, u) => s + (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30),
-    0,
-  );
+  // Piso por unidad: cada frente debe cubrir su caja (lateral + 10 mm).
+  const pisos = unidades.map((u) => (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30));
+  const minSuma = pisos.reduce((s, f) => s + f, 0);
   if (disponible < minSuma) {
     return {
       ok: false,
@@ -226,13 +264,11 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
-  // Reescalado proporcional de frentes; la unidad 1 absorbe el residual de
-  // redondeo para que Σaᵢ' + (N−1)·G = H_new exacto.
+  // Reescalado con PISO por unidad (cada frente ≥ su caja + 10): el aire se
+  // reparte solo entre las unidades con holgura; la unidad 1 absorbe el
+  // residual de redondeo para que Σaᵢ' + (N−1)·G = H_new exacto.
   const origHeights = unidades.map((u) => Math.max(...u.frentes.map((f) => Number(f.alto) || 0)));
-  const sumOrig = origHeights.reduce((s, h) => s + h, 0);
-  const nuevasAlturas = origHeights.map((h) => Math.round((h * disponible) / sumOrig));
-  const residual = disponible - nuevasAlturas.reduce((s, h) => s + h, 0);
-  nuevasAlturas[0] += residual;
+  const nuevasAlturas = reparteConPiso(origHeights, pisos, disponible);
 
   // Extensión L del último frente: su techo queda en topRef − clearance por
   // construcción; si la sobrealtura respecto a su caja supera el cap, se cap
@@ -426,10 +462,10 @@ export function removeGola(pieces, moduleId, userConfig = {}, meta = null) {
     const disponible = span - (N - 1) * drawerFrontGap;
     if (disponible > 0) {
       const orig = unidades.map((u) => Math.max(...u.frentes.map((f) => Number(f.alto) || 0)));
-      const sumOrig = orig.reduce((s, h) => s + h, 0);
-      if (sumOrig > 0) {
-        const alturas = orig.map((h) => Math.round((h * disponible) / sumOrig));
-        alturas[0] += disponible - alturas.reduce((s, h) => s + h, 0);
+      if (orig.some((h) => h > 0)) {
+        // Mismo reparto con piso que applyGola: cada frente termina ≥ su caja.
+        const pisos = unidades.map((u) => (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30));
+        const alturas = reparteConPiso(orig, pisos, disponible);
         let cursor = bottom;
         for (let i = 0; i < N; i++) {
           for (const f of unidades[i].frentes) {
