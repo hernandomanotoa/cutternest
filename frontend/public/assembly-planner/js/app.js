@@ -50,6 +50,7 @@ import {
   MARCO_PIECE_RE,
 } from './services/plinthFrameService.js';
 import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, tipoTagDe, vanoDesdeCara } from './core/contentTypes.js';
+import { installCustomTypes } from './services/customTypesService.js';
 import {
   createModule,
   addZocalo,
@@ -96,6 +97,11 @@ const viewFactories = {
 };
 
 let currentViewInstance = null;
+
+// Tipos personalizados del taller (customTypesService): se inyectan en los
+// catálogos en vivo antes de que cualquier vista los consuma. Idempotente;
+// sin localStorage (tests) es un no-op.
+installCustomTypes();
 
 export function getAppStore() {
   return getStore();

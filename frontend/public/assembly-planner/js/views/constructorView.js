@@ -55,6 +55,7 @@ import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { isGolaEnabled, drawerUnits, getGolaCfg } from '../services/golaService.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES } from '../core/contentTypes.js';
+import { listCustomTypes, saveCustomType, deleteCustomType, slugCustomType } from '../services/customTypesService.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
   computeLiftCheck,
@@ -174,6 +175,87 @@ export function createConstructorView(store) {
   // en localStorage y no emiten state:changed).
   function refresh() {
     if (container) render();
+  }
+
+  // Tipos personalizados del taller (customTypesService): se guardan en
+  // localStorage propio y se inyectan en los catálogos en vivo, así que al
+  // refrescar la vista los selectores de tipo ya los listan.
+  function saveCustomTypeFromPanel() {
+    const root = container;
+    const val = (sel) => root.querySelector(`[data-ct="${sel}"]`);
+    const label = val('label')?.value.trim() || '';
+    if (!label) {
+      toast('Ponle un nombre al tipo (ej. "Zapatera baja 140")', { type: 'error' });
+      return;
+    }
+    const kind = val('kind')?.value === 'drawer' ? 'drawer' : 'shoeRack';
+    const def = {
+      id: slugCustomType(label),
+      kind,
+      label,
+      altoVano: Number(val('vano')?.value) || 0,
+      conFrenteDefault: val('frente')?.checked !== false,
+      fijoEnGola: val('fijogola')?.checked !== false,
+      ladosIguales: val('lados')?.checked === true,
+      // rim solo aplica con lados iguales; si no, se ignora (la validación
+      // del servicio lo descarta).
+      rim: val('lados')?.checked === true ? Number(val('rim')?.value) || 120 : null,
+    };
+    const r = saveCustomType(def);
+    if (!r.ok) {
+      toast(r.errors.join(' · '), { type: 'error' });
+      return;
+    }
+    const input = val('label');
+    if (input) input.value = '';
+    toast(`Tipo "${r.type.label}" guardado: ya está en el selector de ${kind === 'drawer' ? 'cajón' : 'zapatera'}`, { type: 'success' });
+    refresh();
+  }
+
+  function renderCustomTypesPanel() {
+    const customs = listCustomTypes();
+    const filas = customs.map((t) => `
+      <tr>
+        <td>${escapeHtml(t.label)}</td>
+        <td>${t.kind === 'drawer' ? 'Cajón' : 'Zapatera'}</td>
+        <td>${t.altoVano} mm</td>
+        <td>${t.kind === 'shoeRack' && t.ladosIguales ? `lados iguales · rim ${t.rim}` : (t.conFrenteDefault ? 'con frente' : 'sin frente')}</td>
+        <td class="cn-constructor__actions">
+          <button class="btn btn--danger btn--sm" data-action="delete-custom-type" data-id="${escapeHtml(t.id)}" title="Eliminar tipo">✕</button>
+        </td>
+      </tr>`).join('');
+    return `
+      <details class="cn-constructor__obra">
+        <summary>Tipos personalizados del taller (${customs.length})</summary>
+        <div class="cn-constructor__grid">
+          <label class="form-group">Nombre del tipo
+            <input type="text" data-ct="label" placeholder="Zapatera baja 140" maxlength="40" />
+          </label>
+          <label class="form-group">Contenido
+            <select data-ct="kind">
+              <option value="shoeRack">Zapatera</option>
+              <option value="drawer">Cajón</option>
+            </select>
+          </label>
+          <label class="form-group">Vano (mm)
+            <input type="number" data-ct="vano" value="160" min="50" max="900" step="10" />
+          </label>
+        </div>
+        <div class="cn-constructor__grid" title="Solo zapateras: los cajones siempre llevan frente y reescalan en gola">
+          <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="frente" checked /> Frente por defecto</label>
+          <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="fijogola" checked /> Fijo en gola</label>
+          <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="lados" /> Lados iguales
+            <input type="number" data-ct="rim" value="120" min="40" max="300" style="width:5em" /> mm</label>
+        </div>
+        <div class="cn-constructor__content-btns">
+          <button class="btn btn--primary btn--sm" data-action="save-custom-type">Guardar tipo</button>
+        </div>
+        ${customs.length ? `
+        <table class="cn-table">
+          <thead><tr><th>Nombre</th><th>Contenido</th><th>Vano</th><th>Esquema</th><th></th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table>` : '<p class="empty-state">Sin tipos personalizados. Creá el tuyo y aparecerá en el selector de tipo del módulo.</p>'}
+      </details>`;
   }
 
   async function refreshCloud() {
@@ -610,6 +692,14 @@ export function createConstructorView(store) {
       void btn;
     } else if (action === 'save-version') {
       saveVersionFromInput();
+    } else if (action === 'save-custom-type') {
+      saveCustomTypeFromPanel();
+    } else if (action === 'delete-custom-type') {
+      confirmable(btn, '¿Eliminar el tipo? Las piezas ya creadas con él quedan como personalizadas.', () => {
+        const r = deleteCustomType(btn.dataset.id);
+        if (r.ok) { toast('Tipo personalizado eliminado', { type: 'info' }); refresh(); }
+        else toast(r.errors.join('; '), { type: 'error' });
+      });
     } else if (action === 'save-cloud') {
       saveVersionFromInput(true, btn);
     } else if (action === 'refresh-cloud') {
@@ -771,6 +861,7 @@ export function createConstructorView(store) {
             <button class="btn btn--secondary" data-action="goto-view" data-view="renderer3d" ${pieces.length ? '' : 'disabled'}>Ver 3D</button>
             <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
           </div>
+          ${renderCustomTypesPanel()}
           ${renderWarningsPanel(pieces, state)}
         </div>
       </div>

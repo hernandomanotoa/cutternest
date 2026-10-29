@@ -4,7 +4,10 @@
 import { normalizeName } from '../utils/normalize.js';
 
 export function inferRole(piece) {
-  const n = normalizeName(piece.nombre);
+  // El tag de contrato [tipo] es metadata, no nombre: se ignora para la
+  // clasificación (un custom 'cus-zapatera-gola-alta' no debe clasificar
+  // sus piezas como tiras gola).
+  const n = normalizeName(String(piece.nombre || '').replace(/\s*\[[a-z][a-z0-9-]*\]/gi, ' '));
   const id = normalizeName(piece.id);
 
   // Sistema gola: la tira se nombra 'Perfil gola' (rol propio). Va primero
