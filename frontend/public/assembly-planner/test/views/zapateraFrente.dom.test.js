@@ -45,16 +45,30 @@ function agregarZapatera(container) {
   container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').click();
 }
 
-test('por defecto la zapatera va sin frente ni tirador (bandeja abierta)', () => {
+test('por defecto la zapatera va CON frente y tirador (checkbox activado)', () => {
   const { container } = armarModuloYVista();
   const checkbox = container.querySelector('[data-frente-zapatera]');
   assert.ok(checkbox, 'existe el checkbox de frente de zapatera');
-  assert.equal(checkbox.checked, false, 'por defecto sin frente');
+  assert.equal(checkbox.checked, true, 'por defecto con frente');
 
   agregarZapatera(container);
 
   const zap = piezasZapatera();
   assert.ok(zap.length > 0, 'se agregó la zapatera');
+  assert.ok(zap.some((p) => p.id.endsWith('-frente')), 'frente decorativo presente');
+  assert.ok(zap.some((p) => p.id.endsWith('-tirador')), 'tirador presente (va con el frente)');
+  // El ancla vertical quedó en el frente.
+  const frente = zap.find((p) => p.id.endsWith('-frente'));
+  assert.ok(Number.isFinite(frente.pos_z), 'el frente quedó anclado con pos_z');
+});
+
+test('al desmarcar el checkbox la zapatera va sin frente (bandeja abierta)', () => {
+  const { container } = armarModuloYVista();
+  const checkbox = container.querySelector('[data-frente-zapatera]');
+  checkbox.checked = false;
+  agregarZapatera(container);
+
+  const zap = piezasZapatera();
   assert.equal(zap.some((p) => p.id.endsWith('-frente')), false, 'sin frente decorativo');
   assert.equal(zap.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador (va atornillado al frente)');
   assert.ok(zap.some((p) => p.id.endsWith('-cara')), 'la cara queda como frente visible/de agarre');
@@ -116,12 +130,15 @@ test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin fre
   assert.match(label(), /\(2\)/, 'tras eliminar una unidad el contador baja a 2');
 });
 
-test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {  const { container } = armarModuloYVista();
+test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {
+  const { container } = armarModuloYVista();
   // Tipo tenis: vano 200. La bandeja abierta (sin frente) debe reservar esos
   // 200 mm de zona aunque su cara mida 167 (vano − 2·ESP_BASE − 3).
   const sel = container.querySelector('[data-tipo-zapatera]');
   sel.value = 'tenis';
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Bandeja abierta: sin frente decorativo (la cara es el frente visible).
+  container.querySelector('[data-frente-zapatera]').checked = false;
 
   agregarZapatera(container);
   agregarZapatera(container);

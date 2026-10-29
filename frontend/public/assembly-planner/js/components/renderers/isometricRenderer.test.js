@@ -121,7 +121,7 @@ describe('IsometricRenderer drawer pos_z anchor', () => {
 
   it('zapatera sin frente: la cara se promueve a frente visible (con caja) y no se omite la unidad', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
-    const zapatera = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    const zapatera = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: false });
     assert.ok(zapatera.ok);
     const cara = zapatera.pieces.find((p) => p.id.endsWith('-cara'));
     cara.pos_z = 300; // ancla como la fija app.js al insertar la bandeja

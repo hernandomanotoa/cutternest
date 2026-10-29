@@ -294,6 +294,13 @@ export function createConstructorView(store) {
         const scoped = e.target.closest('[data-module-scoped]');
         const vano = scoped?.querySelector('[data-alto-vano]');
         if (vano) vano.value = String(tipo.altoVano);
+        // Por defecto las zapateras llevan frente; el tipo puede imponer lo
+        // contrario (bandeja a la vista va sin frente para verse). El usuario
+        // puede cambiarlo a mano antes de agregar.
+        if (e.target.matches('[data-tipo-zapatera]')) {
+          const frente = scoped?.querySelector('[data-frente-zapatera]');
+          if (frente) frente.checked = !!tipo.conFrenteDefault;
+        }
       }
     }
     // Nombre del mueble: persiste y alimenta el nombre sugerido de versiones.

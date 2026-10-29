@@ -315,9 +315,19 @@ describe('zapatera: división central (apoyo de la fila delantera)', () => {
   });
 });
 
-describe('zapatera: frente opcional (bandeja abierta por defecto)', () => {
-  it('por defecto (conFrente omitido) NO genera frente ni tirador; la cara queda como frente visible', () => {
+describe('zapatera: frente opcional (CON frente por defecto)', () => {
+  it('por defecto (conFrente omitido) genera frente decorativo + tirador (8 piezas con división)', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
+    assert.ok(r.ok);
+    assert.equal(r.conFrente, true);
+    assert.deepEqual(r.frente, { ancho: 818, alto: 197 });
+    assert.equal(r.pieces.length, 8);
+    assert.ok(r.pieces.some((p) => p.id.endsWith('-frente')));
+    assert.ok(r.pieces.some((p) => p.id.endsWith('-tirador')));
+  });
+
+  it('conFrente: false genera la bandeja abierta: sin frente ni tirador; la cara queda como frente visible', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: false });
     assert.ok(r.ok);
     assert.equal(r.conFrente, false);
     assert.equal(r.frente, null, 'sin medidas de frente: no existe');
@@ -328,18 +338,8 @@ describe('zapatera: frente opcional (bandeja abierta por defecto)', () => {
     const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
     assert.ok(cara, 'la cara del cuerpo queda como frente visible/de agarre');
     // division: false => 5 piezas.
-    const r5 = addShoeTray('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, division: false });
+    const r5 = addShoeTray('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: false, division: false });
     assert.equal(r5.pieces.length, 5);
-  });
-
-  it('conFrente: true genera frente decorativo + tirador (8 piezas con división)', () => {
-    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: true });
-    assert.ok(r.ok);
-    assert.equal(r.conFrente, true);
-    assert.deepEqual(r.frente, { ancho: 818, alto: 197 });
-    assert.equal(r.pieces.length, 8);
-    assert.ok(r.pieces.some((p) => p.id.endsWith('-frente')));
-    assert.ok(r.pieces.some((p) => p.id.endsWith('-tirador')));
   });
 
   it('con frente completo (botas) el frente sigue siendo obligatorio de la bandeja', () => {
@@ -397,8 +397,8 @@ describe('zapatera: bandeja a la vista (ladosIguales)', () => {
   const altoDe = (r, suf) => r.pieces.find((p) => p.id.endsWith(suf))?.alto;
   const LADOS = ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division'];
 
-  it('sin frente: cara, laterales, fondo y división al MISMO alto (rim 120)', () => {
-    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true });
+  it('sin frente (conFrente: false): cara, laterales, fondo y división al MISMO alto (rim 120)', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true, conFrente: false });
     assert.ok(r.ok);
     for (const suf of LADOS) {
       assert.equal(altoDe(r, suf), 120, `${suf} al alto del rim`);
@@ -410,7 +410,7 @@ describe('zapatera: bandeja a la vista (ladosIguales)', () => {
   });
 
   it('el rim respeta el vano: vano bajo → todos al vano − 33', () => {
-    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 120, ladosIguales: true });
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 120, ladosIguales: true, conFrente: false });
     assert.ok(r.ok);
     for (const suf of LADOS) {
       assert.equal(altoDe(r, suf), 87, `${suf} = vano − 3 − 2·15`);
@@ -453,5 +453,15 @@ describe('tipo tag [tipo] en frente/cara (contrato que sobrevive al CSV)', () =>
     assert.ok(r.ok);
     assert.match(r.pieces.find((p) => p.id.endsWith('-frente')).nombre, /\[estandar\]/);
     assert.match(r.pieces.find((p) => p.id.endsWith('-cara')).nombre, /\[estandar\]/);
+  });
+});
+
+describe('zapatera: rim configurable por contrato (tipo.rim)', () => {
+  it('rim personalizado acota el borde de la bandeja a la vista', () => {
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, ladosIguales: true, conFrente: false, rim: 150 });
+    assert.ok(r.ok);
+    for (const suf of ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division']) {
+      assert.equal(r.pieces.find((p) => p.id.endsWith(suf))?.alto, 150, `${suf} al rim personalizado`);
+    }
   });
 });

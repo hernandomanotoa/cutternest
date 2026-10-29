@@ -49,7 +49,7 @@ import {
   rootModuleDims,
   MARCO_PIECE_RE,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT, tipoTagDe } from './core/contentTypes.js';
+import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, tipoTagDe, vanoDesdeCara } from './core/contentTypes.js';
 import {
   createModule,
   addZocalo,
@@ -638,6 +638,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
         conFrente: !!opts.conFrente,
         ladosIguales: tipo ? !!tipo.ladosIguales : !!opts.ladosIguales,
+        rim: tipo && tipo.rim ? tipo.rim : BANDEJA_RIM_HEIGHT,
         tipoId: tipo ? tipo.id : null,
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
@@ -892,15 +893,16 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
       cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
     } else if (/-cara$/.test(String(p.id))) {
       // Cara ancla de cajón/zapatera SIN frente (bandeja abierta): la unidad
-      // reserva su vano completo (cara + 2·ESP_BASE 15 + luz 3 = cara + 33),
-      // no solo el espesor de la pieza; si no, lo que se agregue después
-      // quedaría pisando la zona de la bandeja. Con frente propio la cara no
-      // es ancla (no lleva pos_z) y esta rama es solo defensiva.
+      // reserva su vano completo (cara + cajaDelta + luz, vía contrato con
+      // fallback al histórico 33), no solo el espesor de la pieza; si no, lo
+      // que se agregue después quedaría pisando la zona de la bandeja. Con
+      // frente propio la cara no es ancla (no lleva pos_z) y esta rama es
+      // solo defensiva.
       const pref = String(p.id).slice(0, -'-cara'.length);
       const conFrente = (pieces || []).some((q) => String(q.id) === `${pref}-frente`);
       const avance = conFrente
         ? (Number(p.espesor) || 15) + stackGap
-        : (Number(p.alto) || 0) + 33 + drawerFrontGap;
+        : vanoDesdeCara(p) + drawerFrontGap;
       cursor = Math.max(cursor, Number(p.pos_z) + avance);
     } else {
       cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.espesor) || 15) + stackGap);
@@ -1532,7 +1534,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         // frente.alto = vano − 3; sin frente, la cara = vano − 3 − 2·15. Con
         // tag, el vano del tipo es exacto (la bandeja a la vista satura el
         // rim y la cara no lo refleja).
-        altoVano: frente ? (Number(frente.alto) || 200) + 3 : (tipoUnidad?.altoVano ?? (Number(cara.alto) || 140) + 33),
+        altoVano: frente ? (Number(frente.alto) || 200) + 3 : (tipoUnidad?.altoVano ?? vanoDesdeCara(cara)),
         frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
         // Se preserva la opción: solo hay frente viejo si la bandeja lo llevaba.
         conFrente: !!frente,

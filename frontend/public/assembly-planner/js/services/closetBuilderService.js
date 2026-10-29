@@ -380,11 +380,13 @@ export function rootModuleIds(pieces) {
 //     (frente interior) + gaps de apilado, como el cajón.
 //   - frenteCompleto=true (botas): el frente cubre todo el vano y va SIN
 //     cara ni gaps: se integra a la bandeja y cierra la abertura entera.
-//   - conFrente=false (default): bandeja ABIERTA — sin frente decorativo ni
-//     tirador (el tirador va atornillado al frente: sin frente, no va). La
-//     cara (tablero del cuerpo) queda como frente visible y de agarre. El
-//     riel 'marco' es la excepción: el herraje es solo frente + tirador, así
-//     que siempre lleva frente.
+//   - conFrente (default TRUE): la zapatera lleva frente decorativo + tirador
+//     (el tirador va atornillado al frente: sin frente, no va). Con
+//     conFrente=false la bandeja va abierta: la cara (tablero del cuerpo)
+//     queda como frente visible y de agarre. El riel 'marco' es la
+//     excepción: el herraje es solo frente + tirador, así que siempre lleva
+//     frente. El tipo 'bandeja a la vista' impone sin frente por defecto
+//     (conFrenteDefault: false — su razón de ser es verse).
 //   - ladosIguales (tipo 'bandeja a la vista'): solo cuando va SIN frente,
 //     la cara, los laterales, el fondo y la división quedan al MISMO alto —
 //     un borde apenas más alto que la riel (BANDEJA_RIM_HEIGHT) — para que
@@ -395,9 +397,10 @@ export function addShoeTray(moduleId, index, {
   profundidadModulo,
   altoVano,
   frenteCompleto = false,
-  conFrente = false,
+  conFrente = true, // por defecto la zapatera lleva frente decorativo + tirador
   altoLateral = RAIL_SIDE_HEIGHT,
   ladosIguales = false,
+  rim = BANDEJA_RIM_HEIGHT, // borde de la bandeja a la vista (contrato: tipo.rim)
   tipoId = null, // tag [tipo] en frente/cara: el contrato sobrevive al CSV
   espesorFrente = 15,
   colorFrente = '#8B5A2B',
@@ -461,7 +464,7 @@ export function addShoeTray(moduleId, index, {
   // cara no sobresalga del lateral. Con frente aplica la geometría de cajón
   // habitual (la cara queda detrás del frente, más baja que él).
   const altoBandeja = ladosIguales && !llevaFrente
-    ? Math.max(40, Math.min(BANDEJA_RIM_HEIGHT, frenteAlto - 2 * ESP_BASE))
+    ? Math.max(40, Math.min(rim, frenteAlto - 2 * ESP_BASE))
     : null;
   const altoLado = altoBandeja ?? latAlto;
   const pieces = [];

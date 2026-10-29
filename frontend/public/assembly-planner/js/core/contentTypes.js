@@ -42,24 +42,53 @@ export function tipoTagDe(nombre) {
   return m ? m[1].toLowerCase() : null;
 }
 
+// Vano de la unidad a partir de su cara ancla: con tag, el delta sale del
+// contrato (cajaDelta = frente − caja; el frente siempre es vano − 3); sin
+// tag (catálogo/diseños previos), el histórico 30 + 3 = 33.
+export function vanoDesdeCara(cara, frenteLuzAlto = 3) {
+  const t = tipoTagDe(cara?.nombre);
+  const tipo = t ? getContentType('shoeRack', t) : null;
+  const delta = (Number(tipo?.cajaDelta) || 30) + frenteLuzAlto;
+  return (Number(cara?.alto) || 140) + delta;
+}
+
+// Contrato de tipo (fuente única que consumen builder, gola, apilado y UI):
+//   - altoVano: zona vertical que la unidad reserva en el apilado.
+//   - frente.completo: la zapatera cierra el vano entero sin cara (botas).
+//   - frente.conFrenteDefault: si al agregar la bandeja lleva frente
+//     decorativo por defecto (el checkbox "Frente zapatera" arranca así).
+//   - frente.fijoEnGola: el frente NO se reescala al aplicar gola.
+//   - cajaDelta: frente − caja (la cara queda 2·ESP_BASE detrás del frente).
+//   - bandeja (solo zapateras): ladosIguales (sin frente, todos los lados
+//     al mismo alto) y rim (alto de ese borde; null = lateral bajo de riel).
+
 export const DRAWER_TYPES = [
   {
     id: 'delgado',
     label: 'Delgado — accesorios y ropa interior',
     altoVano: 130,
     frenteCompleto: false,
+    conFrenteDefault: true, // el cajón siempre lleva frente
+    fijoEnGola: false,
+    cajaDelta: 30,
   },
   {
     id: 'estandar',
     label: 'Estándar — camisetas, camisas, pantalones',
     altoVano: 200,
     frenteCompleto: false,
+    conFrenteDefault: true,
+    fijoEnGola: false,
+    cajaDelta: 30,
   },
   {
     id: 'profundo',
     label: 'Profundo — suéteres y sábanas',
     altoVano: 280,
     frenteCompleto: false,
+    conFrenteDefault: true,
+    fijoEnGola: false,
+    cajaDelta: 30,
   },
 ];
 
@@ -69,46 +98,60 @@ export const SHOE_RACK_TYPES = [
     label: 'Zapatos planos — vano 180',
     altoVano: 180,
     frenteCompleto: false,
+    conFrenteDefault: true, // por defecto las zapateras llevan frente
     fijoEnGola: true, // el frente de zapatera no se reescala: conserva su tipo
+    cajaDelta: 30,
   },
   {
     id: 'tenis',
     label: 'Tenis / calzado grueso — vano 200',
     altoVano: 200,
     frenteCompleto: false,
+    conFrenteDefault: true,
     fijoEnGola: true,
+    cajaDelta: 30,
   },
   {
     id: 'tacones',
     label: 'Tacones — vano 220',
     altoVano: 220,
     frenteCompleto: false,
+    conFrenteDefault: true,
     fijoEnGola: true,
+    cajaDelta: 30,
   },
   {
     id: 'botines',
     label: 'Botines — vano 220',
     altoVano: 220,
     frenteCompleto: false,
+    conFrenteDefault: true,
     fijoEnGola: true,
+    cajaDelta: 30,
   },
   {
     id: 'botas',
     label: 'Botas altas — vano 450, frente completo (sin cara)',
     altoVano: 450,
     frenteCompleto: true,
-    fijoEnGola: true, // el frente es el cierre estructural de la bandeja
+    conFrenteDefault: true, // el frente es el cierre estructural de la bandeja
+    fijoEnGola: true,
+    cajaDelta: 30,
   },
   {
-    // Bandeja a la vista: sin frente decorativo, TODOS los lados (cara,
-    // laterales, fondo y división) quedan al MISMO alto (borde un poco
-    // más alto que la riel) — la cara no sobresale del lateral.
+    // Bandeja a la vista: su razón de ser es verse — por defecto va SIN
+    // frente y TODOS los lados (cara, laterales, fondo y división) quedan
+    // al MISMO alto (rim, un borde apenas más alto que la riel) para que la
+    // cara no sobresalga del lateral.
     id: 'bandeja',
     label: 'Bandeja a la vista — lados iguales (vano 160)',
     altoVano: 160,
     frenteCompleto: false,
+    conFrenteDefault: false,
     ladosIguales: true,
+    rim: 120, // = BANDEJA_RIM_HEIGHT
     fijoEnGola: true,
+    cajaDelta: 30,
   },
 ];
 

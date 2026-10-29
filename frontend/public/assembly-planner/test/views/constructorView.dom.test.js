@@ -252,6 +252,8 @@ test('editar a ancho donde el cajon no cabe aborta sin cambios', () => {
 test('orden de inserción define el orden vertical (repisa entre cajones se respeta)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
+  // Zapateras de bandeja abierta (sin frente): su ancla vertical es la cara.
+  container.querySelector('[data-module-scoped="1"] [data-frente-zapatera]').checked = false;
   const add = (kind) => click(container, `[data-action="add-content"][data-kind="${kind}"]`);
   add('shelf');
   add('shelf');
@@ -1074,6 +1076,8 @@ test('Reordenar módulo con cajones/zapateras: los submódulos viajan sin quedar
 test('Zapatera: división central por defecto, opcional, y se elimina con el grupo', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
+  // Bandeja abierta (sin frente): la referencia del chip es su cara.
+  container.querySelector('[data-module-scoped="1"] [data-frente-zapatera]').checked = false;
   // Por defecto (checkbox activado): la zapatera lleva división.
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
   let pieces = store.get().pieces;

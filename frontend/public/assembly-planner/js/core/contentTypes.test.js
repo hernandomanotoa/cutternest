@@ -13,6 +13,7 @@ import {
   getContentType,
   stampTipoTag,
   tipoTagDe,
+  vanoDesdeCara,
 } from './contentTypes.js';
 
 const TODOS = [...DRAWER_TYPES, ...SHOE_RACK_TYPES];
@@ -144,5 +145,40 @@ describe('tag de tipo en el nombre (contrato que sobrevive al CSV)', () => {
     for (const t of DRAWER_TYPES) {
       assert.ok(!t.fijoEnGola, `${t.id}: el cajón reescala en el gola`);
     }
+  });
+});
+
+describe('contrato completo de tipo (fase 2)', () => {
+  it('cada tipo declara las claves del contrato con el tipo correcto', () => {
+    for (const t of TODOS) {
+      assert.equal(typeof t.conFrenteDefault, 'boolean', `${t.id}: conFrenteDefault booleano`);
+      assert.equal(typeof t.fijoEnGola, 'boolean', `${t.id}: fijoEnGola booleano`);
+      assert.equal(typeof t.cajaDelta, 'number', `${t.id}: cajaDelta numérico`);
+      assert.ok(t.cajaDelta > 0, `${t.id}: cajaDelta positivo`);
+      if (t.rim != null) {
+        assert.ok(t.ladosIguales, `${t.id}: rim solo con ladosIguales (bandeja a la vista)`);
+        assert.ok(t.rim > RAIL_SIDE_HEIGHT - 1, `${t.id}: rim al menos a la altura de la riel`);
+      }
+    }
+  });
+
+  it('por defecto las zapateras llevan frente; la bandeja a la vista es la excepción', () => {
+    for (const t of SHOE_RACK_TYPES) {
+      assert.equal(t.conFrenteDefault, t.id !== 'bandeja',
+        `${t.id}: conFrenteDefault ${t.id === 'bandeja' ? 'false (se ve)' : 'true'}`);
+    }
+    for (const t of DRAWER_TYPES) {
+      assert.equal(t.conFrenteDefault, true, `${t.id}: el cajón siempre lleva frente`);
+    }
+  });
+
+  it('vanoDesdeCara: con tag usa el contrato; sin tag el histórico 33', () => {
+    const caraTag = { nombre: 'Cara [tenis] zapatera extraible 1 M1', alto: 167 };
+    assert.equal(vanoDesdeCara(caraTag), 167 + 30 + 3, 'tag: cara + cajaDelta + luz');
+    const caraSinTag = { nombre: 'Cara zapatera extraible 1 M1', alto: 167 };
+    assert.equal(vanoDesdeCara(caraSinTag), 200, 'sin tag: histórico 33');
+    // cajaDelta del contrato distinto cambia la reconstrucción:
+    const caraDelta = { nombre: 'Cara [custom] zapatera x M1', alto: 170 };
+    assert.equal(vanoDesdeCara(caraDelta), 170 + 33, 'tipo desconocido: cae al 30+3');
   });
 });
