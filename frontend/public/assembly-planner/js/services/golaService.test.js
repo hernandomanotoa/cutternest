@@ -552,26 +552,47 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
 
   const alturaFrente = (pieces, id) => Number(pieces.find((p) => p.id === id)?.alto) || 0;
 
-  it('span ajustado: cada frente queda ≥ su caja + 10 y Σ + gaps = span', () => {
-    const pieces = buildMix(870);
+  it('span ajustado: zapateras fijas en su altura de tipo, cajones reparten el aire', () => {
+    // Con zapateras fijas (2×217) hacen falta 434+354+3·56 = 956 de span:
+    // repisa @1010 → span 965 (margen de 9 mm para los cajones).
+    const pieces = buildMix(1010);
     const bottom = 25;
-    const span = 870 - 20 /* finger clearance */ - bottom; // 825
+    const span = 1010 - 20 /* finger clearance */ - bottom; // 965
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
-    // Pisos: zapatera 100+10, cajón 167+10.
-    assert.ok(alturaFrente(r.pieces, 'm1zapatera1-frente') >= 110, 'zapatera 1 ≥ 110');
-    assert.ok(alturaFrente(r.pieces, 'm1zapatera2-frente') >= 110, 'zapatera 2 ≥ 110');
+    // Zapateras: sin reescalar — conservan la altura por defecto del tipo.
+    assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 217, 'zapatera 1 conserva su tipo');
+    assert.equal(alturaFrente(r.pieces, 'm1zapatera2-frente'), 217, 'zapatera 2 conserva su tipo');
+    // Cajones: cada frente ≥ su caja (167+10) y absorben TODO el aire.
     assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177, 'cajón 3 cubre su caja (167+10)');
     assert.ok(alturaFrente(r.pieces, 'm1cajon4-frente') >= 177, 'cajón 4 cubre su caja (167+10)');
-    // El aire se tomó de las zapateras: crecieron poco respecto al mínimo.
-    assert.ok(alturaFrente(r.pieces, 'm1zapatera1-frente') < 160,
-      `el aire va a las zapateras (holgura), no a los cajones: ${alturaFrente(r.pieces, 'm1zapatera1-frente')}`);
+    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') > 197 - 30,
+      `el aire va a los cajones, no a las zapateras: ${alturaFrente(r.pieces, 'm1cajon3-frente')}`);
     // Invariante: Σ alturas + (N−1)·G = span.
     const suma = ['m1zapatera1-frente', 'm1zapatera2-frente', 'm1cajon3-frente', 'm1cajon4-frente']
       .reduce((s, id) => s + alturaFrente(r.pieces, id), 0);
     assert.ok(Math.abs(suma + 3 * GAP - span) <= 0.5, `Σ${suma} + 3·56 ≈ span ${span}`);
     // Canales entre TODAS las unidades (zapatera↔zapatera y zapatera↔cajón).
     assert.equal(r.pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).length, 3);
+  });
+
+  it('span insuficiente con zapateras fijas: rechaza indicando el fijo de las zapateras', () => {
+    // Repisa @950 → span 905 < 956 necesarios: el error debe mencionar que
+    // el mínimo incluye las zapateras a altura de tipo.
+    const pieces = buildMix(950);
+    const r = applyGola(pieces, '1', {});
+    assert.equal(r.ok, false);
+    assert.match(r.errors[0], /el vano no alcanza/);
+    assert.match(r.errors[0], /zapateras a altura de tipo/);
+  });
+
+  it('solo zapateras: la pila fija debe cuadrar el span', () => {
+    const pieces = buildMix(1010).filter((p) => !/cajon/.test(String(p.id)));
+    const r = applyGola(pieces, '1', {});
+    // 2 zapateras fijas: 2·217 + 56 = 490 ≠ span 965 → error con el target.
+    assert.equal(r.ok, false);
+    assert.match(r.errors[0], /conservan la altura de su tipo/);
+    assert.match(r.errors[0], /ajuste la repisa/i);
   });
 
   it('span insuficiente: sigue rechazando con "el vano no alcanza"', () => {

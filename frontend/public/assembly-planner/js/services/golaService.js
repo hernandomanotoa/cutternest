@@ -242,11 +242,27 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   const disponible = H_new - (N - 1) * G;
   // Piso por unidad: cada frente debe cubrir su caja (lateral + 10 mm).
   const pisos = unidades.map((u) => (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30));
-  const minSuma = pisos.reduce((s, f) => s + f, 0);
+  // Zapateras: el frente queda FIJO en la altura de su tipo (no se reescala).
+  // Si se reescalara podría quedar bajo la cara de la bandeja (cara = frente
+  // − 2·ESP_BASE) y la cara asomaría por arriba del frente. Solo los cajones
+  // absorben el aire del span.
+  const fijas = unidades.map((u) => /zapatera/i.test(`${u.frentes[0].id} ${u.frentes[0].nombre}`));
+  const sumFijas = fijas.reduce((s, f, i) => s + (f ? Math.max(...unidades[i].frentes.map((fr) => Number(fr.alto) || 0)) : 0), 0);
+  const minSuma = sumFijas + pisos.reduce((s, p, i) => s + (fijas[i] ? 0 : p), 0);
   if (disponible < minSuma) {
+    const nota = sumFijas > 0
+      ? ` (incluye ${Math.round(sumFijas)} mm de zapateras a altura de tipo, sin reescalar)`
+      : '';
     return {
       ok: false,
-      errors: [`Gola: el vano no alcanza (span ${Math.round(H_new)} mm, ${N} cajón/cajones, gap gola ${G} mm; disponible ${Math.round(disponible)} mm < mínimo ${minSuma} mm para cubrir las cajas). Reduzca cajones o aumente el vano.`],
+      errors: [`Gola: el vano no alcanza (span ${Math.round(H_new)} mm, ${N} cajón/cajones, gap gola ${G} mm; disponible ${Math.round(disponible)} mm < mínimo ${minSuma} mm${nota} para cubrir las cajas). Reduzca cajones, use tipos de zapatera más bajos o aumente el vano (suba la repisa).`],
+    };
+  }
+  // Solo zapateras (nada que reescalar): la pila fija debe cuadrar el span.
+  if (fijas.every(Boolean) && Math.abs(minSuma + (N - 1) * G - H_new) > 2) {
+    return {
+      ok: false,
+      errors: [`Gola: las zapateras conservan la altura de su tipo (Σ ${Math.round(sumFijas)} mm + ${N - 1} canales × ${G} mm = ${Math.round(minSuma + (N - 1) * G)} mm) pero el span es ${Math.round(H_new)} mm. Ajuste la repisa/techo al techo de la pila (${Math.round(bottom + minSuma + (N - 1) * G + cfg.golaFingerClearance)} mm) o use tipos de zapatera más bajos.`],
     };
   }
 
@@ -264,11 +280,20 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
-  // Reescalado con PISO por unidad (cada frente ≥ su caja + 10): el aire se
-  // reparte solo entre las unidades con holgura; la unidad 1 absorbe el
-  // residual de redondeo para que Σaᵢ' + (N−1)·G = H_new exacto.
+  // Reescalado con PISO por unidad (cada frente ≥ su caja + 10). Las
+  // zapateras quedan fijas en su altura de tipo; el aire se reparte solo
+  // entre los cajones con holgura, con Σaᵢ' + (N−1)·G = H_new exacto.
   const origHeights = unidades.map((u) => Math.max(...u.frentes.map((f) => Number(f.alto) || 0)));
-  const nuevasAlturas = reparteConPiso(origHeights, pisos, disponible);
+  const nuevasAlturas = origHeights.slice();
+  const idxMoviles = unidades.map((_, i) => i).filter((i) => !fijas[i]);
+  if (idxMoviles.length) {
+    const repartidas = reparteConPiso(
+      idxMoviles.map((i) => origHeights[i]),
+      idxMoviles.map((i) => pisos[i]),
+      disponible - sumFijas,
+    );
+    idxMoviles.forEach((i, k) => { nuevasAlturas[i] = repartidas[k]; });
+  }
 
   // Extensión L del último frente: su techo queda en topRef − clearance por
   // construcción; si la sobrealtura respecto a su caja supera el cap, se cap
@@ -276,7 +301,7 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   const warnings = [];
   let capped = false;
   const latUltima = unidades[N - 1].latAltoCaja;
-  if (latUltima != null && nuevasAlturas[N - 1] - latUltima > cfg.golaMaxOverhang) {
+  if (!fijas[N - 1] && latUltima != null && nuevasAlturas[N - 1] - latUltima > cfg.golaMaxOverhang) {
     const extensionAntes = nuevasAlturas[N - 1] - latUltima;
     nuevasAlturas[N - 1] = latUltima + cfg.golaMaxOverhang;
     capped = true;
@@ -335,6 +360,14 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     const zL = redondea1(topRef - cfg.golaPaso - cfg.golaPerfilHeight);
     canales.push(mk(`${prefijo}l${N}-fondo`, 'Fondo de canal Gola L', anchoCanal, cfg.golaPerfilHeight, zL, false));
     canales.push(mk(`${prefijo}l${N}-pestana`, 'Pestana inferior Gola L', anchoCanal, cfg.golaStripDepth, zL, true));
+    // Hueco sobre el último frente: pasa cuando es de altura fija (zapatera)
+    // y no llega al canal L, o cuando el cap de la L lo dejó más bajo. El
+    // agarre desde arriba sigue funcionando, pero queda una ranura a la
+    // vista entre el frente y el canal.
+    const techoUltimoNuevo = nuevasTops[N - 1] + nuevasAlturas[N - 1];
+    if (techoUltimoNuevo < zL - 0.5) {
+      warnings.push(`Gola: el último frente queda ${Math.round(zL - techoUltimoNuevo)} mm por debajo del canal L: habrá un hueco visible sobre el frente; suba la repisa o use un tipo más alto.`);
+    }
   }
 
   // Regla de la L: la caja del cajón SUPERIOR se rebaja para pasar libre
@@ -463,9 +496,21 @@ export function removeGola(pieces, moduleId, userConfig = {}, meta = null) {
     if (disponible > 0) {
       const orig = unidades.map((u) => Math.max(...u.frentes.map((f) => Number(f.alto) || 0)));
       if (orig.some((h) => h > 0)) {
-        // Mismo reparto con piso que applyGola: cada frente termina ≥ su caja.
+        // Mismo reparto que applyGola: zapateras fijas en su altura de tipo,
+        // cajones con piso (cada frente ≥ su caja) repartiendo el aire.
         const pisos = unidades.map((u) => (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30));
-        const alturas = reparteConPiso(orig, pisos, disponible);
+        const fijas = unidades.map((u) => /zapatera/i.test(`${u.frentes[0].id} ${u.frentes[0].nombre}`));
+        const sumFijas = fijas.reduce((s, f, i) => s + (f ? orig[i] : 0), 0);
+        const alturas = orig.slice();
+        const idxMoviles = unidades.map((_, i) => i).filter((i) => !fijas[i]);
+        if (idxMoviles.length && disponible - sumFijas > 0) {
+          const repartidas = reparteConPiso(
+            idxMoviles.map((i) => orig[i]),
+            idxMoviles.map((i) => pisos[i]),
+            disponible - sumFijas,
+          );
+          idxMoviles.forEach((i, k) => { alturas[i] = repartidas[k]; });
+        }
         let cursor = bottom;
         for (let i = 0; i < N; i++) {
           for (const f of unidades[i].frentes) {
