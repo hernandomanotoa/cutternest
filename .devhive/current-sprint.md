@@ -63,6 +63,7 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 | A50 | Fixes de bandeja abierta (contador, apilado por vano) | Guardian | ✅ Completado | `countByKind` cuenta por grupo (max frentes/caras) — el contador '+ Zapatera (N)' se quedaba en 0 sin frente (`5491704`). Las unidades reservan SU vano en el cursor: `asignarPosZInsercion` recibe `altoVano` y `cursorInsercion` reconstruye `cara+33` (antes las bandejas se pisaban ~30 mm) (`77ea067`). |
 | A51 | Gola con zapateras de frente: reparto con piso + fijas | Guardian | ✅ Completado | `reparteConPiso` (aire solo a unidades con holgura, mayor resto; cada frente ≥ caja+10; Σ+gaps=span exacto) — el proporcional dejaba cajones bajo su caja en módulos mixtos. Frentes de zapatera FIJOS en su tipo (`fijoEnGola`); validaciones del span con nota del fijo; solo-zapateras exige cuadrar; cap de la L no aplica a fijas; aviso de hueco bajo el canal L (`8c3664e`, `2fce0e4`). |
 | A52 | Tipo 'bandeja a la vista' + contrato de tipos (3 fases) + default con frente + tipos custom | Guardian | ✅ Completado | Bandeja a la vista: lados iguales al rim 120 (`f236ae8`). Fase 1: tag `[tipo]` en el nombre (sobrevive al CSV), consumo por contrato no regex (`17d0aec`). Fase 2: contrato completo (`conFrenteDefault`, `cajaDelta`, `rim`), `vanoDesdeCara`, zapateras CON frente por defecto (`3cfee53`). Fase 3: `customTypesService` + panel 'Tipos personalizados del taller' (CRUD validado, inyección en catálogos en vivo; `inferRole` ignora el tag — bug real) (`b1b0525`). 1010 unit + 129 DOM OK, 94 CSV 0/0/0. |
+| A53 | Auditoría de taller + planos acotados + zapatera con división + fondo ranurado + holguras estrictas | Guardian | ✅ Completado | (1) Zapatera de 7 piezas con división transversal (`division` en `cajon()`/`addShoeTray`) y fondo ranurado (contrato `fondoMetodo`, `DRAWER_GROOVE_DEPTH`, `drawerBackMaxHeight`, UI checkbox + tipos custom) (`d8f9787`). (2) Validaciones estrictas: `stackClearanceService` (pila de frentes vs altura interior = error, sin forzar distribución; gola exenta) + `shoeClearanceService` (altura libre entre niveles con espesores reales), integradas en `csvParser` (`61b3169`). (3) Vista "Auditoría" (`auditReportService` ejecuta validaciones existentes, tabla por-corregir/pendiente/validado), alzado frontal acotado (`frontElevationService`/Renderer), secciones gola C/L (`golaSectionService`), plan de fijación calculado (`golaService` + `hardware`), exportaciones HTML offline (`planosExporter`/`auditExporter`) (`2a103b2`). 1092 unit + 137 DOM OK, backend 47, Vitest 97, 94 CSV 0/0/0. Pendiente: validación visual en navegador. |
 
 ## Leyenda estados
 
@@ -87,9 +88,9 @@ Entregar un **Assembly Planner vanilla autocontenido** en `frontend/public/assem
 
 ## Métricas actuales
 
-- Tests backend: 43 passed (bcrypt puro desde A42; sin deprecation de crypt).
+- Tests backend: 47 passed (bcrypt puro desde A42; sin deprecation de crypt).
 - Tests frontend (React): 97 passed (Vitest, 21 archivos); build de producción OK con three/charts lazy (carga inicial −82 %, A43).
-- Tests Assembly Planner: 1010 passed (node --test) + 129 tests DOM de vistas (happy-dom, `pnpm test:dom`).
+- Tests Assembly Planner: 1092 passed (node --test) + 137 tests DOM de vistas (happy-dom, `pnpm test:dom`).
 - Ejemplos CSV: 94 archivos validados con 0 errores / 0 warnings / 0 piezas con rol genérico (`test/validate-examples.mjs`, gateado en CI); correspondencia docs↔data verificada por test (A47).
 - E2E: 12 specs Playwright nuevos (planner con screenshots + guest PIN), no ejecutables en este entorno offline — requieren `playwright install chromium` (A48).
 - CI: `.github/workflows/ci.yml` corre pytest, Vitest + build y la suite completa del planner en cada push/PR (requiere `pnpm-lock.yaml`, pendiente de generar con red).
