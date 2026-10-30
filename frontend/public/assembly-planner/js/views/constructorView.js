@@ -1361,17 +1361,29 @@ function renderGolaPanel(cfg = {}) {
 
 // Panel de confirmación de la vista previa gola (dry-run de app.js): resume
 // perfiles creados, gap/agarre y el reescalado de frentes antes de activar.
-// Reusa el estilo del formulario de edición; sin colores ad hoc (clases CSS).
+// Reusa el estilo del formulario de edición; sin estilos inline (clases CSS
+// cn-gola-preview__*). Cada frente lleva su id para desambiguar homónimos de
+// distintos submódulos, y los que no cambian se atenúan en vez de repetir
+// "X → X mm".
 function renderGolaPreviewPanel(preview) {
   const { plan, warnings } = preview;
-  const frentes = plan.frentes.map((f) =>
-    `<li>${escapeHtml(f.nombre)}: <strong>${f.antes} → ${f.despues} mm</strong></li>`).join('');
+  const frentes = plan.frentes.map((f) => {
+    const cambia = Number(f.antes) !== Number(f.despues);
+    const medida = cambia
+      ? `<strong>${f.antes} → ${f.despues} mm</strong>`
+      : `<span class="cn-gola-preview__sin-cambio">${f.antes} mm · sin cambios</span>`;
+    return `<li>${medida} <span class="cn-gola-preview__frente">${escapeHtml(f.nombre)}</span> <code class="cn-gola-preview__id">${escapeHtml(f.id)}</code></li>`;
+  }).join('');
   return `
-    <div class="cn-constructor__edit-form" data-gola-preview>
-      <p style="margin:0;"><strong>Vista previa — sistema gola</strong></p>
-      <p style="margin:0;">Se eliminarán los tiradores y se crearán ${plan.tiras} canal(es) tipo C (fondo + 2 pestañas de melamina) y 1 canal tipo L bajo la repisa — gap de ${plan.gapGola} mm (3 + ${plan.cuerpoPerfil ?? 50} + 3), agarre de ${plan.agarre} mm. La caja del cajón superior queda rebajada para pasar bajo el canal L. Los frentes quedarán:</p>
-      <ul style="margin:0;padding-left:1.25rem;">${frentes}</ul>
-      ${(warnings || []).map((w) => `<p class="cn-constructor__warnings" style="margin:0;">⚠ ${escapeHtml(w)}</p>`).join('')}
+    <div class="cn-constructor__edit-form cn-gola-preview" data-gola-preview>
+      <p class="cn-gola-preview__titulo"><strong>Vista previa — sistema gola</strong></p>
+      <p class="cn-gola-preview__resumen">Se eliminarán los tiradores y se crearán ${plan.tiras} canal(es) tipo C (fondo + 2 pestañas de melamina) y 1 canal tipo L bajo la repisa — gap de ${plan.gapGola} mm (3 + ${plan.cuerpoPerfil ?? 50} + 3), agarre de ${plan.agarre} mm. La caja del cajón superior queda rebajada para pasar bajo el canal L. Los frentes quedarán:</p>
+      <ul class="cn-gola-preview__frentes">${frentes}</ul>
+      ${(warnings || []).length ? `
+      <div class="cn-constructor__warnings cn-gola-preview__warnings">
+        <strong>Avisos:</strong>
+        <ul>${warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+      </div>` : ''}
       <div class="cn-constructor__content-btns">
         <button class="btn btn--primary btn--sm" data-action="confirm-gola" data-module="${escapeHtml(preview.moduleId)}">Aplicar gola</button>
         <button class="btn btn--secondary btn--sm" data-action="cancel-gola">Cancelar</button>

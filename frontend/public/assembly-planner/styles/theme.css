@@ -1105,6 +1105,58 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   color: var(--text-secondary);
 }
 
+/* Vista previa de activación gola (Constructor): el edit-form base es una
+   fila flex; este panel es contenido en bloque (título, resumen, lista de
+   frentes, avisos y botones apilados). */
+.cn-gola-preview {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.cn-gola-preview p {
+  margin: 0;
+}
+
+.cn-gola-preview__titulo {
+  font-size: 0.85rem;
+}
+
+.cn-gola-preview__resumen {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.cn-gola-preview__frentes {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.8rem;
+}
+
+.cn-gola-preview__frentes li + li {
+  margin-top: 0.15rem;
+}
+
+.cn-gola-preview__frente {
+  color: var(--text-secondary);
+}
+
+.cn-gola-preview__id {
+  font-size: 0.7rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.06));
+}
+
+.cn-gola-preview__sin-cambio {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.cn-gola-preview__warnings {
+  margin-top: 0;
+}
+
 /* Panel de avisos de diseno del Constructor */
 .cn-constructor__warnings {
   margin-top: 0.75rem;

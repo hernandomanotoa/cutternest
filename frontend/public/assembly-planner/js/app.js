@@ -1160,7 +1160,9 @@ export function previewGola(moduleId) {
     const antes = alturasActuales.has(String(ref.id))
       ? alturasActuales.get(String(ref.id))
       : despues;
-    return { nombre: ref.nombre, antes, despues };
+    // El id desambigua frentes homónimos de distintos submódulos en la
+    // vista previa del Constructor (mismo nombre, distinto reescalado).
+    return { id: ref.id, nombre: ref.nombre, antes, despues };
   });
   const plan = {
     unidades: unidades.length,

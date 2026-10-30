@@ -76,6 +76,18 @@ test('C2: activar el checkbox muestra la vista previa con el plan (sin mutar el 
   assert.match(panel.textContent, /agarre de 20 mm/, 'muestra el agarre del cfg');
   assert.match(panel.textContent, /→ \d+ mm/, 'muestra las alturas nuevas de frentes');
 
+  // UX: cada fila lleva el id del frente (desambigua homónimos) y los avisos
+  // van agrupados en un único bloque con lista, no en párrafos sueltos.
+  const idsPanel = [...panel.querySelectorAll('.cn-gola-preview__id')].map((c) => c.textContent);
+  assert.equal(idsPanel.length, 3, 'un id por frente listado');
+  assert.equal(new Set(idsPanel).size, 3, 'ids sin duplicados (desambiguación)');
+  const avisos = panel.querySelector('.cn-gola-preview__warnings');
+  if (avisos) {
+    assert.ok(avisos.querySelector('ul'), 'avisos agrupados en lista');
+    assert.equal(avisos.querySelectorAll('li').length, previewGola('1').warnings.length, 'un li por aviso');
+  }
+  assert.equal(panel.querySelectorAll('[class*="cn-constructor__warnings"]').length <= 1, true, 'un solo bloque de avisos');
+
   // El dry-run no tocó el store: sin tiras y con tiradores intactos.
   const pieces = getStore().get().pieces;
   assert.equal(isGolaEnabled(pieces, '1'), false, 'gola sigue desactivada');
@@ -138,6 +150,7 @@ test('C2: previewGola (app.js) es un dry-run puro: devuelve plan y no muta el st
     assert.equal(typeof f.antes, 'number');
     assert.equal(typeof f.despues, 'number');
     assert.ok(f.despues > 0);
+    assert.ok(String(f.id).endsWith('-frente'), 'cada frente expone su id (desambiguación)');
   }
 
   const piecesDespues = getStore().get().pieces;
@@ -145,6 +158,28 @@ test('C2: previewGola (app.js) es un dry-run puro: devuelve plan y no muta el st
   const frentesDespues = piecesDespues.filter((p) => String(p.id).endsWith('-frente')).map((p) => `${p.id}:${p.alto}`);
   assert.deepEqual(frentesDespues, frentesAntes, 'alturas de frentes sin cambios');
   assert.equal(isGolaEnabled(piecesDespues, '1'), false);
+});
+
+test('C2: frente fijo (zapatera) se lista como "sin cambios" y con su id', () => {
+  const { view, container } = mountView();
+  assert.ok(addModuleFromBuilder(MOD).ok);
+  assert.ok(addContentToModule('1', 'drawer', { altoVano: 250 }).ok);
+  assert.ok(addContentToModule('1', 'drawer', { altoVano: 250 }).ok);
+  // Zapatera CON frente y vano 180: fijoEnGola → el gola no la reescala.
+  // (Con vano 250 la activación falla: la extensión del frente L supera el
+  // máximo de 120 mm.)
+  assert.ok(addContentToModule('1', 'shoeRack', { altoVano: 180, conFrente: true }).ok);
+
+  clickGolaCheckbox(container);
+
+  const panel = container.querySelector('[data-gola-preview]');
+  assert.ok(panel, 'se muestra el panel de vista previa');
+  const fijos = panel.querySelectorAll('.cn-gola-preview__sin-cambio');
+  assert.ok(fijos.length >= 1, 'el frente fijo de la zapatera se marca como sin cambios');
+  assert.match(fijos[0].textContent, /sin cambios/);
+  // Los cajones sí reescalan: aparecen con "→".
+  assert.match(panel.textContent, /→ \d+ mm/);
+  view.destroy();
 });
 
 test('C2: si la activación fallaría, el checkbox se revierte y no hay panel', () => {
