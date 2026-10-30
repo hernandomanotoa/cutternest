@@ -231,7 +231,7 @@ const examples = [];
 // 17. Módulo de clóset con zapatera-cajón (zapatero extraíble)
 {
   const lines = [];
-  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: caja completa de 6 piezas (frente decorativo, 2 laterales, base, fondo y cara) que se desliza en rieles; capacidad aproximada 40-50 pares.'));
+  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: caja completa de 7 piezas (frente decorativo, 2 laterales, base, fondo, cara y división transversal) que se desliza en rieles; capacidad aproximada 40-50 pares.'));
   lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
   lines.push(line('m1-bandeja-zapatero', 'Bandeja zapatero', 770, 450, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   for (let i = 1; i <= 5; i++) {
@@ -603,7 +603,7 @@ function cajonOculto(parent, index, opts) {
 // base propia: doble colgado, cajonera interior y zapatera interior.
 {
   const lines = [];
-  lines.push(header('Ejemplo de closet interior', 'Closet abierto 1800×2200×550 sin puertas (perchero), compatible con sistema de puertas corredizas: zocalo-cajon corrido 150 (patron ejemplo-closet-zocalo-cajon) + tapa corrida y 3 modulos de 600 con base propia: M1 doble colgado (2 barras cromadas a dos alturas + repisa superior), M2 cajonera interior (6 cajones de frentes mixtos: delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres) y M3 zapatera interior (bandeja zapatero fija inferior + 4 bandejas zapatera extraibles de 6 piezas + repisa superior). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
+  lines.push(header('Ejemplo de closet interior', 'Closet abierto 1800×2200×550 sin puertas (perchero), compatible con sistema de puertas corredizas: zocalo-cajon corrido 150 (patron ejemplo-closet-zocalo-cajon) + tapa corrida y 3 modulos de 600 con base propia: M1 doble colgado (2 barras cromadas a dos alturas + repisa superior), M2 cajonera interior (6 cajones de frentes mixtos: delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres) y M3 zapatera interior (bandeja zapatero fija inferior + 4 bandejas zapatera extraibles de 7 piezas con division + repisa superior). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
   lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
   lines.push(...zocaloCajon('closet interior', 1800, 550, 150, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida closet interior', 1800, 550, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));

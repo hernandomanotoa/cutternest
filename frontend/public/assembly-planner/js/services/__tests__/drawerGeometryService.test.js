@@ -283,3 +283,55 @@ describe('divisor interior de cajón (drawer_divider)', () => {
     assert.ok(div.z + div.h <= lat.z + lat.h + 1e-9);
   });
 });
+
+describe('fondo ranurado (fondoMetodo: ranurado)', () => {
+  // Pieza de fondo cortada para ranura de 6 mm: interior 344,6 + 12 de
+  // cantos enterrados × alto del lateral (170) − 2·6.
+  const FONDO_RANURADO = { ...FONDO, ancho: 356.6, alto: 158 };
+
+  it('posiciona el fondo embutido en la ranura: entrando 6 mm en cada lateral, a 6 mm del borde superior', () => {
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO_RANURADO, CARA]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE, fondoMetodo: 'ranurado' });
+    const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
+    assert.ok(fondo, 'falta la geometría del fondo');
+    assert.equal(fondo.role, 'drawer_back');
+    // Ranura a 6 mm de la cara interior del lateral izq (112,7 + 15 − 6).
+    assert.ok(Math.abs(fondo.x - 121.7) < 1e-9, 'entra 6 mm en el lateral izq');
+    assert.ok(Math.abs(fondo.x + fondo.w - (472.3 + 6)) < 1e-9, 'entra 6 mm en el lateral der');
+    assert.equal(fondo.y, 20, 'corrido de cara a trasera (mismo y que el fondo apoyado)');
+    assert.equal(fondo.d, 15, 'espesor real del fondo');
+    assert.equal(fondo.z, 71, 'z = zBox + ranura (65 + 6)');
+    assert.equal(fondo.h, 158, 'alto real (lateral − 2·ranura)');
+    const lat = box.find((g) => g.role === 'drawer_side');
+    assert.ok(
+      fondo.z + fondo.h <= lat.z + lat.h - 6 + 1e-9,
+      'el fondo queda a 6 mm bajo la cara superior del lateral'
+    );
+    // La base y la cara no se ven afectadas por el método del fondo.
+    const base = box.find((g) => g.id === 'm1-cajon-base');
+    const cara = box.find((g) => g.id === 'm1-cajon-cara');
+    assert.equal(base.z, 65);
+    assert.equal(cara.z, 65);
+    assert.equal(cara.h, 170);
+  });
+
+  it('sin fondoMetodo (CSV viejo): el fondo se dibuja como siempre, aunque la pieza sea ancha', () => {
+    // Detección por datos histórica: sin contrato el comportamiento no cambia
+    // (el fondo se capa al máximo interior y se apoya/clasifica por medidas).
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO_RANURADO, CARA]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE });
+    const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
+    assert.equal(fondo.z, 65, 'a piso, como el fondo perimetral histórico');
+    assert.equal(fondo.h, 158, 'alto real de la pieza (≤ latAlto, sin cap de ranura)');
+    assert.ok(fondo.x >= 112.7, 'anclado dentro del vano del frente');
+  });
+
+  it('capa el fondo a la ranura si la pieza excede el hueco disponible', () => {
+    const fondoAlto = { ...FONDO_RANURADO, alto: 170 };
+    const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, fondoAlto, CARA]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE, fondoMetodo: 'ranurado' });
+    const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
+    assert.equal(fondo.h, 158, 'capado a latAlto − 2·ranura: no puede asomar sobre la ranura');
+    assert.equal(fondo.z, 71);
+  });
+});

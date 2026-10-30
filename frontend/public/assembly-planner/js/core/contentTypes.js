@@ -59,6 +59,13 @@ export function vanoDesdeCara(cara, frenteLuzAlto = 3) {
 //     decorativo por defecto (el checkbox "Frente zapatera" arranca así).
 //   - frente.fijoEnGola: el frente NO se reescala al aplicar gola.
 //   - cajaDelta: frente − caja (la cara queda 2·ESP_BASE detrás del frente).
+//   - fondoMetodo (solo cajones): sistema de montaje del fondo. 'apoyado'
+//     (default, retrocompatible) = fondo estructural interno a los laterales,
+//     apoyado sobre la base. 'ranurado' = fondo embutido en una ranura
+//     corrida fresada en la cara interior de cada lateral (ver
+//     DRAWER_GROOVE_DEPTH en core/config.js): el fondo se corta más ancho
+//     (interior + 2·ranura) y sube casi a la cara superior del lateral
+//     (alto = lateral − 2·ranura).
 //   - bandeja (solo zapateras): ladosIguales (sin frente, todos los lados
 //     al mismo alto) y rim (alto de ese borde; null = lateral bajo de riel).
 
@@ -71,6 +78,7 @@ export const DRAWER_TYPES = [
     conFrenteDefault: true, // el cajón siempre lleva frente
     fijoEnGola: false,
     cajaDelta: 30,
+    fondoMetodo: 'apoyado',
   },
   {
     id: 'estandar',
@@ -80,6 +88,7 @@ export const DRAWER_TYPES = [
     conFrenteDefault: true,
     fijoEnGola: false,
     cajaDelta: 30,
+    fondoMetodo: 'apoyado',
   },
   {
     id: 'profundo',
@@ -89,6 +98,7 @@ export const DRAWER_TYPES = [
     conFrenteDefault: true,
     fijoEnGola: false,
     cajaDelta: 30,
+    fondoMetodo: 'apoyado',
   },
 ];
 
@@ -159,4 +169,14 @@ export const SHOE_RACK_TYPES = [
 export function getContentType(kind, typeId) {
   const catalog = kind === 'shoeRack' ? SHOE_RACK_TYPES : DRAWER_TYPES;
   return catalog.find((t) => t.id === typeId) || null;
+}
+
+// Método de montaje del fondo declarado por un tipo de cajón (contrato por
+// tag [tipo] en el nombre del frente/cara). Sin tag, con id desconocido o
+// con tipo sin el campo (diseños previos) cae a 'apoyado': es el método
+// histórico y garantiza la retrocompatibilidad de los CSV viejos.
+export function fondoMetodoDeTipo(typeId) {
+  if (!typeId) return 'apoyado';
+  const metodo = getContentType('drawer', typeId)?.fondoMetodo;
+  return metodo === 'ranurado' ? 'ranurado' : 'apoyado';
 }

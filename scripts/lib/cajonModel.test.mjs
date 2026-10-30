@@ -13,7 +13,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cajon, baseTapaLateralesFondo, header } from './cajonModel.mjs';
+import { cajon, baseTapaLateralesFondo, header, line } from './cajonModel.mjs';
 import { parseCSV } from '../../frontend/public/assembly-planner/js/services/csvParser.js';
 
 // PRNG mulberry32: determinista (misma semilla → mismos casos en cada run).
@@ -59,11 +59,16 @@ describe('cajon() vs csvParser — propiedad de coherencia', () => {
     const fallos = [];
     for (let iter = 0; iter < 300; iter++) {
       const tipo = pick(['corredera', 'corredera', 'corredera', 'volquete']);
+      const nPorFila = tipo === 'volquete' ? 1 : pick([1, 1, 2, 3]);
+      // La pila debe caber en el casco de 1800 (vano interior 1770, frente =
+      // altoVano − 3, gap 2.5): la propiedad es coherencia cajón↔parser, no
+      // validación de apilado — los casos generados deben ser fabricables.
+      const altoMax = Math.min(700, Math.floor((1770 - (nPorFila - 1) * 2.5) / nPorFila) + 3);
       const caso = {
         anchoModulo: randInt(300, 1200),
         profundidadModulo: randInt(300, 650),
-        altoVano: randInt(60, 700),
-        nPorFila: tipo === 'volquete' ? 1 : pick([1, 1, 2, 3]),
+        altoVano: randInt(60, altoMax),
+        nPorFila,
         tipo,
         vocabulario: pick(['cajon', 'zapatera']),
       };
@@ -110,5 +115,138 @@ describe('cajon() vs csvParser — propiedad de coherencia', () => {
     assert.equal(rows.length, 6);
     assert.ok(rows.some((r) => r.includes('cajon abatible')));
     assert.ok(!rows.some((r) => r.startsWith('m23-cajon-cara,')));
+  });
+});
+
+describe('cajon() con espesorModulo (casco de 18 mm)', () => {
+  it('las fórmulas descuentan 18 en vez de 15', () => {
+    const rows = cajon(1, 1, {
+      anchoModulo: 600,
+      profundidadModulo: 560,
+      altoVano: 180,
+      espesorModulo: 18,
+      colorFrente: '#8B5A2B',
+      colorLateral: '#D9C2A3',
+    });
+    // W = 600 − 36 = 564 → frente 562 × 177; lateral 499 × 141;
+    // interior = round(564 − 25,4) − 36 = 503.
+    const porSufijo = (suf) => rows.find((r) => r.startsWith(`m11-cajon-${suf},`));
+    assert.ok(porSufijo('frente').includes(',562,177,1,si,'));
+    assert.ok(porSufijo('lateral-izq').includes(',499,141,1,no,'));
+    assert.ok(porSufijo('lateral-izq').includes(',18,"T,B,L",'));
+    assert.ok(porSufijo('fondo').startsWith('m11-cajon-fondo,Fondo cajon M1,503,141,1,no,#F2F2F2,18,,'));
+    // Base confinada: largo = lateral − 2·18 = 499 − 36 = 463.
+    assert.ok(porSufijo('base').includes(',503,463,1,si,'));
+  });
+
+  it('parsea limpio sobre un casco también de 18 mm', () => {
+    const E = 18;
+    const lines = [
+      header('Propiedad cajon E18', 'casco y cajon de 18 mm'),
+      line('m1-base', 'Base modulo M1', 600, 560, 1, 'si', '#C19A6B', E, 'T,B,L,R', 1),
+      line('m1-tapa', 'Tapa modulo M1', 600, 560, 1, 'si', '#C19A6B', E, 'T,B,L,R', 1),
+      line('m1-lateral-izq', 'Lateral izquierdo M1', 560, 1800, 1, 'no', '#C19A6B', E, 'T,B,L', 1),
+      line('m1-lateral-der', 'Lateral derecho M1', 560, 1800, 1, 'no', '#C19A6B', E, 'T,B,R', 1),
+      line('m1-fondo', 'Fondo modulo M1', 600 - 2 * E, 1800 - 2 * E, 1, 'no', '#F2F2F2', E, '', 1),
+      ...cajon(1, 1, {
+        anchoModulo: 600, profundidadModulo: 560, altoVano: 180, espesorModulo: E,
+        colorFrente: '#8B5A2B', colorLateral: '#D9C2A3',
+      }),
+    ];
+    const result = parseCSV(lines.join('\n'));
+    assert.equal(result.ok, true, result.errors?.join('; '));
+    const criticos = result.warnings.filter(
+      (w) => /no encaja en ninguno de los dos/.test(w) || /no cabe en interior/.test(w)
+    );
+    assert.deepEqual(criticos, [], criticos.join('; '));
+  });
+});
+
+describe('cajon() zapatera: división transversal (espejo de addShoeTray)', () => {
+  it('vocabulario zapatera agrega la división (misma luz que el fondo)', () => {
+    const rows = cajon(1, 1, {
+      anchoModulo: 800,
+      profundidadModulo: 500,
+      altoVano: 250,
+      vocabulario: 'zapatera',
+      colorFrente: '#C19A6B',
+      colorLateral: '#D9C2A3',
+      suffix: '1',
+    });
+    // 8 filas: frente + 2 laterales + fondo + cara + división + base + tirador.
+    assert.equal(rows.length, 8);
+    const division = rows.find((r) => r.startsWith('m11-zapatera-division,'));
+    assert.ok(division, 'falta la división transversal');
+    const fondo = rows.find((r) => r.startsWith('m11-zapatera-fondo,'));
+    // interior = round(770 − 25,4) − 30 = 715; latAlto = 247 − 30 = 217.
+    assert.ok(division.includes('Division zapatera extraible 1 M1,715,217,1,no,'), division);
+    assert.ok(division.includes(',715,217,'), 'misma luz y alto que el fondo');
+    assert.ok(fondo.includes(',715,217,'));
+  });
+
+  it('division: false la omite y el volquete jamás la lleva', () => {
+    const sinDivision = cajon(1, 1, {
+      anchoModulo: 800, profundidadModulo: 500, altoVano: 250,
+      vocabulario: 'zapatera', division: false,
+      colorFrente: '#C19A6B', colorLateral: '#D9C2A3',
+    });
+    assert.ok(!sinDivision.some((r) => r.includes('-division,')));
+    const volquete = cajon(1, 2, {
+      anchoModulo: 600, profundidadModulo: 300, altoVano: 580,
+      vocabulario: 'zapatera', tipo: 'volquete',
+      colorFrente: '#C19A6B', colorLateral: '#D9C2A3',
+    });
+    assert.ok(!volquete.some((r) => r.includes('-division,')));
+  });
+});
+
+describe('cajon() fondoMetodo ranurado (espejo de addDrawer)', () => {
+  const OPTS = {
+    anchoModulo: 850, profundidadModulo: 600, altoVano: 200,
+    colorFrente: '#8B5A2B', colorLateral: '#D9C2A3',
+  };
+
+  it('el fondo ranurado se corta más ancho (interior + 2·ranura) y más alto (lateral − 2·ranura)', () => {
+    const rows = cajon(1, 1, { ...OPTS, fondoMetodo: 'ranurado' });
+    // Mismas fórmulas que addDrawer: latAlto = 197 − 30 = 167;
+    // interior = round(820 − 25,4) − 30 = 765. Ranura 6: fondo 777 × 155.
+    const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
+    assert.ok(fondo, 'falta el fondo');
+    assert.ok(fondo.includes(',777,155,1,no,#F2F2F2,15,,'), fondo);
+    // La cara conserva el interior (765 × 167): solo el fondo cambia.
+    const cara = rows.find((r) => r.startsWith('m11-cajon-cara,'));
+    assert.ok(cara.includes(',765,167,1,no,'), cara);
+  });
+
+  it('es coherente con addDrawer pieza a pieza (mismas medidas del fondo)', async () => {
+    const { addDrawer } = await import('../../frontend/public/assembly-planner/js/services/closetBuilderService.js');
+    const builder = addDrawer(1, 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, fondoMetodo: 'ranurado' });
+    assert.ok(builder.ok, builder.errors?.join('; '));
+    const fondoBuilder = builder.pieces.find((p) => p.id.endsWith('-fondo'));
+    const rows = cajon(1, 1, { ...OPTS, fondoMetodo: 'ranurado' });
+    const fondoModel = rows.find((r) => r.startsWith('m11-cajon-fondo,')).split(',');
+    assert.equal(Number(fondoModel[2]), fondoBuilder.ancho, 'ancho del fondo: cajonModel = addDrawer');
+    assert.equal(Number(fondoModel[3]), fondoBuilder.alto, 'alto del fondo: cajonModel = addDrawer');
+  });
+
+  it('retrocompatibilidad: sin fondoMetodo el fondo mide interior × latAlto (como antes)', () => {
+    const rows = cajon(1, 1, OPTS);
+    const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
+    assert.ok(fondo.includes(',765,167,1,no,#F2F2F2,15,,'), fondo);
+  });
+
+  it('respeta el espesor del módulo (E=18): la ranura se acota a E/2', () => {
+    const rows = cajon(1, 1, { ...OPTS, espesorModulo: 18, fondoMetodo: 'ranurado' });
+    // latAlto = 197 − 36 = 161; interior = round(814 − 25,4) − 36 = 753.
+    // ranura = min(6, floor(18/2)) = 6 → fondo 765 × 149.
+    const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
+    assert.ok(fondo.includes(',765,149,1,no,#F2F2F2,18,,'), fondo);
+  });
+
+  it('el volquete conserva el fondo clásico aunque se pida ranurado', () => {
+    const rows = cajon(1, 1, { ...OPTS, tipo: 'volquete', altBandeja: 150, fondoMetodo: 'ranurado' });
+    const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
+    // Modelo clásico del volquete: interior × (latAlto − E).
+    assert.ok(fondo.includes(',788,135,1,no,'), fondo);
   });
 });

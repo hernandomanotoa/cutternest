@@ -17,19 +17,27 @@ export function tirador(id, nombre, color, modulo) {
 
 // Genera un cajón de 6 piezas coherente con el vano del módulo padre:
 // frente decorativo + 2 laterales + base + fondo + cara (frente interior de
-// la caja, entre los laterales) + tirador.
+// la caja, entre los laterales) + tirador. La zapatera (vocabulario
+// 'zapatera') agrega la división transversal (7 piezas, espejo de
+// addShoeTray): misma luz que el fondo y alto del lateral, rol
+// drawer_divider.
 // Reglas (las mismas que valida js/csvParser.js):
-//   W = anchoModulo − 2E · D = profundidadModulo − E − E (fondo y lateral de 15)
+//   W = anchoModulo − 2E · D = profundidadModulo − E − E (E = espesorModulo)
 //   frente.ancho = N===1 ? W−2 : floor((W − (N−1)×3)/N) − 1  (debe ser ≤ W−2)
 //   frente.alto = altoVano − 3
 //   profCajon = D − 25 (corredera telescópica) o D − 15 (volquete/abatible)
-//   lateral = profCajon × (frente.alto − 2×espBase): ABRAZA a cara y fondo
+//   lateral = profCajon × (frente.alto − 2E): ABRAZA a cara y fondo
 //   fondo = interior × latAlto: ESTRUCTURAL, interno a los laterales y a
 //   piso (la cara es su par frontal, también interna y a todo lo alto)
-//   base = interior × (profCajon − 2·espLat): confinada entre cara y fondo
+//   fondo ranurado (opts.fondoMetodo 'ranurado', solo corredera): embutido
+//   en ranura corrida a grooveDepth mm de la cara interior de cada lateral
+//   (espejo de addDrawer/closetBuilderService.js): se corta más ANCHO
+//   (interior + 2·ranura, cantos enterrados) y sube casi a la cara superior
+//   del lateral (alto = latAlto − 2·ranura)
+//   base = interior × (profCajon − 2E): confinada entre cara y fondo
 // Caja telescópica (RAIL_TYPES.telescopica, holgura 12,7 mm por lado):
 //   vanoCajon = N===1 ? W : frente.ancho + 2 (vano individual del cajón)
-//   boxExterior = round(vanoCajon − 25,4) · interior = boxExterior − 2·espLat
+//   boxExterior = round(vanoCajon − 25,4) · interior = boxExterior − 2E
 //   base/fondo/cara miden el INTERIOR de la caja (no el ancho del frente
 //   decorativo: éste es ~24 mm más ancho que lo que permite la corredera).
 // opts.vocabulario 'zapatera' nombra "zapatera extraible" en vez de "cajon"
@@ -45,11 +53,13 @@ export function cajon(parent, index, opts) {
     suffix = '',
     tipo = 'corredera',
     altBandeja = 150,
-    vocabulario = 'cajon'
+    vocabulario = 'cajon',
+    espesorModulo = 15, // espesor REAL del casco: W/D y caja descuentan E
+    division = true,    // zapatera: división transversal (espejo de addShoeTray)
+    fondoMetodo = 'apoyado', // 'apoyado' | 'ranurado' (espejo de addDrawer)
+    grooveDepth = 6,    // = DRAWER_GROOVE_DEPTH (core/config.js)
   } = opts;
-  const E = 15; // espesor de laterales y fondo del módulo en estos ejemplos
-  const ESP_LAT = 15; // espesor laterales del cajón
-  const ESP_BASE = 15; // espesor base del cajón
+  const E = espesorModulo; // espesor laterales/fondo del MODULO y de la caja
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
   const frenteAncho =
@@ -60,13 +70,13 @@ export function cajon(parent, index, opts) {
   // En el volquete la bandeja es baja: el lateral/fondo miden lo alto de la
   // bandeja, no del frente (el frente alto es el que pivota hacia adelante).
   const latAlto = volquete
-    ? Math.min(frenteAlto - 2 * ESP_BASE, altBandeja)
-    : frenteAlto - 2 * ESP_BASE;
+    ? Math.min(frenteAlto - 2 * E, altBandeja)
+    : frenteAlto - 2 * E;
   // El volquete/abatible queda fuera del modelo de corredera: mantiene el
   // cálculo clásico derivado del frente decorativo y sin pieza de cara.
   const interior = volquete
-    ? frenteAncho - 2 * ESP_LAT
-    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * 12.7) - 2 * ESP_LAT;
+    ? frenteAncho - 2 * E
+    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * 12.7) - 2 * E;
   const sm = `${parent}${index}`;
   const label = suffix ? ` ${suffix}` : '';
   const tipoNombre = volquete ? ' abatible' : '';
@@ -80,22 +90,35 @@ export function cajon(parent, index, opts) {
   const ladoDer = esZapatera ? ' der' : '';
   const rows = [
     `m${sm}-${idp}-frente,Frente ${frenteVocab}${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},15,"T,B,L,R",${sm}`,
-    `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L",${sm}`,
-    `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,R",${sm}`
+    `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${E},"T,B,L",${sm}`,
+    `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${E},"T,B,R",${sm}`
   ];
   if (!volquete) {
-    // Fondo y cara: INTERNOS a los laterales, a todo lo alto (fondo
-    // estructural a piso). La base queda confinada entre ambos.
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto},1,no,#F2F2F2,15,,${sm}`);
-    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${ESP_LAT},"T,B,L,R",${sm}`);
+    // Fondo: según el método. Apoyado: interno a los laterales, a todo lo
+    // alto (estructural a piso); la base queda confinada entre él y la cara.
+    // Ranurado: embutido en ranura corrida — más ancho (cantos enterrados
+    // ranura mm en cada lateral) y casi a la cara superior del lateral.
+    const ranurado = fondoMetodo === 'ranurado';
+    const ranura = ranurado
+      ? Math.min(Number(grooveDepth) > 0 ? Number(grooveDepth) : 6, Math.max(1, Math.floor(E / 2)))
+      : 0;
+    const fondoAncho = interior + 2 * ranura;
+    const fondoAlto = Math.max(0, latAlto - 2 * ranura);
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${fondoAlto},1,no,#F2F2F2,${E},,${sm}`);
+    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
   } else {
     // Volquete/abatible: se conserva el fondo clásico derivado del frente.
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - ESP_BASE},1,no,#F2F2F2,15,,${sm}`);
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - E},1,no,#F2F2F2,${E},,${sm}`);
+  }
+  if (esZapatera && !volquete && division) {
+    // División transversal (espejo de addShoeTray): misma luz que el fondo
+    // y alto del lateral; apoyo de la fila delantera a media profundidad.
+    rows.push(`m${sm}-${idp}-division,Division ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
   }
   rows.push(
     // Base confinada (perimetral): largo = lateral − 2·espLat, entre la
     // cara y el fondo.
-    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * ESP_LAT},1,si,${colorLateral},${ESP_BASE},"T,B,L,R",${sm}`,
+    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * E},1,si,${colorLateral},${E},"T,B,L,R",${sm}`,
     `m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
   );
   return rows;

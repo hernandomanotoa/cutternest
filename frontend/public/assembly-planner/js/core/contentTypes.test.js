@@ -14,6 +14,7 @@ import {
   stampTipoTag,
   tipoTagDe,
   vanoDesdeCara,
+  fondoMetodoDeTipo,
 } from './contentTypes.js';
 
 const TODOS = [...DRAWER_TYPES, ...SHOE_RACK_TYPES];
@@ -180,5 +181,34 @@ describe('contrato completo de tipo (fase 2)', () => {
     // cajaDelta del contrato distinto cambia la reconstrucción:
     const caraDelta = { nombre: 'Cara [custom] zapatera x M1', alto: 170 };
     assert.equal(vanoDesdeCara(caraDelta), 170 + 33, 'tipo desconocido: cae al 30+3');
+  });
+});
+
+describe('fondoMetodo (método de montaje del fondo del cajón)', () => {
+  it('los tipos del catálogo declaran fondoMetodo con valor del contrato', () => {
+    for (const t of DRAWER_TYPES) {
+      assert.ok(['apoyado', 'ranurado'].includes(t.fondoMetodo), `${t.id}: fondoMetodo del contrato`);
+    }
+  });
+
+  it('el catálogo base es todo apoyado (default retrocompatible)', () => {
+    assert.ok(DRAWER_TYPES.every((t) => t.fondoMetodo === 'apoyado'));
+  });
+
+  it('fondoMetodoDeTipo: resuelve del contrato; sin tag / id desconocido / sin campo → apoyado', () => {
+    assert.equal(fondoMetodoDeTipo('estandar'), 'apoyado');
+    assert.equal(fondoMetodoDeTipo(null), 'apoyado', 'sin tag');
+    assert.equal(fondoMetodoDeTipo('botas'), 'apoyado', 'id de zapatera: no aplica a cajones');
+    assert.equal(fondoMetodoDeTipo('nope'), 'apoyado', 'id desconocido');
+  });
+
+  it('fondoMetodoDeTipo resuelve un custom ranurado instalado en el catálogo en vivo', async () => {
+    const { saveCustomType, deleteCustomType } = await import('../services/customTypesService.js');
+    saveCustomType({ id: 'cus-ranurado-t', label: 'X', kind: 'drawer', altoVano: 200, fondoMetodo: 'ranurado' });
+    try {
+      assert.equal(fondoMetodoDeTipo('cus-ranurado-t'), 'ranurado');
+    } finally {
+      deleteCustomType('cus-ranurado-t');
+    }
   });
 });

@@ -9,7 +9,7 @@
 import { inferRole } from './classifierService.js';
 import { normalizeName } from '../utils/normalize.js';
 import { getRailType } from './railService.js';
-import { DEFAULT_RAIL_TYPE, DEFAULT_THICKNESS } from '../core/config.js';
+import { DEFAULT_RAIL_TYPE, DEFAULT_THICKNESS, DRAWER_GROOVE_DEPTH } from '../core/config.js';
 
 const PART_ROLES = ['drawer_side', 'drawer_bottom', 'drawer_back', 'drawer_part', 'drawer_divider'];
 
@@ -106,10 +106,20 @@ export function hasRealDrawerBox(parts) {
  * la caja, entre los laterales) se dibuja solo si está presente en el CSV
  * (compatibilidad hacia atrás con cajones de 5 piezas).
  *
+ * Método del fondo (opts.fondoMetodo, default 'apoyado'; el llamador lo
+ * resuelve del contrato [tipo] del frente): con 'ranurado' el fondo va
+ * embutido en la ranura corrida fresada en la cara interior de cada
+ * lateral: se dibuja entrando grooveDepth mm en cada lateral (su ancho
+ * real ya lo trae la pieza: interior + 2·ranura) y subido grooveDepth mm
+ * sobre el plano de la caja, con tope grooveDepth mm bajo la cara
+ * superior del lateral (alto máx. = latAlto − 2·ranura). En y corre de
+ * cara a trasera, como el fondo apoyado. Sin contrato (CSV viejos) el
+ * comportamiento es el histórico: detección por datos (fondo apoyado).
+ *
  * @returns {Array} [{x,y,z,w,d,h,color,role,name,id}] por pieza real; [] si el
  *   conjunto no alcanza el mínimo (hasRealDrawerBox).
  */
-export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE }) {
+export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE, fondoMetodo = 'apoyado', grooveDepth = DRAWER_GROOVE_DEPTH }) {
   if (!hasRealDrawerBox(parts)) return [];
 
   const rail = getRailType(railType);
@@ -172,22 +182,45 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
 
   if (parts.fondo) {
     const backRealW = Math.max(0, Number(parts.fondo.ancho) || 0);
-    const backW = backRealW > 0 ? Math.min(backRealW, maxInterior) : maxInterior;
-    // El fondo va APOYADO SOBRE la base (en un cajón real no comparten el
-    // plano inferior: z = zBox + espBase) y su alto se capa para no pasar
-    // el borde superior de los laterales: ocupa [zBox + espBase, zBox + latAlto).
-    // Fondo ESTRUCTURAL perimetral: interno a los laterales y A PISO (par
-    // trasero de la cara). Los CSV viejos (fondo apoyado sobre la base) se
-    // dibujan como indican sus medidas reales.
-    const backMaxH = Math.max(0, latAlto);
-    const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
     const backT = Number(parts.fondo.espesor) || thickness;
-    const backSobreBase = backH <= latAlto - espBase + 1 && Number(parts.fondo.alto) > 0;
-    box.push({
-      x: x + (w - backW) / 2, y: yFace - profLat, z: backSobreBase ? zBox + espBase : zBox,
-      w: backW, d: backT, h: backH,
-      color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
-    });
+    if (fondoMetodo === 'ranurado') {
+      // Fondo EMBUTIDO EN RANURA corrida: la ranura se fresa en la cara
+      // interior de cada lateral a grooveDepth mm de profundidad, corrida de
+      // cara a trasera. El fondo (cortado interior + 2·ranura) se dibuja
+      // entrando ranura mm en cada lateral y subido ranura mm sobre el plano
+      // de la caja: ocupa [zBox + ranura, zBox + latAlto − ranura) — sube
+      // hasta ranura mm bajo la cara superior del lateral.
+      const gd = Math.min(
+        Number(grooveDepth) > 0 ? Number(grooveDepth) : DRAWER_GROOVE_DEPTH,
+        Math.max(1, Math.floor(espLat / 2)),
+      );
+      const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
+      const backWMax = interiorBetween + 2 * gd;
+      const backW = backRealW > 0 ? Math.min(backRealW, backWMax) : backWMax;
+      const backMaxH = Math.max(0, latAlto - 2 * gd);
+      const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
+      box.push({
+        x: latX[0] + espLat - gd, y: yFace - profLat, z: zBox + gd,
+        w: backW, d: backT, h: backH,
+        color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
+      });
+    } else {
+      const backW = backRealW > 0 ? Math.min(backRealW, maxInterior) : maxInterior;
+      // El fondo va APOYADO SOBRE la base (en un cajón real no comparten el
+      // plano inferior: z = zBox + espBase) y su alto se capa para no pasar
+      // el borde superior de los laterales: ocupa [zBox + espBase, zBox + latAlto).
+      // Fondo ESTRUCTURAL perimetral: interno a los laterales y A PISO (par
+      // trasero de la cara). Los CSV viejos (fondo apoyado sobre la base) se
+      // dibujan como indican sus medidas reales.
+      const backMaxH = Math.max(0, latAlto);
+      const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
+      const backSobreBase = backH <= latAlto - espBase + 1 && Number(parts.fondo.alto) > 0;
+      box.push({
+        x: x + (w - backW) / 2, y: yFace - profLat, z: backSobreBase ? zBox + espBase : zBox,
+        w: backW, d: backT, h: backH,
+        color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
+      });
+    }
   }
 
   // Cara: frente interior de la caja (va justo detrás del frente decorativo).

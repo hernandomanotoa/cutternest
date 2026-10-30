@@ -53,6 +53,22 @@ describe('customTypesService — guardar y resolver', () => {
     deleteCustomType('cus-b');
   });
 
+  it('fondoMetodo: valida el valor y normaliza al contrato (default apoyado)', () => {
+    const invalido = saveCustomType({ id: 'cus-fondo-x', label: 'X', kind: 'drawer', altoVano: 200, fondoMetodo: 'flotante' });
+    assert.equal(invalido.ok, false, 'fondoMetodo inválido rechazado');
+    assert.ok(invalido.errors.some((e) => e.includes('fondo')), 'el error nombra el fondo');
+
+    const ranurado = saveCustomType({ id: 'cus-fondo-r', label: 'X', kind: 'drawer', altoVano: 200, fondoMetodo: 'ranurado' });
+    assert.ok(ranurado.ok, ranurado.errors?.join('; '));
+    assert.equal(getContentType('drawer', 'cus-fondo-r').fondoMetodo, 'ranurado');
+
+    const implicito = saveCustomType({ id: 'cus-fondo-d', label: 'X', kind: 'drawer', altoVano: 200 });
+    assert.ok(implicito.ok);
+    assert.equal(getContentType('drawer', 'cus-fondo-d').fondoMetodo, 'apoyado', 'default retrocompatible');
+    deleteCustomType('cus-fondo-r');
+    deleteCustomType('cus-fondo-d');
+  });
+
   it('editar (mismo id) actualiza sin colisión consigo mismo', () => {
     saveCustomType({ id: 'cus-edit', label: 'V1', ...ZAPATERA });
     const r = saveCustomType({ id: 'cus-edit', label: 'V2', ...ZAPATERA, altoVano: 180 });

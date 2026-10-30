@@ -5,7 +5,8 @@
 // Todas las funciones devuelven { ok: true, pieces } o { ok: false, errors }
 // y nunca lanzan: la vista muestra los errors en un toast.
 
-import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, stampTipoTag } from '../core/contentTypes.js';
+import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, stampTipoTag, getContentType, fondoMetodoDeTipo } from '../core/contentTypes.js';
+import { DRAWER_GROOVE_DEPTH } from '../core/config.js';
 
 const ESPESORES_VALIDOS = [15, 18, 25];
 const HOLGURA_CORREDERA = 12.7; // mm por lado (RAIL_TYPES.telescopica)
@@ -82,6 +83,19 @@ function validateEspesor(value, errors) {
     return false;
   }
   return true;
+}
+
+// Espesor real del casco de un modulo a partir de sus piezas (el lateral
+// primero; si falta, de la tapa o la base). Default 15 mm (catalogo). Es la
+// forma de consultar E cuando solo se tienen las piezas (p. ej. al
+// regenerar contenido tras editar dimensiones).
+export function moduleEspesor(pieces, moduleId) {
+  const casco = [`m${moduleId}-lateral-izq`, `m${moduleId}-tapa`, `m${moduleId}-base`];
+  for (const id of casco) {
+    const p = (pieces || []).find((x) => String(x.id) === id);
+    if (p && ESPESORES_VALIDOS.includes(Number(p.espesor))) return Number(p.espesor);
+  }
+  return 15;
 }
 
 // El shape de pieza del store usa rotate BOOLEANO (validatePiece de
@@ -248,6 +262,14 @@ function moduloDestino(pieceObj, moduleId, newModuleId) {
 
 // ── Cajón / zapatera ──────────────────────────────────────────────
 
+// Profundidad efectiva de la ranura, acotada a la mitad del espesor del
+// lateral (la fresa nunca atraviesa el panel). DRAWER_GROOVE_DEPTH es la
+// medida de taller versionada en core/config.js.
+export function grooveDepthEfectivo(grooveDepth, espLat) {
+  const pedida = Number(grooveDepth) > 0 ? Number(grooveDepth) : DRAWER_GROOVE_DEPTH;
+  return Math.min(pedida, Math.max(1, Math.floor((Number(espLat) || DRAWER_GROOVE_DEPTH) / 2)));
+}
+
 // Port de cajon() de cajonModel.mjs (mismas formulas y vocabulario):
 // frente + 2 laterales + base + fondo + cara + tirador. La caja queda
 // CAJA_MAS_BAJA_QUE_FRENTE mm mas baja que el frente y la corredera
@@ -257,6 +279,21 @@ function moduloDestino(pieceObj, moduleId, newModuleId) {
 // soporta moduleService pero el validador de torres lo trata como modulo
 // independiente) para que moduleService.describeSubmodule las etiquete
 // "Cajon 1"/"Zapatera 2".
+//
+// Método del fondo (opts.fondoMetodo, contrato del tipo):
+//   - 'apoyado' (default, retrocompatible): fondo estructural interno a los
+//     laterales y a piso (alto = latAlto, par trasero de la cara).
+//   - 'ranurado': fondo embutido en ranura corrida fresada en la cara
+//     interior de cada lateral (corrida de cara a trasera, a
+//     grooveDepthEfectivo mm de profundidad). El fondo se corta MÁS ANCHO
+//     (ancho = interior + 2·ranura: los cantos quedan enterrados en la
+//     ranura) y MÁS ALTO que el fondo apoyado sobre la base: alto =
+//     latAlto − 2·ranura, subiendo hasta ranura mm bajo la cara superior
+//     del lateral (igual margen abajo: la fresa sale antes del borde y el
+//     fondo esquiva la esquina trasera de la base). La base sigue apoyada
+//     como en el método apoyado; frente/cara/tirador no cambian.
+// El método efectivo sale de opts.fondoMetodo; si no viene, del tipo
+// (opts.tipoId → DRAWER_TYPES/custom types); si tampoco, 'apoyado'.
 export function addDrawer(moduleId, index, {
   anchoModulo,
   profundidadModulo,
@@ -268,38 +305,44 @@ export function addDrawer(moduleId, index, {
   nPorFila = 1,
   altBandeja = 150,
   espesorFrente = 15,
+  espesorModulo = 15, // espesor REAL del casco (createModule): la caja descuenta E
   riel = RIEL_DEFAULT,
   frenteLuz = 1,
   tipoId = null, // tag [tipo] en frente/cara: el contrato sobrevive al CSV
+  fondoMetodo = null, // 'apoyado' | 'ranurado' | null (null → del tipo)
+  grooveDepth = DRAWER_GROOVE_DEPTH,
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
   validateDimension(profundidadModulo, 'profundidadModulo', errors, { min: 100 });
   validateDimension(altoVano, 'altoVano', errors, { min: 50 });
+  validateEspesor(espesorModulo, errors);
   if (!['corredera', 'volquete'].includes(tipo)) errors.push(`tipo: "${tipo}" no soportado (corredera|volquete)`);
   if (riel === 'marco') errors.push('riel "marco" solo aplica a zapateras (herraje de catálogo)');
   if (!['cajon', 'zapatera'].includes(vocabulario)) errors.push(`vocabulario: "${vocabulario}" no soportado (cajon|zapatera)`);
+  const metodoFondo = fondoMetodo ?? (tipoId ? fondoMetodoDeTipo(tipoId) : 'apoyado');
+  if (!['apoyado', 'ranurado'].includes(metodoFondo)) {
+    errors.push(`fondoMetodo: "${metodoFondo}" no soportado (apoyado|ranurado)`);
+  }
   const cf = validateColor(colorFrente, errors, 'colorFrente');
   const cl = validateColor(colorLateral, errors, 'colorLateral');
   if (errors.length) return { ok: false, errors };
 
-  const E = 15; // espesor laterales/fondo del MODULO (mismo modelo que cajonModel)
-  const ESP_LAT = 15;
-  const ESP_BASE = 15;
+  const E = espesorModulo; // espesor del MODULO: W/D y caja descuentan E
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
   const frenteAncho = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
   const frenteAlto = altoVano - 3;
   const volquete = tipo === 'volquete';
   // El tipo de riel define las medidas de la caja (spec del taller).
-  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, ESP_LAT);
+  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, E);
   const profCajon = volquete ? D - 15 : rielRegla.fondoMm(profundidadModulo, E);
   const latAlto = volquete
-    ? Math.min(frenteAlto - 2 * ESP_BASE, altBandeja)
-    : frenteAlto - 2 * ESP_BASE;
+    ? Math.min(frenteAlto - 2 * E, altBandeja)
+    : frenteAlto - 2 * E;
   const interior = volquete
-    ? frenteAncho - 2 * ESP_LAT
-    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * rielHolgura) - 2 * ESP_LAT;
+    ? frenteAncho - 2 * E
+    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * rielHolgura) - 2 * E;
 
   if (interior <= 0) {
     return { ok: false, errors: [`cajon: vano de ${anchoModulo} mm demasiado estrecho para ${nPorFila} cajon/cajones`] };
@@ -319,22 +362,28 @@ export function addDrawer(moduleId, index, {
   // El indice de insercion va en el nombre para distinguir frentes en la
   // tabla de offsets y en el manual (antes todos decian "Frente cajon M1").
   const num = ` ${index}`;
+  // Fondo: según el método. 'apoyado' (default): estructural, interno a los
+  // laterales y a piso (par trasero de la cara). 'ranurado': embutido en
+  // ranura corrida — se corta MÁS ANCHO (cantos enterrados ranura mm en
+  // cada lateral) y sube hasta ranura mm bajo la cara superior del lateral
+  // (alto = lateral − 2·ranura; ver JSDoc del método).
+  const ranura = metodoFondo === 'ranurado' && !volquete ? grooveDepthEfectivo(grooveDepth, E) : 0;
+  const fondoAncho = interior + 2 * ranura;
+  const fondoAlto = Math.max(0, latAlto - 2 * ranura);
   const pieces = [
     piece(`m${moduleId}${idp}${index}-frente`, stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
-    // Fondo ESTRUCTURAL: interno a los laterales y a piso (par trasero de
-    // la cara); la cara y el fondo van a todo lo alto entre los costados.
-    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, interior, latAlto, { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, fondoAncho, fondoAlto, { color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
   ];
   if (!volquete) {
-    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, stampTipoTag(`Cara ${vocab}${num} M${moduleId}`, tipoId), interior, latAlto, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, stampTipoTag(`Cara ${vocab}${num} M${moduleId}`, tipoId), interior, latAlto, { color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     // Convención perimetral (auditoría estructural): la base queda confinada
     // entre la cara y el fondo → largo = lateral − 2·espLat. El volquete
     // conserva su bandeja clásica.
-    piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab}${num} M${moduleId}`, interior, volquete ? profCajon : profCajon - 2 * ESP_LAT, { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab}${num} M${moduleId}`, interior, volquete ? profCajon : profCajon - 2 * E, { rotate: 'si', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-tirador`, `Tirador ${vocab}${num} M${moduleId}`, 2, 20, { color: '#A0A0A0', espesor: 5, cantos: '', modulo: sub }),
   );
   const warnings = [];
@@ -408,26 +457,26 @@ export function addShoeTray(moduleId, index, {
   division = true,
   riel = RIEL_DEFAULT,
   frenteLuz = 1,
+  espesorModulo = 15, // espesor REAL del casco (createModule): la bandeja descuenta E
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
   validateDimension(profundidadModulo, 'profundidadModulo', errors, { min: 100 });
   validateDimension(altoVano, 'altoVano', errors, { min: 50 });
   validateDimension(altoLateral, 'altoLateral', errors, { min: 40 });
+  validateEspesor(espesorModulo, errors);
   const cf = validateColor(colorFrente, errors, 'colorFrente');
   const cl = validateColor(colorLateral, errors, 'colorLateral');
   if (errors.length) return { ok: false, errors };
 
-  const E = 15;
-  const ESP_LAT = 15;
-  const ESP_BASE = 15;
+  const E = espesorModulo; // espesor del MODULO: W/D y bandeja descuentan E
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
   const frenteAncho = W - 2 * frenteLuz;
   const frenteAlto = altoVano - 3;
   const profBandeja = D - 25; // corredera telescópica
-  const latAlto = Math.min(altoLateral, frenteAlto - 2 * ESP_BASE); // lateral bajo
-  const interior = Math.round((W - 2 * HOLGURA_CORREDERA)) - 2 * ESP_LAT;
+  const latAlto = Math.min(altoLateral, frenteAlto - 2 * E); // lateral bajo
+  const interior = Math.round((W - 2 * HOLGURA_CORREDERA)) - 2 * E;
 
   if (interior <= 0) {
     return { ok: false, errors: [`zapatera: vano de ${anchoModulo} mm demasiado estrecho`] };
@@ -451,9 +500,9 @@ export function addShoeTray(moduleId, index, {
       ],
     };
   }
-  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, ESP_LAT);
+  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, E);
   const profBandeja2 = rielRegla.fondoMm(profundidadModulo, E);
-  const interior2 = Math.round(W - 2 * rielHolgura) - 2 * ESP_LAT;
+  const interior2 = Math.round(W - 2 * rielHolgura) - 2 * E;
   const rielTagZ = riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
   // Frente completo (botas): el frente ES el cierre estructural de la bandeja
   // (no hay cara) — se fuerza aunque conFrente=false. En la bandeja abierta,
@@ -464,7 +513,7 @@ export function addShoeTray(moduleId, index, {
   // cara no sobresalga del lateral. Con frente aplica la geometría de cajón
   // habitual (la cara queda detrás del frente, más baja que él).
   const altoBandeja = ladosIguales && !llevaFrente
-    ? Math.max(40, Math.min(rim, frenteAlto - 2 * ESP_BASE))
+    ? Math.max(40, Math.min(rim, frenteAlto - 2 * E))
     : null;
   const altoLado = altoBandeja ?? latAlto;
   const pieces = [];
@@ -472,28 +521,28 @@ export function addShoeTray(moduleId, index, {
     pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
-    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: ESP_LAT, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, altoLado), { color: '#F2F2F2', espesor: 15, cantos: '', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, altoLado), { color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
   );
   if (!frenteCompleto) {
     // Frente bajo (o bandeja abierta): la cara cierra la abertura sobre la
     // bandeja (como cajón). Sin frente decorativo, la cara ES la cara
     // visible de la bandeja y por donde se jala. En la bandeja a la vista
     // (ladosIguales) la cara va al mismo alto que los laterales.
-    const altoCara = altoBandeja ?? Math.max(20, frenteAlto - 2 * ESP_BASE);
-    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    const altoCara = altoBandeja ?? Math.max(20, frenteAlto - 2 * E);
+    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
   }
   if (division) {
     // División central (por defecto): apoyo paralelo al fondo a media
     // profundidad de la bandeja. Sirve de respaldo para la fila delantera
     // de zapatos; la fila trasera se apoya en el fondo. El renderer la
     // posiciona centrada (rol drawer_divider).
-    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, altoLado), { color: cl, espesor: ESP_LAT, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, altoLado), { color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     // Base confinada (perimetral): entre la cara y el fondo.
-    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior2, Math.max(50, profBandeja2 - 2 * ESP_LAT), { rotate: 'si', color: cl, espesor: ESP_BASE, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior2, Math.max(50, profBandeja2 - 2 * E), { rotate: 'si', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }),
   );
   if (llevaFrente) {
     // El tirador va atornillado al frente decorativo: sin frente, no va.
@@ -569,9 +618,10 @@ export function nextContentIndex(pieces, moduleId, kind) {
 }
 
 // Atajo de alto nivel: construye un closet completo desde una config.
-// modules: [{ ancho, alto, prof, espesor?, colorCuerpo?, contenido:
+// modules: [{ ancho, alto, prof, espesor?, colorCuerpo?, colorFrente?, contenido:
 // [{ kind: 'zocalo', alto? } | { kind: 'shelf', index? } |
 //   { kind: 'drawer', index?, altoVano, tipo?, vocabulario? } |
+//   { kind: 'shoeRack', altoVano?, tipo? (id de SHOE_RACK_TYPES), conFrente? } |
 //   { kind: 'rail', index? }] }]. Los modulos se numeran secuencialmente
 // salvo que vengan con moduleId explícito.
 export function buildCloset(config) {
@@ -614,12 +664,31 @@ export function buildCloset(config) {
         result = addShelf(moduleId, { anchoUtil: interiorW, profReal: interiorD, espesor: mod.espesor ?? 15, index: shelfIndex });
       } else if (item.kind === 'drawer' || item.kind === 'shoeRack') {
         drawerIndex += 1;
-        result = addDrawer(moduleId, drawerIndex, {
-          anchoModulo: mod.ancho, profundidadModulo: mod.prof, altoVano: item.altoVano ?? 200,
-          tipo: item.tipo ?? 'corredera',
-          vocabulario: item.kind === 'shoeRack' ? 'zapatera' : (item.vocabulario ?? 'cajon'),
-          colorFrente: mod.colorFrente ?? '#8B5A2B', colorLateral: mod.colorCuerpo ?? '#D9C2A3',
-        });
+        if (item.kind === 'shoeRack') {
+          // Bandeja zapatera real (con división y contrato de tipo), no un
+          // cajón con vocabulario 'zapatera': el tipo del contenido fija
+          // frenteCompleto/conFrente/rim (default: con frente, división).
+          const tipoZap = item.tipo ? getContentType('shoeRack', item.tipo) : null;
+          result = addShoeTray(moduleId, drawerIndex, {
+            anchoModulo: mod.ancho, profundidadModulo: mod.prof,
+            altoVano: tipoZap?.altoVano ?? item.altoVano ?? 200,
+            frenteCompleto: tipoZap ? !!tipoZap.frenteCompleto : !!item.frenteCompleto,
+            conFrente: item.conFrente ?? tipoZap?.conFrenteDefault,
+            ladosIguales: tipoZap ? !!tipoZap.ladosIguales : !!item.ladosIguales,
+            rim: tipoZap?.rim,
+            tipoId: item.tipo ?? null,
+            espesorModulo: mod.espesor ?? 15,
+            colorFrente: mod.colorFrente ?? '#8B5A2B', colorLateral: mod.colorCuerpo ?? '#D9C2A3',
+          });
+        } else {
+          result = addDrawer(moduleId, drawerIndex, {
+            anchoModulo: mod.ancho, profundidadModulo: mod.prof, altoVano: item.altoVano ?? 200,
+            tipo: item.tipo ?? 'corredera',
+            vocabulario: item.vocabulario ?? 'cajon',
+            espesorModulo: mod.espesor ?? 15,
+            colorFrente: mod.colorFrente ?? '#8B5A2B', colorLateral: mod.colorCuerpo ?? '#D9C2A3',
+          });
+        }
       } else if (item.kind === 'rail') {
         railIndex += 1;
         result = addHangerRail(moduleId, { anchoUtil: interiorW, index: railIndex });

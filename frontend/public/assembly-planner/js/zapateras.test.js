@@ -5,7 +5,8 @@
  * scripts/generar-ejemplos-assembly.mjs:
  *   - ejemplo-zapatero-volquete.csv   (cajones abatibles / volquete)
  *   - ejemplo-zapatero-extraible.csv  (5 zapateras-cajón extraíbles en correderas;
- *                                      caja completa de 6 piezas con fondo y cara)
+ *                                      caja completa de 7 piezas con fondo, cara
+ *                                      y división transversal)
  *   - ejemplo-zapatero-banco.csv      (asiento + 2 cajones a nivel de piso)
  *   - ejemplo-zapatera-repisa.csv     (6 bandejas extraíbles de 6 piezas, sin tirador;
  *                                      apertura rail)

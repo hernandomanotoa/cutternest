@@ -8,6 +8,7 @@
  */
 
 import { ROLE_COLORS, VERTICAL_POSITIONS } from '../../../core/config.js';
+import { fondoMetodoDeTipo, tipoTagDe } from '../../../core/contentTypes.js';
 import { inferRole } from '../../../services/classifierService.js';
 import { buildDrawerBoxGeometries, hasRealDrawerBox, matchDrawerBoxParts } from '../../../services/drawerGeometryService.js';
 import { getPieceDims } from '../../../services/geometryService.js';
@@ -149,8 +150,13 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
       // (traslación rail o rotation volquete) mueve la caja con el frente.
       const drawerBox = matchDrawerBoxParts(d.face, roles.filter((p) => !consumed.has(p.id)));
       if (hasRealDrawerBox(drawerBox)) {
+        // Método del fondo: del contrato [tipo] del frente (los customs
+        // inyectados en DRAWER_TYPES también resuelven). Sin tag → 'apoyado'
+        // (comportamiento histórico, detección por datos).
+        const fondoMetodo = fondoMetodoDeTipo(tipoTagDe(d.face?.nombre));
         const boxGeos = buildDrawerBoxGeometries({
           parts: drawerBox, x, yFace, z: currentZ, w, h, thickness, fallbackDepth: drawerDepth, railType,
+          fondoMetodo,
         });
         boxGeos.forEach((g) => consumed.add(g.id));
         boxGeos.forEach((g) => geometries.push(rail(g)));

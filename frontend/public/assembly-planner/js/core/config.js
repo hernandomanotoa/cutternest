@@ -107,6 +107,12 @@ export const RAIL_TYPES = {
 
 export const DEFAULT_RAIL_TYPE = 'telescopica';
 
+// Profundidad estándar de la ranura del fondo embutido (fondoMetodo
+// 'ranurado'): canal corrido fresado en la cara interior de cada lateral,
+// medido desde esa cara hacia dentro del espesor. 6 mm en melamina de 15
+// deja ~3 mm de pared (la ranura nunca supera la mitad del espesor).
+export const DRAWER_GROOVE_DEPTH = 6;
+
 export const STRUCTURAL = {
   defaultEMpa: 2500,
   defaultSigmaMpa: 18,
@@ -257,8 +263,10 @@ export const GOLA_PERFIL_TALLER = {
   golaStripDepth: 60,        // profundidad de la tira (mm)
   golaStripSetback: 10,      // retranqueo detrás del plano de frentes (mm)
   golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
-  golaTornillosPorPerfil: 2, // tornillos de fijación por perfil
+  golaTornillosPorPerfil: 2, // tornillos de fijación por lado del fondo de canal
+  golaSoporteTraseroDesde: 900, // luz del canal (ancho interior) a partir de la cual el fondo lleva soporte trasero (mm)
   golaMaxOverhang: 120,      // máx. sobrealtura del frente L respecto a su caja (mm)
+  golaMinAperturaUtil: 20,   // mín. abertura útil de agarre (hueco libre real para los dedos, mm)
   golaFijacion: 'Tornillos 3.5×16 + soporte trasero — según taller, verificar con catálogo',
 };
 

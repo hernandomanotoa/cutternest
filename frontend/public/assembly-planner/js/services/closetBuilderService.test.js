@@ -20,6 +20,7 @@ import {
   nextContentIndex,
   duplicateModulePieces,
   buildCloset,
+  moduleEspesor,
 } from './closetBuilderService.js';
 import { parseCSV, piecesToCSV } from './csvParser.js';
 import { inferRole } from './classifierService.js';
@@ -239,12 +240,85 @@ describe('buildCloset', () => {
     assert.ok(r.ok, r.errors?.join('; '));
     // M1: casco 5 + zocalo 1 + barra 1 + repisa(820>=600, con refuerzo) 2 = 9
     assert.equal(r.pieces.filter((p) => p.modulo === '1').length, 9);
-    // M2: casco 5 + repisa 2 + cajon 6 + zapatera 6; cajon/zapatera en submodulos
+    // M2: casco 5 + repisa 2 + cajon 7 + zapatera(addShoeTray: frente + 2
+    // laterales + fondo + cara + division + base + tirador = 8)
     assert.equal(r.pieces.filter((p) => p.modulo === '2').length, 7);
-    assert.equal(r.pieces.filter((p) => p.modulo === '21' || p.modulo === '22').length, 14);
+    assert.equal(r.pieces.filter((p) => p.modulo === '21' || p.modulo === '22').length, 15);
     const { result } = reparse(r.pieces);
     assert.equal(result.ok, true, result.errors?.join('; '));
     assert.equal(result.warnings.length, 0, result.warnings?.join('; '));
+  });
+
+  it('shoeRack genera bandeja zapatera real: división + contrato de tipo', () => {
+    const r = buildCloset({
+      modules: [
+        { ancho: 850, alto: 2400, prof: 600, contenido: [{ kind: 'shoeRack', tipo: 'tenis' }] },
+      ],
+    });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const division = r.pieces.find((p) => p.id === 'm1zapatera1-division');
+    assert.ok(division, 'la zapatera lleva división transversal');
+    assert.equal(inferRole(division), 'drawer_divider');
+    const frente = r.pieces.find((p) => p.id === 'm1zapatera1-frente');
+    assert.match(frente.nombre, /zapatera extraible/);
+    assert.match(frente.nombre, /\[tenis\]/, 'contrato de tipo en el frente');
+    // El vano del tipo (tenis = 200) manda sobre el default.
+    assert.equal(frente.alto, 197);
+    const { result } = reparse(r.pieces);
+    assert.equal(result.ok, true, result.errors?.join('; '));
+    assert.equal(result.warnings.length, 0, result.warnings?.join('; '));
+  });
+
+  it('el espesor del modulo (18 mm) descuenta en toda la caja del cajón', () => {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 18, modulo: '1' });
+    assert.ok(casco.ok);
+    const r = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, espesorModulo: 18 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const porId = (suf) => r.pieces.find((p) => p.id.endsWith(suf));
+    // W = 850 − 36 = 814; frente = W − 2.
+    assert.equal(porId('-frente').ancho, 812);
+    assert.equal(porId('-frente').alto, 197);
+    // Lateral alto = frente − 2·18 = 161; prof = 600 − 36 − 25 = 539.
+    assert.equal(porId('-lateral-izq').alto, 161);
+    assert.equal(porId('-lateral-izq').ancho, 539);
+    assert.equal(porId('-lateral-izq').espesor, 18);
+    // Interior = round(814 − 25,4) − 36 = 753 (fondo/cara/base).
+    assert.equal(porId('-fondo').ancho, 753);
+    assert.equal(porId('-fondo').espesor, 18);
+    // Base confinada: largo = lateral − 2·18 = 503.
+    assert.equal(porId('-base').alto, 503);
+    assert.equal(porId('-base').espesor, 18);
+    const { result } = reparse([...casco.pieces, ...r.pieces]);
+    assert.equal(result.ok, true, result.errors?.join('; '));
+  });
+
+  it('el espesor del modulo (18 mm) descuenta en la zapatera y su división', () => {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 18, modulo: '1' });
+    const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, espesorModulo: 18 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const porId = (suf) => r.pieces.find((p) => p.id.endsWith(suf));
+    assert.equal(porId('-frente').ancho, 812, 'W = 850 − 2·18; frente = W − 2');
+    // Bandeja: prof = 600 − 36 − 25 = 539; interior = 753.
+    assert.equal(porId('-lateral-izq').ancho, 539);
+    assert.equal(porId('-fondo').ancho, 753);
+    assert.equal(porId('-cara').alto, 161, 'cara = frente − 2·18');
+    const division = porId('-division');
+    assert.ok(division);
+    assert.equal(division.ancho, 753, 'misma luz que el fondo');
+    assert.equal(division.alto, porId('-fondo').alto, 'alto del lateral');
+    assert.equal(division.espesor, 18);
+    // Base confinada: 539 − 36 = 503.
+    assert.equal(porId('-base').alto, 503);
+    const { result } = reparse([...casco.pieces, ...r.pieces]);
+    assert.equal(result.ok, true, result.errors?.join('; '));
+  });
+
+  it('moduleEspesor lee el espesor real del casco (lateral/tapa/base)', () => {
+    const casco18 = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 18, modulo: '1' });
+    assert.equal(moduleEspesor(casco18.pieces, '1'), 18);
+    const casco15 = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    assert.equal(moduleEspesor(casco15.pieces, '1'), 15);
+    assert.equal(moduleEspesor([], '1'), 15, 'sin casco cae al default');
   });
 
   it('propiedad: 100 closets aleatorios parsean sin errores ni warnings', () => {
@@ -453,6 +527,108 @@ describe('tipo tag [tipo] en frente/cara (contrato que sobrevive al CSV)', () =>
     assert.ok(r.ok);
     assert.match(r.pieces.find((p) => p.id.endsWith('-frente')).nombre, /\[estandar\]/);
     assert.match(r.pieces.find((p) => p.id.endsWith('-cara')).nombre, /\[estandar\]/);
+  });
+});
+
+describe('addDrawer: método del fondo (fondoMetodo)', () => {
+  const BASE_OPTS = { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 };
+
+  it('fondo ranurado: más ancho (interior + 2·ranura) y sube casi a la cara superior del lateral', () => {
+    const r = addDrawer('1', 1, { ...BASE_OPTS, fondoMetodo: 'ranurado' });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
+    const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+    const lateral = r.pieces.find((p) => p.id.endsWith('lateral-izq'));
+    // ranura = DRAWER_GROOVE_DEPTH (6) ≤ E/2. latAlto = 197 − 2·15 = 167.
+    assert.equal(fondo.ancho, cara.ancho + 12, 'interior + 2·6: cantos enterrados en la ranura');
+    assert.equal(fondo.alto, lateral.alto - 12, 'alto = lateral − 2·ranura');
+    assert.ok(
+      fondo.alto > lateral.alto - 15,
+      'más alto que un fondo apoyado sobre la base (lateral − E = 152)'
+    );
+    // Frente/cara/tirador no cambian respecto al método apoyado:
+    const rApoyado = addDrawer('1', 1, { ...BASE_OPTS });
+    const clave = (piezas) => piezas
+      .filter((p) => !p.id.endsWith('-fondo'))
+      .map((p) => `${p.id}:${p.ancho}x${p.alto}`).join('|');
+    assert.equal(clave(r.pieces), clave(rApoyado.pieces), 'solo el fondo cambia de medidas');
+  });
+
+  it('retrocompatibilidad: sin fondoMetodo el fondo mide interior × latAlto (como antes)', () => {
+    const r = addDrawer('1', 1, { ...BASE_OPTS });
+    assert.ok(r.ok);
+    const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
+    const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+    const lateral = r.pieces.find((p) => p.id.endsWith('lateral-izq'));
+    assert.equal(fondo.ancho, cara.ancho);
+    assert.equal(fondo.alto, lateral.alto);
+  });
+
+  it('respeta el espesor del módulo: con E=18 la caja descuenta 18 y la ranura se acota a E/2', () => {
+    const r = addDrawer('1', 1, { ...BASE_OPTS, espesorModulo: 18, fondoMetodo: 'ranurado' });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
+    const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+    const lateral = r.pieces.find((p) => p.id.endsWith('lateral-izq'));
+    assert.equal(lateral.alto, 197 - 36, 'latAlto con E=18');
+    // ranura = min(6, floor(18/2)) = 6
+    assert.equal(fondo.ancho, cara.ancho + 12);
+    assert.equal(fondo.alto, lateral.alto - 12);
+  });
+
+  it('el contrato del tipo fija el método (tipoId con fondoMetodo ranurado) y el re-parseo es limpio', async () => {
+    const { saveCustomType, deleteCustomType } = await import('./customTypesService.js');
+    const saved = saveCustomType({
+      id: 'cus-test-ranurado', kind: 'drawer', label: 'Cajón ranurado test',
+      altoVano: 200, fondoMetodo: 'ranurado',
+    });
+    assert.ok(saved.ok, saved.errors?.join('; '));
+    try {
+      const r = addDrawer('1', 1, { ...BASE_OPTS, tipoId: 'cus-test-ranurado' });
+      assert.ok(r.ok, r.errors?.join('; '));
+      const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
+      const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+      assert.equal(fondo.ancho, cara.ancho + 12, 'el tipo impone fondo ranurado');
+      const { result } = reparseWithCasco(r.pieces);
+      assert.equal(result.ok, true, result.errors?.join('; '));
+      assert.equal(
+        result.warnings.filter((w) => w.includes('fondo cajón') || w.includes('descuento de riel')).length,
+        0,
+        `warnings inesperados: ${result.warnings.join(' | ')}`
+      );
+    } finally {
+      deleteCustomType('cus-test-ranurado');
+    }
+  });
+
+  it('fondoMetodo explícito gana sobre el del tipo', async () => {
+    const { saveCustomType, deleteCustomType } = await import('./customTypesService.js');
+    saveCustomType({
+      id: 'cus-test-ranurado2', kind: 'drawer', label: 'Cajón ranurado test 2',
+      altoVano: 200, fondoMetodo: 'ranurado',
+    });
+    try {
+      const r = addDrawer('1', 1, { ...BASE_OPTS, tipoId: 'cus-test-ranurado2', fondoMetodo: 'apoyado' });
+      assert.ok(r.ok, r.errors?.join('; '));
+      const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
+      const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+      assert.equal(fondo.ancho, cara.ancho, 'el override apoyado gana sobre el tipo ranurado');
+    } finally {
+      deleteCustomType('cus-test-ranurado2');
+    }
+  });
+
+  it('rechaza fondoMetodo inválido sin lanzar', () => {
+    const r = addDrawer('1', 1, { ...BASE_OPTS, fondoMetodo: 'flotante' });
+    assert.equal(r.ok, false);
+    assert.ok(r.errors.some((e) => e.includes('fondoMetodo')));
+  });
+
+  it('el volquete conserva el fondo clásico aunque se pida ranurado', () => {
+    const r = addDrawer('1', 1, { ...BASE_OPTS, tipo: 'volquete', fondoMetodo: 'ranurado' });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
+    assert.ok(fondo.ancho < 850, 'fondo volquete derivado del frente (modelo clásico)');
   });
 });
 

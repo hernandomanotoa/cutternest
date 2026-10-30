@@ -5,7 +5,7 @@
 // js/core/config.js (RAIL_TYPES).
 
 import { normalizeName } from '../utils/normalize.js';
-import { RAIL_TYPES, DEFAULT_RAIL_TYPE } from '../core/config.js';
+import { RAIL_TYPES, DEFAULT_RAIL_TYPE, DRAWER_GROOVE_DEPTH } from '../core/config.js';
 
 const KEYWORDS_OCULTA = ['ocult', 'tandem', 'movento', 'matrix um', 'matrix-um'];
 const KEYWORDS_RUEDAS = ['ruedas', 'roller'];
@@ -90,4 +90,25 @@ export function drawerBoxInteriorWidth(frontWidth, espLateral = 0, type = DEFAUL
 export function drawerBoxMaxHeight(vanoHeight, type = DEFAULT_RAIL_TYPE) {
   const rail = getRailType(type);
   return Math.max(0, vanoHeight - (Number(rail.maxHeightDeduction) || 0));
+}
+
+/**
+ * Altura máxima esperada del FONDO del cajón según el método de montaje.
+ * 'apoyado' coincide con drawerBoxMaxHeight (fondo embutido a todo lo alto
+ * de la caja; apoyado sobre la base se valida aparte restando el espBase).
+ * 'ranurado' descuenta además 2·drawerGrooveDepth: el fondo embutido en la
+ * ranura corrida sube hasta drawerGrooveDepth bajo la cara superior del
+ * lateral y deja el mismo margen abajo (donde la fresa sale y para esquivar
+ * la esquina trasera de la base).
+ */
+export function drawerBackMaxHeight(
+  vanoHeight,
+  type = DEFAULT_RAIL_TYPE,
+  fondoMetodo = 'apoyado',
+  grooveDepth = DRAWER_GROOVE_DEPTH,
+) {
+  const base = drawerBoxMaxHeight(vanoHeight, type);
+  if (fondoMetodo !== 'ranurado') return base;
+  const gd = Math.max(0, Number(grooveDepth) || 0);
+  return Math.max(0, base - 2 * gd);
 }

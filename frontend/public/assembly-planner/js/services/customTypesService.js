@@ -80,6 +80,11 @@ export function validateCustomType(def) {
   if (!label) errors.push('nombre: obligatorio');
   if (!Number.isFinite(vano) || vano < 50 || vano > 900) errors.push('vano: entre 50 y 900 mm');
   if (kind === 'drawer' && def?.frenteCompleto) errors.push('frente completo solo aplica a zapateras');
+  // Método de montaje del fondo (solo cajones): valor del contrato.
+  if (def?.fondoMetodo != null && def?.fondoMetodo !== ''
+    && !['apoyado', 'ranurado'].includes(def.fondoMetodo)) {
+    errors.push('fondo: "apoyado" (sobre la base) o "ranurado" (embutido en ranura)');
+  }
   // rim solo aplica con ladosIguales: si el form lo envía igual (input
   // siempre visible), se ignora; con lados iguales debe estar en rango.
   if (kind === 'shoeRack' && def?.ladosIguales && def?.rim != null && def?.rim !== '') {
@@ -103,6 +108,7 @@ export function saveCustomType(def) {
     conFrenteDefault: kind === 'drawer' ? true : def.conFrenteDefault !== false,
     fijoEnGola: kind === 'shoeRack' ? def.fijoEnGola !== false : false,
     cajaDelta: 30,
+    fondoMetodo: def.fondoMetodo === 'ranurado' ? 'ranurado' : 'apoyado',
     ...(kind === 'shoeRack' && !!def.ladosIguales
       ? { ladosIguales: true, rim: Math.min(Number(def.rim) || 120, Number(def.altoVano)) }
       : {}),

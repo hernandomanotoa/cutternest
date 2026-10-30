@@ -85,6 +85,7 @@ m31-zapatera-lateral-izq,Lateral zapatera extraible planos izq M3,545,147,1,no,#
 m31-zapatera-lateral-der,Lateral zapatera extraible planos der M3,545,147,1,no,#D9C2A3,15,"T,B,R",31
 m31-zapatera-fondo,Fondo zapatera extraible planos M3,765,147,1,no,#F2F2F2,15,,31
 m31-zapatera-cara,Cara zapatera extraible planos M3,765,147,1,no,#D9C2A3,15,"T,B,L,R",31
+m31-zapatera-division,Division zapatera extraible planos M3,765,147,1,no,#D9C2A3,15,"T,B,L,R",31
 m31-zapatera-base,Base zapatera extraible planos M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",31
 m31-zapatera-tirador,Tirador zapatera extraible planos M3,2,20,1,no,#A0A0A0,5,,31
 m32-zapatera-frente,Frente zapatera extraible tenis M3,818,197,1,si,#8B5A2B,15,"T,B,L,R",32
@@ -92,6 +93,7 @@ m32-zapatera-lateral-izq,Lateral zapatera extraible tenis izq M3,545,167,1,no,#D
 m32-zapatera-lateral-der,Lateral zapatera extraible tenis der M3,545,167,1,no,#D9C2A3,15,"T,B,R",32
 m32-zapatera-fondo,Fondo zapatera extraible tenis M3,765,167,1,no,#F2F2F2,15,,32
 m32-zapatera-cara,Cara zapatera extraible tenis M3,765,167,1,no,#D9C2A3,15,"T,B,L,R",32
+m32-zapatera-division,Division zapatera extraible tenis M3,765,167,1,no,#D9C2A3,15,"T,B,L,R",32
 m32-zapatera-base,Base zapatera extraible tenis M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",32
 m32-zapatera-tirador,Tirador zapatera extraible tenis M3,2,20,1,no,#A0A0A0,5,,32
 m33-zapatera-frente,Frente zapatera extraible tacones M3,818,217,1,si,#8B5A2B,15,"T,B,L,R",33
@@ -99,6 +101,7 @@ m33-zapatera-lateral-izq,Lateral zapatera extraible tacones izq M3,545,187,1,no,
 m33-zapatera-lateral-der,Lateral zapatera extraible tacones der M3,545,187,1,no,#D9C2A3,15,"T,B,R",33
 m33-zapatera-fondo,Fondo zapatera extraible tacones M3,765,187,1,no,#F2F2F2,15,,33
 m33-zapatera-cara,Cara zapatera extraible tacones M3,765,187,1,no,#D9C2A3,15,"T,B,L,R",33
+m33-zapatera-division,Division zapatera extraible tacones M3,765,187,1,no,#D9C2A3,15,"T,B,L,R",33
 m33-zapatera-base,Base zapatera extraible tacones M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",33
 m33-zapatera-tirador,Tirador zapatera extraible tacones M3,2,20,1,no,#A0A0A0,5,,33
 m34-zapatera-frente,Frente zapatera extraible botines M3,818,217,1,si,#8B5A2B,15,"T,B,L,R",34
@@ -106,6 +109,7 @@ m34-zapatera-lateral-izq,Lateral zapatera extraible botines izq M3,545,187,1,no,
 m34-zapatera-lateral-der,Lateral zapatera extraible botines der M3,545,187,1,no,#D9C2A3,15,"T,B,R",34
 m34-zapatera-fondo,Fondo zapatera extraible botines M3,765,187,1,no,#F2F2F2,15,,34
 m34-zapatera-cara,Cara zapatera extraible botines M3,765,187,1,no,#D9C2A3,15,"T,B,L,R",34
+m34-zapatera-division,Division zapatera extraible botines M3,765,187,1,no,#D9C2A3,15,"T,B,L,R",34
 m34-zapatera-base,Base zapatera extraible botines M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",34
 m34-zapatera-tirador,Tirador zapatera extraible botines M3,2,20,1,no,#A0A0A0,5,,34
 m3-repisa-botas,Repisa botas M3,820,400,1,si,#D9C2A3,15,"T,B,L,R",3
