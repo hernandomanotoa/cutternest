@@ -4,8 +4,11 @@ import { isHexColor, normalizeColor } from '../utils/helpers.js';
 import { normalizeName, nameIncludes } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
 import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
-import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight } from './railService.js';
-import { COLORS } from '../core/config.js';
+import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight, drawerBackMaxHeight } from './railService.js';
+import { tipoTagDe, fondoMetodoDeTipo } from '../core/contentTypes.js';
+import { validateShoeClearance } from './shoeClearanceService.js';
+import { validateStackClearance } from './stackClearanceService.js';
+import { COLORS, DRAWER_GROOVE_DEPTH } from '../core/config.js';
 
 export const EXPECTED_HEADERS = ['id', 'nombre', 'ancho', 'alto', 'cantidad', 'rotate', 'color', 'espesor', 'cantos', 'modulo', 'pos_z'];
 
@@ -63,6 +66,16 @@ export function parseCSV(text) {
   // Detecciones globales
   pieces.forEach((p) => classifyPiece(p, pieces, warnings));
   validateDimensions(pieces, warnings);
+  // Altura libre entre niveles de zapateras apiladas (solo niveles anclados
+  // con pos_z; fuente 'taller-medido'). Cubre CSV importado y diseños del
+  // Constructor (renderWarningsPanel re-parsea por aquí).
+  warnings.push(...validateShoeClearance(pieces).warnings.map((w) => w.mensaje));
+
+  // Cabida vertical estricta de pilas de frentes/cajones (prompt de taller:
+  // exponer el conflicto como error, no solo compresión silenciosa + warning
+  // del renderer). Los módulos con gola aplicada quedan exentos (applyGola
+  // cierra su span y reporta su propio error).
+  errors.push(...validateStackClearance(pieces).errors.map((e) => e.mensaje));
 
   return {
     ok: errors.length === 0,
@@ -308,7 +321,14 @@ function validateDimensions(pieces, warnings) {
             if (Math.abs(luzFrente - 2) > 1.5) {
               warnings.push(`Módulo ${modId} → ${subId}: frente de ${front.ancho} mm sin luz perimetral de 2 mm por lado (vano ${interiorWidth} mm; esperado ${interiorWidth - 2} mm).`);
             }
-            const anchoCaja = (Number(subBack.ancho) || 0) + 2 * espLat;
+            const anchoCaja = (() => {
+              // El ancho de la caja se mide por la CARA (mide el interior);
+              // con fondo ranurado el fondo se corta más ancho (cantos
+              // enterrados en la ranura) y no refleja el exterior de la caja.
+              const cara = findPiece(subPieces, ['cara']);
+              const base = Number(cara?.ancho) > 0 ? Number(cara.ancho) : (Number(subBack.ancho) || 0);
+              return base + 2 * espLat;
+            })();
             const holguraReal = interiorWidth - anchoCaja;
             if (anchoCaja > 0 && Math.abs(holguraReal - esperadaH) > 1.5) {
               warnings.push(`Módulo ${modId} → ${subId}: descuento de riel ${holguraReal.toFixed(1)} mm ≠ ${esperadaH} mm (riel ${tipoRiel}); la caja (${anchoCaja} mm = fondo + 2×${espLat}) no deja la holgura del riel en el vano de ${interiorWidth} mm.`);
@@ -324,32 +344,55 @@ function validateDimensions(pieces, warnings) {
       //     oculta: vano − interiorDeduction (vano = frente + 2).
       //   - Clásico derivado del frente: frente − 2·espLat (volquete/abatible,
       //     que no usa corredera).
-      // Se advierte solo si el ancho no encaja en ninguno de los dos.
+      //   - Fondo ranurado: interior + 2·ranura (los cantos van enterrados
+      //     en la ranura de cada lateral; el método sale del contrato [tipo]
+      //     del frente).
+      // Se advierte solo si el ancho no encaja en ninguno de los modelos.
       if (front && subLaterals.length) {
         const espLat = subLaterals[0].espesor;
         const frontText = `${normalizeName(front.nombre)} ${normalizeName(front.id)}`;
+        const metodoFondo = fondoMetodoDeTipo(tipoTagDe(front.nombre));
+        const ranura = metodoFondo === 'ranurado'
+          ? Math.min(DRAWER_GROOVE_DEPTH, Math.max(1, Math.floor((Number(espLat) || 15) / 2)))
+          : 0;
         const legacyW = front.ancho - 2 * espLat;
         const esPivotante = frontText.includes('abatible') || frontText.includes('volquete');
         const railW = esPivotante
           ? legacyW
           : drawerBoxInteriorWidth(front.ancho, espLat, inferRailType(front));
-        const encajaModelo = (ancho) =>
-          Math.abs(ancho - railW) <= 2 || Math.abs(ancho - legacyW) <= 2;
+        const encajaModelo = (ancho, label) => {
+          // Fondo ranurado (contrato [tipo], no volquete): debe medir el
+          // interior + 2·ranura (cantos enterrados); el ancho apoyado no
+          // encaja en la ranura. Las demás piezas admiten los modelos de
+          // siempre.
+          if (label === 'fondo' && ranura > 0 && !esPivotante) {
+            return Math.abs(ancho - (railW + 2 * ranura)) <= 2;
+          }
+          return Math.abs(ancho - railW) <= 2 || Math.abs(ancho - legacyW) <= 2;
+        };
         const boxParts = [
           ['fondo', subBack],
           ['base', findPiece(subPieces, ['base'])],
           ['cara', findPiece(subPieces, ['cara'])],
         ];
         for (const [label, part] of boxParts) {
-          if (part && !encajaModelo(part.ancho)) {
+          if (part && !encajaModelo(part.ancho, label)) {
             warnings.push(`Módulo ${modId} → ${subId}: ${label} cajón (${part.ancho} mm) no coincide con el interior de caja según riel (≈ ${railW} mm) ni con el modelo clásico (≈ ${legacyW} mm).`);
           }
         }
 
-        // Fondo: coherencia de ALTURA según el tipo de riel. Dos construcciones
-        // válidas en todos los tipos: fondo apoyado sobre la base (alto ≈
-        // altura de la caja − espBase, modelo catálogo de 6 piezas) o fondo
-        // embutido a todo lo alto de los laterales (alto ≈ altura de la caja).
+        // Fondo: coherencia de ALTURA según el tipo de riel y el método de
+        // montaje (contrato [tipo] del frente; sin tag → 'apoyado', el
+        // histórico). Dos construcciones válidas sin contrato:
+        //   - embutido a todo lo alto de los laterales (alto ≈ caja);
+        //   - apoyado sobre la base (alto ≈ caja − espBase, modelo catálogo
+        //     de 6 piezas).
+        // Con contrato ranurado la única altura válida es la de la ranura:
+        // el fondo embutido sube hasta ranura mm bajo la cara superior del
+        // lateral (alto ≈ caja − 2·ranura, ranura = DRAWER_GROOVE_DEPTH
+        // acotada a la mitad del espesor del lateral). Un fondo más alto
+        // (p.ej. embutido a todo lo alto) asomaría por encima de la ranura:
+        // se advierte.
         // En la oculta la altura de la caja además se capa a vano −
         // maxHeightDeduction (tope de catálogo): un cajón más alto no cabe
         // bajo el frente. Volquete/abatible queda exento (caja derivada del
@@ -367,10 +410,26 @@ function validateDimensions(pieces, warnings) {
             warnings.push(`Módulo ${modId} → ${subId}: laterales de cajón (${latAlto} mm) exceden el alto máximo del riel ${railDef.label} (vano − ${railDef.maxHeightDeduction} = ${maxBoxH} mm).`);
           }
           const boxH = Math.min(latAlto, maxBoxH);
-          const encajaAltura = (alto) =>
-            Math.abs(alto - boxH) <= 2 || Math.abs(alto - (boxH - espBase)) <= 2;
+          // Tope del fondo: el alto real disponible (laterales/vano) menos
+          // los márgenes de ranura, sin pasar el tope de riel ranurado
+          // (drawerBackMaxHeight descuenta la ranura sobre el vano).
+          const ranuraG = ranura || 0;
+          const maxBackH = Math.max(0, Math.min(
+            boxH - 2 * ranuraG,
+            drawerBackMaxHeight(vanoH, railType, metodoFondo, ranuraG || undefined),
+          ));
+          // Con contrato ranurado el fondo debe encajar en la ranura: la
+          // altura es la única válida (un fondo embutido a todo lo alto
+          // asomaría sobre la ranura). Sin contrato, las dos construcciones
+          // históricas (embutido / apoyado sobre la base) siguen aceptadas.
+          const encajaAltura = metodoFondo === 'ranurado'
+            ? (alto) => Math.abs(alto - maxBackH) <= 2
+            : (alto) => Math.abs(alto - boxH) <= 2 || Math.abs(alto - (boxH - espBase)) <= 2;
           if (boxH > 0 && !encajaAltura(subBack.alto)) {
-            warnings.push(`Módulo ${modId} → ${subId}: fondo cajón (${subBack.alto} mm) no coincide con el alto de la caja según riel (≈ ${boxH} mm embutido o ≈ ${Math.max(0, boxH - espBase)} mm apoyado sobre la base).`);
+            const esperado = metodoFondo === 'ranurado'
+              ? `≈ ${maxBackH} mm ranurado (caja − 2·ranura)`
+              : `≈ ${boxH} mm embutido o ≈ ${Math.max(0, boxH - espBase)} mm apoyado sobre la base`;
+            warnings.push(`Módulo ${modId} → ${subId}: fondo cajón (${subBack.alto} mm) no coincide con el alto de la caja según riel (${esperado}).`);
           }
         }
       }

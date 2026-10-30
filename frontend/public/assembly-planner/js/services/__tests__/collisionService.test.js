@@ -13,8 +13,11 @@ import {
   intersectVolume,
   movingPieceIds,
   detectCollisions,
+  esObstaculoFijo,
 } from '../collisionService.js';
 import { IsometricRenderer } from '../../components/renderers/isometricRenderer.js';
+import { createModule, addDrawer, addShelf } from '../closetBuilderService.js';
+import { applyGola } from '../golaService.js';
 
 const box = (id, name, dims) => ({ id, name, role: 'panel', ...dims });
 
@@ -118,6 +121,117 @@ describe('detectCollisions', () => {
     assert.deepEqual([...movingPieceIds(pieces, { p1: 1 }, 0)].sort(), ['p1']);
     assert.deepEqual([...movingPieceIds(pieces, {}, 1)].sort(), ['p1', 'p2'], 'apertura global mueve todas');
     assert.deepEqual([...movingPieceIds(pieces, { p1: 0, p2: 0.5 }, 0)], ['p2']);
+  });
+});
+
+describe('esObstaculoFijo', () => {
+  it('rol gola_strip (o id/nombre con gola) es obstáculo; marcas gola_grip no', () => {
+    assert.ok(esObstaculoFijo({ id: 'm1gola-c1-fondo', role: 'gola_strip' }));
+    assert.ok(esObstaculoFijo({ id: 'm1gola-l1-pestana', role: 'gola_strip' }));
+    assert.ok(esObstaculoFijo({ id: 'tira-1', name: 'Perfil gola C 1' }), 'nombre con gola, sin rol');
+    assert.ok(!esObstaculoFijo({ id: 'm1gola-c1-fondo-grip', role: 'gola_grip' }), 'marca de agarre');
+    assert.ok(!esObstaculoFijo({ id: 'm1-gola-l-grip', role: 'gola_grip' }), 'marca de agarre L');
+    assert.ok(!esObstaculoFijo({ id: 'm1-lateral-izq', role: 'side_panel' }));
+    assert.ok(!esObstaculoFijo({ id: 'x', role: 'panel', name: 'Estante' }));
+  });
+});
+
+describe('obstáculos fijos (tiras gola)', () => {
+  const ANCHO = 800;
+  const ALTO = 1600;
+  const PROF = 500;
+  const ESP = 15;
+  const VANO = 200;
+  const INTERIOR = ANCHO - 2 * ESP;
+
+  // Casco + N cajones apilados (mismo patrón que golaService.test.js) y gola
+  // aplicada. Devuelve las piezas resultantes de applyGola.
+  function buildConGola(n, repisaZ, cfg = {}) {
+    const casco = createModule({ ancho: ANCHO, alto: ALTO, prof: PROF, modulo: '1' });
+    assert.ok(casco.ok);
+    const pieces = [...casco.pieces];
+    let cursor = ESP + 10;
+    for (let i = 1; i <= n; i++) {
+      const d = addDrawer('1', i, { anchoModulo: ANCHO, profundidadModulo: PROF, altoVano: VANO });
+      assert.ok(d.ok);
+      const frente = d.pieces.find((p) => p.id.endsWith('-frente'));
+      frente.pos_z = cursor;
+      cursor += frente.alto + 2.5;
+      pieces.push(...d.pieces);
+    }
+    const s = addShelf('1', { anchoUtil: INTERIOR, profReal: PROF - 2 * ESP, index: 1 });
+    assert.ok(s.ok);
+    s.pieces[0].pos_z = repisaZ;
+    pieces.push(...s.pieces);
+    const r = applyGola(pieces, '1', cfg);
+    assert.ok(r.ok, r.errors?.join('; '));
+    return r.pieces;
+  }
+
+  function paresAlAbrir(pieces, { aperturaGlobal = 1, aperturas = {}, overrides = {} } = {}) {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1, aperturaGlobal, verticalPositionOverrides: overrides });
+    const { geometries } = renderer.computeGeometries('1', pieces);
+    const movers = movingPieceIds(pieces, aperturas, aperturaGlobal);
+    return { pairs: detectCollisions(geometries, movers), geometries, movers };
+  }
+
+  it('tira gola mal posicionada en el vano de un cajón: colisión al extraerse', () => {
+    // Pestañas exageradamente largas (mala construcción): sobresalen más allá
+    // del plano de frentes y quedan en la trayectoria de la caja extraída. En
+    // golaGeometry la z de las pestañas se deriva del FONDO de su canal, así
+    // que la corrupción se hace sobre el fondo.
+    const pieces = buildConGola(2, 900, { golaStripDepth: 200 });
+    const fondo = pieces.find((p) => p.id === 'm1gola-c1-fondo');
+    assert.ok(fondo, 'existe el fondo del canal C1');
+    const frente1 = pieces
+      .filter((p) => p.id.endsWith('-frente'))
+      .sort((a, b) => a.pos_z - b.pos_z)[0];
+    // Corrupción: el canal del gap superior baja al vano (z) del cajón 1.
+    fondo.pos_z = frente1.pos_z + 40;
+    const { pairs } = paresAlAbrir(pieces, { overrides: { golaStripDepth: 200 } });
+    const hit = pairs.find((p) => p.aId === 'm1gola-c1-pestana-inf' || p.bId === 'm1gola-c1-pestana-inf');
+    assert.ok(hit, `se esperaba colisión con la tira desplazada: ${JSON.stringify(pairs.map((p) => [p.aId, p.bId]))}`);
+    assert.equal(hit.contraObstaculoFijo, true, 'el par se marca como obstáculo fijo');
+  });
+
+  it('gola bien construida (applyGola): sin colisiones con todos los movers abiertos', () => {
+    const pieces = buildConGola(3, 900);
+    const { pairs } = paresAlAbrir(pieces);
+    assert.deepEqual(pairs, [], `pares inesperados: ${JSON.stringify(pairs.map((p) => [p.aId, p.bId, p.volume]))}`);
+  });
+
+  it('canal L: el frente que tapa la pestaña inferior NO reporta colisión', () => {
+    const pieces = buildConGola(3, 900);
+    const frenteSup = pieces
+      .filter((p) => p.id.endsWith('-frente'))
+      .sort((a, b) => a.pos_z - b.pos_z)
+      .at(-1);
+    // Apertura parcial: el frente aún cubre en y la pestaña L mientras se abre
+    // (al 100% sale desplazado del mueble y ya no se tocan). La exención debe
+    // cubrir exactamente esta fase del movimiento.
+    const { pairs, geometries } = paresAlAbrir(pieces, { aperturaGlobal: 0, aperturas: { [frenteSup.id]: 0.05 } });
+    for (const p of pairs) {
+      assert.ok(![p.aId, p.bId].some((id) => /gola-l\d+-/.test(id)),
+        `ningún par debe involucrar tiras del canal L: ${p.aId} | ${p.bId}`);
+    }
+    // Sanity: sin la exención el solape frente↔pestaña L sería real (es la tapa
+    // a propósito del mecanismo de agarre).
+    const geoFrente = geometries.find((g) => g.id === frenteSup.id);
+    const geoPestanaL = geometries.find((g) => /gola-l\d+-pestana$/.test(g.id));
+    assert.ok(geoFrente && geoPestanaL);
+    assert.ok(intersectVolume(aabbOf(geoFrente), aabbOf(geoPestanaL)) > 1e-6,
+      'el frente superior realmente solapa la pestaña L durante la apertura');
+  });
+
+  it('tira gola ensanchada sobre el casco: obstáculo↔fijo del casco no se reporta', () => {
+    const pieces = buildConGola(2, 900);
+    const fondo = pieces.find((p) => p.id === 'm1gola-c1-fondo');
+    fondo.ancho = ANCHO + 400; // AABB de la tira cubre también los laterales
+    const { pairs } = paresAlAbrir(pieces);
+    for (const p of pairs) {
+      assert.ok(!/lateral/.test(p.aId) && !/lateral/.test(p.bId),
+        `el lateral (pieza fija del casco) no debe reportar: ${p.aId} | ${p.bId}`);
+    }
   });
 });
 

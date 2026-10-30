@@ -1,7 +1,9 @@
-// js/services/collisionService.js — Detección de colisiones entre piezas móviles
+// js/services/collisionService.js — Detección de colisiones al abrir piezas
 // Lógica pura, sin DOM. Trabaja sobre la salida de computeGeometries
 // (apertura ya aplicada): AABB por pieza (con esquinas rotadas si tiene
-// rotation) y solapamiento estricto entre piezas móviles distintas.
+// rotation) y solapamiento estricto. Se chequean los pares de piezas móviles
+// (apertura efectiva > 0) y, además, cada móvil contra los obstáculos fijos
+// (tiras del sistema gola), que permanecen en su posición.
 
 import { boxCorners, motionConfigFor, opennessFor, rotateCorners } from './motionService.js';
 
@@ -102,9 +104,39 @@ function sameRigidRotation(a, b) {
 }
 
 /**
- * Pares de piezas móviles distintas que se solapan al abrirse.
- * @returns {Array<{aId,bId,aName,bName,volume}>} un par por combinación de ids
- *   (el de mayor volumen), ordenado de mayor a menor volumen.
+ * Obstáculo fijo: tira del sistema gola (rol `gola_strip`, o id/nombre que
+ * contiene 'gola', mismo criterio que classifierService). Las marcas de agarre
+ * (`gola_grip`, ids `*-grip`) son referencias de renderer, no volumen físico:
+ * nunca se reportan.
+ */
+export function esObstaculoFijo(geo) {
+  if (!geo) return false;
+  const id = String(geo.id || '');
+  if (geo.role === 'gola_grip' || id.endsWith('-grip')) return false;
+  if (geo.role === 'gola_strip') return true;
+  if (geo.role && geo.role !== 'panel') return false;
+  const nombre = `${geo.name || ''} ${geo.nombre || ''}`.toLowerCase();
+  return id.toLowerCase().includes('gola') || nombre.includes('gola');
+}
+
+/**
+ * El canal L queda parcialmente TAPADO a propósito por el frente del cajón
+ * superior (el frente cubre la pestaña inferior de la L; es el mecanismo de
+ * agarre desde arriba). Misma exención que la validación estática de
+ * validateGola, que omite el solape frente↔tira para los ids `gola-l*`:
+ * un frente de cajón nunca colisiona con las tiras de su canal L.
+ */
+function isTapaCanalL(obstacle, mover) {
+  return /gola-l\d+-/i.test(String(obstacle.id || '')) && mover.role === 'drawer_face';
+}
+
+/**
+ * Pares de piezas que se solapan al abrirse: móvil↔móvil y móvil↔obstáculo
+ * fijo (tiras gola, que no se mueven). Los obstáculos solo se evalúan contra
+ * los móviles; obstáculo↔obstáculo y móvil↔estática genérica no se chequean.
+ * @returns {Array<{aId,bId,aName,bName,volume,contraObstaculoFijo?}>} un par
+ *   por combinación de ids (el de mayor volumen), ordenado de mayor a menor
+ *   volumen. Los pares contra obstáculo fijo llevan `contraObstaculoFijo: true`.
  */
 export function detectCollisions(geometries, movingIds) {
   const movers = new Set(movingIds || []);
@@ -112,24 +144,36 @@ export function detectCollisions(geometries, movingIds) {
   const boxes = geometries
     .filter((g) => g.id && movers.has(g.id))
     .map((g) => ({ geo: g, box: aabbOf(g) }));
+  const obstacles = geometries
+    .filter((g) => g.id && !movers.has(g.id) && esObstaculoFijo(g))
+    .map((g) => ({ geo: g, box: aabbOf(g) }));
   const byPair = new Map();
+  const consider = (a, ba, b, bb, contraObstaculoFijo) => {
+    if (a.id === b.id) return;
+    const volume = intersectVolume(ba, bb);
+    // Tolerancia epsilon: caras que se tocan con holguras decimales (12,7 mm
+    // de corredera, centrajes /2) producen polvo de punto flotante (~1e-11
+    // mm³) que no es una colisión. El contacto real sigue dando volumen 0.
+    if (volume < 1e-6) return;
+    const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+    const prev = byPair.get(key);
+    if (!prev || volume > prev.volume) {
+      byPair.set(key, { aId: a.id, bId: b.id, aName: a.name || a.id, bName: b.name || b.id, volume, ...(contraObstaculoFijo ? { contraObstaculoFijo: true } : {}) });
+    }
+  };
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {
       const { geo: a, box: ba } = boxes[i];
       const { geo: b, box: bb } = boxes[j];
-      if (a.id === b.id) continue;
       if (isLegitJoint(a, b)) continue;
       if (sameRigidRotation(a, b)) continue;
-      const volume = intersectVolume(ba, bb);
-      // Tolerancia epsilon: caras que se tocan con holguras decimales (12,7 mm
-      // de corredera, centrajes /2) producen polvo de punto flotante (~1e-11
-      // mm³) que no es una colisión. El contacto real sigue dando volumen 0.
-      if (volume < 1e-6) continue;
-      const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
-      const prev = byPair.get(key);
-      if (!prev || volume > prev.volume) {
-        byPair.set(key, { aId: a.id, bId: b.id, aName: a.name || a.id, bName: b.name || b.id, volume });
-      }
+      consider(a, ba, b, bb, false);
+    }
+  }
+  for (const { geo: m, box: bm } of boxes) {
+    for (const { geo: o, box: bo } of obstacles) {
+      if (isTapaCanalL(o, m)) continue;
+      consider(m, bm, o, bo, true);
     }
   }
   return [...byPair.values()].sort((p, q) => q.volume - p.volume);

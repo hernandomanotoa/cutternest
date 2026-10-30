@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCSV } from './csvParser.js';
 import { inferRole } from './classifierService.js';
+import { DRAWER_TYPES } from '../core/contentTypes.js';
 
 const HEADER = 'id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z';
 
@@ -285,6 +286,74 @@ describe('parseCSV - fondo de cajón por tipo de riel', () => {
       result.warnings.some((w) => w.includes('alto máximo')),
       false,
       `warning de tope inesperado: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('método ranurado: acepta el fondo alto de la ranura y rechaza uno que la excede', () => {
+    // Tipo de cajón temporal con fondoMetodo 'ranurado' (contrato [tipo]).
+    const tipo = {
+      id: 'test-ran', label: 'Test ranurado', altoVano: 131, frenteCompleto: false,
+      conFrenteDefault: true, fijoEnGola: false, cajaDelta: 30, fondoMetodo: 'ranurado',
+    };
+    DRAWER_TYPES.push(tipo);
+    try {
+      // interiorWidth = 600 − 2·18 = 564 → frente 562 (luz 2), vano 564.
+      // telescópica: railW = round(564 − 25,4) − 30 = 509. Ranura 6 mm:
+      // cara/base 509, fondo 521 = 509 + 2·6; latAlto 100 → fondo 100 − 12 = 88.
+      const cajonRanurado = (fondoAlto, fondoAncho = 521) => [
+        ...MODULE_CSV,
+        '11-frente,Frente [test-ran] cajon 1,562,129,1,no,#FFFFFF,15,"T,B,L,R",m11,',
+        '11-lat,Lateral cajon 11,350,100,1,no,#FFFFFF,15,"T,B,L",m11,',
+        '11-lat2,Lateral cajon der 11,350,100,1,no,#FFFFFF,15,"T,B,R",m11,',
+        '11-cara,Cara cajon 11,509,100,1,no,#FFFFFF,15,"T,B,L,R",m11,',
+        '11-base,Base cajon 11,509,320,1,no,#FFFFFF,15,"T,B,L,R",m11,',
+        `11-fondo,Fondo cajon 11,${fondoAncho},${fondoAlto},1,no,#FFFFFF,15,,m11,`,
+      ].join('\n');
+
+      const ok = parseCSV(cajonRanurado(88));
+      assert.equal(ok.ok, true, `errores inesperados: ${ok.errors.join(' | ')}`);
+      assert.equal(
+        ok.warnings.filter((w) => w.includes('fondo cajón')).length,
+        0,
+        `warning de fondo inesperado: ${ok.warnings.join(' | ')}`
+      );
+
+      // Fondo embutido a todo lo alto (100): con ranura asomaría 6 mm sobre
+      // el tope (94) — la validación ranurada lo rechaza.
+      const excedido = parseCSV(cajonRanurado(100));
+      assert.equal(excedido.ok, true, `errores inesperados: ${excedido.errors.join(' | ')}`);
+      assert.ok(
+        excedido.warnings.some((w) => w.includes('fondo cajón (100 mm)')),
+        `se esperaba warning de fondo que excede la ranura: ${excedido.warnings.join(' | ')}`
+      );
+
+      // Fondo con ancho de método apoyado (509): sin los cantos enterrados
+      // no encaja en la ranura — también se advierte.
+      const anchoApoyado = parseCSV(cajonRanurado(88, 509));
+      assert.ok(
+        anchoApoyado.warnings.some((w) => w.includes('fondo cajón (509 mm)')),
+        `se esperaba warning de ancho de fondo: ${anchoApoyado.warnings.join(' | ')}`
+      );
+    } finally {
+      DRAWER_TYPES.splice(DRAWER_TYPES.indexOf(tipo), 1);
+    }
+  });
+
+  it('retrocompatibilidad: sin contrato, el fondo embutido a todo lo alto sigue aceptado', () => {
+    // Mismo cajón sin tag [tipo]: 100 mm embutido = construcción histórica.
+    const csv = [
+      ...MODULE_CSV,
+      '11-frente,Frente cajon M1,464,129,1,no,#FFFFFF,15,"T,B,L,R",m11,',
+      '11-lat,Lateral cajon 11,350,100,1,no,#FFFFFF,15,"T,B,L",m11,',
+      '11-lat2,Lateral cajon der 11,350,100,1,no,#FFFFFF,15,"T,B,R",m11,',
+      '11-fondo,Fondo cajon 11,411,100,1,no,#FFFFFF,15,,m11,',
+    ].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.filter((w) => w.includes('fondo cajón')).length,
+      0,
+      `warning de fondo inesperado: ${result.warnings.join(' | ')}`
     );
   });
 
