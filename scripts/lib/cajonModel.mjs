@@ -42,6 +42,13 @@ export function tirador(id, nombre, color, modulo) {
 //   decorativo: éste es ~24 mm más ancho que lo que permite la corredera).
 // opts.vocabulario 'zapatera' nombra "zapatera extraible" en vez de "cajon"
 // (zapatera-cajón: se desliza en rieles sin la palabra "cajon" en el nombre).
+// Modos del frente de la zapatera (espejo de addShoeTray, solo 'zapatera'):
+//   modoFrente 'completo' (default): frente decorativo + tirador + cara alta.
+//   'borde': bandeja abierta SIN frente ni tirador; la cara se emite BAJA
+//   (borde frontal de bordeFrontal mm, clamp 20..frenteAlto−2E).
+//   'personalizado': frente con altoFrente (default vano−3), cara baja de
+//   bordeFrontal y borde trasero (altoFondo) / división (altoDivision)
+//   independientes (default: alto del lateral). Con frente o sin él.
 export function cajon(parent, index, opts) {
   const {
     anchoModulo,
@@ -58,6 +65,11 @@ export function cajon(parent, index, opts) {
     division = true,    // zapatera: división transversal (espejo de addShoeTray)
     fondoMetodo = 'apoyado', // 'apoyado' | 'ranurado' (espejo de addDrawer)
     grooveDepth = 6,    // = DRAWER_GROOVE_DEPTH (core/config.js)
+    modoFrente = 'completo', // zapatera: 'completo'|'borde'|'personalizado'
+    bordeFrontal = 40,  // alto del borde frontal bajo (modos borde/personalizado)
+    altoFondo = null,   // borde trasero independiente (default: alto del lateral)
+    altoDivision = null,// división independiente (default: alto del lateral)
+    altoFrente = null,  // frente independiente (default: altoVano − 3)
   } = opts;
   const E = espesorModulo; // espesor laterales/fondo del MODULO y de la caja
   const W = anchoModulo - 2 * E;
@@ -72,6 +84,18 @@ export function cajon(parent, index, opts) {
   const latAlto = volquete
     ? Math.min(frenteAlto - 2 * E, altBandeja)
     : frenteAlto - 2 * E;
+  // Modos de la zapatera (espejo de addShoeTray): el modo solo aplica con
+  // vocabulario 'zapatera' y corredera (el volquete no lleva cara).
+  // 'personalizado' baja la cara (bordeFrontal) pero MANTIENE el frente
+  // (espejo de conFrente default true; cajon() no tiene opt de frente sí/no).
+  const esModoBorde = vocabulario === 'zapatera' && !volquete && modoFrente === 'borde';
+  const caraBaja = esModoBorde || (vocabulario === 'zapatera' && !volquete && modoFrente === 'personalizado');
+  const frenteAltoEf = altoFrente ?? frenteAlto;
+  const bordeEf = Math.max(20, Math.min(Number(bordeFrontal) || 40, frenteAlto - 2 * E));
+  const altoFondoEf = Math.max(20, Math.min(altoFondo ?? latAlto, frenteAlto));
+  const altoDivisionEf = Math.max(20, Math.min(altoDivision ?? latAlto, frenteAlto));
+  const llevaFrente = !esModoBorde; // 'borde' nunca; 'personalizado' con frente
+  const caraAlto = caraBaja ? bordeEf : latAlto;
   // El volquete/abatible queda fuera del modelo de corredera: mantiene el
   // cálculo clásico derivado del frente decorativo y sin pieza de cara.
   const interior = volquete
@@ -88,11 +112,14 @@ export function cajon(parent, index, opts) {
   const idp = esZapatera ? 'zapatera' : 'cajon';
   const ladoIzq = esZapatera ? ' izq' : '';
   const ladoDer = esZapatera ? ' der' : '';
-  const rows = [
-    `m${sm}-${idp}-frente,Frente ${frenteVocab}${label} M${parent},${frenteAncho},${frenteAlto},1,si,${colorFrente},15,"T,B,L,R",${sm}`,
+  const rows = [];
+  if (llevaFrente) {
+    rows.push(`m${sm}-${idp}-frente,Frente ${frenteVocab}${label} M${parent},${frenteAncho},${frenteAltoEf},1,si,${colorFrente},15,"T,B,L,R",${sm}`);
+  }
+  rows.push(
     `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${E},"T,B,L",${sm}`,
     `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${E},"T,B,R",${sm}`
-  ];
+  );
   if (!volquete) {
     // Fondo: según el método. Apoyado: interno a los laterales, a todo lo
     // alto (estructural a piso); la base queda confinada entre él y la cara.
@@ -103,9 +130,9 @@ export function cajon(parent, index, opts) {
       ? Math.min(Number(grooveDepth) > 0 ? Number(grooveDepth) : 6, Math.max(1, Math.floor(E / 2)))
       : 0;
     const fondoAncho = interior + 2 * ranura;
-    const fondoAlto = Math.max(0, latAlto - 2 * ranura);
+    const fondoAlto = Math.max(0, altoFondoEf - 2 * ranura);
     rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${fondoAlto},1,no,#F2F2F2,${E},,${sm}`);
-    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
+    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${caraAlto},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
   } else {
     // Volquete/abatible: se conserva el fondo clásico derivado del frente.
     rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - E},1,no,#F2F2F2,${E},,${sm}`);
@@ -113,14 +140,16 @@ export function cajon(parent, index, opts) {
   if (esZapatera && !volquete && division) {
     // División transversal (espejo de addShoeTray): misma luz que el fondo
     // y alto del lateral; apoyo de la fila delantera a media profundidad.
-    rows.push(`m${sm}-${idp}-division,Division ${vocab}${label} M${parent},${interior},${latAlto},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
+    rows.push(`m${sm}-${idp}-division,Division ${vocab}${label} M${parent},${interior},${altoDivisionEf},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
   }
   rows.push(
     // Base confinada (perimetral): largo = lateral − 2·espLat, entre la
     // cara y el fondo.
-    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * E},1,si,${colorLateral},${E},"T,B,L,R",${sm}`,
-    `m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`
+    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * E},1,si,${colorLateral},${E},"T,B,L,R",${sm}`
   );
+  if (llevaFrente) {
+    rows.push(`m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`);
+  }
   return rows;
 }
 

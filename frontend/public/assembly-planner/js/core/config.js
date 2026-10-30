@@ -334,6 +334,11 @@ export const VERTICAL_POSITIONS = {
   contentFrenteZapatera: 1,  // por defecto las zapateras llevan frente decorativo + tirador
                             // (el tipo 'bandeja a la vista' impone lo contrario:
                             // su razón de ser es ir sin frente para verse)
+  contentBordeZapatera: 40,   // alto del borde frontal bajo (modos 'borde'/'personalizado')
+  contentAltoFrenteZapatera: 0,   // 0 = default (vano − 3)
+  contentAltoLateralZapatera: 0,  // 0 = default (RAIL_SIDE_HEIGHT, 100 mm)
+  contentAltoFondoZapatera: 0,    // 0 = default (= alto de los laterales)
+  contentAltoDivisionZapatera: 0, // 0 = default (= alto de los laterales)
   cantoEspesor: 0.8,         // espesor del canto PVC (mm) para la lista de herrajes
 
   // ── Sistema gola (tiras de melamina entre frentes) ─────────────

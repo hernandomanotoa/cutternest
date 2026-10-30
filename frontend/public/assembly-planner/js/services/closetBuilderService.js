@@ -440,6 +440,18 @@ export function rootModuleIds(pieces) {
 //     la cara, los laterales, el fondo y la división quedan al MISMO alto —
 //     un borde apenas más alto que la riel (BANDEJA_RIM_HEIGHT) — para que
 //     la bandeja se vea completa y la cara no sobresalga del lateral.
+//   - modoFrente: 'completo' (frente decorativo + tirador, cara alta detrás),
+//     'abierta' (bandeja sin frente, cara alta de agarre), 'borde' (sin frente
+//     ni tirador: la -cara se emite BAJA, como borde frontal de `bordeFrontal`
+//     mm) o 'personalizado' (frente según conFrente + alturas independientes:
+//     altoFrente, bordeFrontal para la cara, altoLateral, altoFondo para el
+//     borde trasero y altoDivision). Default: se resuelve de conFrente
+//     (true → 'completo', false → 'abierta') para no romper callers previos.
+//     Prioridad: frenteCompleto (botas) fuerza frente con CUALQUIER modo.
+//     ladosIguales aplica su rim en modos 'abierta'/'borde' sin frente; en
+//     'borde' el borde manda sobre la cara (la cara mide bordeFrontal) pero
+//     los laterales siguen la lógica del rim. El riel 'marco' es herraje de
+//     catálogo (siempre frente + tirador): el modo no aplica.
 // Mismas fórmulas de vano/corredera que addDrawer (W, holgura 12.7 mm/lado).
 export function addShoeTray(moduleId, index, {
   anchoModulo,
@@ -447,6 +459,11 @@ export function addShoeTray(moduleId, index, {
   altoVano,
   frenteCompleto = false,
   conFrente = true, // por defecto la zapatera lleva frente decorativo + tirador
+  modoFrente = null, // 'completo'|'borde'|'abierta'|'personalizado' (null => hereda de conFrente)
+  bordeFrontal = 40, // alto del borde frontal bajo (modos 'borde'/'personalizado')
+  altoFondo = null, // borde trasero independiente (default: alto del lateral)
+  altoDivision = null, // división independiente (default: alto del lateral)
+  altoFrente = null, // frente completo independiente (default: altoVano − 3)
   altoLateral = RAIL_SIDE_HEIGHT,
   ladosIguales = false,
   rim = BANDEJA_RIM_HEIGHT, // borde de la bandeja a la vista (contrato: tipo.rim)
@@ -467,6 +484,20 @@ export function addShoeTray(moduleId, index, {
   validateEspesor(espesorModulo, errors);
   const cf = validateColor(colorFrente, errors, 'colorFrente');
   const cl = validateColor(colorLateral, errors, 'colorLateral');
+  // Modo de construcción del frente (3 modos del Constructor). Sin modo
+  // explícito se preserva el comportamiento histórico vía conFrente.
+  const modo = modoFrente == null ? (conFrente ? 'completo' : 'abierta') : String(modoFrente);
+  if (!['completo', 'borde', 'abierta', 'personalizado'].includes(modo)) {
+    errors.push(`modoFrente: debe ser completo|borde|abierta|personalizado (recibido "${modoFrente}")`);
+  }
+  if (modo === 'borde' || modo === 'personalizado') {
+    if (!isFiniteNumber(bordeFrontal) || bordeFrontal < 20 || bordeFrontal > 300) {
+      errors.push(`bordeFrontal: debe estar entre 20 y 300 mm (recibido ${bordeFrontal})`);
+    }
+  }
+  if (altoFrente != null && (!isFiniteNumber(altoFrente) || altoFrente < 50 || altoFrente > altoVano - 1)) {
+    errors.push(`altoFrente: debe estar entre 50 y ${altoVano - 1} mm (recibido ${altoFrente})`);
+  }
   if (errors.length) return { ok: false, errors };
 
   const E = espesorModulo; // espesor del MODULO: W/D y bandeja descuentan E
@@ -505,32 +536,45 @@ export function addShoeTray(moduleId, index, {
   const interior2 = Math.round(W - 2 * rielHolgura) - 2 * E;
   const rielTagZ = riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
   // Frente completo (botas): el frente ES el cierre estructural de la bandeja
-  // (no hay cara) — se fuerza aunque conFrente=false. En la bandeja abierta,
-  // la cara del cuerpo queda como frente visible y de agarre.
-  const llevaFrente = conFrente || frenteCompleto;
-  // Bandeja a la vista (ladosIguales) SIN frente: cara, laterales, fondo y
-  // división al MISMO alto (borde apenas más alto que la riel), para que la
-  // cara no sobresalga del lateral. Con frente aplica la geometría de cajón
-  // habitual (la cara queda detrás del frente, más baja que él).
-  const altoBandeja = ladosIguales && !llevaFrente
+  // (no hay cara) — se fuerza aunque conFrente=false y con CUALQUIER modo
+  // (prioridad sobre 'borde'/'abierta'). Los modos 'borde' y 'abierta' imponen
+  // bandeja SIN frente decorativo ni tirador; 'completo' y 'personalizado'
+  // respetan conFrente (default true).
+  const llevaFrente = frenteCompleto || (conFrente && modo !== 'borde' && modo !== 'abierta');
+  const frenteAltoEf = altoFrente ?? frenteAlto; // 'personalizado': alto propio
+  // Bandeja a la vista (ladosIguales) SIN frente: laterales, fondo y
+  // división al alto del rim (borde apenas más alto que la riel). Solo aplica
+  // en modos 'abierta'/'borde'; en 'borde' el borde manda sobre la CARA (la
+  // cara mide bordeFrontal) pero los laterales siguen el rim. Con frente (o
+  // en 'personalizado') aplica la geometría de cajón habitual (la cara queda
+  // detrás del frente, más baja que él).
+  const altoLado = ladosIguales && !llevaFrente && (modo === 'abierta' || modo === 'borde')
     ? Math.max(40, Math.min(rim, frenteAlto - 2 * E))
-    : null;
-  const altoLado = altoBandeja ?? latAlto;
+    : latAlto;
+  // Alturas independientes ('personalizado'): clamp razonable 20..frenteAlto.
+  const altoFondoEf = Math.max(20, Math.min(altoFondo ?? altoLado, frenteAlto));
+  const altoDivisionEf = Math.max(20, Math.min(altoDivision ?? altoLado, frenteAlto));
   const pieces = [];
   if (llevaFrente) {
-    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAltoEf, { rotate: 'si', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, altoLado), { color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, altoFondoEf, { color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
   );
   if (!frenteCompleto) {
     // Frente bajo (o bandeja abierta): la cara cierra la abertura sobre la
     // bandeja (como cajón). Sin frente decorativo, la cara ES la cara
-    // visible de la bandeja y por donde se jala. En la bandeja a la vista
-    // (ladosIguales) la cara va al mismo alto que los laterales.
-    const altoCara = altoBandeja ?? Math.max(20, frenteAlto - 2 * E);
+    // visible de la bandeja y por donde se jala. Modos 'borde' y
+    // 'personalizado': la cara se emite BAJA (borde frontal de `bordeFrontal`
+    // mm) — sustitución geométrica real, no ocultamiento; el id/nombre se
+    // conservan para el apilado (pos_z), el emparejamiento cara↔frente y el
+    // re-parseo del CSV. En 'abierta' (y en 'completo'/'personalizado' con
+    // frente) la cara queda alta, detrás del frente.
+    const altoCara = (modo === 'borde' || modo === 'personalizado')
+      ? Math.max(20, Math.min(bordeFrontal, frenteAlto - 2 * E))
+      : (ladosIguales && !llevaFrente ? altoLado : Math.max(20, frenteAlto - 2 * E));
     pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
   }
   if (division) {
@@ -538,7 +582,7 @@ export function addShoeTray(moduleId, index, {
     // profundidad de la bandeja. Sirve de respaldo para la fila delantera
     // de zapatos; la fila trasera se apoya en el fondo. El renderer la
     // posiciona centrada (rol drawer_divider).
-    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, Math.max(20, altoLado), { color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, altoDivisionEf, { color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
   }
   pieces.push(
     // Base confinada (perimetral): entre la cara y el fondo.
@@ -556,7 +600,9 @@ export function addShoeTray(moduleId, index, {
     submodulo: sub,
     frenteCompleto,
     conFrente: llevaFrente,
-    frente: llevaFrente ? { ancho: frenteAncho, alto: frenteAlto } : null,
+    modoFrente: modo,
+    bordeFrontal,
+    frente: llevaFrente ? { ancho: frenteAncho, alto: frenteAltoEf } : null,
     warnings,
   };
 }

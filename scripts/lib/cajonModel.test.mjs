@@ -250,3 +250,48 @@ describe('cajon() fondoMetodo ranurado (espejo de addDrawer)', () => {
     assert.ok(fondo.includes(',788,135,1,no,'), fondo);
   });
 });
+
+describe('cajon() zapatera: modos del frente (espejo de addShoeTray)', () => {
+  const OPTS = {
+    anchoModulo: 850, profundidadModulo: 600, altoVano: 200,
+    vocabulario: 'zapatera', colorFrente: '#8B5A2B', colorLateral: '#D9C2A3',
+  };
+  // latAlto = 197 − 30 = 167; interior = round(820 − 25,4) − 30 = 765.
+
+  it("modo 'borde': cara de 40 mm, sin frente ni tirador (default retrocompatible)", () => {
+    const rows = cajon(1, 1, { ...OPTS, modoFrente: 'borde' });
+    assert.ok(!rows.some((r) => r.includes('-frente,')), 'sin frente decorativo');
+    assert.ok(!rows.some((r) => r.includes('-tirador,')), 'sin tirador');
+    // 6 filas: 2 laterales + fondo + cara + división + base.
+    assert.equal(rows.length, 6);
+    const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
+    assert.ok(cara.includes(',765,40,1,no,'), cara);
+    const def = cajon(1, 1, OPTS); // sin modo: salida idéntica a antes
+    assert.equal(def.length, 8, "default 'completo': 8 filas históricas");
+    assert.ok(def.some((r) => r.includes('-frente,')));
+    assert.ok(def.some((r) => r.includes('-tirador,')));
+  });
+
+  it("modo 'borde' respeta bordeFrontal y el volquete ignora el modo", () => {
+    const rows = cajon(1, 1, { ...OPTS, modoFrente: 'borde', bordeFrontal: 60 });
+    const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
+    assert.ok(cara.includes(',765,60,1,no,'), cara);
+    const volquete = cajon(1, 1, { ...OPTS, tipo: 'volquete', modoFrente: 'borde' });
+    assert.ok(volquete.some((r) => r.includes('-frente,')), 'el volquete siempre lleva frente');
+  });
+
+  it("modo 'personalizado': alturas independientes (frente, cara, fondo, división)", () => {
+    const rows = cajon(1, 1, {
+      ...OPTS, modoFrente: 'personalizado',
+      altoFrente: 150, bordeFrontal: 50, altoFondo: 70, altoDivision: 60,
+    });
+    const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
+    assert.ok(frente.includes(',818,150,1,si,'), frente);
+    const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
+    assert.ok(cara.includes(',765,50,1,no,'), cara);
+    const fondo = rows.find((r) => r.startsWith('m11-zapatera-fondo,'));
+    assert.ok(fondo.includes(',765,70,1,no,'), fondo);
+    const division = rows.find((r) => r.startsWith('m11-zapatera-division,'));
+    assert.ok(division.includes(',765,60,1,no,'), division);
+  });
+});

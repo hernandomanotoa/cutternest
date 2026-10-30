@@ -646,6 +646,18 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         espesorModulo: espesor,
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
         conFrente: !!opts.conFrente,
+        // Modo del frente (3 modos del Constructor): whitelist; sin modo
+        // válido cae al default del servicio (hereda de conFrente).
+        modoFrente: ['completo', 'borde', 'abierta', 'personalizado'].includes(opts.modoFrente)
+          ? opts.modoFrente
+          : null,
+        // Alturas del modo 'borde'/'personalizado' (>0; si no, default del
+        // servicio). Ningún espesor nuevo: TODO sale de espesorModulo.
+        bordeFrontal: Number(opts.bordeFrontal) > 0 ? Number(opts.bordeFrontal) : undefined,
+        altoFondo: Number(opts.altoFondo) > 0 ? Number(opts.altoFondo) : null,
+        altoDivision: Number(opts.altoDivision) > 0 ? Number(opts.altoDivision) : null,
+        altoFrente: Number(opts.altoFrente) > 0 ? Number(opts.altoFrente) : null,
+        altoLateral: Number(opts.altoLateral) >= 40 ? Number(opts.altoLateral) : undefined,
         ladosIguales: tipo ? !!tipo.ladosIguales : !!opts.ladosIguales,
         rim: tipo && tipo.rim ? tipo.rim : BANDEJA_RIM_HEIGHT,
         tipoId: tipo ? tipo.id : null,
@@ -906,16 +918,20 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
       cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
     } else if (/-cara$/.test(String(p.id))) {
       // Cara ancla de cajón/zapatera SIN frente (bandeja abierta): la unidad
-      // reserva su vano completo (cara + cajaDelta + luz, vía contrato con
-      // fallback al histórico 33), no solo el espesor de la pieza; si no, lo
-      // que se agregue después quedaría pisando la zona de la bandeja. Con
-      // frente propio la cara no es ancla (no lleva pos_z) y esta rama es
-      // solo defensiva.
+      // reserva su vano completo, no solo el espesor de la pieza; si no, lo
+      // que se agregue después quedaría pisando la zona de la bandeja. El
+      // vano sale del contrato [tipo] de la cara cuando existe (el cara-borde
+      // de los modos 'borde'/'personalizado NO refleja el vano: mide el borde
+      // frontal, no vano − 2E − 3); sin tag cae al histórico cara + cajaDelta
+      // + luz (33). Con frente propio la cara no es ancla (no lleva pos_z) y
+      // esta rama es solo defensiva.
       const pref = String(p.id).slice(0, -'-cara'.length);
       const conFrente = (pieces || []).some((q) => String(q.id) === `${pref}-frente`);
+      const tag = tipoTagDe(`${p.nombre || ''}`);
+      const tipoUnidad = tag ? getContentType('shoeRack', tag) : null;
       const avance = conFrente
         ? (Number(p.espesor) || 15) + stackGap
-        : vanoDesdeCara(p) + drawerFrontGap;
+        : (tipoUnidad?.altoVano ?? vanoDesdeCara(p)) + drawerFrontGap;
       cursor = Math.max(cursor, Number(p.pos_z) + avance);
     } else {
       cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.espesor) || 15) + stackGap);
@@ -1540,6 +1556,13 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     // sin tag (catálogo/diseños previos) cae a la heurística histórica.
     const tipoTag = tipoTagDe(`${(frente || cara)?.nombre || ''}`);
     const tipoUnidad = tipoTag ? getContentType('shoeRack', tipoTag) : null;
+    // Modo 'borde' detectable por datos: bandeja sin frente cuya cara es MÁS
+    // BAJA que el lateral (en 'abierta' la cara alta siempre supera al
+    // lateral bajo; en la bandeja a la vista van iguales). Best-effort: las
+    // alturas personalizadas de fondo/división no se recuperan (se re-derivan
+    // del lateral), igual que el vano sin tag.
+    const modoBorde = esZapatera && !frente && !!cara && !!lateral
+      && Number(cara.alto) < Number(lateral.alto);
     const regenerado = esZapatera
       ? addShoeTray(moduleId, 1, {
         anchoModulo: dims.ancho,
@@ -1552,6 +1575,8 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
         // Se preserva la opción: solo hay frente viejo si la bandeja lo llevaba.
         conFrente: !!frente,
+        modoFrente: modoBorde ? 'borde' : null,
+        bordeFrontal: modoBorde ? Number(cara.alto) : undefined,
         // Bandeja a la vista (ladosIguales): con tag, del contrato; sin tag,
         // la cara al mismo alto que el lateral.
         ladosIguales: esZapatera && !frente && !!cara && !!lateral
