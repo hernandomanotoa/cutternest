@@ -1,8 +1,10 @@
-// test/views/zapateraFrente.dom.test.js — Frente OPCIONAL de la zapatera:
-//   - Por defecto la bandeja va ABIERTA: sin frente decorativo ni tirador
-//     (el tirador va atornillado al frente).
-//   - El checkbox "Frente zapatera" se persiste (contentFrenteZapatera) y
-//     al activarlo la zapatera nueva lleva frente + tirador.
+// test/views/zapateraFrente.dom.test.js — Modo del frente de la zapatera:
+//   - Por defecto el modo es 'completo': frente decorativo + tirador.
+//   - El selector [data-modo-zapatera] con modo 'borde' genera la bandeja
+//     abierta: sin frente decorativo ni tirador, con la cara baja de borde
+//     frontal (40 mm por defecto) como frente visible/de agarre.
+//   - El modo se persiste (contentModoZapatera; contentFrenteZapatera se
+//     mantiene en sync) y se re-aplica al re-renderizar.
 //   - Eliminar el contenido (p. ej. su frente) elimina todo el grupo,
 //     incluido el tirador.
 // NO corre en el runner puro: usar pnpm test:dom (o node --test directo).
@@ -45,11 +47,11 @@ function agregarZapatera(container) {
   container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').click();
 }
 
-test('por defecto la zapatera va CON frente y tirador (checkbox activado)', () => {
+test('por defecto la zapatera va CON frente y tirador (modo completo)', () => {
   const { container } = armarModuloYVista();
-  const checkbox = container.querySelector('[data-frente-zapatera]');
-  assert.ok(checkbox, 'existe el checkbox de frente de zapatera');
-  assert.equal(checkbox.checked, true, 'por defecto con frente');
+  const modo = container.querySelector('[data-modo-zapatera]');
+  assert.ok(modo, 'existe el selector de modo de zapatera');
+  assert.equal(modo.value, 'completo', 'por defecto modo frente completo');
 
   agregarZapatera(container);
 
@@ -62,44 +64,45 @@ test('por defecto la zapatera va CON frente y tirador (checkbox activado)', () =
   assert.ok(Number.isFinite(frente.pos_z), 'el frente quedó anclado con pos_z');
 });
 
-test('al desmarcar el checkbox la zapatera va sin frente (bandeja abierta)', () => {
+test("con el modo 'borde' la zapatera va sin frente ni tirador (cara-borde de 40 mm)", () => {
   const { container } = armarModuloYVista();
-  const checkbox = container.querySelector('[data-frente-zapatera]');
-  checkbox.checked = false;
+  const modo = container.querySelector('[data-modo-zapatera]');
+  modo.value = 'borde';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
   agregarZapatera(container);
 
   const zap = piezasZapatera();
   assert.equal(zap.some((p) => p.id.endsWith('-frente')), false, 'sin frente decorativo');
   assert.equal(zap.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador (va atornillado al frente)');
-  assert.ok(zap.some((p) => p.id.endsWith('-cara')), 'la cara queda como frente visible/de agarre');
-  // El ancla vertical quedó en la cara (la bandeja se apila como contenido).
   const cara = zap.find((p) => p.id.endsWith('-cara'));
+  assert.ok(cara, 'la cara queda como borde visible/de agarre');
+  assert.equal(Number(cara.alto), 40, 'la cara es el borde frontal bajo (40 mm por defecto)');
+  // El ancla vertical quedó en la cara (la bandeja se apila como contenido).
   assert.ok(Number.isFinite(cara.pos_z), 'la cara quedó anclada con pos_z');
 });
 
-test('con el checkbox activado la zapatera lleva frente + tirador y la opción persiste', () => {
+test("con el modo 'completo' la zapatera lleva frente + tirador y la opción persiste", () => {
   const { view, container } = armarModuloYVista();
-  const checkbox = container.querySelector('[data-frente-zapatera]');
-  checkbox.checked = true;
+  const modo = container.querySelector('[data-modo-zapatera]');
+  assert.equal(modo.value, 'completo');
   agregarZapatera(container);
 
   const zap = piezasZapatera();
   assert.ok(zap.some((p) => p.id.endsWith('-frente')), 'frente decorativo presente');
   assert.ok(zap.some((p) => p.id.endsWith('-tirador')), 'tirador presente (va con el frente)');
-  assert.equal(loadUserConfig().contentFrenteZapatera, 1, 'opción persistida');
+  assert.equal(loadUserConfig().contentFrenteZapatera, 1, 'pref histórico sincronizado');
+  assert.equal(loadUserConfig().contentModoZapatera, 'completo', 'modo persistido');
 
-  // Al re-renderizar la vista, el checkbox recuerda la opción.
+  // Al re-renderizar la vista, el selector recuerda el modo.
   view.mount(createContainer());
   const fresco = createContainer();
   const view2 = createConstructorView(getStore());
   view2.mount(fresco);
-  assert.equal(fresco.querySelector('[data-frente-zapatera]').checked, true, 'checkbox marcado tras re-render');
+  assert.equal(fresco.querySelector('[data-modo-zapatera]').value, 'completo', 'modo recordado tras re-render');
 });
 
 test('eliminar el frente (contenido completo) elimina también el tirador', () => {
   const { container } = armarModuloYVista();
-  const checkbox = container.querySelector('[data-frente-zapatera]');
-  checkbox.checked = true;
   agregarZapatera(container);
   assert.ok(piezasZapatera().some((p) => p.id.endsWith('-tirador')));
 
@@ -120,7 +123,9 @@ test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin fre
   assert.match(label(), /\(2\)/, 'segunda zapatera: contador 2');
 
   // Con frente decorativo también cuenta (y no duplica: frente+cara = 1).
-  container.querySelector('[data-frente-zapatera]').checked = true;
+  const modo = container.querySelector('[data-modo-zapatera]');
+  modo.value = 'completo';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
   agregarZapatera(container);
   assert.match(label(), /\(3\)/, 'con frente cuenta 1 por grupo (frente+cara no duplican)');
 
@@ -133,12 +138,15 @@ test('el contador del botón "+ Zapatera (N)" cuenta la bandeja abierta (sin fre
 test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {
   const { container } = armarModuloYVista();
   // Tipo tenis: vano 200. La bandeja abierta (sin frente) debe reservar esos
-  // 200 mm de zona aunque su cara mida 167 (vano − 2·ESP_BASE − 3).
+  // 200 mm de zona aunque su cara-borde mida 40 (modo 'borde').
   const sel = container.querySelector('[data-tipo-zapatera]');
   sel.value = 'tenis';
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
-  // Bandeja abierta: sin frente decorativo (la cara es el frente visible).
-  container.querySelector('[data-frente-zapatera]').checked = false;
+  // Bandeja abierta: modo 'borde' (sin frente decorativo; la cara-borde es el
+  // frente visible).
+  const modo = container.querySelector('[data-modo-zapatera]');
+  modo.value = 'borde';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
 
   agregarZapatera(container);
   agregarZapatera(container);

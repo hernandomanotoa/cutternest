@@ -80,7 +80,12 @@ test('tipo custom de bandeja a la vista: rim del contrato al agregar sin frente'
   const sel = container.querySelector('[data-tipo-zapatera]');
   sel.value = id;
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
-  container.querySelector('[data-frente-zapatera]').checked = false;
+  // Bandeja abierta: modo 'borde' con el borde precargado al rim del contrato
+  // (110): cara, laterales y fondo quedan al mismo alto.
+  const modo = container.querySelector('[data-modo-zapatera]');
+  modo.value = 'borde';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
+  container.querySelector('[data-borde-zapatera]').value = '110';
   container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').click();
 
   const zap = getStore().get().pieces.filter((p) => String(p.id).includes('zapatera'));

@@ -252,8 +252,11 @@ test('editar a ancho donde el cajon no cabe aborta sin cambios', () => {
 test('orden de inserción define el orden vertical (repisa entre cajones se respeta)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  // Zapateras de bandeja abierta (sin frente): su ancla vertical es la cara.
-  container.querySelector('[data-module-scoped="1"] [data-frente-zapatera]').checked = false;
+  // Zapateras de bandeja abierta (modo 'borde', sin frente): su ancla
+  // vertical es la cara.
+  const modoZap = container.querySelector('[data-module-scoped="1"] [data-modo-zapatera]');
+  modoZap.value = 'borde';
+  modoZap.dispatchEvent(new window.Event('change', { bubbles: true }));
   const add = (kind) => click(container, `[data-action="add-content"][data-kind="${kind}"]`);
   add('shelf');
   add('shelf');
@@ -306,9 +309,10 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   click(container, '[data-action="add-module"]');
   const scoped = '[data-module-scoped="1"]';
   // Elegir el tipo botas (frente completo 450) y una estándar para comparar.
-  // La tenis lleva frente decorativo: se marca el checkbox (por defecto la
-  // bandeja va abierta, sin frente; el botas lo fuerza igual).
-  container.querySelector(`${scoped} [data-frente-zapatera]`).checked = true;
+  // Modo 'completo': frente decorativo (el tipo botas lo fuerza igual).
+  const modoZap = container.querySelector(`${scoped} [data-modo-zapatera]`);
+  modoZap.value = 'completo';
+  modoZap.dispatchEvent(new window.Event('change', { bubbles: true }));
   const sel = container.querySelector(`${scoped} [data-tipo-zapatera]`);
   sel.value = 'tenis';
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
@@ -1076,8 +1080,10 @@ test('Reordenar módulo con cajones/zapateras: los submódulos viajan sin quedar
 test('Zapatera: división central por defecto, opcional, y se elimina con el grupo', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  // Bandeja abierta (sin frente): la referencia del chip es su cara.
-  container.querySelector('[data-module-scoped="1"] [data-frente-zapatera]').checked = false;
+  // Bandeja abierta (modo 'borde', sin frente): la referencia del chip es su cara.
+  const modoZap = container.querySelector('[data-module-scoped="1"] [data-modo-zapatera]');
+  modoZap.value = 'borde';
+  modoZap.dispatchEvent(new window.Event('change', { bubbles: true }));
   // Por defecto (checkbox activado): la zapatera lleva división.
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
   let pieces = store.get().pieces;
