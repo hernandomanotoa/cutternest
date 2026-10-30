@@ -15,7 +15,7 @@ Use this template to keep every agent prompt short, precise and reproducible. Ea
 
 One sentence: who you are and which project you serve.
 
-Example: *You are the backend specialist for the Wiki DITIC auth service, working on Node.js + Express + TypeScript in `/workspace/flujo-autentificacion`.*
+Example: *You are the backend specialist for the CutterNest furniture-cutting service, working on Python + FastAPI in `/workspace/cutternest-kit`.*
 
 ## 🎯 Tarea (Task)
 

@@ -191,7 +191,7 @@ Antes de enviar una solicitud al Guardian, asegúrate de que incluya:
 ## 7. Checklist del Guardian al recibir una solicitud
 
 - [ ] ¿El agente solicitante cargó L0–L3 + L3b?
-- [ ] ¿El CWD es `/workspace/flujo-autentificacion`?
+- [ ] ¿El CWD es `/workspace/cutternest-kit`?
 - [ ] ¿El modo de ejecución es el correcto (conversacional, Plan, Goal, subagente, swarm, background)?
 - [ ] ¿Para preguntas de arquitectura se usó MCP/knowledge-graph-agent primero?
 - [ ] ¿El agente tiene tokens disponibles (concurrency)?

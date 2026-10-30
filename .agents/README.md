@@ -264,7 +264,7 @@ node .agents/guardian/scripts/detect-stall.mjs
 
 Todos los agentes deben usar la plantilla de entrega en `.agents/guardian/templates/deliverable-template.md`. Las pre-conditions obligatorias y las reglas genéricas viven en `.agents/SKILL-BASE.md` (L3b); las reglas específicas de cada agente viven en su `SKILL.md` (L3).
 
-El campo `PRE-CONDITIONS MET` es obligatorio para todo agente antes de declarar una tarea completada. Incluye: CWD (`/workspace/flujo-autentificacion`), contexto L0-L3 + L3b, token activo, scope permitido, sincronización de lockfiles (si se tocó `package.json`) y backup de `audit.log` (gestionado por el Guardian).
+El campo `PRE-CONDITIONS MET` es obligatorio para todo agente antes de declarar una tarea completada. Incluye: CWD (`/workspace/cutternest-kit`), contexto L0-L3 + L3b, token activo, scope permitido, sincronización de lockfiles (si se tocó `package.json`) y backup de `audit.log` (gestionado por el Guardian).
 
 ## Cierre de swarm
 

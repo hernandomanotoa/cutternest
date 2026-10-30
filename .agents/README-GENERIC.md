@@ -191,7 +191,7 @@ When an existing project already has concrete `SKILL.md` files, migrate them one
 
 3. Replace every `{agent_id}` placeholder with the concrete agent id (e.g. `backend-agent`).
 4. Port the project-specific rules from the old `SKILL.md` into the new file, replacing hardcoded values with `{{...}}` placeholders wherever it makes sense.
-5. Replace hardcoded workspace paths such as `/workspace/flujo-autentificacion` with `{{project.workspace_path}}`.
+5. Replace hardcoded workspace paths such as `/workspace/cutternest-kit` with `{{project.workspace_path}}`.
 6. Replace hardcoded project names such as `Wiki DITIC` with `{{project.name}}`.
 7. Replace hardcoded stack descriptions such as `Node.js 24 + Express` with `{{stack.backend.runtime}} {{stack.backend.version}} + {{stack.backend.framework}}`.
 8. Replace hardcoded commands such as `pnpm test` with `{{commands.test_backend}}`.
