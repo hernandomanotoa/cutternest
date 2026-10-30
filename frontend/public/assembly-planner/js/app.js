@@ -27,6 +27,7 @@ import { inferRole } from './services/classifierService.js';
 import { topologicalLevels, buildSteps } from './services/topologicalSort.js';
 import { createCSVView } from './views/csvView.js';
 import { createStructuralView } from './views/structuralView.js';
+import { createAuditView } from './views/auditView.js';
 import { createConstructorView } from './views/constructorView.js';
 import { createIsometricView } from './views/isometricView.js';
 import { createRenderer3DView } from './views/renderer3DView.js';
@@ -49,7 +50,7 @@ import {
   rootModuleDims,
   MARCO_PIECE_RE,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, tipoTagDe, vanoDesdeCara } from './core/contentTypes.js';
+import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, tipoTagDe, vanoDesdeCara, fondoMetodoDeTipo } from './core/contentTypes.js';
 import { installCustomTypes } from './services/customTypesService.js';
 import {
   createModule,
@@ -92,6 +93,7 @@ const viewFactories = {
   csv: createCSVView,
   constructor: createConstructorView,
   estructural: createStructuralView,
+  auditoria: createAuditView,
   isometric: createIsometricView,
   renderer3d: createRenderer3DView,
 };
@@ -641,6 +643,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       result = addShoeTray(moduleId, idx, {
         anchoModulo, profundidadModulo: profModulo,
         altoVano,
+        espesorModulo: espesor,
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
         conFrente: !!opts.conFrente,
         ladosIguales: tipo ? !!tipo.ladosIguales : !!opts.ladosIguales,
@@ -658,6 +661,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       result = addDrawer(moduleId, idx, {
         anchoModulo, profundidadModulo: profModulo,
         altoVano,
+        espesorModulo: espesor,
         tipo: opts.tipoCorredera || 'corredera',
         vocabulario: 'cajon',
         nPorFila: Number(opts.nPorFila) === 2 ? 2 : 1,
@@ -667,6 +671,9 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         riel: ['catalogo', 'telescopica26', 'oculta'].includes(opts.riel) ? opts.riel : 'catalogo',
         frenteLuz: Number(opts.frenteLuz) || 1,
         tipoId: tipo ? tipo.id : null,
+        // Método del fondo: el override de la tarjeta gana; si no, el del
+        // tipo (addDrawer cae a 'apoyado' sin contrato).
+        fondoMetodo: ['apoyado', 'ranurado'].includes(opts.fondoMetodo) ? opts.fondoMetodo : null,
       });
     }
   } else if (kind === 'divider') {
@@ -1537,6 +1544,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
       ? addShoeTray(moduleId, 1, {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
+        espesorModulo: espesor,
         // frente.alto = vano − 3; sin frente, la cara = vano − 3 − 2·15. Con
         // tag, el vano del tipo es exacto (la bandeja a la vista satura el
         // rim y la cara no lo refleja).
@@ -1561,12 +1569,25 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
       : addDrawer(moduleId, 1, {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
+        espesorModulo: espesor,
         altoVano: (Number(frente.alto) || 200) + 3, // frente.alto = vano - 3
         tipo: esVolquete ? 'volquete' : 'corredera',
         vocabulario: 'cajon',
         colorFrente: frente.color || '#8B5A2B',
         colorLateral: lateral?.color || '#D9C2A3',
         riel: esVolquete ? 'catalogo' : inferRailType(frente),
+        // El contrato [tipo] del frente preserva el método del fondo (y se
+        // reestampa en el frente regenerado). Sin tag, detección por datos:
+        // el fondo ranurado se corta más ancho que la cara (interior).
+        tipoId: tipoTag && getContentType('drawer', tipoTag) ? tipoTag : null,
+        fondoMetodo: tipoTag && getContentType('drawer', tipoTag)
+          ? fondoMetodoDeTipo(tipoTag)
+          : (() => {
+            const fondoViejo = piezasGrupo.find((p) => sufijoDe(p.id) === 'fondo');
+            const caraVieja = piezasGrupo.find((p) => sufijoDe(p.id) === 'cara');
+            const caraW = Number(caraVieja?.ancho) || 0;
+            return caraW > 0 && Number(fondoViejo?.ancho) > caraW + 1 ? 'ranurado' : 'apoyado';
+          })(),
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };

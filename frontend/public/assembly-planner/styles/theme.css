@@ -1287,3 +1287,28 @@ input[type="search"]:focus-visible {
   background: rgba(59, 130, 246, 0.08);
   font-size: 0.85rem;
 }
+
+/* ── Informe de auditoría (vista Auditoría) ─────────────────────────────── */
+.audit-section-row th {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  border-bottom: 2px solid var(--border);
+}
+
+/* ── Planos acotados (vista Auditoría) ──────────────────────────────────── */
+.plano-modulo { margin-bottom: 1rem; }
+.plano-modulo__titulo {
+  margin: 0.5rem 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.plano-modulo__svg {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: auto;
+  background: var(--bg-secondary);
+}
+.plano-fijacion { font-size: 0.78rem; color: var(--text-secondary); max-width: 90ch; }

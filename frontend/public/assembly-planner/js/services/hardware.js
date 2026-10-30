@@ -4,7 +4,7 @@ import { railTypeFor, getRailType } from './railService.js';
 import { railHardwareName, railHardwareSpec } from './railHardwareService.js';
 import { inferRole } from './classifierService.js';
 import { plinthLevelerCount } from './plinthFrameService.js';
-import { getGolaCfg } from './golaService.js';
+import { getGolaCfg, fijacionGolaReport } from './golaService.js';
 
 function uniquePieces(piezas, predicate) {
   const seen = new Set();
@@ -263,15 +263,21 @@ export function calculateHardware(piezas, dependencies, cfg = {}) {
 
   // ── Canales gola ──────────────────────────────────────────────────────────
   // Los canales (C y L) son PIEZAS de melamina: van en la lista de corte,
-  // no en el BOM. Solo se lista la fijación: tornillos por fondo de canal.
+  // no en el BOM. Solo se lista la fijación, con cantidades del plan de
+  // fijación calculado: tornillos por lado del fondo (2 caras) + los del
+  // soporte trasero cuando la luz del canal lo exige.
   const fondosGola = uniquePieces(piezas, (p) =>
     inferRole(p) === 'gola_strip' && /-fondo$/.test(String(p.id)));
   if (fondosGola.length > 0) {
     const golaCfg = getGolaCfg(cfg);
+    const { planes } = fijacionGolaReport(piezas, golaCfg);
+    const tornillosBase = planes.reduce((s, p) => s + p.tornillos.total, 0);
+    const tornillosSoporte = planes.reduce((s, p) => s + (p.soporteTrasero ? p.soporteTrasero.tornillos : 0), 0);
+    const soportes = planes.filter((p) => p.soporteTrasero).length;
     herrajes.push({
       nombre: 'Tornillo fijación gola',
-      cantidad: fondosGola.length * (golaCfg.golaTornillosPorPerfil || 2),
-      especificacion: `3.5×16 mm al fondo de canal (cuerpo ${golaCfg.golaPerfilHeight} mm + paso ${golaCfg.golaPaso} mm) — ${golaCfg.golaFijacion}`,
+      cantidad: tornillosBase + tornillosSoporte,
+      especificacion: `3.5×16 mm al fondo de canal, ${golaCfg.golaTornillosPorPerfil || 2} por lado (cuerpo ${golaCfg.golaPerfilHeight} mm + paso ${golaCfg.golaPaso} mm)${soportes ? ` + ${tornillosSoporte} del soporte trasero (${soportes} canal/canales ≥ ${golaCfg.golaSoporteTraseroDesde} mm)` : ''} — ${golaCfg.golaFijacion}`,
       prioridad: 'Media',
       bloqueante: false,
     });

@@ -15,7 +15,14 @@ import {
   getGolaCfg,
   drawerUnits,
   golaReport,
+  aberturaCanalGola,
+  planFijacionCanal,
+  fijacionGolaReport,
+  resumenPlanFijacion,
+  GOLA_TORNILLO_FIJACION,
+  GOLA_BROCA_FIJACION,
   GOLA_DEFAULTS,
+  GOLA_PESTANA_ALTO_MM,
 } from './golaService.js';
 import { GOLA_PERFIL_TALLER } from '../core/config.js';
 import { calculateHardware } from './hardware.js';
@@ -293,7 +300,7 @@ describe('round-trip enable → disable', () => {
 });
 
 describe('BOM (calculateHardware)', () => {
-  it('lista perfiles gola agrupados por largo y tornillos (N−1)·2', () => {
+  it('lista perfiles gola agrupados por largo y tornillos del plan (N fondos × por lado × 2 caras)', () => {
     const pieces = buildModule(4, { repisaZ: 1100 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
@@ -304,8 +311,8 @@ describe('BOM (calculateHardware)', () => {
     assert.equal(h.some((x) => x.nombre.includes('Perfil gola')), false, 'sin perfiles en el BOM');
     const tornillos = h.find((x) => x.nombre === 'Tornillo fijación gola');
     assert.ok(tornillos);
-    // Fondos de canal: (N−1) C + 1 L = N fondos.
-    assert.equal(tornillos.cantidad, 4 * 2, 'N fondos × golaTornillosPorPerfil');
+    // Fondos de canal: (N−1) C + 1 L = N fondos; 2 por lado × 2 caras.
+    assert.equal(tornillos.cantidad, 4 * 2 * 2, 'N fondos × golaTornillosPorPerfil por lado × 2 caras');
     assert.ok(tornillos.especificacion.includes(GOLA_DEFAULTS.golaFijacion), 'fijación en la especificación');
 
     // Sin gola no hay ítems gola.
@@ -319,8 +326,8 @@ describe('BOM (calculateHardware)', () => {
     assert.ok(r.ok, r.errors?.join('; '));
     const cfg = { golaTornillosPorPerfil: 4, golaFijacion: 'Cola blanca + tarugos' };
     const h = calculateHardware(r.pieces, [], cfg);
-    // 3 cajones ⇒ 3 fondos de canal (2 C + 1 L) × 4 tornillos.
-    assert.equal(h.find((x) => x.nombre === 'Tornillo fijación gola').cantidad, 3 * 4);
+    // 3 cajones ⇒ 3 fondos de canal (2 C + 1 L) × 4 por lado × 2 caras.
+    assert.equal(h.find((x) => x.nombre === 'Tornillo fijación gola').cantidad, 3 * 4 * 2);
     assert.ok(h.find((x) => x.nombre === 'Tornillo fijación gola').especificacion.includes('Cola blanca + tarugos'));
   });
 });
@@ -518,6 +525,74 @@ describe('golaReport — sección del manual', () => {
   });
 });
 
+describe('abertura útil de agarre', () => {
+  it('canal C: 50 mm exterior / 20 mm útiles / 10 mm de entrada con defaults', () => {
+    const ab = aberturaCanalGola('C', getGolaCfg({}));
+    assert.deepEqual(ab, {
+      tipo: 'C',
+      alturaExteriorMm: 50,
+      aberturaUtilMm: 50 - 2 * GOLA_PESTANA_ALTO_MM,
+      profundidadEntradaMm: 10,
+    });
+    assert.equal(ab.aberturaUtilMm, 20);
+  });
+
+  it('canal L: abertura útil = golaFingerClearance (20 mm)', () => {
+    const ab = aberturaCanalGola('L', getGolaCfg({}));
+    assert.equal(ab.alturaExteriorMm, 50);
+    assert.equal(ab.aberturaUtilMm, 20);
+    assert.equal(ab.profundidadEntradaMm, 10);
+  });
+
+  it('validateGola: warning cuando golaMinAperturaUtil supera la abertura real', () => {
+    const pieces = buildModule(3, { repisaZ: 900 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const v = validateGola(r.pieces, '1', { golaMinAperturaUtil: 25 });
+    assert.ok(
+      v.warnings.some((w) => /abertura útil de agarre del canal C \(20 mm\).*mínimo ergonómico configurado \(25 mm\)/.test(w)),
+      `warning de canal C presente: ${v.warnings.join(' | ')}`,
+    );
+    assert.ok(
+      v.warnings.some((w) => /abertura útil de agarre del canal L \(20 mm\)/.test(w)),
+      'warning de canal L presente',
+    );
+  });
+
+  it('regresión: con defaults un caso típico no produce el warning nuevo', () => {
+    const pieces = buildModule(3, { repisaZ: 900 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const v = validateGola(r.pieces, '1', {});
+    assert.equal(v.errors.length, 0);
+    assert.ok(
+      !v.warnings.some((w) => /abertura útil de agarre/.test(w)),
+      `sin warning de abertura con defaults: ${v.warnings.join(' | ')}`,
+    );
+  });
+
+  it('golaReport: la fila del fondo de cada canal incluye su abertura', () => {
+    const pieces = buildModule(2, { repisaZ: 700 });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const rows = golaReport(r.pieces, {});
+    const fondos = rows.filter((x) => x.id.endsWith('-fondo'));
+    assert.equal(fondos.length, 2, '1 canal C + 1 canal L');
+    for (const f of fondos) {
+      assert.ok(f.abertura, `fila ${f.id} con abertura`);
+      assert.equal(f.abertura.aberturaUtilMm, 20);
+      assert.equal(f.abertura.alturaExteriorMm, 50);
+      assert.equal(f.abertura.profundidadEntradaMm, 10);
+    }
+    assert.ok(rows.filter((x) => !x.id.endsWith('-fondo')).every((x) => x.abertura === null),
+      'pestañas sin abertura (resume al canal, va en el fondo)');
+    const cFondo = fondos.find((x) => x.id.includes('gola-c'));
+    assert.equal(cFondo.abertura.tipo, 'C');
+    const lFondo = fondos.find((x) => x.id.includes('gola-l'));
+    assert.equal(lFondo.abertura.tipo, 'L');
+  });
+});
+
 describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', () => {
   const GAP = 56; // 3 + 50 + 3
   // Casco 850×2400×600 + 2 zapateras con frente (vano 220 → frente 217,
@@ -627,5 +702,89 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
     assert.ok(r.ok, r.errors?.join('; '));
     assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 217, 'fija por palabra clave (retrocompatibilidad)');
     assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177);
+  });
+});
+
+describe('plan de fijación de canales gola', () => {
+  const fondoC = { id: 'm1gola-c1-fondo', ancho: INTERIOR, alto: 50 };
+
+  it('canal C con defaults: anfitrión laterales, 2 tornillos por lado, sin soporte trasero', () => {
+    const plan = planFijacionCanal(fondoC, { tipo: 'C', indice: 1 });
+    assert.equal(plan.tipo, 'C');
+    assert.equal(plan.canalId, 'm1gola-c1');
+    assert.equal(plan.anfitrion.tipo, 'laterales');
+    assert.equal(plan.tornillos.porLado, 2);
+    assert.equal(plan.tornillos.total, 4);
+    assert.equal(plan.tornillos.diametro, GOLA_TORNILLO_FIJACION);
+    assert.equal(plan.tornillos.broca, GOLA_BROCA_FIJACION);
+    assert.deepEqual(plan.tornillos.posicionZmm, [15, 35]);
+    assert.equal(plan.tornillos.posicionYmm, 10, 'retranqueo por defecto');
+    assert.equal(plan.soporteTrasero, null, '770 < 900: sin soporte');
+    assert.deepEqual(plan.warnings, []);
+  });
+
+  it('canal L: recibe el anclaje superior real por ctx', () => {
+    const anclaje = { tipo: 'repisa', id: 'm1-repisa1', descripcion: 'repisa m1-repisa1' };
+    const plan = planFijacionCanal(
+      { id: 'm1gola-l1-fondo', ancho: INTERIOR, alto: 50 },
+      { tipo: 'L', indice: 1 },
+      GOLA_DEFAULTS,
+      { anclajeSuperior: anclaje },
+    );
+    assert.equal(plan.tipo, 'L');
+    assert.deepEqual(plan.anclajeSuperior, anclaje);
+  });
+
+  it('exige soporte trasero cuando la luz del canal supera el umbral', () => {
+    const plan = planFijacionCanal({ id: 'm1gola-c1-fondo', ancho: 950, alto: 50 }, { tipo: 'C', indice: 1 });
+    assert.ok(plan.soporteTrasero?.requerido);
+    assert.equal(plan.soporteTrasero.anchoMm, 950);
+    assert.ok(plan.warnings.some((w) => /soporte trasero/.test(w)));
+  });
+
+  it('avisa cuando un punto de tornillo queda cerca del borde (fondo bajo)', () => {
+    const plan = planFijacionCanal({ id: 'm1gola-c1-fondo', ancho: INTERIOR, alto: 18 }, { tipo: 'C', indice: 1 });
+    assert.deepEqual(plan.tornillos.posicionZmm, [9], 'un solo tornillo centrado');
+    assert.ok(plan.warnings.some((w) => /riesgo de astillado/.test(w)));
+  });
+
+  it('fijacionGolaReport recorre los canales reales y golaReport expone el plan', () => {
+    const pieces = buildModule(2);
+    const conGola = applyGola(pieces, '1', {});
+    assert.ok(conGola.ok, conGola.errors?.join('; '));
+    const { planes, warnings } = fijacionGolaReport(conGola.pieces, {});
+    assert.ok(planes.length >= 2, 'canal C + canal L');
+    assert.ok(planes.every((p) => p.tornillos.total >= 2));
+    const resumen = resumenPlanFijacion(planes[0]);
+    assert.match(resumen, /tornillos/);
+    assert.match(resumen, /anfitrión: laterales/);
+    const reporte = golaReport(conGola.pieces, {});
+    const filasFondo = reporte.filter((r) => /-fondo$/.test(String(r.id)));
+    assert.ok(filasFondo.length >= 2);
+    assert.ok(filasFondo.every((r) => r.fijacionPlan && r.fijacionPlanTxt?.includes('tornillos')));
+    assert.deepEqual(warnings, []);
+  });
+
+  it('validateGola incluye los warnings del plan de fijación (soporte trasero exigido)', () => {
+    const casco = createModule({ ancho: 950, alto: ALTO, prof: PROF, modulo: '1' });
+    assert.ok(casco.ok);
+    const pieces = [...casco.pieces];
+    let cursor = ESP + 10;
+    for (let i = 1; i <= 2; i++) {
+      const d = addDrawer('1', i, { anchoModulo: 950, profundidadModulo: PROF, altoVano: VANO });
+      assert.ok(d.ok);
+      const frente = d.pieces.find((p) => p.id.endsWith('-frente'));
+      frente.pos_z = cursor;
+      cursor += frente.alto + DRAWER_FRONT_GAP;
+      pieces.push(...d.pieces);
+    }
+    const s = addShelf('1', { anchoUtil: 950 - 2 * ESP, profReal: PROF - 2 * ESP, index: 1 });
+    assert.ok(s.ok);
+    s.pieces[0].pos_z = cursor + 300;
+    pieces.push(...s.pieces);
+    const conGola = applyGola(pieces, '1', {});
+    assert.ok(conGola.ok, conGola.errors?.join('; '));
+    const v = validateGola(conGola.pieces, '1', {});
+    assert.ok(v.warnings.some((w) => /soporte trasero/.test(w)));
   });
 });

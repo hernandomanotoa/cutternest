@@ -82,7 +82,8 @@ const GOLA_CFG_FIELDS = [
   ['golaStripDepth', 'Prof. tira (mm)', 20, 5],
   ['golaStripSetback', 'Retranqueo (mm)', 0, 5],
   ['golaHolguraLateral', 'Holgura lat. (mm)', 0, 1],
-  ['golaTornillosPorPerfil', 'Tornillos/perfil', 1, 1],
+  ['golaTornillosPorPerfil', 'Tornillos/lado', 1, 1],
+  ['golaSoporteTraseroDesde', 'Soporte trasero desde (mm)', 0, 50],
   ['golaMaxOverhang', 'Máx. sobrealtura L (mm)', 30, 10],
 ];
 
@@ -197,6 +198,9 @@ export function createConstructorView(store) {
       conFrenteDefault: val('frente')?.checked !== false,
       fijoEnGola: val('fijogola')?.checked !== false,
       ladosIguales: val('lados')?.checked === true,
+      // Método del fondo del cajón (contrato del tipo; un custom puede fijar
+      // 'ranurado' como default de sus cajones).
+      fondoMetodo: val('fondoranurado')?.checked === true ? 'ranurado' : 'apoyado',
       // rim solo aplica con lados iguales; si no, se ignora (la validación
       // del servicio lo descarta).
       rim: val('lados')?.checked === true ? Number(val('rim')?.value) || 120 : null,
@@ -219,7 +223,7 @@ export function createConstructorView(store) {
         <td>${escapeHtml(t.label)}</td>
         <td>${t.kind === 'drawer' ? 'Cajón' : 'Zapatera'}</td>
         <td>${t.altoVano} mm</td>
-        <td>${t.kind === 'shoeRack' && t.ladosIguales ? `lados iguales · rim ${t.rim}` : (t.conFrenteDefault ? 'con frente' : 'sin frente')}</td>
+        <td>${t.kind === 'shoeRack' && t.ladosIguales ? `lados iguales · rim ${t.rim}` : (t.conFrenteDefault ? 'con frente' : 'sin frente')}${t.kind === 'drawer' && t.fondoMetodo === 'ranurado' ? ' · fondo ranurado' : ''}</td>
         <td class="cn-constructor__actions">
           <button class="btn btn--danger btn--sm" data-action="delete-custom-type" data-id="${escapeHtml(t.id)}" title="Eliminar tipo">✕</button>
         </td>
@@ -246,6 +250,7 @@ export function createConstructorView(store) {
           <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="fijogola" checked /> Fijo en gola</label>
           <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="lados" /> Lados iguales
             <input type="number" data-ct="rim" value="120" min="40" max="300" style="width:5em" /> mm</label>
+          <label class="form-group cn-constructor__check" title="Solo cajones: el fondo va embutido en ranura corrida en cada lateral (más ancho y más alto que el fondo apoyado)"><input type="checkbox" data-ct="fondoranurado" /> Fondo ranurado</label>
         </div>
         <div class="cn-constructor__content-btns">
           <button class="btn btn--primary btn--sm" data-action="save-custom-type">Guardar tipo</button>
@@ -382,6 +387,12 @@ export function createConstructorView(store) {
         if (e.target.matches('[data-tipo-zapatera]')) {
           const frente = scoped?.querySelector('[data-frente-zapatera]');
           if (frente) frente.checked = !!tipo.conFrenteDefault;
+        }
+        // El método del fondo (ranurado) lo fija por defecto el tipo de
+        // cajón; el usuario puede cambiarlo a mano antes de agregar.
+        if (e.target.matches('[data-tipo-drawer]')) {
+          const fondoRanurado = scoped?.querySelector('[data-fondo-ranurado]');
+          if (fondoRanurado) fondoRanurado.checked = tipo.fondoMetodo === 'ranurado';
         }
       }
     }
@@ -534,6 +545,8 @@ export function createConstructorView(store) {
       const conFrente = container.querySelector(`${scoped} [data-frente-zapatera]`)?.checked === true;
       // Tipo de riel: define las medidas de la caja (descuentos y fondo).
       const riel = container.querySelector(`${scoped} [data-tipo-riel]`)?.value || 'catalogo';
+      // Método del fondo del cajón: apoyado (default) o ranurado (embutido).
+      const fondoRanurado = container.querySelector(`${scoped} [data-fondo-ranurado]`)?.checked === true;
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
       const luzFrente = Math.max(0.5, Number(container.querySelector(`${scoped} [data-luz-frente]`)?.value) || 1);
       saveUserConfig({ drawerFrontLuz: luzFrente });
@@ -543,12 +556,13 @@ export function createConstructorView(store) {
         contentNPorFila: nPorFila,
         contentDivision: division ? 1 : 0,
         contentFrenteZapatera: conFrente ? 1 : 0,
+        contentFondoRanurado: fondoRanurado ? 1 : 0,
         contentTipoCajon: container.querySelector(`${scoped} [data-tipo-drawer]`)?.value || '',
         contentTipoZapatera: container.querySelector(`${scoped} [data-tipo-zapatera]`)?.value || '',
         contentRiel: riel,
       });
       store.set({ userConfig: loadUserConfig() });
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, conFrente, riel, frenteLuz: luzFrente });
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, conFrente, riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado' });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -1081,6 +1095,12 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   // Frente decorativo de la zapatera: por defecto NO (bandeja abierta; el
   // tirador va atornillado al frente, así que sin frente no va tirador).
   const prefFrenteZapatera = Number(cfg.contentFrenteZapatera) !== 0;
+  // Método del fondo del cajón (persistido; si no hay pref, el default lo
+  // fija el tipo de cajón seleccionado en la tarjeta).
+  const tipoDrawerSel = DRAWER_TYPES.find((t) => t.id === (cfg.contentTipoCajon || DRAWER_TYPES[0].id));
+  const prefFondoRanurado = cfg.contentFondoRanurado != null
+    ? Number(cfg.contentFondoRanurado) !== 0
+    : tipoDrawerSel?.fondoMetodo === 'ranurado';
   const sel = (actual, value) => (actual === value ? 'selected' : '');
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
@@ -1172,6 +1192,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
             <option value="oculta" ${sel(cfg.contentRiel, 'oculta')}>Oculta bajo cajón (−10 mm, cierre suave)</option>
             <option value="marco" ${sel(cfg.contentRiel, 'marco')}>Marco aluminio regulable (zapatera, sin cajón)</option>
           </select>
+        </label>
+        <label class="form-group" style="margin:0;" title="Sistema de montaje del fondo (solo cajones). Apoyado: fondo sobre la base, interno a los laterales. Ranurado: fondo embutido en ranura corrida en cada lateral — se corta más ancho (cantos enterrados) y sube casi a la cara superior del lateral">Fondo ranurado
+          <input type="checkbox" data-fondo-ranurado ${prefFondoRanurado ? 'checked' : ''} />
         </label>
         <label class="form-group" style="margin:0;" title="Cajones por fila: 2 divide el ancho del vano en dos frentes (modulos anchos)">N por fila
           <select data-n-por-fila>

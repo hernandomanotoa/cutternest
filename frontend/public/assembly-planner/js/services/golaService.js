@@ -16,6 +16,9 @@
 //   drawerUnits(pieces, moduleId)       → unidades-cajón (para la UI/tests)
 //   getGolaCfg(userConfig, moduleCfg?) → defaults + overrides (módulo gana)
 //   golaReport(pieces, cfg, opts?)      → filas "Perfiles gola" para el manual
+//   planFijacionCanal(fondo, canal, cfg, ctx?) → plan de fijación de 1 canal
+//   fijacionGolaReport(pieces, cfg)     → planes de todos los canales + warnings
+//   resumenPlanFijacion(plan)           → texto compacto del plan (manual)
 //
 // Convenciones: unidades ordenadas por min pos_z de sus frentes (unidad 1 =
 // la más baja, unidad N = la más alta, que recibe la L). Gap gola entre
@@ -59,8 +62,52 @@ export const GOLA_NUMERIC_KEYS = [
   'golaStripSetback',
   'golaHolguraLateral',
   'golaTornillosPorPerfil',
+  'golaSoporteTraseroDesde',
   'golaMaxOverhang',
+  'golaMinAperturaUtil',
 ];
+
+// Altura vertical (mm) que cada pestaña horizontal invade del cuerpo del
+// canal: es el espesor de la tira (15). La abertura útil del canal C parte
+// de esta constante.
+export const GOLA_PESTANA_ALTO_MM = 15;
+
+// Plan de fijación: tornillo estándar del canal y herramienta de perforación
+// en melamina (el tornillo 3.5×16 se atornilla con broca de 3 mm).
+export const GOLA_TORNILLO_FIJACION = '3.5×16';
+export const GOLA_BROCA_FIJACION = 'Ø 3 mm';
+// Distancia preferida de cada punto de tornillo al borde más cercano del
+// fondo, y mínimo admisible antes de avisar por riesgo de astillado.
+export const GOLA_MARGEN_TORNILLO_MM = 15;
+export const GOLA_MIN_DIST_BORDE_MM = 10;
+
+/** Abertura útil de agarre de un canal, distinta de su altura exterior:
+ * es el hueco libre real por donde entran y agarran los dedos.
+ * Canal C: los dedos pasan por el gap entre frentes y agarran el interior
+ * del canal retranqueado; el hueco libre vertical es el cuerpo del perfil
+ * menos las dos pestañas (15 mm arriba y abajo) y la profundidad útil de
+ * entrada es el retranqueo (golaStripSetback). Canal L: el agarre entra
+ * desde arriba y la abertura es el aire bajo la repisa (golaFingerClearance).
+ *
+ * @returns {{tipo:string, alturaExteriorMm:number, aberturaUtilMm:number, profundidadEntradaMm:number}}
+ */
+export function aberturaCanalGola(tipo, cfg = GOLA_DEFAULTS) {
+  const c = { ...GOLA_DEFAULTS, ...(cfg || {}) };
+  if (tipo === 'C') {
+    return {
+      tipo: 'C',
+      alturaExteriorMm: c.golaPerfilHeight,
+      aberturaUtilMm: Math.max(0, c.golaPerfilHeight - 2 * GOLA_PESTANA_ALTO_MM),
+      profundidadEntradaMm: c.golaStripSetback,
+    };
+  }
+  return {
+    tipo: 'L',
+    alturaExteriorMm: c.golaPerfilHeight,
+    aberturaUtilMm: c.golaFingerClearance,
+    profundidadEntradaMm: c.golaStripSetback,
+  };
+}
 
 /** Mergea defaults del perfil de taller con overrides numéricos/string persistidos.
  * Orden: `GOLA_DEFAULTS ← userConfig (global) ← moduleCfg (del módulo)`; los
@@ -363,7 +410,7 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   for (let i = 1; i <= N - 1; i++) {
     const zBase = redondea1(nuevasTops[i - 1] + nuevasAlturas[i - 1] + cfg.golaPaso);
     canales.push(mk(`${prefijo}c${i}-fondo`, `Fondo de canal Gola C ${i}`, anchoCanal, cfg.golaPerfilHeight, zBase, false));
-    canales.push(mk(`${prefijo}c${i}-pestana-sup`, `Pestana superior Gola C ${i}`, anchoCanal, cfg.golaStripDepth, redondea1(zBase + cfg.golaPerfilHeight - 15), true));
+    canales.push(mk(`${prefijo}c${i}-pestana-sup`, `Pestana superior Gola C ${i}`, anchoCanal, cfg.golaStripDepth, redondea1(zBase + cfg.golaPerfilHeight - GOLA_PESTANA_ALTO_MM), true));
     canales.push(mk(`${prefijo}c${i}-pestana-inf`, `Pestana inferior Gola C ${i}`, anchoCanal, cfg.golaStripDepth, zBase, true));
   }
   // Canal L bajo el techo (la repisa es topRef; el canal va pegado arriba).
@@ -621,6 +668,18 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
     }
   });
 
+  // Ergonomía de la abertura útil de agarre (hueco libre real para los
+  // dedos, no la altura exterior del canal), por tipo de canal presente.
+  const tiposCanal = new Set(tiras.map((t) => (/gola-c\d+-/.test(String(t.id)) ? 'C' : 'L')));
+  for (const tipo of tiposCanal) {
+    const ab = aberturaCanalGola(tipo, cfg);
+    if (ab.aberturaUtilMm < cfg.golaMinAperturaUtil) {
+      warnings.push(
+        `Gola: la abertura útil de agarre del canal ${tipo} (${ab.aberturaUtilMm} mm) es menor que el mínimo ergonómico configurado (${cfg.golaMinAperturaUtil} mm).`
+      );
+    }
+  }
+
   // Interferencia en profundidad (eje Y; y=0 en el fondo del casco y +y hacia
   // el frente, misma referencia que drawerGeometry/golaGeometry). La tira va
   // retranqueada detrás del plano de frentes (yFace = moduleD − espesor +
@@ -668,6 +727,13 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
+  // Plan de fijación calculado: soporte trasero exigido cuando la luz del
+  // canal supera golaSoporteTraseroDesde y puntos de tornillo a < 10 mm de
+  // un borde del fondo (riesgo de astillado).
+  if (tiras.length) {
+    warnings.push(...fijacionGolaReport(pieces, cfg).warnings);
+  }
+
   return { errors, warnings };
 }
 
@@ -684,15 +750,203 @@ function materialDe(p) {
   return color ? `Melamina (${color})` : 'Melamina';
 }
 
+// Posiciones Z (mm desde el borde inferior del fondo) de los tornillos de un
+// lado: simétricas a GOLA_MARGEN_TORNILLO_MM de cada borde cuando el fondo da
+// margen (y separación mínima entre tornillos); con fondo muy bajo, un único
+// tornillo centrado.
+function posicionesTornilloZ(n, altoFondo) {
+  const MARGEN = GOLA_MARGEN_TORNILLO_MM;
+  if (n <= 1 || altoFondo < 2 * MARGEN + GOLA_MIN_DIST_BORDE_MM) {
+    return [Math.round(altoFondo / 2)];
+  }
+  const span = altoFondo - 2 * MARGEN;
+  return Array.from({ length: n }, (_, i) => Math.round(MARGEN + (span * i) / (n - 1)));
+}
+
+// Referencia superior real de un canal L: la repisa anclada en topRef si
+// existe; si no, el techo interior del casco (cara inferior de la tapa).
+function anclajeSuperiorDe(pieces, raiz, techoUltimoFrente, techoInterior) {
+  const topRef = topRefDe(pieces, raiz, techoUltimoFrente, techoInterior);
+  const repisa = (pieces || []).find((p) =>
+    inferRole(p) === 'shelf'
+    && String(p.modulo || '') === String(raiz)
+    && Math.abs(Number(p.pos_z) - topRef) <= 0.5);
+  if (repisa) {
+    return { tipo: 'repisa', id: String(repisa.id), descripcion: `repisa "${repisa.id}" (canto inferior)` };
+  }
+  return { tipo: 'tapa', id: `m${raiz}-tapa`, descripcion: 'techo interior del casco (cara inferior de la tapa)' };
+}
+
+// Agrupa tiras por canal (prefijo m{mod}gola-cN / m{mod}gola-lN).
+function agrupaCanales(tiras) {
+  const canales = new Map(); // prefijo → {tipo, indice, piezas[]}
+  for (const t of tiras) {
+    const m = String(t.id).match(/^(.+gola-)(c(\d+)|l(\d+))-(fondo|pestana(-sup|-inf)?)$/);
+    if (!m) continue;
+    const pref = m[1] + m[2];
+    if (!canales.has(pref)) canales.set(pref, { tipo: m[2][0], indice: Number(m[3] || m[4]), piezas: [] });
+    canales.get(pref).piezas.push(t);
+  }
+  return canales;
+}
+
+// Export para servicios hermanos (p. ej. golaSectionService): agrupa tiras
+// gola por canal sin duplicar la convención de ids.
+export { agrupaCanales as agrupaCanalesGola };
+
+/** Plan de fijación calculado de UN canal (su fondo): dónde se atornilla,
+ * con qué, a qué elemento de la estructura y con qué precauciones. El fondo
+ * se fija a los LATERALES del módulo por sus extremos; en el canal L se
+ * indica además el anclaje superior real (repisa o tapa, según topRefDe).
+ * Las pestañas van encoladas y atornilladas desde el fondo, fuera de la zona
+ * de agarre. Si la luz del canal supera `golaSoporteTraseroDesde`, el plan
+ * exige un soporte trasero (listón/contrafuerte) que apoya el fondo por su
+ * cara posterior. Mantiene la flexibilidad del taller: todo es información
+ * orientativa derivada del cfg (editable global y por módulo).
+ *
+ * @param {object} piezaFondo pieza `*-fondo` del canal ({id, ancho, alto}).
+ * @param {{tipo:'C'|'L', indice:number}} canal identificación del canal.
+ * @param {object} cfg cfg gola mergeada (getGolaCfg).
+ * @param {object} ctx `{ anclajeSuperior: {tipo, id, descripcion} }` para el
+ *        canal L (lo calcula el caller con anclajeSuperiorDe/topRefDe).
+ * @returns {object} plan estructurado (anfitrión, tornillos con posiciones,
+ *          pestañas, anclajeSuperior, soporteTrasero, warnings).
+ */
+export function planFijacionCanal(piezaFondo, canal, cfg = GOLA_DEFAULTS, ctx = {}) {
+  const c = { ...GOLA_DEFAULTS, ...(cfg || {}) };
+  const altoFondo = Number(piezaFondo?.alto) || c.golaPerfilHeight;
+  const anchoFondo = Number(piezaFondo?.ancho) || 0;
+  const porLado = Math.max(1, Math.round(Number(c.golaTornillosPorPerfil) || 2));
+  const posicionZmm = posicionesTornilloZ(porLado, altoFondo);
+  const warnings = [];
+  for (const z of posicionZmm) {
+    const dist = Math.min(z, Math.round((altoFondo - z) * 10) / 10);
+    if (dist < GOLA_MIN_DIST_BORDE_MM) {
+      warnings.push(
+        `Gola: un punto de tornillo del canal "${piezaFondo?.id}" queda a ${dist} mm del borde del fondo (< ${GOLA_MIN_DIST_BORDE_MM} mm): riesgo de astillado; centrar la broca o usar precinto.`
+      );
+    }
+  }
+  const umbralSoporte = Number(c.golaSoporteTraseroDesde) || 0;
+  const soporteTrasero = umbralSoporte > 0 && anchoFondo >= umbralSoporte
+    ? {
+      requerido: true,
+      pieza: 'Listón/contrafuerte posterior',
+      anchoMm: Math.round(anchoFondo),
+      tornillos: 2,
+      descripcion: `listón de ${Math.round(anchoFondo)} mm apoyado contra la cara posterior del fondo y fijado a los laterales (2 tornillos ${GOLA_TORNILLO_FIJACION})`,
+    }
+    : null;
+  if (soporteTrasero) {
+    warnings.push(
+      `Gola: la luz del canal "${piezaFondo?.id}" (${Math.round(anchoFondo)} mm) supera golaSoporteTraseroDesde (${umbralSoporte} mm): prever soporte trasero en la cara posterior del fondo.`
+    );
+  }
+  const esL = canal?.tipo === 'L';
+  return {
+    canalId: String(piezaFondo?.id || '').replace(/-fondo$/, ''),
+    tipo: esL ? 'L' : 'C',
+    indice: canal?.indice ?? null,
+    anfitrion: {
+      tipo: 'laterales',
+      descripcion: 'laterales del módulo (sus extremos se apoyan en las caras interiores)',
+    },
+    anclajeSuperior: esL
+      ? (ctx?.anclajeSuperior || { tipo: 'tapa', id: null, descripcion: 'techo interior del casco' })
+      : null,
+    tornillos: {
+      porLado,
+      total: porLado * 2,
+      diametro: GOLA_TORNILLO_FIJACION,
+      broca: GOLA_BROCA_FIJACION,
+      posicionZmm,
+      posicionYmm: c.golaStripSetback,
+      precaucion: 'Perforar desde el fondo del canal hacia el lateral (a travío de sus 15 mm de espesor); no perforar la cara visible del lateral.',
+    },
+    pestanas: {
+      metodo: `Encolado + tornillos ${GOLA_TORNILLO_FIJACION} desde el fondo`,
+      tornillosPorPestana: 2,
+      precaucion: 'Atornillar por la cara posterior del fondo, fuera de la zona de agarre de los dedos.',
+    },
+    soporteTrasero,
+    warnings,
+  };
+}
+
+/** Texto compacto del plan de fijación para el manual (una línea por canal). */
+export function resumenPlanFijacion(plan) {
+  if (!plan) return '';
+  const t = plan.tornillos;
+  const partes = [
+    `Fondo: ${t.porLado}×${t.diametro} por lado (${t.total} total) a ${t.posicionZmm.join(' y ')} mm del borde inferior, broca ${t.broca}, en Y a ${t.posicionYmm} mm del plano de frentes`,
+    `anfitrión: ${plan.anfitrion.descripcion}`,
+  ];
+  if (plan.anclajeSuperior) partes.push(`anclaje superior: ${plan.anclajeSuperior.descripcion}`);
+  partes.push(`pestañas: ${plan.pestanas.metodo} (evitar la zona de agarre)`);
+  if (plan.soporteTrasero) partes.push(`soporte trasero: ${plan.soporteTrasero.descripcion}`);
+  partes.push(`Precaución: ${t.precaucion}`);
+  return partes.join(' · ');
+}
+
+/** Planes de fijación de TODOS los canales gola presentes en `pieces`,
+ * agrupados por módulo raíz, con los warnings asociados (soporte trasero
+ * exigido, tornillo cerca de un borde). Servicio puro: alimenta validateGola,
+ * golaReport y el BOM de herrajes (hardware.js).
+ *
+ * @returns {{planes: object[], warnings: string[]}}
+ */
+export function fijacionGolaReport(pieces, userConfig = {}) {
+  const cfg = getGolaCfg(userConfig);
+  const lista = pieces || [];
+  const tiras = lista.filter(esTiraGola);
+  const porRaiz = new Map();
+  for (const t of tiras) {
+    const raiz = raizDe(t.modulo);
+    if (!porRaiz.has(raiz)) porRaiz.set(raiz, []);
+    porRaiz.get(raiz).push(t);
+  }
+  const planes = [];
+  const warnings = [];
+  for (const [raiz, ts] of porRaiz) {
+    const unidades = drawerUnits(lista, raiz);
+    const casco = cascoDims(lista, raiz);
+    const techoInterior = casco ? casco.techoInterior : Infinity;
+    const techoUlt = unidades.length
+      ? Math.max(...unidades[unidades.length - 1].frentes.map((f) => Number(f.pos_z) + (Number(f.alto) || 0)))
+      : 0;
+    const anclajeL = anclajeSuperiorDe(lista, raiz, techoUlt, techoInterior);
+    const canales = agrupaCanales(ts);
+    const ordenados = [...canales.entries()].sort((a, b) => a[1].indice - b[1].indice);
+    for (const [, canal] of ordenados) {
+      const fondo = canal.piezas.find((p) => String(p.id).endsWith('-fondo'));
+      if (!fondo) continue;
+      const plan = planFijacionCanal(
+        fondo,
+        { tipo: canal.tipo === 'c' ? 'C' : 'L', indice: canal.indice },
+        cfg,
+        canal.tipo === 'l' ? { anclajeSuperior: anclajeL } : {},
+      );
+      planes.push(plan);
+      warnings.push(...plan.warnings);
+    }
+  }
+  return { planes, warnings };
+}
+
 /**
  * Reporte de perfiles gola para el manual de ensamblaje: una fila por tira
  * (ubicación relativa a los frentes, longitud de corte, material, fijación)
  * más una fila por frente L (el de la unidad superior del módulo recibe la
  * L-gola por construcción de applyGola; ids adicionales pueden pasarse en
- * opts.lFrontIds, p. ej. desde el meta persistido por app.js).
+ * opts.lFrontIds, p. ej. desde el meta persistido por app.js). La fila del
+ * fondo de cada canal incluye además el plan de fijación calculado
+ * (`fijacionPlan` estructurado + `fijacionPlanTxt` para el manual).
  *
- * @returns {Array<{id:string, ubicacion:string, corteMm:number, cantidad:number, material:string, fijacion:string}>}
- *          [] cuando no hay tiras ni frentes L declarados.
+ * @returns {Array<{id:string, ubicacion:string, corteMm:number, cantidad:number, material:string, fijacion:string,
+ *          fijacionPlan:object|null, fijacionPlanTxt:string,
+ *          abertura:{tipo:string, alturaExteriorMm:number, aberturaUtilMm:number, profundidadEntradaMm:number}|null}>}
+ *          [] cuando no hay tiras ni frentes L declarados. `abertura` solo
+ *          viene en la fila del fondo de cada canal (resume al canal entero).
  */
 export function golaReport(pieces, userConfig = {}, opts = {}) {
   const cfg = getGolaCfg(userConfig);
@@ -707,27 +961,42 @@ export function golaReport(pieces, userConfig = {}, opts = {}) {
   }
   if (!raices.size) return [];
 
+  // Anclaje superior real (repisa o tapa) por módulo raíz, para el canal L.
+  const anclajePorRaiz = new Map();
+  for (const raiz of raices) {
+    const unidades = drawerUnits(lista, raiz);
+    const casco = cascoDims(lista, raiz);
+    const techoInterior = casco ? casco.techoInterior : Infinity;
+    const techoUlt = unidades.length
+      ? Math.max(...unidades[unidades.length - 1].frentes.map((f) => Number(f.pos_z) + (Number(f.alto) || 0)))
+      : 0;
+    anclajePorRaiz.set(raiz, anclajeSuperiorDe(lista, raiz, techoUlt, techoInterior));
+  }
+
   // Filas por PIEZA de canal (fondo / pestañas), agrupadas por canal C o L.
   const rows = [];
   for (const raiz of raices) {
-    const canales = new Map(); // prefijo → {tipo, indice, piezas[]}
-    for (const t of tiras.filter((t2) => String(t2.modulo) === raiz)) {
-      const m = String(t.id).match(/^(.+gola-)(c(\d+)|l(\d+))-(fondo|pestana(-sup|-inf)?)$/);
-      if (!m) continue;
-      const pref = m[1] + m[2];
-      if (!canales.has(pref)) canales.set(pref, { tipo: m[2][0], indice: Number(m[3] || m[4]), piezas: [] });
-      canales.get(pref).piezas.push(t);
-    }
+    const canales = agrupaCanales(tiras.filter((t2) => String(t2.modulo) === raiz));
     const ordenados = [...canales.entries()].sort((a, b) => a[1].indice - b[1].indice);
     for (const [pref, canal] of ordenados) {
       const base = canal.tipo === 'c'
         ? `Canal C ${canal.indice} (entre cajones)`
         : 'Canal L (bajo la repisa)';
+      const abertura = aberturaCanalGola(canal.tipo === 'c' ? 'C' : 'L', cfg);
       canal.piezas
         .slice()
         .sort((a, b) => String(a.id).localeCompare(String(b.id)))
         .forEach((t) => {
           const rol = String(t.id).slice(pref.length + 1);
+          const esFondo = rol === 'fondo';
+          const plan = esFondo
+            ? planFijacionCanal(
+              t,
+              { tipo: canal.tipo === 'c' ? 'C' : 'L', indice: canal.indice },
+              cfg,
+              canal.tipo === 'l' ? { anclajeSuperior: anclajePorRaiz.get(raiz) } : {},
+            )
+            : null;
           rows.push({
             id: String(t.id),
             ubicacion: `${base} — ${rol}`,
@@ -735,7 +1004,10 @@ export function golaReport(pieces, userConfig = {}, opts = {}) {
             altoMm: Math.round(Number(t.alto) || 0),
             cantidad: Math.max(1, Math.round(Number(t.cantidad) || 1)),
             material: materialDe(t),
-            fijacion: rol === 'fondo' ? cfg.golaFijacion : 'Encolado/atornillado al fondo de canal',
+            fijacion: esFondo ? cfg.golaFijacion : 'Encolado/atornillado al fondo de canal',
+            fijacionPlan: plan,
+            fijacionPlanTxt: plan ? resumenPlanFijacion(plan) : '',
+            abertura: esFondo ? abertura : null,
           });
         });
     }

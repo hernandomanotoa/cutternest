@@ -97,9 +97,14 @@ function renderPlinthPlanSection(plan) {
 
 // Sección "Canales gola" (piezas rol gola_strip): tabla por pieza del
 // canal (fondo y pestañas) con ubicación, corte ancho×alto, cantidad,
-// material (melamina del módulo) y fijación.
+// material (melamina del módulo), fijación, plan de fijación calculado
+// (puntos de tornillo, broca, anfitrión, soporte trasero) y, en el fondo
+// de cada canal, su abertura útil de agarre.
 function renderGolaSection(rows) {
   if (!rows.length) return '';
+  const aberturaTxt = (a) => a
+    ? `${a.aberturaUtilMm} mm útiles (ext. ${a.alturaExteriorMm} / ent. ${a.profundidadEntradaMm} mm)`
+    : '—';
   const body = rows.map((r) => `
     <tr>
       <td>${r.id}</td>
@@ -108,14 +113,18 @@ function renderGolaSection(rows) {
       <td>${r.cantidad}</td>
       <td>${r.material}</td>
       <td>${r.fijacion}</td>
+      <td>${r.fijacionPlanTxt || '—'}</td>
+      <td>${aberturaTxt(r.abertura)}</td>
     </tr>`).join('');
   return `
     <section style="page-break-after: always; margin-bottom: 2rem;">
       <h2>Canales gola (melamina)</h2>
       <p>Sistema de apertura sin tiradores construido con el mismo tablero del módulo: por cada gap entre frentes, un canal tipo C (fondo retranqueado + pestaña superior e inferior) y, bajo la repisa, un canal tipo L (fondo + pestaña inferior). El frente superior se estira para tapar la pestaña de la L; su caja queda rebajada para pasar bajo el canal.</p>
+      <p>La abertura útil de agarre es el hueco libre real para introducir los dedos, no la altura exterior del canal: en el canal C los dedos entran por el gap entre frentes y agarran el interior retranqueado del perfil (hueco libre = cuerpo del perfil menos las dos pestañas; profundidad de entrada = retranqueo); en el canal L el agarre entra desde arriba, por el aire bajo la repisa.</p>
+      <p>El plan de fijación indica cómo se une cada canal a la estructura del módulo: el fondo se atornilla a los laterales por sus extremos (posiciones en Z medidas desde el borde inferior del fondo, broca Ø 3 mm para tornillo 3.5×16 en melamina, sin perforar la cara visible), las pestañas van encoladas y atornilladas desde el fondo fuera de la zona de agarre y, cuando la luz del canal supera el umbral configurado, se prevé un soporte trasero (listón/contrafuerte) apoyado en la cara posterior del fondo.</p>
       <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;">
         <thead>
-          <tr><th>Identificador</th><th>Ubicación</th><th>Corte (ancho × alto)</th><th>Cantidad</th><th>Material/acabado</th><th>Observaciones de fijación</th></tr>
+          <tr><th>Identificador</th><th>Ubicación</th><th>Corte (ancho × alto)</th><th>Cantidad</th><th>Material/acabado</th><th>Observaciones de fijación</th><th>Plan de fijación</th><th>Abertura útil de agarre</th></tr>
         </thead>
         <tbody>${body}</tbody>
       </table>
