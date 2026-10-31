@@ -51,7 +51,8 @@ re-deriva niveles, pasos, alertas y hardware).
 | `createModule({ancho, alto, prof, espesor, colorCuerpo, modulo, baseInterna})` | casco 5 piezas | `baseInterna: true` = base ancho−2E × prof−2E (apoyada sobre el zócalo, modelo zócalo-cajón del catálogo). Solo con zócalo. |
 | `addZocalo(moduleId, {ancho, alto})` | frente plinth | **Interno**: ancho−2E. Rol `plinth`, montaje `internal`. |
 | `addShelf(moduleId, {anchoUtil, profReal, index})` | repisa (+refuerzo) | Refuerzo de 100 mm si luz ≥600 (el parser exige soporte desde 600). |
-| `addDrawer(moduleId, index, {anchoModulo, profundidadModulo, altoVano, tipo, vocabulario, ...})` | caja 7 piezas | Port de `cajonModel.mjs`. Submódulo concatenado `${moduleId}${index}` (`'11'`). Nombres llevan el índice ("Frente cajon 2 M1"). |
+| `addDrawer(moduleId, index, {anchoModulo, profundidadModulo, altoVano, tipo, vocabulario, ...})` | caja 6 piezas (sin tirador) | Port de `cajonModel.mjs`. Submódulo concatenado `${moduleId}${index}` (`'11'`). Nombres llevan el índice ("Frente cajon 2 M1"). |
+| `addShoeTray(moduleId, index, {...})` | bandeja zapatera (sin tirador) | Modos del frente (`modoFrente`, 3 — el tipo solo elige el alto del vano, el modo la forma del frente): **`normal` (default del servicio y de la UI)** = frente CORTO que no cubre el vano: mide bandeja + `ZAPATERA_FRENTE_DROP` (30 mm) y el aire superior del vano queda abierto para el calzado. La bandeja va de **borde uniforme** al alto configurado `altoLateral` (default 100 mm; input "Alto zapatera" de la tarjeta, visible en `normal` y `personalizado`): cara = laterales = fondo = división. Validación: `altoLateral + 30 ≤ altoVano` (error con consejo). `extendido` = el frente completa el vano hasta arriba (vano − 1, holgura mínima; cara = frente − 2·E); `personalizado` = alturas independientes (`altoFrente`/`altoLateral`/`altoFondo`/`altoDivision`) y la cara siempre = frente − 2·E. `conFrente=false` deja la bandeja sin frente: la cara alta queda de frente visible/de agarre (checkbox "Frente zapatera"; el tipo 'bandeja a la vista' con `conFrenteDefault:false` lo desmarca y aplica su rim con `ladosIguales`). El frente completo de tipo (botas) gana sobre cualquier modo: frente = vano completo. Los modos legacy se rechazan con error; las exenciones data-driven por geometría del CSV (bandeja de borde uniforme frente==cara en csvParser/golaService/despieceAuditService) se conservan para CSV legacy. La unidad reserva SU vano completo en el apilado (`asignarPosZInsercion`/`cursorInsercion`: frente de zapatera más bajo que su vano de contrato `[tipo]`, o diferencia exacta frente−cara = 30). En gola las zapateras son unidades fijas (`fijoEnGola`): su aire alimenta el reparto de los cajones y una pila 100% fija cabe con el aire abierto encima (validateGola no exige cerrar el span exacto). |
 | `addHangerRail` / `addDoubleRail` | barra(s) | Doble: `pos_z` 2100 (alta) y 1000 (baja). |
 | `nextModuleId(pieces)` / `rootModuleIds(pieces)` | id libre / raíces | `rootModuleIds` distingue raíz de submódulo en `'11'` e `'1.2'`. |
 | `nextContentIndex(pieces, moduleId, kind)` | índice libre | Contador por prefijo de id. |
@@ -95,27 +96,35 @@ mecanismos con tiras de **melamina del mismo material/color que el módulo**
 (no perfil comercial de aluminio; todos los valores son **PROVISIONALES** y
 se editan en el mini-panel de la tarjeta o vía `userConfig`):
 
-1. **Tiras entre frentes**: en cada gap entre cajones apilados se genera una
-   tira (`{mod}-gola-{i}`, rol `gola_strip`). Gap gola `G = golaPerfilHeight
-   **reemplaza** a `drawerFrontGap` (no se suman). La tira-U **llena el gap y
-   toca ambos frentes** (borde inferior del superior y borde superior del
-   inferior); el agarre lo genera el retranqueo (`golaStripSetback`): los
-   frentes quedan adelantados respecto de la tira y se enganchan por el
-   borde. La
-   tira se apoya en el techo del frente inferior y deja el agarre hacia
-   arriba; su largo = ancho interior − 2·`golaHolguraLateral` (nunca el
-   ancho exterior).
-2. **L-gola del cajón superior**: el frente del último cajón se extiende
-   hasta `topRef − golaFingerClearance` (el aire bajo la repisa es el agarre
-   de la L: la pata coincide con el techo del frente), donde `topRef` es la repisa
-   inmediata superior (o el techo interior del casco si no hay). La caja no
-   cambia. Si la sobrealtura sobre la caja supera `golaMaxOverhang`, se capa
-   y se avisa (queda un hueco sobre el frente).
+1. **Canales C entre frentes**: en cada gap entre cajones apilados se genera
+   un canal de melamina de 3 piezas (rol `gola_strip`): un **fondo** vertical
+   de 15 retranqueado `golaStripSetback` detrás del plano de frentes y **dos
+   labios** (pestañas sup/inf) de 15 de espesor **a ras del plano de frentes**,
+   de largo `golaStripSetback + 15` (cubren el retranqueo y traslapsan el
+   fondo para encolar/atornillar). Gap gola `G = golaPerfilHeight +
+   2·golaPaso` **reemplaza** a `drawerFrontGap` (no se suman). Los dedos
+   entran por el **paso superior** (3 mm) y enganchan el borde inferior del
+   frente superior **por detrás**: el hueco entre labios, a la profundidad del
+   retranqueo, es el agarre. **Nada sobresale delante del plano de frentes**:
+   el frente se jala libre, sin obstrucción. El ancho de todas las piezas del
+   canal = ancho interior − 2·`golaHolguraLateral` (nunca el ancho exterior),
+   apoyado en las caras interiores de los laterales cerca de la cara frontal.
+2. **Sobre el último frente (sin canal L)**: la gola es **solo entre cajones**.
+   Sobre el último frente queda el gap habitual (`drawerFrontGap`, como sin
+   gola); el frente del cajón superior NO se extiende. Los N frentes se
+   reescalen para llenar el span (`topRef − drawerFrontGap − bottom`) con los
+   N−1 canales C entre ellos. **Vano corto por poco**: si el déficit por
+   cajón móvil cabe en `golaMaxRebajaCaja` (40 mm default), la gola **rebaja
+   las cajas** (laterales/cara/fondo) en esa medida —con aviso y restauro en
+   el round-trip— en vez de fallar; si falta mucho, error con consejos
+   exactos (subir repisa N mm / bajar primer cajón si hay aire real debajo).
 
 Reglas: los frentes se reescalan **proporcionalmente** (las cajas no se
-tocan) conservando el span y las dimensiones exteriores; al activar se
-eliminan los tiradores del módulo y al desactivar se regeneran (espejo de
-`addDrawer`). `applyGola` devuelve `meta` (alturas/pos_z originales) que
+tocan) conservando el span y las dimensiones exteriores. Los cajones y
+zapateras del Constructor ya se generan **sin tirador** (apertura sin
+jaladera); `applyGola` aun elimina los tiradores del módulo si los hay
+(diseños legacy importados de CSV) y `removeGola` **no** los regenera.
+`applyGola` devuelve `meta` (alturas/pos_z originales) que
 `app.js` persiste en localStorage (`cn-assembly-gola`) para restaurar
 exacto al desactivar; sin `meta`, `removeGola` usa un fallback proporcional.
 Si el vano no alcanza para que cada frente cubra su caja (lateral + 10 mm),
@@ -151,37 +160,51 @@ warnings si redujo frentes o aplicó el cap.
   lo rehidrata con merge (no borra configs de otros módulos); `removeModule`
   limpia la entrada del módulo eliminado (igual que con los metas).
 - Render: `golaGeometry.js` (builder iso enganchado en `moduleGeometry.js`;
-  la 3D lo hereda vía `computeGeometries`). Las tiras se dibujan
-  retranqueadas `golaStripSetback` detrás del plano de frentes, con
-  `ROLE_COLORS.gola_strip` / `Z_INDEX.gola_strip` (22, bajo `drawer_face`).
+  la 3D lo hereda vía `computeGeometries`). El canal se dibuja **detrás del
+  plano de frentes**: fondo con su cara frontal a `golaStripSetback` y labios
+  terminando **a ras** de ese plano (ninguna geometría `gola_strip` cruza el
+  plano de frentes), con `ROLE_COLORS.gola_strip` / `Z_INDEX.gola_strip` (22,
+  bajo `drawer_face`).
   Además emite marcas del **canal de agarre** (rol `gola_grip`, capa 27):
-  una caja fina sobre cada tira (alto = gap real al frente superior) y otra
-  bajo el frente L; color en `ROLE_COLORS.gola_grip` (config, no en la
+  una caja fina en el paso superior de cada canal C (por donde entran los
+  dedos). Sobre el último frente no hay marca (sin canal L); color en
+  `ROLE_COLORS.gola_grip` (config, no en la
   vista); sin etiqueta de pieza (`pieceStyling.makeLabel` devuelve `''`).
 - Materiales/planos: `calculateHardware` lista "Tornillo fijación gola"
-  (tiras × `golaTornillosPorPerfil`); los canales son piezas de corte y van
+  (fondos × `golaTornillosPorPerfil`); los canales son piezas de corte y van
   al despiece (salen del BOM); paso de montaje "interior" en
   `assemblyStepService` con instrucción en `instructions.js`. El manual
   (`manualExporter.buildStandaloneHtml`, 6º parámetro opcional
   retrocompatible `{userConfig, golaLFrontIds}`) renderiza la sección
   **"Perfiles gola"** vía `golaReport(pieces, userConfig, opts)` (filas por
-  pieza de canal: identificador, ubicación "Canal C N (entre cajones)" /
-  "Canal L (bajo la repisa) — fondo/pestaña", longitud de corte, cantidad,
-  material/acabado, fijación). Todo módulo con gola activo genera su canal L
-  (`m{mod}gola-l{N}-fondo/pestana`), así que también los de 1 solo cajón
-  aparecen en el reporte sin acción del caller; `opts.golaLFrontIds` solo
-  cubre el caso de piezas editadas a mano (canal L borrado).
+  pieza de canal: identificador, ubicación "Canal C N (entre cajones)",
+  longitud de corte, cantidad, material/acabado, fijación). `opts.golaLFrontIds`
+  queda tolerado por retrocompatibilidad (el canal L ya no se genera).
+- **Auditoría estricta de despiece** (`despieceAuditService.js`, integrada en
+  `auditReportService.js` — sección "Gola"/"Cajones" del informe, bloquea el
+  `corteAutorizado`): (1) **luz libre del canal de la mano** ≥ 40 mm entre
+  frentes consecutivos de módulos con gola (si no, ERROR CRÍTICO con los mm a
+  restar de los frentes); (2) **veta (rotate) por función**: frentes/golas con
+  `rotate 'no'` obligatorio (error de continuidad estética), laterales/caras/
+  fondos recomendado (pendiente), bases libres (fila informativa: el
+  optimizador sí puede rotarlas para ahorrar); (3) **colisión gola**: la
+  estructura interna de la caja debe quedar ≥ 60 mm bajo el frente (si no,
+  ERROR DE COLISIÓN con el déficit). Las bandejas 'frenteBajo' (borde uniforme)
+  quedan exentas del control de colisión.
 - **Validación geométrica**: `validateGola` además del chequeo aritmético
-  vigila la **interferencia tira↔caja en profundidad** (eje Y del renderer,
-  y=0 en el fondo): error si `yTira < espesor` (retranqueo excesivo) o si la
-  tira sobresale por detrás de las cajas (`yTira − golaStripDepth < espesor − 1`).
-  Solo cuando la profundidad del casco es derivable (`cascoDims` la obtiene
+  vigila la **profundidad del canal en el eje Y del renderer** (y=0 en el
+  fondo): error si el retranqueo es excesivo y el fondo del canal quedaría
+  detrás del plano interior del fondo del casco (`yFace − golaStripSetback −
+  15 < espesor − 1`). Las pestañas terminan a ras del plano de frentes por
+  construcción (no necesitan chequeo de protrusión). Solo cuando la
+  profundidad del casco es derivable (`cascoDims` la obtiene
   del alto de la tapa o del ancho de un lateral).
-- **Limitaciones**: sin mecanizados en tablero; la L capada deja hueco
-  visible sobre el frente superior; los parámetros son de taller hasta
-  seleccionar un perfil comercial. Futuro: tiras segmentadas por columna de
-  frentes (`nPorFila = 2`), gola en zócalo/base, redistribución del hueco
-  dejado por el cap.
+- **Limitaciones**: sin mecanizados en tablero; el control estricto de
+  despiece reporta la holgura real caja-frente (con el cajón estándar a
+  2·E = 30 mm, la regla de 60 mm exige rebajar la caja o subir el frente);
+  los parámetros son de taller hasta seleccionar un perfil comercial.
+  Futuro: canales segmentados por columna de frentes (`nPorFila = 2`), gola
+  en zócalo/base.
 
 ### Versiones
 
@@ -227,6 +250,17 @@ submódulos se numeran con un contador unificado por módulo (11, 12, 13…);
 con contadores separados por tipo, cajón 1 y zapatera 1 colisionaban en el
 submódulo `'11'` y el renderer podía cruzar las cajas.
 
+### Ajuste de frentes al aplicar el zócalo estructural
+
+`applyStructuralPlinth` (Generar marco, `app.js`): al aplicar el marco, el
+frente del **cajón que queda directo sobre el zócalo** (el frente anclado más
+bajo del módulo, si es de cajón) crece **+30 mm** (`PLINTH_DRAWER_FRONT_LIFT_MM`)
+y se **centra en su vano** (15 mm arriba y 15 mm abajo). **Solo frentes de
+cajón**: si lo más bajo del módulo es una zapatera, esa zona es de la
+zapatera y ningún frente se toca. El ajuste ocurre solo al aplicar el marco
+la primera vez (una regeneración no duplica el +30) y `removeStructuralPlinth`
+lo revierte. La constante vive en `plinthFrameService.js`.
+
 ## 4. Pantalla completa en 3D
 
 Dos piezas cooperan (faltaba cualquiera de las dos):
@@ -248,7 +282,8 @@ proporción y **ocupa la misma fracción de pantalla** que en tamaño normal.
 | Suite | Qué cubre |
 |---|---|
 | `js/services/closetBuilderService.test.js` | Invariantes geométricas + 100 closets aleatorios re-parsean sin errores/warnings (salvo heurística de cobertura de frentes). |
-| `js/services/golaService.test.js` | Sistema gola: tiras N−1 entre frentes (N = 2..5), agarre, L-gola (con/sin repisa, cap), coherencia del reparto, cubre-caja, round-trip con/sin meta, BOM, límites (0/1 cajón, vano insuficiente), geo `gola_strip`/`gola_grip` en el renderer, interferencia tira↔caja en profundidad, reporte para el manual. |
+| `js/services/golaService.test.js` | Sistema gola: canales C N−1 entre frentes (N = 2..5) con fondo retranqueado + labios a ras del plano de frentes, agarre, coherencia del reparto, cubre-caja, round-trip con/sin meta, BOM, límites (0/1 cajón, vano insuficiente), geo `gola_strip`/`gola_grip` en el renderer, retranqueo excesivo en profundidad, reporte para el manual. |
+| `js/services/despieceAuditService.test.js` | Auditoría estricta de despiece: luz libre del canal de la mano (≥40 mm, ERROR CRÍTICO con déficit), veta (rotate) por función (frentes/golas error, laterales/caras/fondos warning, bases libres info) y colisión gola (caja ≥60 mm bajo el frente, exención frenteBajo). |
 | `test/views/golaPreview.dom.test.js` | Vista previa del gola: panel con plan, confirmar aplica, cancelar no muta, `previewGola` es dry-run, fallo revierte el checkbox. |
 | `test/views/golaDimensions.dom.test.js` | `editModuleDimensions` con gola activo re-aplica tiras (re-anchoa/reposiciona) en la misma acción (un solo undo); vano insuficiente → edición OK con warning; save/load de versión rehidrata metas (disable restaura exacto). |
 | `js/services/projectVersionsService.test.js` | CRUD, round-trip, tope 50, JSON corrupto, pin. |
