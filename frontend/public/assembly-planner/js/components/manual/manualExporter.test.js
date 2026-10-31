@@ -120,8 +120,6 @@ describe('manualExporter', () => {
       'm1gola-c1-fondo': { id: 'm1gola-c1-fondo', nombre: 'Fondo de canal Gola C 1', ancho: 820, alto: 50, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 225.5 },
       'm1gola-c1-pestana-sup': { id: 'm1gola-c1-pestana-sup', nombre: 'Pestana superior Gola C 1', ancho: 820, alto: 40, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 260.5 },
       'm1gola-c1-pestana-inf': { id: 'm1gola-c1-pestana-inf', nombre: 'Pestana inferior Gola C 1', ancho: 820, alto: 40, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 225.5 },
-      'm1gola-l2-fondo': { id: 'm1gola-l2-fondo', nombre: 'Fondo de canal Gola L', ancho: 820, alto: 50, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 483 },
-      'm1gola-l2-pestana': { id: 'm1gola-l2-pestana', nombre: 'Pestana inferior Gola L', ancho: 820, alto: 40, cantidad: 1, espesor: 15, color: '#C19A6B', modulo: '1', pos_z: 483 },
     };
     const html = buildStandaloneHtml(steps, piezasGola, 'Cajonera');
     assert.ok(html.includes('Canales gola (melamina)'), 'debe incluir la sección');
@@ -129,7 +127,7 @@ describe('manualExporter', () => {
     assert.ok(html.includes('Canal C 1 (entre cajones) — fondo'), 'ubicación del fondo');
     assert.ok(html.includes('820 × 50 mm'), 'corte del fondo (ancho × alto)');
     assert.ok(html.includes('820 × 40 mm'), 'corte de la pestaña');
-    assert.ok(html.includes('Canal L (bajo la repisa) — pestana'), 'ubicación de la pestaña L');
+    assert.ok(!html.includes('Canal L'), 'sin canal L en el manual');
     assert.ok(html.includes('Melamina (#C19A6B)'), 'material/acabado');
     assert.ok(html.includes('Tornillos 3.5×16'), 'observaciones de fijación (default según taller)');
   });

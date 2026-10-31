@@ -176,11 +176,14 @@ describe('obstáculos fijos (tiras gola)', () => {
   }
 
   it('tira gola mal posicionada en el vano de un cajón: colisión al extraerse', () => {
-    // Pestañas exageradamente largas (mala construcción): sobresalen más allá
-    // del plano de frentes y quedan en la trayectoria de la caja extraída. En
-    // golaGeometry la z de las pestañas se deriva del FONDO de su canal, así
-    // que la corrupción se hace sobre el fondo.
-    const pieces = buildConGola(2, 900, { golaStripDepth: 200 });
+    // Canal desplazado al vano (z) del cajón 1 (mala construcción): al abrir
+    // el cajón, su caja barre el volumen de la tira fija y debe reportarse.
+    // Con el canal bien construido (detrás del plano de frentes, a ras) la
+    // caja extraída nunca lo toca. En golaGeometry la z de las pestañas se
+    // deriva del FONDO de su canal, así que la corrupción se hace sobre el
+    // fondo. Apertura parcial (0.5): a la salida completa la caja ya dejó el
+    // vano y no habría colisión.
+    const pieces = buildConGola(2, 900);
     const fondo = pieces.find((p) => p.id === 'm1gola-c1-fondo');
     assert.ok(fondo, 'existe el fondo del canal C1');
     const frente1 = pieces
@@ -188,7 +191,7 @@ describe('obstáculos fijos (tiras gola)', () => {
       .sort((a, b) => a.pos_z - b.pos_z)[0];
     // Corrupción: el canal del gap superior baja al vano (z) del cajón 1.
     fondo.pos_z = frente1.pos_z + 40;
-    const { pairs } = paresAlAbrir(pieces, { overrides: { golaStripDepth: 200 } });
+    const { pairs } = paresAlAbrir(pieces, { aperturaGlobal: 0.5 });
     const hit = pairs.find((p) => p.aId === 'm1gola-c1-pestana-inf' || p.bId === 'm1gola-c1-pestana-inf');
     assert.ok(hit, `se esperaba colisión con la tira desplazada: ${JSON.stringify(pairs.map((p) => [p.aId, p.bId]))}`);
     assert.equal(hit.contraObstaculoFijo, true, 'el par se marca como obstáculo fijo');
@@ -200,27 +203,21 @@ describe('obstáculos fijos (tiras gola)', () => {
     assert.deepEqual(pairs, [], `pares inesperados: ${JSON.stringify(pairs.map((p) => [p.aId, p.bId, p.volume]))}`);
   });
 
-  it('canal L: el frente que tapa la pestaña inferior NO reporta colisión', () => {
+  it('canal C: los labios terminan a ras del plano de frentes y NO reportan colisión al abrir', () => {
+    // Sin canal L, los canales C son los únicos elementos gola fijos: al abrir
+    // los frentes (los labios terminan A RAS del plano de frentes, así que
+    // apenas el frente avanza su propio espesor ya queda libre) ningún par de
+    // colisión debe involucrar tiras gola.
     const pieces = buildConGola(3, 900);
-    const frenteSup = pieces
+    const frentes = pieces
       .filter((p) => p.id.endsWith('-frente'))
-      .sort((a, b) => a.pos_z - b.pos_z)
-      .at(-1);
-    // Apertura parcial: el frente aún cubre en y la pestaña L mientras se abre
-    // (al 100% sale desplazado del mueble y ya no se tocan). La exención debe
-    // cubrir exactamente esta fase del movimiento.
-    const { pairs, geometries } = paresAlAbrir(pieces, { aperturaGlobal: 0, aperturas: { [frenteSup.id]: 0.05 } });
+      .sort((a, b) => a.pos_z - b.pos_z);
+    const aperturas = Object.fromEntries(frentes.map((f) => [f.id, 0.02]));
+    const { pairs } = paresAlAbrir(pieces, { aperturaGlobal: 0, aperturas });
     for (const p of pairs) {
-      assert.ok(![p.aId, p.bId].some((id) => /gola-l\d+-/.test(id)),
-        `ningún par debe involucrar tiras del canal L: ${p.aId} | ${p.bId}`);
+      assert.ok(![p.aId, p.bId].some((id) => /gola-[cl]\d*-/.test(id)),
+        `ningún par debe involucrar tiras gola: ${p.aId} | ${p.bId}`);
     }
-    // Sanity: sin la exención el solape frente↔pestaña L sería real (es la tapa
-    // a propósito del mecanismo de agarre).
-    const geoFrente = geometries.find((g) => g.id === frenteSup.id);
-    const geoPestanaL = geometries.find((g) => /gola-l\d+-pestana$/.test(g.id));
-    assert.ok(geoFrente && geoPestanaL);
-    assert.ok(intersectVolume(aabbOf(geoFrente), aabbOf(geoPestanaL)) > 1e-6,
-      'el frente superior realmente solapa la pestaña L durante la apertura');
   });
 
   it('tira gola ensanchada sobre el casco: obstáculo↔fijo del casco no se reporta', () => {

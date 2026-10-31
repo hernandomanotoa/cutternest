@@ -39,9 +39,12 @@ function buildHealthyModule() {
     ultimoTecho = frente.pos_z + frente.alto;
     pieces.push(...d.pieces);
   }
+  // Repisa en el span EXACTO de la pila gola (2 frentes de 197 + 1 canal de
+  // 56 + gap superior 2.5): los frentes conservan 197 y la caja 167 → la
+  // auditoría de despiece detecta la colisión (holgura 30 < 60) y la veta.
   const s = addShelf('1', { anchoUtil: INTERIOR, profReal: PROF - 2 * ESP, index: 1 });
   assert.ok(s.ok);
-  s.pieces[0].pos_z = ultimoTecho + 300;
+  s.pieces[0].pos_z = 25 + 2 * 197 + 56 + 2.5;
   pieces.push(...s.pieces);
   return pieces;
 }
@@ -66,14 +69,26 @@ function frente(moduloSub, nombre, alto, posZ = null) {
   };
 }
 
-test('módulo sano con gola aplicada → secciones con filas validado y corte autorizado', () => {
+test('módulo con gola aplicada → la auditoría estricta de despiece reporta veta y colisión (corte NO autorizado)', () => {
   const pieces = buildHealthyModule();
   const gola = applyGola(pieces, '1', {});
   assert.ok(gola.ok, 'gola aplicada');
 
   const reporte = buildAuditReport(gola.pieces, {});
-  assert.equal(reporte.corteAutorizado, true, 'sin errores → corte autorizado');
-  assert.equal(reporte.conteo['por-corregir'], 0);
+
+  // Reglas de control estricto: los frentes del Constructor llevan rotate
+  // 'si' (veta vertical → error de continuidad estética) y la caja está a
+  // 30 mm del frente (< 60 mm → colisión con la gola). El corte queda
+  // bloqueado hasta corregir.
+  assert.equal(reporte.corteAutorizado, false, 'errores de despiece → corte NO autorizado');
+  const veta = reporte.rows.filter((f) => f.problema.includes("rotate 'si'"));
+  assert.ok(veta.some((f) => f.estado === 'por-corregir' && /Frente/.test(f.problema)), 'frentes con rotate: error de veta');
+  assert.ok(veta.some((f) => f.estado === 'por-corregir' && /Gola/.test(f.problema)), 'pestañas gola con rotate: error de veta (pieza frontal visible del canal)');
+  assert.ok(veta.every((f) => f.estado === 'por-corregir'), 'frentes/gola son nivel error (obligatorio)');
+  const colision = reporte.rows.filter((f) => /COLISIÓN/.test(f.problema));
+  assert.ok(colision.length >= 1 && colision.every((f) => f.estado === 'por-corregir'), 'colisión gola por-corregir');
+  const bases = reporte.rows.find((f) => f.estado === 'validado' && /Bases de cajón/.test(f.problema));
+  assert.ok(bases, 'bases: fila informativa (rotate libre, ahorro de material)');
 
   // Toda fila pertenece a una sección y un estado del contrato.
   for (const f of reporte.rows) {

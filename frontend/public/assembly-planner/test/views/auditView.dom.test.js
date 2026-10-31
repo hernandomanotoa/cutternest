@@ -73,15 +73,19 @@ test('mount con estado vacío muestra el empty-state', () => {
   view.destroy();
 });
 
-test('mount con mueble sano + gola muestra banner de despiece autorizado', () => {
+test('mount con mueble + gola bajo auditoría estricta muestra banner de no autorización (veta y colisión)', () => {
   const store = createStore({ pieces: buildHealthyGolaPieces() });
   const view = createAuditView(store);
   const container = createContainer();
 
   view.mount(container);
 
-  assert.ok(container.querySelector('.alert--success'), 'banner verde');
-  assert.match(container.textContent, /Despiece autorizado/);
+  // Reglas de control estricto del taller: los frentes/golas del Constructor
+  // llevan rotate 'si' (veta vertical → error de continuidad estética). El
+  // corte queda bloqueado hasta corregir.
+  assert.ok(container.querySelector('.alert--danger'), 'banner rojo');
+  assert.match(container.textContent, /No autorizar el corte: \d+ elemento\(s\) por corregir/);
+  assert.match(container.textContent, /veta/);
   // Tabla del contrato con sus columnas.
   const encabezados = [...container.querySelectorAll('.audit-table thead th')].map((th) => th.textContent);
   assert.deepEqual(encabezados, [
@@ -90,6 +94,7 @@ test('mount con mueble sano + gola muestra banner de despiece autorizado', () =>
   ]);
   // Agrupación por sección y badges de estado.
   assert.ok(container.querySelector('.audit-section-row'), 'filas de sección');
+  assert.ok(container.querySelector('.badge--danger'), 'badge por-corregir');
   assert.ok(container.querySelector('.badge--success'), 'badge validado');
   // Botón de exportación presente.
   assert.ok(container.querySelector('#btn-export-audit'), 'botón exportar');
@@ -113,12 +118,15 @@ test('mount con pila que excede el vano muestra banner de no autorización', () 
 });
 
 test('re-renderiza al cambiar las piezas del store', () => {
-  const store = createStore({ pieces: buildHealthyGolaPieces() });
+  // Casco solo: sin frentes ni gola, la auditoría estricta no aplica y el
+  // corte queda autorizado.
+  const casco = createModule({ ancho: ANCHO, alto: ALTO, prof: PROF, modulo: '1' });
+  const store = createStore({ pieces: casco.pieces });
   const view = createAuditView(store);
   const container = createContainer();
 
   view.mount(container);
-  assert.ok(container.querySelector('.alert--success'), 'autorizado con mueble sano');
+  assert.ok(container.querySelector('.alert--success'), 'autorizado con casco solo');
 
   store.setField('pieces', buildOverflowPieces());
   assert.ok(container.querySelector('.alert--danger'), 'no autorizado tras introducir el error');

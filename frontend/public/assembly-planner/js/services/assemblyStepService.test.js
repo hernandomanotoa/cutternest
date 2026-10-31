@@ -438,7 +438,7 @@ describe('assemblyStepService/zócalo estructural a marco', () => {
 });
 
 describe('assemblyStepService/gola — orden físico de canales en el modo paso', () => {
-  it('cada canal C queda entre su frente inferior y el superior; la L al final', async () => {
+  it('cada canal C queda entre su frente inferior y el superior (sin canal L al final)', async () => {
     const { applyGola } = await import('./golaService.js');
     const { createModule, addDrawer } = await import('./closetBuilderService.js');
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
@@ -460,10 +460,9 @@ describe('assemblyStepService/gola — orden físico de canales en el modo paso'
     const iF2 = ids.indexOf('m1cajon2-frente');
     const iC2 = ids.indexOf('m1gola-c2-fondo');
     const iF3 = ids.indexOf('m1cajon3-frente');
-    const iL = ids.indexOf('m1gola-l3-fondo');
     assert.ok(iF1 < iC1 && iC1 < iF2, 'canal C1 entre frente 1 y 2');
     assert.ok(iF2 < iC2 && iC2 < iF3, 'canal C2 entre frente 2 y 3');
-    assert.ok(iF3 < iL, 'canal L tras el último frente');
+    assert.ok(!ids.some((id) => /gola-l\d*-/.test(id)), 'sin canal L tras el último frente');
     // Las pestañas van con su fondo (mismo paso, inmediatas).
     const iP1 = ids.indexOf('m1gola-c1-pestana-inf');
     assert.ok(Math.abs(iP1 - iC1) <= 3, 'pestañas del canal junto a su fondo');

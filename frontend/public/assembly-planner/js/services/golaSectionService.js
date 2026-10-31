@@ -92,7 +92,6 @@ export function buildGolaSections(pieces, userConfig = {}) {
       const perfil = cfg.golaPerfilHeight;
       const paso = cfg.golaPaso;
       const setback = cfg.golaStripSetback;
-      const depth = cfg.golaStripDepth;
       const ab = aberturaCanalGola(tipo, cfg);
       const canalId = String(fondo.id).replace(/-fondo$/, '');
       const plan = planPorCanal.get(canalId)
@@ -112,82 +111,53 @@ export function buildGolaSections(pieces, userConfig = {}) {
         }
       };
 
-      // Cuerpo del canal: fondo vertical retranqueado + pestañas horizontales.
+      // Cuerpo del canal: fondo vertical retranqueado (panel de 15) + labios
+      // (pestañas) a ras del plano de frentes que cubren el retranqueo y
+      // traslapsan el fondo.
       piezas.push({
         id: String(fondo.id), rol: 'fondo',
         y: setback, z: mm(zBase),
-        profundidad: depth, alto: perfil,
+        profundidad: ESP_TIRA, alto: perfil,
         etiqueta: `Fondo ${mm(Number(fondo.ancho) || 0)}×${perfil}`,
         fija: true,
       });
-      const pestInf = canal.piezas.find((p) => /-pestana-inf$/.test(String(p.id)))
-        || (tipo === 'L' ? canal.piezas.find((p) => /-pestana$/.test(String(p.id))) : null);
+      const pestInf = canal.piezas.find((p) => /-pestana-inf$/.test(String(p.id)));
       if (pestInf) {
         piezas.push({
           id: String(pestInf.id), rol: 'pestana',
           y: 0, z: mm(zBase),
           profundidad: setback + ESP_TIRA, alto: ESP_TIRA,
-          etiqueta: `Pestaña ${mm(Number(pestInf.ancho) || 0)}×${mm(Number(pestInf.alto) || depth)}`,
+          etiqueta: `Pestaña ${mm(Number(pestInf.ancho) || 0)}×${mm(Number(pestInf.alto) || setback + ESP_TIRA)}`,
           fija: true,
         });
       }
 
-      let abertura;
-      if (tipo === 'C') {
-        const pestSup = canal.piezas.find((p) => /-pestana-sup$/.test(String(p.id)));
-        if (pestSup) {
-          piezas.push({
-            id: String(pestSup.id), rol: 'pestana',
-            y: 0, z: mm(zBase + perfil - ESP_TIRA),
-            profundidad: setback + ESP_TIRA, alto: ESP_TIRA,
-            etiqueta: `Pestaña ${mm(Number(pestSup.ancho) || 0)}×${mm(Number(pestSup.alto) || depth)}`,
-            fija: true,
-          });
-        }
-        // Frentes adyacentes: unidad inferior (techo = zBase − paso) y
-        // unidad superior (pos_z = zBase + perfil + paso).
-        const uInf = unidades[canal.indice - 1];
-        const uSup = unidades[canal.indice];
-        if (uInf) frente(uInf, techoUnidad(uInf) - (Number(uInf.frentes[0].alto) || 0), techoUnidad(uInf));
-        if (uSup) frente(uSup, Number(uSup.frentes[0].pos_z) || 0, (Number(uSup.frentes[0].pos_z) || 0) + (Number(uSup.frentes[0].alto) || 0));
-        abertura = {
-          utilMm: ab.aberturaUtilMm,
-          altoMm: ab.aberturaUtilMm,
-          profundidadMm: ab.profundidadEntradaMm,
-          desdeZ: mm(zBase + ESP_TIRA),
-          hastaZ: mm(zBase + perfil - ESP_TIRA),
-          yDesde: 0, yHasta: setback,
-          etiqueta: `Abertura útil ${ab.aberturaUtilMm} mm`,
-        };
-      } else {
-        // Canal L: el frente superior (la propia L) tapa la pestaña inferior
-        // y el agarre entra desde arriba, bajo la repisa/tapa.
-        const uSup = unidades[unidades.length - 1];
-        const topRef = zBase + perfil + paso;
-        const techoFrente = topRef - cfg.golaFingerClearance;
-        if (uSup) frente(uSup, zBase, techoFrente);
-        if (plan.anclajeSuperior?.tipo === 'repisa') {
-          const repisa = lista.find((p) => String(p.id) === String(plan.anclajeSuperior.id));
-          piezas.push({
-            id: String(plan.anclajeSuperior.id), rol: 'repisa',
-            y: 0, z: mm(topRef),
-            profundidad: depth + setback, alto: ESP_TIRA,
-            etiqueta: repisa
-              ? `Repisa ${mm(Number(repisa.ancho) || 0)}×${mm(Number(repisa.alto) || ESP_TIRA)}`
-              : 'Repisa',
-            fija: true,
-          });
-        }
-        abertura = {
-          utilMm: ab.aberturaUtilMm,
-          altoMm: ab.aberturaUtilMm,
-          profundidadMm: ab.profundidadEntradaMm,
-          desdeZ: mm(techoFrente),
-          hastaZ: mm(topRef),
-          yDesde: setback, yHasta: setback + depth,
-          etiqueta: `Abertura útil ${ab.aberturaUtilMm} mm (bajo la repisa)`,
-        };
+      // SOLO canales C (el canal L se eliminó: gola únicamente entre cajones).
+      const pestSup = canal.piezas.find((p) => /-pestana-sup$/.test(String(p.id)));
+      if (pestSup) {
+        piezas.push({
+          id: String(pestSup.id), rol: 'pestana',
+          y: 0, z: mm(zBase + perfil - ESP_TIRA),
+          profundidad: setback + ESP_TIRA, alto: ESP_TIRA,
+          etiqueta: `Pestaña ${mm(Number(pestSup.ancho) || 0)}×${mm(Number(pestSup.alto) || setback + ESP_TIRA)}`,
+          fija: true,
+        });
       }
+      // Frentes adyacentes: unidad inferior (techo = zBase − paso) y
+      // unidad superior (pos_z = zBase + perfil + paso).
+      const uInf = unidades[canal.indice - 1];
+      const uSup = unidades[canal.indice];
+      if (uInf) frente(uInf, techoUnidad(uInf) - (Number(uInf.frentes[0].alto) || 0), techoUnidad(uInf));
+      if (uSup) frente(uSup, Number(uSup.frentes[0].pos_z) || 0, (Number(uSup.frentes[0].pos_z) || 0) + (Number(uSup.frentes[0].alto) || 0));
+      const abertura = {
+        utilMm: ab.aberturaUtilMm,
+        altoMm: ab.aberturaUtilMm,
+        profundidadMm: ab.profundidadEntradaMm,
+        desdeZ: mm(zBase + ESP_TIRA),
+        hastaZ: mm(zBase + perfil - ESP_TIRA),
+        yDesde: 0, yHasta: setback,
+        etiqueta: `Abertura útil ${ab.aberturaUtilMm} mm`,
+      };
 
       const puntosFijacion = (plan.tornillos?.posicionZmm || []).map((z) => ({
         zMm: mm(zBase + z),
@@ -198,7 +168,7 @@ export function buildGolaSections(pieces, userConfig = {}) {
       const cotas = [
         { eje: 'z', inicio: mm(zBase), fin: mm(zBase + perfil), valor: perfil, etiqueta: `Cuerpo del perfil ${perfil}` },
         { eje: 'y', inicio: 0, fin: setback, valor: setback, etiqueta: `Retranqueo ${setback}` },
-        { eje: 'y', inicio: setback, fin: setback + depth, valor: depth, etiqueta: `Profundidad tira ${depth}` },
+        { eje: 'y', inicio: 0, fin: mm(setback + ESP_TIRA), valor: mm(setback + ESP_TIRA), etiqueta: `Labio (retranqueo + traslapa fondo ${ESP_TIRA})` },
         { eje: 'z', inicio: mm(zBase - paso), fin: mm(zBase), valor: paso, etiqueta: `Paso ${paso}` },
       ];
 
@@ -213,7 +183,7 @@ export function buildGolaSections(pieces, userConfig = {}) {
         perfilMm: perfil,
         pasoMm: paso,
         retranqueoMm: setback,
-        profundidadMm: depth,
+        profundidadMm: mm(setback + ESP_TIRA), // alcance del labio desde el plano de frentes
         espesorMm: ESP_TIRA,
         pestanaAltoMm: GOLA_PESTANA_ALTO_MM,
         abertura,

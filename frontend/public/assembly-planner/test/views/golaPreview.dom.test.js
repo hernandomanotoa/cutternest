@@ -70,9 +70,9 @@ test('C2: activar el checkbox muestra la vista previa con el plan (sin mutar el 
   const panel = container.querySelector('[data-gola-preview]');
   assert.ok(panel, 'se muestra el panel de vista previa');
   assert.match(panel.textContent, /Vista previa — sistema gola/);
-  assert.match(panel.textContent, /Se eliminarán los tiradores/, 'avisa que quita tiradores');
+  assert.match(panel.textContent, /Se crearán 2 canal\(es\) tipo C entre cajones/, 'anuncia los canales C entre cajones');
   assert.match(panel.textContent, /2 canal\(es\) tipo C/, 'N−1 canales C para 3 cajones');
-  assert.match(panel.textContent, /1 canal tipo L/, 'y 1 canal L bajo la repisa');
+  assert.match(panel.textContent, /Sobre el último frente queda el gap habitual \(sin canal L\)/, 'sin canal L sobre el último frente');
   assert.match(panel.textContent, /agarre de 20 mm/, 'muestra el agarre del cfg');
   assert.match(panel.textContent, /→ \d+ mm/, 'muestra las alturas nuevas de frentes');
 
@@ -88,15 +88,16 @@ test('C2: activar el checkbox muestra la vista previa con el plan (sin mutar el 
   }
   assert.equal(panel.querySelectorAll('[class*="cn-constructor__warnings"]').length <= 1, true, 'un solo bloque de avisos');
 
-  // El dry-run no tocó el store: sin tiras y con tiradores intactos.
+  // El dry-run no tocó el store: sin tiras y sin tiradores (el Constructor
+  // ya genera cajones sin tirador).
   const pieces = getStore().get().pieces;
   assert.equal(isGolaEnabled(pieces, '1'), false, 'gola sigue desactivada');
   assert.equal(tirasDe(pieces).length, 0, 'sin tiras creadas');
-  assert.ok(tiradoresDe(pieces).length > 0, 'tiradores intactos');
+  assert.equal(tiradoresDe(pieces).length, 0, 'sin tiradores (apertura sin jaladera)');
   view.destroy();
 });
 
-test('C2: confirmar aplica el gola (tiras creadas, tiradores eliminados)', () => {
+test('C2: confirmar aplica el gola (tiras creadas, sin tiradores)', () => {
   const { view, container } = mountView();
   armarModuloCon3Cajones();
 
@@ -108,7 +109,7 @@ test('C2: confirmar aplica el gola (tiras creadas, tiradores eliminados)', () =>
   const pieces = getStore().get().pieces;
   assert.equal(isGolaEnabled(pieces, '1'), true, 'gola activada');
   assert.equal(tirasDe(pieces).length, 2, 'N−1 tiras creadas');
-  assert.equal(tiradoresDe(pieces).length, 0, 'tiradores eliminados');
+  assert.equal(tiradoresDe(pieces).length, 0, 'sin tiradores');
   assert.ok(!container.querySelector('[data-gola-preview]'), 'el panel de vista previa se cierra');
   const checkbox = container.querySelector('[data-action="toggle-gola"]');
   assert.equal(checkbox.checked, true, 'checkbox queda activo tras confirmar');
@@ -127,7 +128,7 @@ test('C2: cancelar no muta (sin tiras, tiradores intactos, checkbox off)', () =>
   const pieces = getStore().get().pieces;
   assert.equal(isGolaEnabled(pieces, '1'), false, 'gola sigue desactivada');
   assert.equal(tirasDe(pieces).length, 0, 'sin tiras');
-  assert.ok(tiradoresDe(pieces).length > 0, 'tiradores intactos');
+  assert.equal(tiradoresDe(pieces).length, 0, 'sin tiradores (apertura sin jaladera)');
   assert.ok(!container.querySelector('[data-gola-preview]'), 'el panel se cierra');
   const checkbox = container.querySelector('[data-action="toggle-gola"]');
   assert.equal(checkbox.checked, false, 'checkbox vuelve a off');

@@ -1,9 +1,11 @@
 // js/components/renderers/isometric/golaGeometry.test.js — Test de propiedades
 // de buildGolaGeometries(): para cualquier pila de N cajones (2..5) y config
 // gola, cada canal genera fondo + pestañas + marca de agarre con medidas
-// coherentes: fondo alto = perfil, pestañas alto = espesor de tablero (15) y
-// profundidad = golaStripDepth, pos_z ancladas al fondo, y el gap entre
-// frentes consecutivos = paso + perfil + paso.
+// coherentes: fondo alto = perfil y retranqueado golaStripSetback detrás del
+// plano de frentes, pestañas (labios) alto = espesor de tablero (15) y
+// alcance = retranqueo + 15 (a ras del plano de frentes, sin sobresalir),
+// pos_z ancladas al fondo, y el gap entre frentes consecutivos = paso +
+// perfil + paso.
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,8 +55,8 @@ const yBackEsperada = (cfg) => yFaceEsperada(cfg) - cfg.golaStripSetback;
 const CONFIGS = [
   { nombre: 'defaults', overrides: {} },
   {
-    nombre: 'perfil 40 / tira 70 / setback 15 / paso 4',
-    overrides: { golaPerfilHeight: 40, golaStripDepth: 70, golaStripSetback: 15, golaPaso: 4 },
+    nombre: 'perfil 40 / setback 15 / paso 4',
+    overrides: { golaPerfilHeight: 40, golaStripSetback: 15, golaPaso: 4 },
   },
 ];
 
@@ -68,7 +70,6 @@ describe('buildGolaGeometries — propiedades del canal (fondo + pestañas + aga
         const cfg = {
           golaPerfilHeight: cfgOverrides.overrides.golaPerfilHeight ?? GOLA_DEFAULTS.golaPerfilHeight,
           golaPaso: cfgOverrides.overrides.golaPaso ?? GOLA_DEFAULTS.golaPaso,
-          golaStripDepth: cfgOverrides.overrides.golaStripDepth ?? GOLA_DEFAULTS.golaStripDepth,
           golaStripSetback: cfgOverrides.overrides.golaStripSetback ?? GOLA_DEFAULTS.golaStripSetback,
         };
 
@@ -81,8 +82,8 @@ describe('buildGolaGeometries — propiedades del canal (fondo + pestañas + aga
           .filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id)))
           .sort((a, b) => a.pos_z - b.pos_z);
 
-        // N−1 canales C + 1 canal L.
-        assert.equal(fondos.length, n, `${n - 1} canales C + 1 canal L`);
+        // SOLO canales C: N−1 fondos (el canal L se eliminó).
+        assert.equal(fondos.length, n - 1, `N=${n} → ${n - 1} canales C`);
         assert.equal(tiras.length, n - 1);
 
         const stripW = ANCHO - 2 * ESP;
@@ -119,31 +120,35 @@ describe('buildGolaGeometries — propiedades del canal (fondo + pestañas + aga
           assert.equal(f.color, piezaFondo.color || ROLE_COLORS.gola_strip,
             'color = color de la pieza (fallback al del rol)');
 
-          // Pestaña superior: pegada al techo del fondo, alto = tablero (15),
-          // profundidad = golaStripDepth.
+          // Pestaña superior (labio): pegada al techo del fondo, alto = tablero
+          // (15), alcance = retranqueo + 15: cubre el hueco de agarre y
+          // traslapsa el fondo, terminando A RAS del plano de frentes.
           const sup = geos.find((g) => g.id === `${pref}-pestana-sup`);
           if (sup) {
             assert.equal(sup.h, ESP, 'pestaña sup: alto = espesor de tablero');
-            assert.equal(sup.d, cfg.golaStripDepth, 'pestaña sup: alcance = golaStripDepth');
+            assert.equal(sup.d, cfg.golaStripSetback + ESP, 'pestaña sup: alcance = retranqueo + 15');
             assert.ok(Math.abs(sup.z - (f.z + f.h - ESP)) <= 0.5, 'pestaña sup: z = techo del fondo − tablero');
-            assert.ok(Math.abs(sup.y - (yBack - ESP)) <= 0.5, 'pestaña sup: sale del fondo');
+            assert.ok(Math.abs(sup.y - (yBack - ESP)) <= 0.5, 'pestaña sup: arranca en la cara posterior del fondo');
+            assert.ok(Math.abs(sup.y + sup.d - yFaceEsperada(cfg)) <= 0.5, 'pestaña sup: termina A RAS del plano de frentes (no sobresale)');
             assert.equal(sup.w, stripW);
           }
 
-          // Pestaña inferior: en la base del fondo; el canal L solo lleva esta.
+          // Pestaña inferior (labio): en la base del fondo; mismo alcance:
+          // a ras del plano de frentes.
           const inf = geos.find((g) => g.id === `${pref}-pestana-inf` || g.id === `${pref}-pestana`);
           if (inf) {
             assert.equal(inf.h, ESP, 'pestaña inf: alto = espesor de tablero');
-            assert.equal(inf.d, cfg.golaStripDepth, 'pestaña inf: alcance = golaStripDepth');
+            assert.equal(inf.d, cfg.golaStripSetback + ESP, 'pestaña inf: alcance = retranqueo + 15');
             assert.ok(Math.abs(inf.z - f.z) <= 0.5, 'pestaña inf: z = base del fondo');
-            assert.ok(Math.abs(inf.y - (yBack - ESP)) <= 0.5, 'pestaña inf: sale del fondo');
+            assert.ok(Math.abs(inf.y - (yBack - ESP)) <= 0.5, 'pestaña inf: arranca en la cara posterior del fondo');
+            assert.ok(Math.abs(inf.y + inf.d - yFaceEsperada(cfg)) <= 0.5, 'pestaña inf: termina A RAS del plano de frentes (no sobresale)');
             assert.equal(inf.w, stripW);
           }
-          // Canal C: tiene ambas pestañas; canal L: solo la inferior.
+          // Canal C: siempre con ambas pestañas (sup e inf).
           if (/gola-c\d+-fondo$/.test(f.id)) {
             assert.ok(sup && inf, `${f.id}: canal C con pestaña sup e inf`);
           } else {
-            assert.ok(inf && !sup, `${f.id}: canal L solo con pestaña inferior`);
+            assert.fail(`${f.id}: no debe haber fondos que no sean de canal C`);
           }
 
           // Marca del agarre: paso superior sobre la tira, en el plano de frentes.
@@ -158,16 +163,9 @@ describe('buildGolaGeometries — propiedades del canal (fondo + pestañas + aga
           assert.equal(grip.w, stripW);
         }
 
-        // ── Propiedad: agarre L bajo el techo del último frente → repisa.
-        const lGrip = geos.find((g) => g.id === 'm1-gola-l-grip');
-        assert.ok(lGrip, 'existe la marca del agarre L');
-        const ultimo = frentes[frentes.length - 1];
-        const techoUlt = ultimo.pos_z + ultimo.alto;
-        const repisa = r.pieces.find((p) => p.id === 'm1-repisa-1');
-        assert.ok(Math.abs(lGrip.z - techoUlt) <= 0.5, 'agarre L: z = techo del último frente');
-        assert.ok(Math.abs(lGrip.z + lGrip.h - repisa.pos_z) <= 0.5,
-          'agarre L: termina en la repisa inmediata superior');
-        assert.ok(lGrip.h > 0, 'agarre L con altura positiva');
+        // ── Propiedad: sobre el último frente NO hay marca de agarre (el
+        // canal L se eliminó; queda el gap de frente habitual).
+        assert.ok(!geos.some((g) => /gola-l/.test(g.id)), 'sin geometrías del canal L');
       });
     }
   }
@@ -177,6 +175,25 @@ describe('buildGolaGeometries — propiedades del canal (fondo + pestañas + aga
     assert.deepEqual(buildGolaGeometries('1', casco.pieces, moduleBox, rendererStub, {}), []);
     assert.deepEqual(buildGolaGeometries('1', [], moduleBox, rendererStub, {}), []);
   });
+
+  for (const cfgOverrides of CONFIGS) {
+    it(`invariante ${cfgOverrides.nombre}: ninguna tira sobresale del plano de frentes y el fondo queda retranqueado`, () => {
+      const pieces = buildModule(4);
+      const r = applyGola(pieces, '1', cfgOverrides.overrides);
+      assert.ok(r.ok, r.errors?.join('; '));
+      const setback = cfgOverrides.overrides.golaStripSetback ?? GOLA_DEFAULTS.golaStripSetback;
+      const geos = buildGolaGeometries('1', r.pieces, moduleBox, rendererStub, cfgOverrides.overrides);
+      const yFace = yFaceEsperada();
+      for (const g of geos.filter((x) => x.role === 'gola_strip')) {
+        assert.ok(g.y + g.d <= yFace + 0.5,
+          `${g.id}: cara frontal ${g.y + g.d} ≤ plano de frentes ${yFace} (nada obstruye el frente)`);
+      }
+      for (const f of geos.filter((x) => x.id.endsWith('-fondo'))) {
+        assert.ok(Math.abs((f.y + f.d) - (yFace - setback)) <= 0.5,
+          `${f.id}: cara frontal del fondo a ${setback} mm detrás del plano de frentes`);
+      }
+    });
+  }
 
   it('respeta el drawerGap del renderer para el plano de frentes', () => {
     const pieces = buildModule(2);

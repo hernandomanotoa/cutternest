@@ -36,9 +36,10 @@ function mountConstructor() {
   return { view, container };
 }
 
-function crearTipoEnPanel(container, { nombre = 'Zapatera baja 140', vano = '140', lados = false, rim = '120' } = {}) {
+function crearTipoEnPanel(container, { nombre = 'Zapatera baja 140', vano = '140', lados = false, rim = '120', frente = true } = {}) {
   container.querySelector('[data-ct="label"]').value = nombre;
   container.querySelector('[data-ct="vano"]').value = vano;
+  container.querySelector('[data-ct="frente"]').checked = frente;
   container.querySelector('[data-ct="lados"]').checked = lados;
   container.querySelector('[data-ct="rim"]').value = rim;
   container.querySelector('[data-action="save-custom-type"]').click();
@@ -60,7 +61,8 @@ test('crear un tipo personalizado: aparece en el selector y agrega con su contra
   const opciones = [...container.querySelectorAll('[data-tipo-zapatera] option')].map((o) => o.value);
   assert.ok(opciones.includes(customs[0].id), `opción en el selector: ${opciones.join(', ')}`);
 
-  // Agregar una zapatera con el tipo custom: vano del contrato.
+  // Agregar una zapatera con el tipo custom: vano del contrato. El modo
+  // default 'normal' hace que el frente refleje el vano (vano − 3).
   const sel = container.querySelector('[data-tipo-zapatera]');
   sel.value = customs[0].id;
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
@@ -68,24 +70,22 @@ test('crear un tipo personalizado: aparece en el selector y agrega con su contra
 
   const frente = getStore().get().pieces.find((p) => p.id === 'm1zapatera1-frente');
   assert.ok(frente, 'frente creado (con frente por defecto)');
-  assert.equal(frente.alto, 137, 'frente = vano custom 140 − 3');
+  assert.equal(frente.alto, 130, 'modo normal: frente = bandeja (100) + 30 (vano custom 140 no se cubre entero)');
   assert.match(frente.nombre, /\[cus-/, 'tag [cus-*] estampado: el contrato sobrevive al CSV');
 });
 
 test('tipo custom de bandeja a la vista: rim del contrato al agregar sin frente', () => {
   const { container } = mountConstructor();
-  crearTipoEnPanel(container, { nombre: 'Bandeja 160', vano: '160', lados: true, rim: '110' });
+  crearTipoEnPanel(container, { nombre: 'Bandeja 160', vano: '160', lados: true, rim: '110', frente: false });
 
   const id = listCustomTypes()[0].id;
   const sel = container.querySelector('[data-tipo-zapatera]');
   sel.value = id;
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
-  // Bandeja abierta: modo 'borde' con el borde precargado al rim del contrato
-  // (110): cara, laterales y fondo quedan al mismo alto.
-  const modo = container.querySelector('[data-modo-zapatera]');
-  modo.value = 'borde';
-  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
-  container.querySelector('[data-borde-zapatera]').value = '110';
+  // El tipo (sin frente por defecto) desmarca el checkbox: la bandeja va
+  // abierta y el rim del contrato (110) aplica a cara, laterales y fondo.
+  assert.equal(container.querySelector('[data-con-frente-zapatera]').checked, false,
+    'el tipo bandeja a la vista desmarca el frente');
   container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').click();
 
   const zap = getStore().get().pieces.filter((p) => String(p.id).includes('zapatera'));

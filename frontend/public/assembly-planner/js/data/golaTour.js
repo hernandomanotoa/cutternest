@@ -19,7 +19,7 @@ export const GOLA_TOUR_STEPS = [
   {
     selector: '[data-gola-panel]',
     title: 'Ajustar parámetros',
-    text: 'Con el gola activo, este panel permite ajustar el alto del perfil, el gap de agarre, la profundidad de las tiras y la fijación. Los valores se guardan por módulo.',
+    text: 'Con el gola activo, este panel permite ajustar el alto del perfil, el gap de agarre, el retranqueo del canal y la fijación. Los valores se guardan por módulo.',
     position: 'top',
   },
   {
@@ -31,7 +31,7 @@ export const GOLA_TOUR_STEPS = [
   {
     selector: '[data-action="confirm-gola"]',
     title: 'Confirmar la aplicación',
-    text: 'El botón “Aplicar gola” ejecuta el cambio: se eliminan los tiradores, se crean las tiras de melamina y la caja del cajón superior se rebaja para pasar bajo el canal L. Reversible con Deshacer (Ctrl+Z).',
+    text: 'El botón “Aplicar gola” ejecuta el cambio: se eliminan los tiradores y se crean los canales C de melamina entre los frentes (retranqueados, con su agarre detrás de los frentes). Reversible con Deshacer (Ctrl+Z).',
     position: 'top',
   },
 ];

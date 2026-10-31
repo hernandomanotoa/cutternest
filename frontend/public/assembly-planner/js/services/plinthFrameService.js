@@ -18,6 +18,11 @@
 export const MARCO_PIECE_RE = /^glb-zocalo(-s\d+)?-(frente|trasero|costado-izq|costado-der|montante-\d+|divisor-\d+|divpar-\d+)(-[ab])?$/;
 
 export const PLINTH_DEFAULT_RECESS = 50;    // retraso típico del frente (mm)
+
+// Ajuste de taller al aplicar el zócalo: el frente del CAJÓN que queda
+// directo sobre el zócalo crece +30 mm y se centra en su vano (15 mm arriba
+// y 15 mm abajo). SOLO frentes de cajón: los de zapatera NO se tocan.
+export const PLINTH_DRAWER_FRONT_LIFT_MM = 30;
 export const PLINTH_LEVELER_SPAN = 600;     // un par de niveladores cada 600 mm
 export const PLINTH_BOARD_LENGTH = 2440;    // largo del tablero de melamina
 export const PLINTH_MONTANTE_LUZ = 1000;    // luz a partir de la cual va montante

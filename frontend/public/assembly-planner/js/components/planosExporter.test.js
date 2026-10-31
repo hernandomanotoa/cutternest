@@ -54,14 +54,13 @@ describe('buildPlanosData', () => {
     assert.match(frontal.svg, /Ancho interior 770/);
   });
 
-  it('genera las secciones C y L con su detalle de fijación', () => {
-    assert.equal(planos.secciones.length, 2);
+  it('genera solo la sección C (N−1) con su detalle de fijación; sin canal L', () => {
+    assert.equal(planos.secciones.length, 1);
     const c = planos.secciones.find((s) => s.tipo === 'C');
-    const l = planos.secciones.find((s) => s.tipo === 'L');
     assert.match(c.svg, /Canal C 1/);
     assert.match(c.svg, /Abertura útil 20 mm/);
     assert.match(c.svg, /Retranqueo 10/);
-    assert.match(l.svg, /bajo la repisa/);
+    assert.ok(!planos.secciones.some((s) => s.tipo === 'L'), 'sin sección L');
     assert.match(c.planTxt, /3\.5×16/);
     assert.equal(planos.advertencias.length, 0);
   });
@@ -73,7 +72,7 @@ describe('buildPlanosHtml', () => {
   it('contiene frontal, secciones y cotas clave en mm', () => {
     assert.match(html, /Alzado frontal — Módulo 1 \(800 × 1600 mm\)/);
     assert.match(html, /Sección transversal — Canal C 1/);
-    assert.match(html, /Sección vertical — Canal L \(bajo la repisa\)/);
+    assert.doesNotMatch(html, /Canal L/);
     assert.match(html, /Retranqueo 10 mm/);
     assert.match(html, /Abertura útil 20 mm/);
     assert.match(html, /Paso 3 mm/);

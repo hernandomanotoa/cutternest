@@ -58,14 +58,15 @@ test('con mueble + gola muestra la sección Planos acotados con frontal y seccio
   assert.ok(seccion.querySelector('.plano-modulo[data-modulo="1"]'), 'alzado del módulo 1');
   assert.match(seccion.innerHTML, /Alzado frontal — Módulo 1/);
   assert.match(seccion.innerHTML, /Ancho interior 770/);
-  // Secciones gola C y L con el detalle de fijación.
+  // Sección gola C (el canal L se eliminó: solo canales C entre cajones) con
+  // el detalle de fijación.
   assert.ok(seccion.querySelector('.plano-seccion[data-canal="m1gola-c1"]'), 'sección del canal C1');
-  assert.ok(seccion.querySelector('.plano-seccion[data-canal="m1gola-l2"]'), 'sección del canal L');
+  assert.ok(!seccion.querySelector('.plano-seccion[data-canal^="m1gola-l"]'), 'sin sección del canal L');
   assert.match(seccion.innerHTML, /Abertura útil 20 mm/);
   assert.match(seccion.innerHTML, /Fijación:/);
   assert.match(seccion.textContent, /3\.5×16/);
-  // SVGs inline dibujados.
-  assert.ok(seccion.querySelectorAll('svg').length >= 3, 'alzado + 2 secciones en SVG');
+  // SVGs inline dibujados (alzado + sección C).
+  assert.ok(seccion.querySelectorAll('svg').length >= 2, 'alzado + sección C en SVG');
   // Botón de exportación.
   assert.ok(container.querySelector('#btn-export-planos'), 'botón Exportar planos');
 

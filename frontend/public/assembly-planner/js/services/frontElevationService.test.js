@@ -18,15 +18,15 @@ const DRAWER_FRONT_GAP = 2.5;
 const INTERIOR = ANCHO - 2 * 15;
 
 // Geometría esperada con los defaults de taller (golaPerfilHeight 50,
-// golaPaso 3, golaFingerClearance 20): frentes 197, cajas 167 (piso 177),
-// span H_new = 721.5 − 20 − 25 = 676.5, gap G = 56. El reparto da 310.5 al
-// frente 1; el frente 2 (la L) queda capado a 287 (golaMaxOverhang 120).
+// golaPaso 3): frentes 197 originales, cajas 167 (piso 177), span
+// H_new = 721.5 − 2.5 − 25 = 694, gap G = 56, disponible 638: el reparto
+// puro da 319 a cada frente (piso 177 + aire 142). El último frente queda a
+// drawerFrontGap (2.5) de la repisa: sin canal L ni cap.
 const Z1 = 25;
-const ALTO_FRENTE_1 = 310.5;
-const Z2 = 391.5;
-const ALTO_FRENTE_2 = 287; // capado: extensión L 143 > máx. 120
-const Z_BASE_C1 = 338.5; // techo frente 1 (335.5) + paso
-const Z_L = 668.5; // topRef (721.5) − paso − perfil
+const ALTO_FRENTE_1 = 319;
+const Z2 = 400;
+const ALTO_FRENTE_2 = 319; // mismo criterio que el frente 1 (sin extensión L)
+const Z_BASE_C1 = 347; // techo frente 1 (344) + paso
 
 // Casco + 2 cajones + repisa con gola aplicada (mismo patrón que
 // golaService.test.js y auditView.dom.test.js).
@@ -77,7 +77,7 @@ describe('buildFrontElevation: proyección X-Z del módulo', () => {
       assert.match(f.etiqueta, /^\d+(\.\d+)?×\d+(\.\d+)?$/, 'etiqueta de corte ancho×alto');
     }
     assert.equal(f1.alto, ALTO_FRENTE_1);
-    assert.equal(f2.alto, ALTO_FRENTE_2, 'frente L capado por golaMaxOverhang');
+    assert.equal(f2.alto, ALTO_FRENTE_2, 'mismo criterio de reparto para el último frente (sin extensión L)');
   });
 
   it('incluye casco y tiras gola como piezas fijas', () => {
@@ -94,11 +94,9 @@ describe('buildFrontElevation: proyección X-Z del módulo', () => {
     assert.equal(fondo.alto, 50, 'cuerpo del perfil');
     assert.ok(Math.abs(fondo.z - Z_BASE_C1) < 0.01, `z del fondo C1 (${fondo.z} ≈ ${Z_BASE_C1})`);
     const pestanas = modelo.rectangulos.filter((r) => r.rol === 'gola_strip' && /-pestana/.test(r.id));
-    assert.equal(pestanas.length, 3, '2 pestañas C + 1 pestaña L');
+    assert.equal(pestanas.length, 2, 'pestaña sup e inf del único canal C');
     for (const p of pestanas) assert.equal(p.alto, 15, 'pestaña: altura vertical = espesor');
-    const fondoL = modelo.rectangulos.find((r) => r.id === 'm1gola-l2-fondo');
-    assert.ok(fondoL, 'fondo del canal L proyectado');
-    assert.ok(Math.abs(fondoL.z - Z_L) < 0.01, `z del fondo L (${fondoL.z} ≈ ${Z_L})`);
+    assert.ok(!modelo.rectangulos.some((r) => /gola-l\d*-/.test(r.id)), 'sin canal L proyectado');
   });
 
   it('emite cotas principales: ancho total, ancho interior y alto total', () => {

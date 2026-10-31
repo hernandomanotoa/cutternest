@@ -31,6 +31,13 @@ import { parseCSV, piecesToCSV } from './csvParser.js';
 import { validateStackClearance } from './stackClearanceService.js';
 import { validateShoeClearance } from './shoeClearanceService.js';
 import { validateGola, getGolaCfg, aberturaCanalGola } from './golaService.js';
+import {
+  auditarLuzLibreGola,
+  auditarVeta,
+  auditarColisionGola,
+  LUZ_MIN_MANO_MM,
+  COLISION_GOLA_MIN_MM,
+} from './despieceAuditService.js';
 import { calculateHardware } from './hardware.js';
 import { calcularVuelco, clasificarRiesgo, estimatePieceWeight, getProfundidadMueble } from './structural.js';
 import { detectCollisions } from './collisionService.js';
@@ -52,6 +59,9 @@ const JUSTIFICACION = {
   riesgo: 'Clasificación de riesgo de flexión/pandeo por luz y espesor del panel (clasificarRiesgo, structural.js).',
   collision: 'Detección de colisiones al abrir piezas móviles contra otras móviles o contra obstáculos fijos del sistema gola (collisionService.js).',
   riel: 'Holgura lateral del tipo de riel según catálogo (RAIL_TYPES, core/config.js), verificada por el validador estructural sin avisos para este tipo.',
+  luz: `Regla de control estricto del taller (auditoría de despiece): la luz libre entre frentes consecutivos —el canal por donde entra la mano en la gola— debe ser ≥ ${LUZ_MIN_MANO_MM} mm; por debajo, los frentes obstruyen el agarre.`,
+  veta: 'Regla de control estricto del taller (auditoría de despiece): el sentido de la veta (rotate) se audita por función de la pieza para garantizar la continuidad estética del diseño de madera: frentes y golas con veta horizontal obligatoria, laterales/caras/fondos recomendados, bases libres.',
+  colision: `Regla de control estricto del taller (auditoría de despiece): la estructura interna de la caja debe quedar ≥ ${COLISION_GOLA_MIN_MM} mm por debajo del frente; con menos holgura el cajón choca la gola al cerrar.`,
   audit: 'Consolidado de la auditoría: las validaciones existentes pasan limpias sobre las piezas actuales.',
 };
 
@@ -217,6 +227,58 @@ export function buildAuditReport(pieces, userConfig = {}, opts = {}) {
     for (const w of res.warnings || []) filas.push(filaDeMensaje(w, 'pendiente', 'gola', 'Gola'));
   }
 
+  // ── 4b) Auditoría estricta de despiece (luz libre de la mano, veta por
+  //        función y colisión gola) — reglas de control del taller ──────────
+  const luz = correr(() => auditarLuzLibreGola(lista), 'despiece', 'Luz libre del canal de la mano');
+  for (const f of luz || []) {
+    filas.push({
+      elemento: `M${f.modulo}: luz libre ${f.luzMm} mm`,
+      seccion: 'Gola',
+      estado: 'por-corregir',
+      problema: f.mensaje,
+      correccion: f.correccion,
+      justificacion: JUSTIFICACION.luz,
+      fuente: 'despiece',
+    });
+  }
+  const veta = correr(() => auditarVeta(lista), 'despiece', 'Sentido de veta (rotate)');
+  if (veta) {
+    for (const v of veta.incumplimientos) {
+      filas.push({
+        elemento: `${v.etiqueta} "${v.nombre}"`,
+        seccion: v.rol === 'gola_strip' ? 'Gola' : 'Cajones',
+        estado: v.nivel === 'error' ? 'por-corregir' : 'pendiente',
+        problema: v.mensaje,
+        correccion: `Cortar la pieza con rotate 'no' (veta ${v.etiqueta === 'Lateral' ? 'a lo largo de la profundidad' : 'horizontal a lo largo del ancho'}) y rehacer el despiece.`,
+        justificacion: JUSTIFICACION.veta,
+        fuente: 'despiece',
+      });
+    }
+    for (const b of veta.basesLibres) {
+      filas.push({
+        elemento: `M${b.modulo}: bases de cajón (×${b.cantidad})`,
+        seccion: 'Cajones',
+        estado: 'validado',
+        problema: b.mensaje,
+        correccion: 'Ninguna: el rotate de las bases es libre; el optimizador puede rotarlas para ahorrar material.',
+        justificacion: JUSTIFICACION.veta,
+        fuente: 'despiece',
+      });
+    }
+  }
+  const colision = correr(() => auditarColisionGola(lista), 'despiece', 'Colisión de caja con la gola');
+  for (const f of colision || []) {
+    filas.push({
+      elemento: `M${f.modulo}: holgura caja-frente ${f.holguraMm} mm`,
+      seccion: 'Gola',
+      estado: 'por-corregir',
+      problema: f.mensaje,
+      correccion: f.correccion,
+      justificacion: JUSTIFICACION.colision,
+      fuente: 'despiece',
+    });
+  }
+
   // ── 5) Lista de herrajes: bloqueantes / 'verificar catálogo' → pendiente ─
   const hardware = correr(
     () => calculateHardware(lista, opts.dependencies || [], userConfig || {}),
@@ -336,7 +398,10 @@ export function buildAuditReport(pieces, userConfig = {}, opts = {}) {
   const hay = (seccion, estado = null) => unicas.some((f) => f.seccion === seccion && (!estado || f.estado === estado));
 
   // ── 9) Filas 'validado' por sección con contenido relevante ─────────────
-  if (golaRoots.length && !hay('Gola', 'por-corregir')) {
+  // Fila de MEDIDA del sistema gola: se emite siempre que haya gola (reporta
+  // el perfil y la abertura útil configurados), aunque otras validaciones
+  // tengan errores en la sección.
+  if (golaRoots.length) {
     const cfg = getGolaCfg(userConfig || {});
     const tiposCanal = new Set(tiras.map((t) => (/gola-c\d+-/i.test(String(t.id)) ? 'C' : 'L')));
     const aberturas = [...tiposCanal]
