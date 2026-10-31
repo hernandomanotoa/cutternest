@@ -63,14 +63,16 @@ describe('cajon() vs csvParser — propiedad de coherencia', () => {
       // La pila debe caber en el casco de 1800 (vano interior 1770, frente =
       // altoVano − 3, gap 2.5): la propiedad es coherencia cajón↔parser, no
       // validación de apilado — los casos generados deben ser fabricables.
+      // La zapatera en modo 'normal' exige vano ≥ bandeja (100) + 30.
       const altoMax = Math.min(700, Math.floor((1770 - (nPorFila - 1) * 2.5) / nPorFila) + 3);
+      const vocabulario = pick(['cajon', 'zapatera']);
       const caso = {
         anchoModulo: randInt(300, 1200),
         profundidadModulo: randInt(300, 650),
-        altoVano: randInt(60, altoMax),
+        altoVano: vocabulario === 'zapatera' ? randInt(130, Math.max(130, altoMax)) : randInt(60, altoMax),
         nPorFila,
         tipo,
-        vocabulario: pick(['cajon', 'zapatera']),
+        vocabulario,
       };
       const result = parseCSV(buildCsv(caso));
       // Errores duros: la propiedad exige parseo limpio.
@@ -173,15 +175,39 @@ describe('cajon() zapatera: división transversal (espejo de addShoeTray)', () =
       colorLateral: '#D9C2A3',
       suffix: '1',
     });
-    // 8 filas: frente + 2 laterales + fondo + cara + división + base + tirador.
+    // 8 filas: frente + tirador + 2 laterales + fondo + cara + división + base.
     assert.equal(rows.length, 8);
     const division = rows.find((r) => r.startsWith('m11-zapatera-division,'));
     assert.ok(division, 'falta la división transversal');
     const fondo = rows.find((r) => r.startsWith('m11-zapatera-fondo,'));
-    // interior = round(770 − 25,4) − 30 = 715; latAlto = 247 − 30 = 217.
-    assert.ok(division.includes('Division zapatera extraible 1 M1,715,217,1,no,'), division);
-    assert.ok(division.includes(',715,217,'), 'misma luz y alto que el fondo');
-    assert.ok(fondo.includes(',715,217,'));
+    // Modo 'normal' (default): bandeja uniforme 100; interior =
+    // round(770 − 25,4) − 30 = 715; frente = 100 + 30 = 130.
+    assert.ok(division.includes('Division zapatera extraible 1 M1,715,100,1,no,'), division);
+    assert.ok(division.includes(',715,100,'), 'misma luz y alto que el fondo');
+    assert.ok(fondo.includes(',715,100,'));
+  });
+
+  it('modo normal: alto de bandeja configurable (frente = bandeja + 30)', () => {
+    const rows = cajon(1, 1, {
+      anchoModulo: 800, profundidadModulo: 500, altoVano: 250,
+      vocabulario: 'zapatera', altoBandeja: 120,
+      colorFrente: '#C19A6B', colorLateral: '#D9C2A3',
+    });
+    const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
+    assert.ok(frente.includes(',768,150,1,si,'), frente);
+    const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
+    assert.ok(cara.includes(',715,120,1,no,'), cara);
+  });
+
+  it('modo normal: bandeja + 30 debe caber en el vano (error con consejo)', () => {
+    assert.throws(
+      () => cajon(1, 1, {
+        anchoModulo: 800, profundidadModulo: 500, altoVano: 120,
+        vocabulario: 'zapatera', altoBandeja: 100,
+        colorFrente: '#C19A6B', colorLateral: '#D9C2A3',
+      }),
+      /no cabe en el vano/,
+    );
   });
 
   it('division: false la omite y el volquete jamás la lleva', () => {
@@ -256,42 +282,60 @@ describe('cajon() zapatera: modos del frente (espejo de addShoeTray)', () => {
     anchoModulo: 850, profundidadModulo: 600, altoVano: 200,
     vocabulario: 'zapatera', colorFrente: '#8B5A2B', colorLateral: '#D9C2A3',
   };
-  // latAlto = 197 − 30 = 167; interior = round(820 − 25,4) − 30 = 765.
+  // Modo 'normal': bandeja uniforme 100 (default), frente 130; interior =
+  // round(820 − 25,4) − 30 = 765.
 
-  it("modo 'borde': cara de 40 mm, sin frente ni tirador (default retrocompatible)", () => {
-    const rows = cajon(1, 1, { ...OPTS, modoFrente: 'borde' });
-    assert.ok(!rows.some((r) => r.includes('-frente,')), 'sin frente decorativo');
-    assert.ok(!rows.some((r) => r.includes('-tirador,')), 'sin tirador');
-    // 6 filas: 2 laterales + fondo + cara + división + base.
-    assert.equal(rows.length, 6);
+  it("modo 'normal' (default): frente corto = bandeja + 30; bandeja uniforme", () => {
+    const rows = cajon(1, 1, { ...OPTS, modoFrente: 'normal' });
+    // 8 filas: frente + tirador + 2 laterales + fondo + cara + división + base.
+    assert.equal(rows.length, 8);
+    const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
+    // frente = bandeja (100) + 30 = 130: NO cubre el vano (200 − 3 = 197).
+    assert.ok(frente.includes(',818,130,1,si,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
-    assert.ok(cara.includes(',765,40,1,no,'), cara);
-    const def = cajon(1, 1, OPTS); // sin modo: salida idéntica a antes
-    assert.equal(def.length, 8, "default 'completo': 8 filas históricas");
+    // Bandeja de borde uniforme: cara = laterales = fondo = división = 100.
+    assert.ok(cara.includes(',765,100,1,no,'), cara);
+    const lateral = rows.find((r) => r.startsWith('m11-zapatera-lateral-izq,'));
+    assert.ok(lateral.includes(',545,100,1,no,'), lateral);
+    const def = cajon(1, 1, OPTS); // sin modo: default 'normal'
+    assert.equal(def.length, 8, "default 'normal': 8 filas históricas");
     assert.ok(def.some((r) => r.includes('-frente,')));
     assert.ok(def.some((r) => r.includes('-tirador,')));
+    assert.equal(def.join('\n'), rows.join('\n'), 'default = normal explícito');
   });
 
-  it("modo 'borde' respeta bordeFrontal y el volquete ignora el modo", () => {
-    const rows = cajon(1, 1, { ...OPTS, modoFrente: 'borde', bordeFrontal: 60 });
+  it("modo 'extendido': frente = vano − 1; con E=18 cara = frente − 36", () => {
+    const rows = cajon(1, 1, { ...OPTS, modoFrente: 'extendido' });
+    const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
+    assert.ok(frente.includes(',818,199,1,si,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
-    assert.ok(cara.includes(',765,60,1,no,'), cara);
-    const volquete = cajon(1, 1, { ...OPTS, tipo: 'volquete', modoFrente: 'borde' });
-    assert.ok(volquete.some((r) => r.includes('-frente,')), 'el volquete siempre lleva frente');
+    assert.ok(cara.includes(',765,169,1,no,'), cara);
+    // E=18: frente sigue siendo vano − 1; la cara = frente − 2·18 = 163.
+    const e18 = cajon(1, 1, { ...OPTS, modoFrente: 'extendido', espesorModulo: 18 });
+    const frente18 = e18.find((r) => r.startsWith('m11-zapatera-frente,'));
+    assert.ok(frente18.includes(',812,199,1,si,'), frente18);
+    const cara18 = e18.find((r) => r.startsWith('m11-zapatera-cara,'));
+    assert.ok(cara18.includes(',753,163,1,no,'), cara18);
   });
 
-  it("modo 'personalizado': alturas independientes (frente, cara, fondo, división)", () => {
+  it("modo 'personalizado': alturas independientes; la cara = frente − 2·E", () => {
     const rows = cajon(1, 1, {
       ...OPTS, modoFrente: 'personalizado',
-      altoFrente: 150, bordeFrontal: 50, altoFondo: 70, altoDivision: 60,
+      altoFrente: 150, altoFondo: 70, altoDivision: 60,
     });
     const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
     assert.ok(frente.includes(',818,150,1,si,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
-    assert.ok(cara.includes(',765,50,1,no,'), cara);
+    // La cara queda detrás del frente: 150 − 2·15 = 120 (nunca cara-borde).
+    assert.ok(cara.includes(',765,120,1,no,'), cara);
     const fondo = rows.find((r) => r.startsWith('m11-zapatera-fondo,'));
     assert.ok(fondo.includes(',765,70,1,no,'), fondo);
     const division = rows.find((r) => r.startsWith('m11-zapatera-division,'));
     assert.ok(division.includes(',765,60,1,no,'), division);
+  });
+
+  it("el volquete ignora el modo (modelo clásico derivado del frente)", () => {
+    const volquete = cajon(1, 1, { ...OPTS, tipo: 'volquete', modoFrente: 'extendido' });
+    assert.ok(volquete.some((r) => r.includes('-frente,')), 'el volquete siempre lleva frente');
   });
 });

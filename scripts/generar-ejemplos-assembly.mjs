@@ -231,7 +231,7 @@ const examples = [];
 // 17. Módulo de clóset con zapatera-cajón (zapatero extraíble)
 {
   const lines = [];
-  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: caja completa de 7 piezas (frente decorativo, 2 laterales, base, fondo, cara y división transversal) que se desliza en rieles; capacidad aproximada 40-50 pares.'));
+  lines.push(header('Ejemplo de módulo con zapatera-cajón (zapatero extraíble)', 'Módulo de clóset 800×1800×500 con zapatero fijo inferior y 5 zapateras-cajón extraíbles en correderas telescópicas. Zapatera-cajón: bandeja de borde uniforme de 7 piezas (frente corto = bandeja + 30 mm, 2 laterales, base, fondo, cara y división transversal al alto de la bandeja) que se desliza en rieles; el aire superior del vano queda abierto para el calzado; capacidad aproximada 40-50 pares.'));
   lines.push(...baseTapaLateralesFondo(1, 1, 800, 1800, 500, '#8B5A2B'));
   lines.push(line('m1-bandeja-zapatero', 'Bandeja zapatero', 770, 450, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   for (let i = 1; i <= 5; i++) {
@@ -688,7 +688,7 @@ function cajonOculto(parent, index, opts) {
 // Doble colgado, cajonera, zapatera y colgador simple con repisas.
 {
   const lines = [];
-  lines.push(header('Ejemplo de closet abierto modular', 'Closet abierto modular 3400×2400×600 sin puertas, melamina 15 mm, 100% modular (4 modulos de 850) SIN piezas globales: cada modulo lleva su propio zocalo inferior INTERNO (frente 820×150, embutido entre laterales) y su propio casco completo (base interna + tapa + laterales + fondo). Alturas ergonomicas: barras dobles a 2100/1000 mm (colgado corto por nivel) y barra camisera a 1800 mm (colgado largo). M1 doble colgado (2 barras cromadas + repisa superior), M2 cajonera con frentes mixtos (delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres; caja 30 mm mas baja que el frente y holgura de rieles 12.7 mm/lado), M3 zapatera por tipo de calzado (bandejas extraibles frente 180 planos, 200 tenis y 220 tacones/botines, vano abierto 450 para botas altas) y M4 colgador camisero (barra a 1800 + 3 repisas). Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm (melamina 15 mm). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
+  lines.push(header('Ejemplo de closet abierto modular', 'Closet abierto modular 3400×2400×600 sin puertas, melamina 15 mm, 100% modular (4 modulos de 850) SIN piezas globales: cada modulo lleva su propio zocalo inferior INTERNO (frente 820×150, embutido entre laterales) y su propio casco completo (base interna + tapa + laterales + fondo). Alturas ergonomicas: barras dobles a 2100/1000 mm (colgado corto por nivel) y barra camisera a 1800 mm (colgado largo). M1 doble colgado (2 barras cromadas + repisa superior), M2 cajonera con frentes mixtos (delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres; caja 30 mm mas baja que el frente y holgura de rieles 12.7 mm/lado), M3 zapatera por tipo de calzado (bandejas extraibles de borde uniforme: bandeja 100 mm con frente corto 130 mm = bandeja + 30; vanos 180 planos, 200 tenis y 220 tacones/botines, con el aire superior abierto para el calzado; vano abierto 450 para botas altas) y M4 colgador camisero (barra a 1800 + 3 repisas). Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm (melamina 15 mm). Herrajes: barras cromadas Ø25 y correderas telescopicas.'));
 
   // Modulos de 850×2400×600 (altura TOTAL incluye zocalo de 150): casco propio
   // (cascoZocaloCajon) + zocalo frontal INTERNO propio (zocaloModulo: frente
@@ -753,11 +753,11 @@ function cajonOculto(parent, index, opts) {
 // 37. Zapatera de clóset con alturas por tipo de calzado (vestidor): torre
 // zapatera 1700×2400×600, 100% modular (2 módulos de 850) sobre zócalo-cajón
 // corrido + tapa corrida. M1 bandejas extraibles por calzado cotidiano
-// (frente 180 planos/tenis, frente 220 tacones/botines) y M2 vanos abiertos
+// (bandejas de borde uniforme: bandeja 100 + frente corto 130) y M2 vanos abiertos
 // de 450 para botas altas entre repisas fijas.
 {
   const lines = [];
-  lines.push(header('Ejemplo de zapatera de closet por tipo de calzado', 'Zapatera de closet abierta 1700×2400×600, melamina 15 mm, 100% modular (2 modulos de 850): zocalo-cajon corrido 150 + tapa corrida. Alturas libres por tipo de calzado: 150 mm (zapatos planos), 170-200 mm (tenis y calzado grueso), 190-220 mm (tacones y botines), 350-450 mm (botas altas). M1 calzado cotidiano: repisa superior + bandejas zapatera extraibles de frente 180 (planos), 200 (tenis) y 220 (tacones, botines). M2 botas altas: 2 vanos abiertos de 450 entre repisas fijas + repisa superior. Las bandejas extraibles mantienen costados bajos (caja 30 mm mas baja que el frente) para ver y sacar el calzado; holgura de rieles 12.7 mm/lado. Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm. Herrajes: correderas telescopicas y tiradores.'));
+  lines.push(header('Ejemplo de zapatera de closet por tipo de calzado', 'Zapatera de closet abierta 1700×2400×600, melamina 15 mm, 100% modular (2 modulos de 850): zocalo-cajon corrido 150 + tapa corrida. Alturas libres por tipo de calzado: 150 mm (zapatos planos), 170-200 mm (tenis y calzado grueso), 190-220 mm (tacones y botines), 350-450 mm (botas altas). M1 calzado cotidiano: repisa superior + bandejas zapatera extraibles de borde uniforme (bandeja 100 mm, frente corto 130 mm = bandeja + 30) para vanos de 180 (planos), 200 (tenis) y 220 (tacones, botines). M2 botas altas: 2 vanos abiertos de 450 entre repisas fijas + repisa superior. Las bandejas extraibles van de borde uniforme (cara = laterales = fondo = division al alto de la bandeja, 100 mm) con el frente 30 mm mas alto y el aire superior del vano abierto para ver y sacar el calzado; holgura de rieles 12.7 mm/lado. Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm. Herrajes: correderas telescopicas y tiradores.'));
   lines.push('# --- Estructura global: zocalo-cajon corrido (sin base global) ---');
   lines.push(...zocaloCajon('zapatera closet', 1700, 600, 150, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida zapatera closet', 1700, 600, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 'estructura'));

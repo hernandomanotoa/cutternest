@@ -43,12 +43,19 @@ export function tirador(id, nombre, color, modulo) {
 // opts.vocabulario 'zapatera' nombra "zapatera extraible" en vez de "cajon"
 // (zapatera-cajón: se desliza en rieles sin la palabra "cajon" en el nombre).
 // Modos del frente de la zapatera (espejo de addShoeTray, solo 'zapatera'):
-//   modoFrente 'completo' (default): frente decorativo + tirador + cara alta.
-//   'borde': bandeja abierta SIN frente ni tirador; la cara se emite BAJA
-//   (borde frontal de bordeFrontal mm, clamp 20..frenteAlto−2E).
-//   'personalizado': frente con altoFrente (default vano−3), cara baja de
-//   bordeFrontal y borde trasero (altoFondo) / división (altoDivision)
-//   independientes (default: alto del lateral). Con frente o sin él.
+//   modoFrente 'normal' (default): frente CORTO — mide bandeja +
+//   ZAPATERA_FRENTE_DROP (30 mm) y NO cubre el vano (el aire superior queda
+//   abierto para el calzado). La bandeja va de borde uniforme: cara =
+//   laterales = fondo = división al alto `altoBandeja` (default 100 mm, alto
+//   de riel). Requisito: altoBandeja + 30 ≤ altoVano (error con consejo).
+//   'extendido': el frente completa el vano hasta arriba (vano − 1, holgura
+//   mínima); cara y laterales como el frente − 2·E habitual.
+//   'personalizado': alturas independientes (altoFrente, altoBandeja como
+//   alto de laterales, altoFondo, altoDivision); la cara siempre = frente −
+//   2·E. (cajon() no tiene opt de frente sí/no: la bandeja sin frente vive en
+//   el servicio.)
+const ZAPATERA_FRENTE_DROP = 30; // espejo de js/core/contentTypes.js
+const ZAPATERA_BANDEJA_DEFAULT = 100; // = RAIL_SIDE_HEIGHT
 export function cajon(parent, index, opts) {
   const {
     anchoModulo,
@@ -65,11 +72,11 @@ export function cajon(parent, index, opts) {
     division = true,    // zapatera: división transversal (espejo de addShoeTray)
     fondoMetodo = 'apoyado', // 'apoyado' | 'ranurado' (espejo de addDrawer)
     grooveDepth = 6,    // = DRAWER_GROOVE_DEPTH (core/config.js)
-    modoFrente = 'completo', // zapatera: 'completo'|'borde'|'personalizado'
-    bordeFrontal = 40,  // alto del borde frontal bajo (modos borde/personalizado)
+    modoFrente = 'normal', // zapatera: 'normal'|'extendido'|'personalizado'
+    altoBandeja = ZAPATERA_BANDEJA_DEFAULT, // alto uniforme de la bandeja (modo 'normal')
     altoFondo = null,   // borde trasero independiente (default: alto del lateral)
     altoDivision = null,// división independiente (default: alto del lateral)
-    altoFrente = null,  // frente independiente (default: altoVano − 3)
+    altoFrente = null,  // frente independiente (default según el modo)
   } = opts;
   const E = espesorModulo; // espesor laterales/fondo del MODULO y de la caja
   const W = anchoModulo - 2 * E;
@@ -79,23 +86,34 @@ export function cajon(parent, index, opts) {
   const frenteAlto = altoVano - 3;
   const volquete = tipo === 'volquete';
   const profCajon = D - (volquete ? 15 : 25);
+  // Modos de la zapatera (espejo de addShoeTray): el modo solo aplica con
+  // vocabulario 'zapatera' y corredera (el volquete no lleva cara). 'normal'
+  // = frente corto (bandeja + 30) con bandeja de borde uniforme al alto
+  // `altoBandeja`; debe caber en el vano. 'extendido' = vano − 1;
+  // 'personalizado' = altoFrente propio (default vano − 3). La cara queda
+  // detrás del frente a frente − 2·E (tope mínimo 20 mm), salvo el 'normal'
+  // (cara al alto uniforme de la bandeja).
+  const esZapatera = vocabulario === 'zapatera';
+  const bandejaUniforme = esZapatera && !volquete && modoFrente === 'normal';
+  if (bandejaUniforme && altoBandeja + ZAPATERA_FRENTE_DROP > altoVano) {
+    throw new Error(`zapatera: con el frente normal (bandeja + ${ZAPATERA_FRENTE_DROP} mm) el alto de bandeja ${altoBandeja} mm no cabe en el vano de ${altoVano} mm; use un alto de zapatera ≤ ${altoVano - ZAPATERA_FRENTE_DROP} mm o suba el vano.`);
+  }
+  const frenteAltoEf = altoFrente ?? (bandejaUniforme
+    ? altoBandeja + ZAPATERA_FRENTE_DROP
+    : esZapatera && !volquete && modoFrente === 'extendido'
+      ? altoVano - 1
+      : frenteAlto);
+  const cajaCap = Math.max(20, frenteAltoEf - 2 * E); // tope de caja detrás del frente
   // En el volquete la bandeja es baja: el lateral/fondo miden lo alto de la
   // bandeja, no del frente (el frente alto es el que pivota hacia adelante).
+  // En el modo 'normal' la bandeja es uniforme al alto configurado.
   const latAlto = volquete
     ? Math.min(frenteAlto - 2 * E, altBandeja)
-    : frenteAlto - 2 * E;
-  // Modos de la zapatera (espejo de addShoeTray): el modo solo aplica con
-  // vocabulario 'zapatera' y corredera (el volquete no lleva cara).
-  // 'personalizado' baja la cara (bordeFrontal) pero MANTIENE el frente
-  // (espejo de conFrente default true; cajon() no tiene opt de frente sí/no).
-  const esModoBorde = vocabulario === 'zapatera' && !volquete && modoFrente === 'borde';
-  const caraBaja = esModoBorde || (vocabulario === 'zapatera' && !volquete && modoFrente === 'personalizado');
-  const frenteAltoEf = altoFrente ?? frenteAlto;
-  const bordeEf = Math.max(20, Math.min(Number(bordeFrontal) || 40, frenteAlto - 2 * E));
-  const altoFondoEf = Math.max(20, Math.min(altoFondo ?? latAlto, frenteAlto));
-  const altoDivisionEf = Math.max(20, Math.min(altoDivision ?? latAlto, frenteAlto));
-  const llevaFrente = !esModoBorde; // 'borde' nunca; 'personalizado' con frente
-  const caraAlto = caraBaja ? bordeEf : latAlto;
+    : bandejaUniforme ? altoBandeja : Math.min(frenteAlto - 2 * E, cajaCap);
+  const caraAlto = bandejaUniforme ? altoBandeja : cajaCap;
+  const altoFondoEf = bandejaUniforme ? altoBandeja : Math.max(20, Math.min(altoFondo ?? latAlto, frenteAltoEf));
+  const altoDivisionEf = bandejaUniforme ? altoBandeja : Math.max(20, Math.min(altoDivision ?? latAlto, frenteAltoEf));
+  const llevaFrente = true; // cajon() no tiene opt de frente sí/no (servicio sí)
   // El volquete/abatible queda fuera del modelo de corredera: mantiene el
   // cálculo clásico derivado del frente decorativo y sin pieza de cara.
   const interior = volquete
@@ -104,7 +122,6 @@ export function cajon(parent, index, opts) {
   const sm = `${parent}${index}`;
   const label = suffix ? ` ${suffix}` : '';
   const tipoNombre = volquete ? ' abatible' : '';
-  const esZapatera = vocabulario === 'zapatera';
   // En el volquete el calificativo 'abatible' va solo en el frente (es el que
   // pivota); laterales/fondo/base/tirador mantienen el nombre plano "cajon".
   const frenteVocab = esZapatera ? 'zapatera extraible' : `cajon${tipoNombre}`;
