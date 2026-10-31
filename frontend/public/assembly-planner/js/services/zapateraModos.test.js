@@ -1,13 +1,20 @@
-// js/services/zapateraModos.test.js — Tres modos de construcción del frente
-// de la zapatera extraíble (Constructor):
-//   (A) 'completo': frente decorativo + tirador, cara alta detrás.
-//   (B) 'borde': bandeja abierta, SIN frente ni tirador; la -cara se emite
-//       BAJA como borde frontal (default 40 mm, editable 20..300).
-//   (C) 'personalizado': alturas independientes (altoFrente, bordeFrontal,
-//       altoLateral, altoFondo, altoDivision); el frente va según conFrente.
+// js/services/zapateraModos.test.js — Modos de construcción del frente
+// de la zapatera extraíble (Constructor). 3 modos:
+//   (N) 'normal' (DEFAULT): frente CORTO — mide bandeja + 30 mm
+//       (ZAPATERA_FRENTE_DROP) y NO cubre el vano: el aire superior queda
+//       abierto para el calzado y la unidad reserva SU vano completo en el
+//       apilado. La bandeja es de borde UNIFORME al alto configurado
+//       (`altoLateral`, default 100 mm): cara = laterales = fondo = división.
+//       Sin tirador (apertura sin jaladera).
+//   (X) 'extendido': el frente completa el vano hasta arriba (vano − 1,
+//       holgura mínima); cara y laterales detrás a frente − 2·E.
+//   (P) 'personalizado': alturas independientes (altoFrente, altoLateral,
+//       altoFondo, altoDivision); la cara siempre = frente − 2·E. Con
+//       conFrente=false queda bandeja sin frente (cara alta visible) — así
+//       vive la 'bandeja a la vista' (ladosIguales + rim).
 // Invariantes transversales: ids únicos, espesor global (espesorModulo) en
 // todas las piezas de la bandeja, riel intacto y compatibilidad con gola y
-// con el apilado por pos_z (mismas piezas-móviles que el modo 'abierta').
+// con el apilado por pos_z (mismas piezas-móviles con y sin frente).
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,73 +27,95 @@ const ids = (r) => r.pieces.map((p) => p.id);
 const porId = (r, id) => r.pieces.find((p) => p.id === id);
 
 describe('zapatera: modos de construcción del frente', () => {
+  it("'normal': frente corto = bandeja + 30, bandeja uniforme al alto configurado", () => {
+    const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal' });
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(r.conFrente, true, 'lleva frente decorativo');
+    assert.equal(porId(r, 'm1zapatera1-frente').alto, 130, 'frente = bandeja (100) + 30');
+    assert.equal(porId(r, 'm1zapatera1-tirador'), undefined, 'sin tirador (apertura sin jaladera)');
+    for (const sufijo of ['cara', 'lateral-izq', 'lateral-der', 'fondo', 'division']) {
+      assert.equal(porId(r, `m1zapatera1-${sufijo}`).alto, 100, `${sufijo}: borde uniforme al alto de bandeja`);
+    }
+    // El alto de la zapatera es configurable: manda en la bandeja y el frente.
+    const b80 = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal', altoLateral: 80 });
+    assert.ok(b80.ok, b80.errors?.join('; '));
+    assert.equal(porId(b80, 'm1zapatera1-frente').alto, 110, 'frente = bandeja (80) + 30');
+    assert.equal(porId(b80, 'm1zapatera1-cara').alto, 80, 'cara al nuevo alto');
+    // El frente NO cubre el vano: 130 < 197 (vano − 3).
+    assert.ok(porId(r, 'm1zapatera1-frente').alto < BASE.altoVano - 3, 'frente corto: aire abierto para el calzado');
+  });
+
+  it("validación 'normal': bandeja + 30 debe caber en el vano (error con consejo)", () => {
+    const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal', altoLateral: 175 });
+    assert.equal(r.ok, false, 'bandeja 175 + 30 = 205 > vano 200');
+    assert.match(r.errors[0], /no cabe en el vano/);
+    assert.match(r.errors[0], /170 mm/, 'consejo con el máximo que entraría');
+    // Con frente completo (botas) el frente es vano − 3: no aplica la regla.
+    const botas = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal', altoLateral: 175, frenteCompleto: true });
+    assert.ok(botas.ok, botas.errors?.join('; '));
+  });
+
+  it("default: sin modoFrente, conFrente=true resuelve 'normal'; conFrente=false → bandeja sin frente", () => {
+    const legacy = addShoeTray('1', 1, { ...BASE });
+    assert.ok(legacy.ok, legacy.errors?.join('; '));
+    assert.equal(legacy.modoFrente, 'normal');
+    assert.ok(legacy.frente && legacy.frente.alto === 130, 'frente = bandeja + 30');
+    assert.equal(porId(legacy, 'm1zapatera1-cara').alto, 100, 'cara = alto de bandeja');
+    assert.equal(porId(legacy, 'm1zapatera1-tirador'), undefined, 'sin tirador');
+    // Sin frente (bandeja abierta): la cara alta queda de frente visible.
+    const abierta = addShoeTray('1', 1, { ...BASE, conFrente: false });
+    assert.ok(abierta.ok, abierta.errors?.join('; '));
+    assert.equal(abierta.modoFrente, 'personalizado', 'la bandeja sin frente vive en personalizado');
+    assert.equal(porId(abierta, 'm1zapatera1-frente'), undefined, 'sin frente decorativo');
+    assert.equal(porId(abierta, 'm1zapatera1-cara').alto, 167, 'cara alta = vano − 3 − 2·E');
+  });
+
+  it("'extendido': frente = vano − 1 (completa el vano); cara y laterales detrás", () => {
+    const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'extendido' });
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(porId(r, 'm1zapatera1-frente').alto, 199, 'frente = vano − 1 (holgura mínima)');
+    assert.equal(porId(r, 'm1zapatera1-cara').alto, 169, 'cara = frente − 2·15');
+    assert.ok(Number(porId(r, 'm1zapatera1-lateral-izq').alto) <= 169, 'laterales ≤ cara');
+  });
+
+  it("'normal' con espesorModulo=18: la bandeja uniforme no depende del espesor (extendido sí)", () => {
+    const n18 = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal', espesorModulo: 18 });
+    assert.ok(n18.ok, n18.errors?.join('; '));
+    assert.equal(porId(n18, 'm1zapatera1-frente').alto, 130, 'normal E=18: frente = bandeja + 30');
+    assert.equal(porId(n18, 'm1zapatera1-cara').alto, 100, 'normal E=18: cara = alto de bandeja');
+    const e18 = addShoeTray('1', 1, { ...BASE, modoFrente: 'extendido', espesorModulo: 18 });
+    assert.equal(porId(e18, 'm1zapatera1-frente').alto, 199, 'extendido E=18: frente = vano − 1');
+    assert.equal(porId(e18, 'm1zapatera1-cara').alto, 163, 'extendido E=18: cara = frente − 2·18');
+  });
+
   it('los 3 modos generan piezas con ids únicos y sin duplicados', () => {
-    for (const modoFrente of ['completo', 'borde', 'personalizado']) {
-      const r = addShoeTray('1', 1, { ...BASE, modoFrente, conFrente: modoFrente !== 'borde' });
+    for (const modoFrente of ['normal', 'extendido', 'personalizado']) {
+      const r = addShoeTray('1', 1, { ...BASE, modoFrente });
       assert.ok(r.ok, `${modoFrente}: ${r.errors?.join('; ')}`);
       const set = new Set(ids(r));
       assert.equal(set.size, r.pieces.length, `${modoFrente}: ids únicos`);
     }
   });
 
-  it("'completo' preserva el comportamiento previo (frente vano−3, tirador, cara alta)", () => {
-    const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'completo' });
-    assert.ok(r.ok);
-    assert.equal(porId(r, 'm1zapatera1-frente').alto, 197, 'frente alto = vano − 3');
-    assert.ok(porId(r, 'm1zapatera1-tirador'), 'tirador presente');
-    assert.equal(porId(r, 'm1zapatera1-cara').alto, 167, 'cara alta detrás del frente (197 − 2·15)');
-    // Sin modo explícito, conFrente (default true) resuelve 'completo'.
-    const legacy = addShoeTray('1', 1, { ...BASE });
-    assert.equal(legacy.modoFrente, 'completo');
-    assert.equal(ids(legacy).sort().join(','), ids(r).sort().join(','), 'mismo set de piezas');
-  });
-
-  it("'borde': sin frente ni tirador y la cara mide el borde frontal (40 y 60)", () => {
-    for (const bordeFrontal of [40, 60]) {
-      const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', bordeFrontal });
-      assert.ok(r.ok, r.errors?.join('; '));
-      assert.equal(porId(r, 'm1zapatera1-frente'), undefined, 'sin frente decorativo');
-      assert.equal(porId(r, 'm1zapatera1-tirador'), undefined, 'sin tirador');
-      const cara = porId(r, 'm1zapatera1-cara');
-      assert.ok(cara, 'la cara sigue existiendo (borde de agarre)');
-      assert.equal(cara.alto, bordeFrontal, `cara = borde frontal ${bordeFrontal}`);
-      assert.equal(cara.id, 'm1zapatera1-cara', 'id de la cara inalterado');
-      assert.match(cara.nombre, /^Cara zapatera extraible/, 'nombre de la cara inalterado');
-    }
-  });
-
-  it("'borde': laterales/fondo/división/base miden igual que en modo 'abierta'", () => {
-    const abierta = addShoeTray('1', 1, { ...BASE, modoFrente: 'abierta' });
-    const borde = addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', bordeFrontal: 40 });
-    assert.ok(abierta.ok && borde.ok);
-    for (const sufijo of ['lateral-izq', 'lateral-der', 'fondo', 'division', 'base']) {
-      const a = porId(abierta, `m1zapatera1-${sufijo}`);
-      const b = porId(borde, `m1zapatera1-${sufijo}`);
-      assert.ok(a && b, `${sufijo} presente en ambos modos`);
-      assert.equal(a.ancho, b.ancho, `${sufijo}: mismo ancho`);
-      assert.equal(a.alto, b.alto, `${sufijo}: mismo alto`);
-    }
-  });
-
-  it("'personalizado': cada pieza refleja SU altura (con frente)", () => {
+  it("'personalizado': cada pieza refleja SU altura (con frente); la cara = frente − 2·E", () => {
     const r = addShoeTray('1', 1, {
       ...BASE, modoFrente: 'personalizado', conFrente: true,
-      altoFrente: 150, bordeFrontal: 50, altoLateral: 90, altoFondo: 70, altoDivision: 60,
+      altoFrente: 150, altoLateral: 90, altoFondo: 70, altoDivision: 60,
     });
     assert.ok(r.ok, r.errors?.join('; '));
     assert.equal(porId(r, 'm1zapatera1-frente').alto, 150, 'frente 150');
-    assert.ok(porId(r, 'm1zapatera1-tirador'), 'tirador con frente');
+    assert.equal(porId(r, 'm1zapatera1-tirador'), undefined, 'sin tirador (apertura sin jaladera)');
     assert.equal(porId(r, 'm1zapatera1-lateral-izq').alto, 90, 'laterales 90');
     assert.equal(porId(r, 'm1zapatera1-lateral-der').alto, 90);
     assert.equal(porId(r, 'm1zapatera1-fondo').alto, 70, 'borde trasero 70');
     assert.equal(porId(r, 'm1zapatera1-division').alto, 60, 'división 60');
-    assert.equal(porId(r, 'm1zapatera1-cara').alto, 50, 'borde frontal 50');
+    assert.equal(porId(r, 'm1zapatera1-cara').alto, 120, 'cara = frente − 2·15 (detrás del frente)');
   });
 
   it("'personalizado': sin frente (conFrente=false) respeta las mismas alturas", () => {
     const r = addShoeTray('1', 1, {
       ...BASE, modoFrente: 'personalizado', conFrente: false,
-      altoFrente: 150, bordeFrontal: 50, altoLateral: 90, altoFondo: 70, altoDivision: 60,
+      altoFrente: 150, altoLateral: 90, altoFondo: 70, altoDivision: 60,
     });
     assert.ok(r.ok, r.errors?.join('; '));
     assert.equal(porId(r, 'm1zapatera1-frente'), undefined, 'sin frente');
@@ -94,20 +123,22 @@ describe('zapatera: modos de construcción del frente', () => {
     assert.equal(porId(r, 'm1zapatera1-lateral-izq').alto, 90);
     assert.equal(porId(r, 'm1zapatera1-fondo').alto, 70);
     assert.equal(porId(r, 'm1zapatera1-division').alto, 60);
-    assert.equal(porId(r, 'm1zapatera1-cara').alto, 50);
+    // Sin frente la cara es la cara alta de la bandeja (frente − 2·E con el
+    // frente de referencia del vano: 197 − 30 = 167).
+    assert.equal(porId(r, 'm1zapatera1-cara').alto, 167, 'cara alta de la bandeja sin frente');
   });
 
   it('cambiar de modo no deja piezas obsoletas (sets de ids desde cero)', () => {
     const modos = [
-      addShoeTray('1', 1, { ...BASE, modoFrente: 'completo' }),
-      addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', bordeFrontal: 60 }),
-      addShoeTray('1', 1, { ...BASE, modoFrente: 'personalizado', conFrente: false, bordeFrontal: 50 }),
-      addShoeTray('1', 1, { ...BASE, modoFrente: 'abierta' }),
+      addShoeTray('1', 1, { ...BASE, modoFrente: 'normal' }),
+      addShoeTray('1', 1, { ...BASE, modoFrente: 'extendido' }),
+      addShoeTray('1', 1, { ...BASE, modoFrente: 'personalizado', conFrente: false, altoFrente: 150 }),
+      addShoeTray('1', 1, { ...BASE, conFrente: false }),
     ];
     for (const r of modos) assert.ok(r.ok, r.errors?.join('; '));
-    // 'borde' y 'abierta' generan el mismo set de ids (la cara baja es la
-    // MISMA pieza, no una nueva): al cambiar de modo no sobra nada.
-    assert.equal(ids(modos[1]).sort().join(','), ids(modos[3]).sort().join(','));
+    // Los modos con frente generan el mismo set de ids (mismas piezas, solo
+    // cambian alturas): al cambiar de modo no sobra nada.
+    assert.equal(ids(modos[0]).sort().join(','), ids(modos[1]).sort().join(','));
     // Ningún id fuera del vocabulario zapatera conocido.
     const conocidos = /-frente$|-tirador$|-lateral-izq$|-lateral-der$|-fondo$|-cara$|-division$|-base$/;
     for (const r of modos) {
@@ -116,9 +147,9 @@ describe('zapatera: modos de construcción del frente', () => {
   });
 
   it('regla del espesor global: espesorModulo=18 en todas las piezas de la bandeja (3 modos)', () => {
-    for (const modoFrente of ['completo', 'borde', 'personalizado']) {
-      const r = addShoeTray('1', 1, { ...BASE, modoFrente, espesorModulo: 18, conFrente: modoFrente !== 'borde' });
-      assert.ok(r.ok, r.errors?.join('; '));
+    for (const modoFrente of ['normal', 'extendido', 'personalizado']) {
+      const r = addShoeTray('1', 1, { ...BASE, modoFrente, espesorModulo: 18 });
+      assert.ok(r.ok, `${modoFrente}: ${r.errors?.join('; ')}`);
       for (const p of r.pieces) {
         if (/-frente$|-tirador$/.test(p.id)) continue; // frente/tirador: espesor propio
         assert.equal(Number(p.espesor), 18, `${p.id}: espesor 18 (E global)`);
@@ -127,69 +158,68 @@ describe('zapatera: modos de construcción del frente', () => {
     }
   });
 
-  it("pos_z: el modo 'borde' devuelve las mismas piezas-móviles que 'abierta' (mismo ancla)", () => {
-    const abierta = addShoeTray('1', 1, { ...BASE, modoFrente: 'abierta' });
-    const borde = addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', bordeFrontal: 40 });
+  it("pos_z: bandeja sin frente devuelve las mismas piezas-móviles que con frente (mismo ancla)", () => {
+    const conFrente = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal' });
+    const sinFrente = addShoeTray('1', 1, { ...BASE, conFrente: false });
     // La cara (ancla del apilado) existe en ambos con el mismo id: la
     // convención pos_z (asignarPosZInsercion) aplica igual.
-    assert.ok(porId(abierta, 'm1zapatera1-cara') && porId(borde, 'm1zapatera1-cara'));
-    assert.equal(ids(borde).sort().join(','), ids(abierta).sort().join(','));
+    assert.ok(porId(conFrente, 'm1zapatera1-cara') && porId(sinFrente, 'm1zapatera1-cara'));
+    assert.equal(ids(sinFrente).filter((i) => !/-frente$/.test(i)).sort().join(','),
+      ids(conFrente).filter((i) => !/-frente$/.test(i)).sort().join(','));
   });
 
-  it('frenteCompleto (botas) fuerza frente aunque el modo sea borde', () => {
-    const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', frenteCompleto: true });
+  it('frenteCompleto (botas) fuerza frente aunque conFrente=false', () => {
+    const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'personalizado', conFrente: false, frenteCompleto: true });
     assert.ok(r.ok, r.errors?.join('; '));
     assert.ok(porId(r, 'm1zapatera1-frente'), 'frente forzado por frenteCompleto');
-    assert.ok(porId(r, 'm1zapatera1-tirador'), 'tirador con el frente');
+    assert.equal(porId(r, 'm1zapatera1-tirador'), undefined, 'sin tirador (apertura sin jaladera)');
     assert.equal(porId(r, 'm1zapatera1-cara'), undefined, 'sin cara (el frente cierra la bandeja)');
   });
 
-  it('validaciones: bordeFrontal fuera de 20..300 y altoFrente fuera de rango → error', () => {
-    for (const bordeFrontal of [10, 301]) {
-      const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', bordeFrontal });
-      assert.equal(r.ok, false, `bordeFrontal ${bordeFrontal} rechazado`);
-      assert.match(r.errors[0], /bordeFrontal/);
-    }
+  it('validaciones: altoFrente fuera de rango y modoFrente inválido → error', () => {
     for (const altoFrente of [30, 250]) { // vano 200 → rango 50..199
       const r = addShoeTray('1', 1, { ...BASE, modoFrente: 'personalizado', altoFrente });
       assert.equal(r.ok, false, `altoFrente ${altoFrente} rechazado`);
       assert.match(r.errors[0], /altoFrente/);
     }
-    const modoInvalido = addShoeTray('1', 1, { ...BASE, modoFrente: 'raro' });
-    assert.equal(modoInvalido.ok, false);
-    assert.match(modoInvalido.errors[0], /modoFrente/);
+    for (const modoFrente of ['raro', 'borde', 'abierta', 'frenteBajo', 'normas', 'completo']) {
+      const r = addShoeTray('1', 1, { ...BASE, modoFrente });
+      assert.equal(r.ok, false, `modoFrente "${modoFrente}" rechazado`);
+      assert.match(r.errors[0], /modoFrente/);
+    }
   });
 
-  it("rieles: el modo 'borde' mantiene profBandeja2 y holguras según el riel", () => {
+  it("rieles: los 3 modos mantienen profBandeja2 y holguras según el riel", () => {
     for (const riel of ['catalogo', 'telescopica26', 'oculta']) {
-      const abierta = addShoeTray('1', 1, { ...BASE, modoFrente: 'abierta', riel });
-      const borde = addShoeTray('1', 1, { ...BASE, modoFrente: 'borde', riel });
-      assert.ok(abierta.ok && borde.ok, riel);
+      const normal = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal', riel });
+      const extendido = addShoeTray('1', 1, { ...BASE, modoFrente: 'extendido', riel });
+      assert.ok(normal.ok && extendido.ok, riel);
       for (const sufijo of ['lateral-izq', 'lateral-der', 'fondo', 'base']) {
-        assert.equal(porId(borde, `m1zapatera1-${sufijo}`).ancho, porId(abierta, `m1zapatera1-${sufijo}`).ancho,
+        assert.equal(porId(extendido, `m1zapatera1-${sufijo}`).ancho, porId(normal, `m1zapatera1-${sufijo}`).ancho,
           `${riel}: ${sufijo} misma profundidad/luz`);
       }
     }
   });
 
-  it("ladosIguales + 'borde': el borde manda sobre la cara, los laterales siguen el rim", () => {
+  it("ladosIguales (bandeja a la vista): rim en cara, laterales y fondo; sin frente", () => {
     const r = addShoeTray('1', 1, {
-      ...BASE, altoVano: 160, modoFrente: 'borde', bordeFrontal: 40,
-      ladosIguales: true, conFrente: false, rim: 120,
+      ...BASE, altoVano: 160, modoFrente: 'personalizado', conFrente: false,
+      ladosIguales: true, rim: 120,
     });
     assert.ok(r.ok, r.errors?.join('; '));
-    assert.equal(porId(r, 'm1zapatera1-cara').alto, 40, 'cara = borde frontal');
-    assert.equal(porId(r, 'm1zapatera1-lateral-izq').alto, 120, 'laterales al rim (ladosIguales)');
+    assert.equal(porId(r, 'm1zapatera1-cara').alto, 120, 'cara al rim');
+    assert.equal(porId(r, 'm1zapatera1-lateral-izq').alto, 120, 'laterales al rim');
     assert.equal(porId(r, 'm1zapatera1-fondo').alto, 120, 'fondo al rim');
+    assert.equal(porId(r, 'm1zapatera1-frente'), undefined, 'sin frente decorativo');
   });
 });
 
 describe('zapatera: modos × gola (integración mínima)', () => {
-  // Casco + cajón + zapatera en modo 'borde' (sin frente: NO es unidad de
+  // Casco + cajón + zapateras abiertas (conFrente=false: NO son unidades de
   // gola — drawerUnits cuenta drawer_face y la cara clasifica drawer_part;
   // coexiste sin reescalarse ni romper el reparto, A51) + cajón, con repisa
   // que ancla el topRef, apilados como app.js.
-  function buildMixBorde() {
+  function buildMixAbierta() {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     assert.ok(casco.ok);
     const pieces = [...casco.pieces];
@@ -197,12 +227,12 @@ describe('zapatera: modos × gola (integración mínima)', () => {
     const unidades = [
       addShoeTray('1', 1, {
         anchoModulo: 850, profundidadModulo: 600, altoVano: 220,
-        modoFrente: 'borde', bordeFrontal: 40, conFrente: false,
+        modoFrente: 'personalizado', conFrente: false,
       }),
       addDrawer('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }),
       addShoeTray('1', 3, {
         anchoModulo: 850, profundidadModulo: 600, altoVano: 220,
-        modoFrente: 'borde', bordeFrontal: 40, conFrente: false,
+        modoFrente: 'personalizado', conFrente: false,
       }),
       addDrawer('1', 4, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }),
     ];
@@ -222,27 +252,23 @@ describe('zapatera: modos × gola (integración mínima)', () => {
     return pieces;
   }
 
-  it("applyGola con zapateras en modo 'borde' no lanza ni duplica piezas", () => {
-    const pieces = buildMixBorde();
+  it("applyGola con zapateras abiertas (sin frente) no lanza ni duplica piezas", () => {
+    const pieces = buildMixAbierta();
     const nZapatera = pieces.filter((p) => /zapatera/.test(String(p.id))).length;
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     // Ninguna pieza de zapatera duplicada ni eliminada: la gola solo añade
-    // sus tiras (m{mod}gola-*) y las zapateras-borde (sin frente) no son
+    // sus tiras (m{mod}gola-*) y las zapateras abiertas (sin frente) no son
     // unidades: no hay frente que reescalar (se comportan como A51).
     const zap = r.pieces.filter((p) => /zapatera/.test(String(p.id)));
     assert.equal(zap.length, nZapatera, 'misma cantidad de piezas de zapatera');
     assert.ok(r.pieces.some((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))), 'la gola añadió sus tiras');
     assert.ok(!r.pieces.some((p) => /gola/.test(String(p.id)) && /zapatera/.test(String(p.id))),
       'ninguna tira gola toca ids de zapatera');
-    // Las caras-borde no se reescalaron: siguen midiendo 40.
-    for (const p of zap.filter((q) => String(q.id).endsWith('-cara'))) {
-      assert.equal(Number(p.alto), 40, 'cara-borde intacta tras la gola');
-    }
   });
 
-  it("la zapatera 'borde' no es unidad de gola: el conteo sigue siendo el de los cajones", () => {
-    const pieces = buildMixBorde();
+  it("la zapatera abierta (sin frente) no es unidad de gola: el conteo sigue siendo el de los cajones", () => {
+    const pieces = buildMixAbierta();
     const unidades = drawerUnits(pieces, '1');
     assert.equal(unidades.length, 2, 'solo los 2 cajones son unidades');
     assert.ok(unidades.every((u) => u.frentes.every((f) => !/zapatera/.test(String(f.id)))),

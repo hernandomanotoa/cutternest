@@ -158,6 +158,38 @@ describe('userConfigService', () => {
       delete globalThis.localStorage;
       assert.doesNotThrow(() => saveUserConfig({ stackGap: 99 }));
     });
+
+    it('merge: un save parcial preserva las claves previas (no reemplaza)', () => {
+      // Bug real: saveUserConfig reemplazaba el storage completo, así que un
+      // save parcial posterior (p. ej. un dato de obra o la luz de frente)
+      // borraba claves ajenas y la luz volvía a 1.
+      saveUserConfig({ stackGap: 35 });
+      saveUserConfig({ drawerFrontLuz: 3 });
+      const saved = JSON.parse(storage.getItem('cn-assembly-config'));
+      assert.equal(saved.stackGap, 35, 'stackGap preservado');
+      assert.equal(saved.drawerFrontLuz, 3, 'drawerFrontLuz preservado');
+    });
+
+    it('merge: un valor que vuelve al default se elimina del storage', () => {
+      saveUserConfig({ stackGap: 35, drawerFrontLuz: 3 });
+      saveUserConfig({ stackGap: VERTICAL_POSITIONS.stackGap });
+      const saved = JSON.parse(storage.getItem('cn-assembly-config'));
+      assert.equal('stackGap' in saved, false, 'stackGap revertido al default');
+      assert.equal(saved.drawerFrontLuz, 3, 'la otra clave sobrevive al revert');
+    });
+
+    it('merge: pieceOffsets/fichaCorrections vacíos siguen reseteando', () => {
+      saveUserConfig({ stackGap: 35, pieceOffsets: { r1: { offset: 10, gap: 20 } } });
+      saveUserConfig({ pieceOffsets: {} });
+      let saved = JSON.parse(storage.getItem('cn-assembly-config'));
+      assert.equal('pieceOffsets' in saved, false, 'pieceOffsets reseteado');
+      assert.equal(saved.stackGap, 35, 'claves numéricas preservadas');
+      storage.setItem('cn-assembly-config', JSON.stringify({ fichaCorrections: { nivel: 'alto' }, drawerFrontLuz: 3 }));
+      saveUserConfig({ fichaCorrections: {} });
+      saved = JSON.parse(storage.getItem('cn-assembly-config'));
+      assert.equal('fichaCorrections' in saved, false, 'fichaCorrections reseteadas');
+      assert.equal(saved.drawerFrontLuz, 3, 'luz preservada tras el reset');
+    });
   });
 
   describe('resetUserConfig', () => {

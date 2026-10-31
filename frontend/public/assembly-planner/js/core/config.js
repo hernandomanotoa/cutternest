@@ -259,13 +259,18 @@ export const GOLA_PERFIL_TALLER = {
   editable: true,
   golaPerfilHeight: 50,      // cuerpo del perfil C/L de aluminio (mm)
   golaPaso: 3,               // paso entre frente y canal, arriba y abajo del perfil (mm)
-  golaFingerClearance: 20,   // espacio de agarre; también el gap bajo repisa para la L (mm)
-  golaStripDepth: 60,        // profundidad de la tira (mm)
-  golaStripSetback: 10,      // retranqueo detrás del plano de frentes (mm)
+  golaFingerClearance: 20,   // EN DESUSO (canal L eliminado): se acepta por
+                            // retrocompatibilidad pero no cambia nada
+  // (golaStripDepth se eliminó: el canal de melamina C/L no usa tira profunda;
+  // las configs persistidas con esa clave se ignoran)
+  golaStripSetback: 10,      // retranqueo del canal detrás del plano de frentes; profundidad del hueco de agarre (mm)
   golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
   golaTornillosPorPerfil: 2, // tornillos de fijación por lado del fondo de canal
   golaSoporteTraseroDesde: 900, // luz del canal (ancho interior) a partir de la cual el fondo lleva soporte trasero (mm)
-  golaMaxOverhang: 120,      // máx. sobrealtura del frente L respecto a su caja (mm)
+  golaMaxOverhang: 120,      // EN DESUSO (canal L eliminado): se acepta por retrocompatibilidad
+  golaMaxRebajaCaja: 40,     // máx. rebaja de la caja (laterales/cara/fondo) por cajón cuando el
+                             // vano no alcanza por poco: libera espacio para el canal sin tocar
+                             // la repisa (mm). Por encima, applyGola falla con el error de vano.
   golaMinAperturaUtil: 20,   // mín. abertura útil de agarre (hueco libre real para los dedos, mm)
   golaFijacion: 'Tornillos 3.5×16 + soporte trasero — según taller, verificar con catálogo',
 };
@@ -331,11 +336,11 @@ export const VERTICAL_POSITIONS = {
   contentVano: 200,          // alto de vano por defecto al agregar cajón/zapatera
   contentNPorFila: 1,        // cajones/zapateras por fila (1|2)
   contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
-  contentFrenteZapatera: 1,  // por defecto las zapateras llevan frente decorativo + tirador
+  contentFrenteZapatera: 1,  // por defecto las zapateras llevan frente decorativo (sin tirador,
+                            // como los cajones: apertura sin jaladera)
                             // (el tipo 'bandeja a la vista' impone lo contrario:
                             // su razón de ser es ir sin frente para verse)
-  contentBordeZapatera: 40,   // alto del borde frontal bajo (modos 'borde'/'personalizado')
-  contentAltoFrenteZapatera: 0,   // 0 = default (vano − 3)
+  contentAltoFrenteZapatera: 0,   // 0 = default (vano − 3; vano − 1 en modo 'extendido')
   contentAltoLateralZapatera: 0,  // 0 = default (RAIL_SIDE_HEIGHT, 100 mm)
   contentAltoFondoZapatera: 0,    // 0 = default (= alto de los laterales)
   contentAltoDivisionZapatera: 0, // 0 = default (= alto de los laterales)

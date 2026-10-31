@@ -49,8 +49,9 @@ import {
   plinthLevelerCount,
   rootModuleDims,
   MARCO_PIECE_RE,
+  PLINTH_DRAWER_FRONT_LIFT_MM,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, tipoTagDe, vanoDesdeCara, fondoMetodoDeTipo } from './core/contentTypes.js';
+import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, vanoDesdeCara, fondoMetodoDeTipo } from './core/contentTypes.js';
 import { installCustomTypes } from './services/customTypesService.js';
 import {
   createModule,
@@ -85,6 +86,7 @@ import {
   isGolaEnabled,
   getGolaCfg,
   drawerUnits,
+  aberturaCanalGola,
 } from './services/golaService.js';
 
 export const GLOBAL_MODULE_ID = 'global';
@@ -646,14 +648,13 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         espesorModulo: espesor,
         frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
         conFrente: !!opts.conFrente,
-        // Modo del frente (3 modos del Constructor): whitelist; sin modo
+        // Modo del frente (modos del Constructor): whitelist; sin modo
         // válido cae al default del servicio (hereda de conFrente).
-        modoFrente: ['completo', 'borde', 'abierta', 'personalizado'].includes(opts.modoFrente)
+        modoFrente: ['normal', 'extendido', 'personalizado'].includes(opts.modoFrente)
           ? opts.modoFrente
           : null,
-        // Alturas del modo 'borde'/'personalizado' (>0; si no, default del
+        // Alturas del modo 'personalizado' (>0; si no, default del
         // servicio). Ningún espesor nuevo: TODO sale de espesorModulo.
-        bordeFrontal: Number(opts.bordeFrontal) > 0 ? Number(opts.bordeFrontal) : undefined,
         altoFondo: Number(opts.altoFondo) > 0 ? Number(opts.altoFondo) : null,
         altoDivision: Number(opts.altoDivision) > 0 ? Number(opts.altoDivision) : null,
         altoFrente: Number(opts.altoFrente) > 0 ? Number(opts.altoFrente) : null,
@@ -911,18 +912,43 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
     // Insercion): frentes con gap de frente (o sin gap si eran frente
     // completo: se detecta porque su caja no tiene cara), resto con stackGap.
     if (/-frente$/.test(String(p.id))) {
-      const sinGap = !(pieces || []).some((q) => {
-        const pref = String(p.id).slice(0, -'-frente'.length);
-        return String(q.id).startsWith(pref) && q.id.endsWith('-cara');
-      });
-      cursor = Math.max(cursor, Number(p.pos_z) + (Number(p.alto) || 0) + (sinGap ? 0 : drawerFrontGap));
+      const pref = String(p.id).slice(0, -'-frente'.length);
+      const tieneCara = (pieces || []).some((q) => String(q.id).startsWith(pref) && q.id.endsWith('-cara'));
+      const sinGap = !tieneCara;
+      // Bandeja de borde uniforme (CSV legacy: cara del mismo submódulo al
+      // MISMO alto que el frente — el frente es un labio al alto de la
+      // bandeja): la unidad reservó SU vano completo en el apilado — el
+      // espacio abierto sobre el borde es del calzado — y el vano exacto
+      // sale del contrato [tipo] del frente. Sin tag no es derivable (el
+      // frente mide el borde, no el vano) y se conserva el avance histórico
+      // por alto de frente.
+      const caraMismaAltura = tieneCara && (pieces || []).some((q) =>
+        String(q.id).startsWith(pref) && q.id.endsWith('-cara')
+        && Math.abs((Number(q.alto) || 0) - (Number(p.alto) || 0)) <= 0.5);
+      const tag = tipoTagDe(`${p.nombre || ''}`);
+      const tipoUnidad = tag ? getContentType('shoeRack', tag) : null;
+      const vanoUnidad = Number(tipoUnidad?.altoVano) || 0;
+      // Zapatera de frente CORTO (modo 'normal': frente = bandeja + 30, aire
+      // superior del vano abierto para el calzado): la unidad reserva SU vano
+      // completo — avanzar solo el alto del frente dejaría la siguiente pieza
+      // sobre el calzado. Testigo: frente de zapatera más bajo que su vano de
+      // contrato (con tag), o con la diferencia exacta del drop frente−cara.
+      const caraPieza = (pieces || []).find((q) => String(q.id) === `${pref}-cara`);
+      const esZapateraF = /zapatera/i.test(String(p.nombre || ''));
+      const frenteCorto = tieneCara && esZapateraF && (vanoUnidad > 0
+        ? (Number(p.alto) || 0) + 3 < vanoUnidad
+        : Math.abs(((Number(p.alto) || 0) - (Number(caraPieza?.alto) || 0)) - ZAPATERA_FRENTE_DROP) <= 0.5);
+      const avanceFrente = ((caraMismaAltura || frenteCorto) && vanoUnidad)
+        ? vanoUnidad
+        : (Number(p.alto) || 0);
+      cursor = Math.max(cursor, Number(p.pos_z) + avanceFrente + (sinGap ? 0 : drawerFrontGap));
     } else if (/-cara$/.test(String(p.id))) {
       // Cara ancla de cajón/zapatera SIN frente (bandeja abierta): la unidad
       // reserva su vano completo, no solo el espesor de la pieza; si no, lo
       // que se agregue después quedaría pisando la zona de la bandeja. El
-      // vano sale del contrato [tipo] de la cara cuando existe (el cara-borde
-      // de los modos 'borde'/'personalizado NO refleja el vano: mide el borde
-      // frontal, no vano − 2E − 3); sin tag cae al histórico cara + cajaDelta
+      // vano sale del contrato [tipo] de la cara cuando existe (la cara-borde
+      // BAJA de los CSV legacy NO refleja el vano: mide el borde frontal, no
+      // vano − 2E − 3); sin tag cae al histórico cara + cajaDelta
       // + luz (33). Con frente propio la cara no es ancla (no lleva pos_z) y
       // esta rama es solo defensiva.
       const pref = String(p.id).slice(0, -'-cara'.length);
@@ -1006,13 +1032,37 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
     // Frente completo (zapatera botas): cubre todo el vano y va sin gaps —
     // apilado flush, sin drawerFrontGap. Frente bajo: apila con gap.
     const sinGap = kind === 'shoeRack' && !piezasNuevas.some((p) => p.id.endsWith('-cara'));
+    // Bandeja de borde uniforme (CSV legacy: cara al MISMO alto que el
+    // frente — el frente es un labio decorativo al alto de la bandeja): la
+    // unidad reserva SU vano completo: la separación que queda abierta sobre
+    // el borde es el espacio del calzado — si el cursor avanzara solo el
+    // alto del frente bajo, la siguiente pieza caería sobre los zapatos.
+    // Igualdad estricta: una cara más alta que el frente no es bandeja
+    // uniforme.
+    const bandejaUniforme = frente && frente.id.endsWith('-frente')
+      && piezasNuevas.some((p) => p.id.endsWith('-cara')
+        && Math.abs((Number(p.alto) || 0) - (Number(frente.alto) || 0)) <= 0.5);
+    // Zapatera de frente CORTO (modo 'normal': frente = bandeja + 30 con el
+    // aire superior del vano abierto para el calzado): misma reserva de vano
+    // que la bandeja uniforme. Testigo data-driven: frente de zapatera más
+    // bajo que su vano de contrato [tipo] (o, sin tag, con la diferencia
+    // exacta del drop frente−cara).
+    const tagFrente = frente ? tipoTagDe(`${frente.nombre || ''}`) : null;
+    const vanoTag = Number(tagFrente ? getContentType('shoeRack', tagFrente)?.altoVano : 0) || 0;
+    const caraNueva = piezasNuevas.find((p) => p.id.endsWith('-cara'));
+    const frenteCorto = !!frente && frente.id.endsWith('-frente') && !sinGap
+      && /zapatera/i.test(String(frente.nombre || ''))
+      && (vanoTag > 0
+        ? (Number(frente.alto) || 0) + 3 < vanoTag
+        : caraNueva && Math.abs(((Number(frente.alto) || 0) - (Number(caraNueva.alto) || 0)) - ZAPATERA_FRENTE_DROP) <= 0.5);
     // La unidad reserva SU vano completo (altoVano del tipo), no solo el
-    // alto de la pieza ancla: la bandeja abierta sin frente tiene la cara
-    // mas baja que el vano (cara = vano − 2·ESP_BASE − 3) y si el cursor
-    // avanzara solo eso, la siguiente pieza quedaría pisando la zona de
-    // la bandeja. Con frente se conserva el avance histórico (frente.alto).
+    // alto de la pieza ancla: la bandeja (abierta o de frente corto) tiene
+    // la zona de calzado bajo el vano y si el cursor avanzara solo el alto
+    // de la pieza ancla, la siguiente pieza quedaría pisando la zona de la
+    // bandeja. Con frente alto (extendido / personalizado alto) se conserva
+    // el avance histórico (frente.alto).
     const ocupa = frente && frente.id.endsWith('-frente')
-      ? (Number(frente.alto) || 0)
+      ? ((bandejaUniforme || frenteCorto) ? (vanoTag || altoVano || (Number(frente.alto) || 0)) : (Number(frente.alto) || 0))
       : (altoVano || (Number(frente?.alto) || 0));
     fijar(frente, ocupa + (sinGap ? 0 : drawerFrontGap));
   }
@@ -1168,7 +1218,9 @@ export function previewGola(moduleId) {
     unidades: unidades.length,
     tiras: Math.max(0, unidades.length - 1),
     frentes,
-    agarre: cfg.golaFingerClearance,
+    // Agarre útil real del canal C (perfil − 2 labios); la clave
+    // golaFingerClearance quedó en desuso con la eliminación del canal L.
+    agarre: aberturaCanalGola('C', cfg).aberturaUtilMm,
     gapGola: cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso,
     cuerpoPerfil: cfg.golaPerfilHeight,
   };
@@ -1443,7 +1495,42 @@ export function applyStructuralPlinth(opts = {}) {
     return p;
   });
   saveUserConfig({ plinthFrontRecess: retraso });
-  store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
+  // Ajuste de taller al aplicar el zócalo: el frente del CAJÓN que queda
+  // directo sobre el zócalo (el frente anclado más bajo del módulo, si es de
+  // cajón) crece +PLINTH_DRAWER_FRONT_LIFT_MM y se centra en su vano (la mitad
+  // arriba y la mitad abajo). SOLO frentes de cajón: si lo más bajo es una
+  // zapatera, esa zona es de la zapatera y ningún frente se toca. Solo al
+  // aplicar el marco la PRIMERA vez (si ya había marco es una regeneración:
+  // no se duplica el incremento).
+  const teniaMarco = state.pieces.some((p) => MARCO_PIECE_RE.test(String(p.id)));
+  const ajusteFrentes = [];
+  if (!teniaMarco) {
+    const masBajoPorModulo = new Map();
+    for (const p of piecesFinales) {
+      const m = String(p.id).match(/^m(\d+)(cajon|zapatera)\d+-frente$/);
+      if (!m || !Number.isFinite(Number(p.pos_z))) continue;
+      const prev = masBajoPorModulo.get(m[1]);
+      if (!prev || Number(p.pos_z) < Number(prev.frente.pos_z)) {
+        masBajoPorModulo.set(m[1], { frente: p, tipo: m[2] });
+      }
+    }
+    for (const [modRoot, { frente, tipo }] of masBajoPorModulo) {
+      if (tipo !== 'cajon') continue; // zona de zapatera: su frente no se toca
+      ajusteFrentes.push({
+        id: String(frente.id),
+        alto: (Number(frente.alto) || 0) + PLINTH_DRAWER_FRONT_LIFT_MM,
+        pos_z: Math.round(((Number(frente.pos_z) || 0) - PLINTH_DRAWER_FRONT_LIFT_MM / 2) * 10) / 10,
+      });
+    }
+  }
+  const ajustePorId = new Map(ajusteFrentes.map((a) => [a.id, a]));
+  const piecesConAjuste = ajusteFrentes.length
+    ? piecesFinales.map((p) => {
+      const a = ajustePorId.get(String(p.id));
+      return a ? { ...p, alto: a.alto, pos_z: a.pos_z } : p;
+    })
+    : piecesFinales;
+  store.set({ pieces: piecesConAjuste, dependencies: sugerirDependencias(piecesConAjuste) });
   getStore().set({ userConfig: loadUserConfig() });
   recalculateAll();
   return {
@@ -1453,7 +1540,11 @@ export function applyStructuralPlinth(opts = {}) {
     luzMax: built.spec.luzMax,
     pieceCount: built.pieces.length,
     levelers: plinthLevelerCount(built.pieces),
-    warnings: built.warnings,
+    frentesAjustados: ajusteFrentes.map((a) => a.id),
+    warnings: [
+      ...built.warnings,
+      ...ajusteFrentes.map((a) => `Zócalo: el frente "${a.id}" (cajón sobre el zócalo) creció +${PLINTH_DRAWER_FRONT_LIFT_MM} mm y se centró en su vano (±${PLINTH_DRAWER_FRONT_LIFT_MM / 2} mm).`),
+    ],
   };
 }
 
@@ -1480,6 +1571,27 @@ export function removeStructuralPlinth() {
     if (z.ok) restauradas.push(...z.pieces);
   }
   const pieces = [...remaining, ...restauradas];
+  // Revertir el ajuste de taller: el frente del cajón sobre el zócalo vuelve
+  // a su alto y anclaje (era +PLINTH_DRAWER_FRONT_LIFT_MM centrado). Mismo
+  // criterio que al aplicar: solo cuando el frente anclado más bajo del
+  // módulo es de cajón; los frentes de zapatera nunca participaron.
+  const masBajoPorModulo = new Map();
+  for (const p of pieces) {
+    const m = String(p.id).match(/^m(\d+)(cajon|zapatera)\d+-frente$/);
+    if (!m || !Number.isFinite(Number(p.pos_z))) continue;
+    const prev = masBajoPorModulo.get(m[1]);
+    if (!prev || Number(p.pos_z) < Number(prev.frente.pos_z)) {
+      masBajoPorModulo.set(m[1], { frente: p, tipo: m[2] });
+    }
+  }
+  const revertirPorId = new Map();
+  for (const [, { frente, tipo }] of masBajoPorModulo) {
+    if (tipo !== 'cajon') continue;
+    revertirPorId.set(String(frente.id), {
+      alto: (Number(frente.alto) || 0) - PLINTH_DRAWER_FRONT_LIFT_MM,
+      pos_z: Math.round(((Number(frente.pos_z) || 0) + PLINTH_DRAWER_FRONT_LIFT_MM / 2) * 10) / 10,
+    });
+  }
   // Restaurar también el fondo a su alto completo (sin descuento de zócalo).
   const altoLateral = new Map();
   pieces.forEach((p) => {
@@ -1487,6 +1599,8 @@ export function removeStructuralPlinth() {
     if (ml) altoLateral.set(ml[1], Number(p.alto) || 0);
   });
   const piecesFinales = pieces.map((p) => {
+    const rev = revertirPorId.get(String(p.id));
+    if (rev) return { ...p, alto: rev.alto, pos_z: rev.pos_z };
     const mf = String(p.id).match(/^m(\d+)-fondo$/);
     if (!mf) return p;
     const altoMod = altoLateral.get(mf[1]);
@@ -1558,15 +1672,21 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     // sin tag (catálogo/diseños previos) cae a la heurística histórica.
     const tipoTag = tipoTagDe(`${(frente || cara)?.nombre || ''}`);
     const tipoUnidad = tipoTag ? getContentType('shoeRack', tipoTag) : null;
-    // Modo 'borde' detectable por datos: bandeja sin frente cuya cara es MÁS
-    // BAJA que el lateral (en 'abierta' la cara alta siempre supera al
-    // lateral bajo; en la bandeja a la vista van iguales). Best-effort: las
-    // alturas personalizadas de fondo/división no se recuperan (se re-derivan
-    // del lateral), igual que el vano sin tag.
-    const modoBorde = esZapatera && !frente && !!cara && !!lateral
-      && Number(cara.alto) < Number(lateral.alto);
+    // La bandeja a la vista (ladosIguales) es detectable por datos: bandeja
+    // sin frente cuya cara mide EXACTAMENTE lo mismo que el lateral (todos
+    // los lados al rim). Best-effort: las alturas personalizadas de
+    // fondo/división no se recuperan (se re-derivan del lateral), igual que
+    // el vano sin tag.
+    const ladosIguales = esZapatera && !frente && !!cara && !!lateral
+      && (tipoUnidad ? !!tipoUnidad.ladosIguales
+        : Number(cara.alto) === Number(lateral.alto));
+    // El índice de la unidad se deriva del id viejo (m1zapatera2-frente → 2):
+    // antes se regeneraba SIEMPRE con índice 1 y todos los nombres quedaban
+    // "...1 M1" (los ids se renombran a los viejos, el nombre no). Convención
+    // del catálogo sin índice (m21-cajon-frente): fallback 1.
+    const idxViejo = Number(String((frente || cara).id).match(/(?:cajon|zapatera)(\d+)-/)?.[1]) || 1;
     const regenerado = esZapatera
-      ? addShoeTray(moduleId, 1, {
+      ? addShoeTray(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
         espesorModulo: espesor,
@@ -1577,13 +1697,13 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         frenteCompleto: !piezasGrupo.some((p) => sufijoDe(p.id) === 'cara'),
         // Se preserva la opción: solo hay frente viejo si la bandeja lo llevaba.
         conFrente: !!frente,
-        modoFrente: modoBorde ? 'borde' : null,
-        bordeFrontal: modoBorde ? Number(cara.alto) : undefined,
-        // Bandeja a la vista (ladosIguales): con tag, del contrato; sin tag,
-        // la cara al mismo alto que el lateral.
-        ladosIguales: esZapatera && !frente && !!cara && !!lateral
-          && (tipoUnidad ? !!tipoUnidad.ladosIguales
-            : Number(cara.alto) === Number(lateral.alto)),
+        // El modo no se persiste en las piezas: la regeneración toma el
+        // default del servicio ('normal' con frente; 'personalizado' la
+        // bandeja abierta, con ladosIguales + rim para la bandeja a la vista).
+        modoFrente: null,
+        // Bandeja a la vista (ladosIguales): detectada por datos arriba.
+        ladosIguales,
+        rim: tipoUnidad?.rim || BANDEJA_RIM_HEIGHT,
         tipoId: tipoUnidad ? tipoUnidad.id : null,
         altoLateral: Math.max(40, Number(lateral?.alto) || RAIL_SIDE_HEIGHT),
         colorFrente: (frente || cara).color || '#8B5A2B',
@@ -1593,7 +1713,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         // no lleva el tag del riel; sin frente cae al catálogo).
         riel: frente ? inferRailType(frente) : 'catalogo',
       })
-      : addDrawer(moduleId, 1, {
+      : addDrawer(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
         espesorModulo: espesor,

@@ -78,13 +78,11 @@ const TIPOS_CAJON = [
 const GOLA_CFG_FIELDS = [
   ['golaPerfilHeight', 'Alto perfil (mm)', 10, 5],
   ['golaPaso', 'Paso frente↔canal (mm)', 1, 1],
-  ['golaFingerClearance', 'Agarre (mm)', 5, 5],
-  ['golaStripDepth', 'Prof. tira (mm)', 20, 5],
   ['golaStripSetback', 'Retranqueo (mm)', 0, 5],
   ['golaHolguraLateral', 'Holgura lat. (mm)', 0, 1],
   ['golaTornillosPorPerfil', 'Tornillos/lado', 1, 1],
   ['golaSoporteTraseroDesde', 'Soporte trasero desde (mm)', 0, 50],
-  ['golaMaxOverhang', 'Máx. sobrealtura L (mm)', 30, 10],
+  ['golaMaxRebajaCaja', 'Máx. rebaja caja (mm)', 0, 5],
 ];
 
 const FURNITURE_NAME_KEY = 'cn-assembly-furniture-name';
@@ -387,22 +385,14 @@ export function createConstructorView(store) {
         const scoped = e.target.closest('[data-module-scoped]');
         const vano = scoped?.querySelector('[data-alto-vano]');
         if (vano) vano.value = String(tipo.altoVano);
-        // Modo del frente: por defecto frente completo; el tipo puede imponer
-        // bandeja abierta (bandeja a la vista va sin frente para verse) — se
-        // refleja como modo 'borde' (la abierta del Constructor) y el borde
-        // toma el rim del tipo: así la cara queda al MISMO alto que los
-        // laterales (look uniforme de la bandeja a la vista). El usuario
-        // puede cambiarlo a mano antes de agregar.
+        // El tipo elige el ALTO del vano y, en zapateras, si va con frente:
+        // el tipo 'bandeja a la vista' va sin frente para verse (la cara alta
+        // queda de frente visible/de agarre). El MODO del frente (normal /
+        // extendido / personalizado) es elección del usuario: no lo toca el
+        // tipo.
         if (e.target.matches('[data-tipo-zapatera]')) {
-          const modo = scoped?.querySelector('[data-modo-zapatera]');
-          if (modo) {
-            modo.value = tipo.conFrenteDefault === false ? 'borde' : 'completo';
-            const borde = scoped?.querySelector('[data-borde-zapatera]');
-            if (borde && tipo.conFrenteDefault === false && Number(tipo.rim) >= 20 && Number(tipo.rim) <= 300) {
-              borde.value = String(tipo.rim);
-            }
-            toggleCamposZapatera(scoped, modo.value);
-          }
+          const cf = scoped?.querySelector('[data-con-frente-zapatera]');
+          if (cf) cf.checked = tipo.conFrenteDefault !== false;
         }
         // El método del fondo (ranurado) lo fija por defecto el tipo de
         // cajón; el usuario puede cambiarlo a mano antes de agregar.
@@ -556,21 +546,21 @@ export function createConstructorView(store) {
       // División central de la zapatera (apoyo de la fila delantera): el
       // checkbox por defecto va activado; solo aplica a zapateras.
       const division = container.querySelector(`${scoped} [data-division]`)?.checked !== false;
-      // Modo de construcción del frente de la zapatera (3 modos): subsume al
-      // antiguo checkbox "Frente zapatera". 'completo' y 'personalizado'
-      // llevan frente (en personalizado con su propia altura); 'borde' es la
-      // bandeja abierta. El pref contentFrenteZapatera se mantiene en sync
-      // para compatibilidad.
-      const modoZapatera = container.querySelector(`${scoped} [data-modo-zapatera]`)?.value || 'completo';
-      const conFrente = modoZapatera !== 'borde';
+      // Modo de construcción del frente de la zapatera (3 modos del
+      // Constructor): 'normal' (default), 'extendido' o 'personalizado'
+      // (alturas independientes). El checkbox "Frente zapatera" decide si la
+      // bandeja lleva frente decorativo (desmarcado = bandeja a la vista:
+      // la cara alta queda de frente visible/de agarre); el tipo 'bandeja a
+      // la vista' lo desmarca por defecto.
+      const modoZapatera = container.querySelector(`${scoped} [data-modo-zapatera]`)?.value || 'normal';
+      const conFrente = container.querySelector(`${scoped} [data-con-frente-zapatera]`)?.checked !== false;
       const numCampo = (sel2) => {
         const v = Number(container.querySelector(`${scoped} ${sel2}`)?.value);
         return Number.isFinite(v) && v > 0 ? v : null;
       };
-      // Alturas de los modos 'borde'/'personalizado' (vacío = default del
-      // servicio: borde 40, laterales RAIL_SIDE_HEIGHT, frente vano − 3,
+      // Alturas del modo 'personalizado' (vacío = default del servicio:
+      // laterales RAIL_SIDE_HEIGHT, frente vano − 3 / vano − 1 extendido,
       // fondo/división = laterales).
-      const bordeFrontal = numCampo('[data-borde-zapatera]') ?? 40;
       const altoFrenteZ = numCampo('[data-alto-frente-zapatera]');
       const altoLateralZ = numCampo('[data-alto-lateral-zapatera]');
       const altoFondoZ = numCampo('[data-alto-fondo-zapatera]');
@@ -580,16 +570,18 @@ export function createConstructorView(store) {
       // Método del fondo del cajón: apoyado (default) o ranurado (embutido).
       const fondoRanurado = container.querySelector(`${scoped} [data-fondo-ranurado]`)?.checked === true;
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
+      // Va DENTRO del mismo saveUserConfig de abajo: saveUserConfig REEMPLAZA
+      // el storage completo, un segundo call la borraría (por eso el input
+      // volvía a 1 tras aplicar).
       const luzFrente = Math.max(0.5, Number(container.querySelector(`${scoped} [data-luz-frente]`)?.value) || 1);
-      saveUserConfig({ drawerFrontLuz: luzFrente });
       // Persistir las preferencias para los siguientes módulos (sesión).
       saveUserConfig({
+        drawerFrontLuz: luzFrente,
         ...(altoVanoInput > 0 ? { contentVano: altoVanoInput } : {}),
         contentNPorFila: nPorFila,
         contentDivision: division ? 1 : 0,
         contentFrenteZapatera: conFrente ? 1 : 0,
         contentModoZapatera: modoZapatera,
-        contentBordeZapatera: bordeFrontal,
         contentAltoFrenteZapatera: altoFrenteZ ?? '',
         contentAltoLateralZapatera: altoLateralZ ?? '',
         contentAltoFondoZapatera: altoFondoZ ?? '',
@@ -600,7 +592,7 @@ export function createConstructorView(store) {
         contentRiel: riel,
       });
       store.set({ userConfig: loadUserConfig() });
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, conFrente, modoFrente: modoZapatera, bordeFrontal, altoFrente: altoFrenteZ, altoLateral: altoLateralZ, altoFondo: altoFondoZ, altoDivision: altoDivisionZ, riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado' });
+      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, conFrente, modoFrente: modoZapatera, altoFrente: altoFrenteZ, altoLateral: altoLateralZ, altoFondo: altoFondoZ, altoDivision: altoDivisionZ, riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado' });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -676,6 +668,12 @@ export function createConstructorView(store) {
         alto: Number(container.querySelector(`${scoped} [data-edit-alto]`)?.value),
         prof: Number(container.querySelector(`${scoped} [data-edit-prof]`)?.value),
       };
+      // La luz del frente también se persiste al "Aplicar" (el usuario la
+      // ajusta en la tarjeta y espera que este botón la guarde; saveUserConfig
+      // hace merge, no borra otras claves).
+      const luz = Math.max(0.5, Number(container.querySelector(`${scoped} [data-luz-frente]`)?.value) || 1);
+      saveUserConfig({ drawerFrontLuz: luz });
+      store.set({ userConfig: loadUserConfig() });
       const r = editModuleDimensions(moduleId, dims);
       if (r.ok) toast(`Módulo ${moduleId} actualizado`, { type: 'success' });
       else toast(r.errors.join('; '), { type: 'error' });
@@ -694,7 +692,7 @@ export function createConstructorView(store) {
           render(); // revertir el checkbox al estado real
           return;
         }
-        toast(`Gola desactivada en el módulo ${moduleId}: tiradores restaurados`, { type: 'success' });
+        toast(`Gola desactivada en el módulo ${moduleId}: canales eliminados, frentes restaurados`, { type: 'success' });
         warnIfAny(r.warnings);
         return;
       }
@@ -717,7 +715,7 @@ export function createConstructorView(store) {
         render();
         return;
       }
-      toast(`Gola activada en el módulo ${moduleId}: sin tiradores, canales C/L de melamina`, { type: 'success' });
+      toast(`Gola activada en el módulo ${moduleId}: canales C/L de melamina, apertura sin jaladera`, { type: 'success' });
       warnIfAny(r.warnings);
     } else if (action === 'cancel-gola') {
       // El dry-run nunca tocó el store: basta re-render para volver a off.
@@ -1019,6 +1017,12 @@ export function createConstructorView(store) {
         </div>
       </div>
     `;
+    // Fijar el valor de los selects de modo de zapatera: happy-dom (tests)
+    // no respeta el atributo `selected` en opciones 3ª+ al parsear el HTML
+    // (devuelve la 2ª opción); en navegador esto es un no-op.
+    for (const sel of container.querySelectorAll('[data-modo-default]')) {
+      sel.value = sel.dataset.modoDefault;
+    }
     // Re-render del Constructor: el innerHTML reemplazó los nodos objetivo del
     // tour; si hay uno activo, se re-ancla al paso actual.
     if (tour && tour.isActive()) tour.refresh();
@@ -1091,9 +1095,10 @@ function renderContentList(moduleId, allPieces) {
   if (!items.length) return '';
   // Sufijo del modo en el chip de la zapatera: detectable por geometría
   // (sobrevive al CSV; el modo no se persiste en las piezas). Bandeja SIN
-  // frente cuya cara es MÁS BAJA que el lateral = borde frontal bajo (modos
-  // 'borde'/'personalizado'); en 'abierta' la cara alta siempre supera al
-  // lateral y en la bandeja a la vista van iguales (sin sufijo).
+  // frente cuya cara es MÁS BAJA que el lateral = cara-borde bajo de CSV
+  // legacy (el constructor actual siempre emite la cara alta: cara = frente
+  // − 2·E, mayor que el lateral bajo; en la bandeja a la vista van iguales,
+  // sin sufijo).
   const sufijoModoZapatera = (refId) => {
     const pref = String(refId).replace(/-(frente|cara)$/, '');
     if (!/zapatera\d+$/.test(pref)) return '';
@@ -1141,15 +1146,16 @@ function nombreCorto(nombre) {
 
 // Muestra/oculta los campos de altura de la zapatera según el modo elegido
 // (regla del spec: solo los parámetros pertinentes a cada modo). Campo
-// 'borde': visible en 'borde' y 'personalizado'; grupo 'personalizado': solo
-// en ese modo. display inline por robustez (la clase .is-hidden no vive en
-// el CSS del planner).
+// 'alto' (alto de la bandeja/cara): visible en 'normal' (define la bandeja
+// uniforme y el frente = alto + 30) y en 'personalizado'. El resto de campos
+// de altura solo aplican al modo 'personalizado'. display inline por
+// robustez (la clase .is-hidden no vive en el CSS del planner).
 function toggleCamposZapatera(scoped, modo) {
   if (!scoped) return;
   scoped.querySelectorAll('[data-zapatera-campo]').forEach((el) => {
-    const visible = el.dataset.zapateraCampo === 'personalizado'
-      ? modo === 'personalizado'
-      : modo === 'borde' || modo === 'personalizado';
+    const visible = el.dataset.zapateraCampo === 'alto'
+      ? modo === 'normal' || modo === 'personalizado'
+      : modo === 'personalizado';
     el.style.display = visible ? '' : 'none';
   });
 }
@@ -1160,14 +1166,22 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   const prefVano = Number(cfg.contentVano) || 200;
   const prefNPorFila = Number(cfg.contentNPorFila) || 1;
   const prefDivision = Number(cfg.contentDivision) !== 0;
-  // Modo del frente de la zapatera (3 modos). Sin pref propio se deriva del
-  // histórico contentFrenteZapatera (default con frente → 'completo'; sin
-  // frente → 'borde', la bandeja abierta del Constructor).
-  const prefModoZapatera = ['completo', 'borde', 'personalizado'].includes(cfg.contentModoZapatera)
+  // Modo del frente de la zapatera. Default 'normal' (frente normal: como el
+  // de un cajón — frente = vano − 3 y cara detrás a frente − 2·espesor). Los
+  // prefs válidos ('normal'/'extendido'/'personalizado') se respetan; cualquier
+  // pref legacy se mapea: con frente ('normas'/'frenteBajo'/'completo' o pref
+  // desconocido) → 'normal'; los modos legacy sin frente ('borde'/'abierta')
+  // con contentFrenteZapatera=0 → 'personalizado' (la bandeja sin frente vive
+  // ahí ahora).
+  const MODO_ZAPATERA_VALIDOS = ['normal', 'extendido', 'personalizado'];
+  const prefModoZapatera = MODO_ZAPATERA_VALIDOS.includes(cfg.contentModoZapatera)
     ? cfg.contentModoZapatera
-    : (Number(cfg.contentFrenteZapatera) !== 0 ? 'completo' : 'borde');
-  const zapBordeVisible = prefModoZapatera === 'borde' || prefModoZapatera === 'personalizado';
+    : (['borde', 'abierta'].includes(cfg.contentModoZapatera) && Number(cfg.contentFrenteZapatera) === 0
+        ? 'personalizado'
+        : 'normal');
+  const prefConFrenteZapatera = Number(cfg.contentFrenteZapatera) !== 0;
   const zapPersoVisible = prefModoZapatera === 'personalizado';
+  const zapAltoVisible = zapPersoVisible || prefModoZapatera === 'normal';
   const numPref = (v) => (Number(v) > 0 ? Number(v) : '');
   // Método del fondo del cajón (persistido; si no hay pref, el default lo
   // fija el tipo de cajón seleccionado en la tarjeta).
@@ -1251,20 +1265,20 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
         <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División zapatera
           <input type="checkbox" data-division ${prefDivision ? 'checked' : ''} />
         </label>
-        <label class="form-group" style="margin:0;" title="Modo de construcción del frente de la zapatera. Frente completo: frente decorativo + tirador. Borde bajo: bandeja abierta con borde frontal bajo (se jala de él, sin tirador). Personalizado: alturas independientes (frente, borde, laterales, borde trasero y división)">Modo zapatera
-          <select data-modo-zapatera>
-            <option value="completo" ${sel(prefModoZapatera, 'completo')}>Frente completo</option>
-            <option value="borde" ${sel(prefModoZapatera, 'borde')}>Borde bajo</option>
+        <label class="form-group" style="margin:0;" title="Modo de construcción del frente de la zapatera. Frente normal (default): el frente mide 30 mm más que la bandeja (alto zapatera + 30) y NO cubre el vano — el aire superior queda abierto para el calzado; la bandeja va de borde uniforme (cara = laterales = fondo = división al alto zapatera). Frente extendido: el frente completa el vano hasta arriba (vano − 1, holgura mínima). Personalizado: alturas independientes (frente, laterales, fondo y división)">Modo zapatera
+          <select data-modo-zapatera data-modo-default="${prefModoZapatera}">
+            <option value="normal" ${sel(prefModoZapatera, 'normal')}>Frente normal</option>
+            <option value="extendido" ${sel(prefModoZapatera, 'extendido')}>Frente extendido</option>
             <option value="personalizado" ${sel(prefModoZapatera, 'personalizado')}>Personalizado</option>
           </select>
         </label>
-        <label class="form-group" style="margin:0;${zapBordeVisible ? '' : 'display:none;'}" data-zapatera-campo="borde" title="Altura del borde frontal bajo de la bandeja abierta (por donde se jala; sin tirador)">Borde frontal (mm)
-          <input type="number" data-borde-zapatera value="${Number(cfg.contentBordeZapatera) > 0 ? Number(cfg.contentBordeZapatera) : 40}" min="20" max="300" step="5" />
+        <label class="form-group" style="margin:0;" title="Frente decorativo de la zapatera (sin tirador: se jala del borde). Desmarcado = bandeja a la vista: la cara queda como frente visible y de agarre (el tipo 'bandeja a la vista' lo desmarca por defecto)">Frente zapatera
+          <input type="checkbox" data-con-frente-zapatera ${prefConFrenteZapatera ? 'checked' : ''} />
         </label>
-        <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del frente decorativo (vacío = vano − 3)">Alto frente (mm)
-          <input type="number" data-alto-frente-zapatera value="${numPref(cfg.contentAltoFrenteZapatera)}" placeholder="vano − 3" min="50" step="5" />
+        <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del frente decorativo (vacío = alto zapatera + 30 en 'Frente normal', vano − 1 en 'Frente extendido')">Alto frente (mm)
+          <input type="number" data-alto-frente-zapatera value="${numPref(cfg.contentAltoFrenteZapatera)}" placeholder="según modo" min="50" step="5" />
         </label>
-        <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura de los laterales de la bandeja (vacío = 100 mm, alto de riel)">Alto laterales (mm)
+        <label class="form-group" style="margin:0;${zapAltoVisible ? '' : 'display:none;'}" data-zapatera-campo="alto" title="Altura de la zapatera (cara/bandeja): en 'Frente normal' la bandeja va de borde uniforme a este alto y el frente mide alto + 30 mm (vacío = 100 mm, alto de riel); en 'Personalizado' es el alto de los laterales">Alto zapatera (mm)
           <input type="number" data-alto-lateral-zapatera value="${numPref(cfg.contentAltoLateralZapatera) || RAIL_SIDE_HEIGHT}" min="40" step="5" />
         </label>
         <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del borde trasero / fondo de la bandeja (vacío = laterales)">Alto fondo (mm)
@@ -1312,7 +1326,7 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
           <input type="color" data-color-cuerpo value="#c19a6b" />
         </label>
         ${golaUnidades >= 2 ? `
-        <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: canales de melamina entre frentes (sin tiradores — tipo C entre cajones, tipo L bajo la repisa) y caja del cajón superior rebajada">
+        <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: canales de melamina entre frentes de cajones (sin tiradores — tipo C retranqueado con su agarre; sobre el último frente queda el gap habitual)">
           <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn || golaPreviewHere ? 'checked' : ''} /> Gola
         </label>` : ''}
         <button class="btn btn--secondary btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica">👁 Ver</button>
@@ -1377,7 +1391,7 @@ function renderGolaPreviewPanel(preview) {
   return `
     <div class="cn-constructor__edit-form cn-gola-preview" data-gola-preview>
       <p class="cn-gola-preview__titulo"><strong>Vista previa — sistema gola</strong></p>
-      <p class="cn-gola-preview__resumen">Se eliminarán los tiradores y se crearán ${plan.tiras} canal(es) tipo C (fondo + 2 pestañas de melamina) y 1 canal tipo L bajo la repisa — gap de ${plan.gapGola} mm (3 + ${plan.cuerpoPerfil ?? 50} + 3), agarre de ${plan.agarre} mm. La caja del cajón superior queda rebajada para pasar bajo el canal L. Los frentes quedarán:</p>
+      <p class="cn-gola-preview__resumen">Se crearán ${plan.tiras} canal(es) tipo C entre cajones (fondo + 2 pestañas de melamina) — gap de ${plan.gapGola} mm (3 + ${plan.cuerpoPerfil ?? 50} + 3), agarre de ${plan.agarre} mm. Sobre el último frente queda el gap habitual (sin canal L). Los frentes quedarán:</p>
       <ul class="cn-gola-preview__frentes">${frentes}</ul>
       ${(warnings || []).length ? `
       <div class="cn-constructor__warnings cn-gola-preview__warnings">

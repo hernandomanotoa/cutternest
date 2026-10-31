@@ -86,35 +86,55 @@ export function saveUserConfig(overrides) {
 
   try {
     const defaults = effectiveDefaults();
-    const diff = {};
+    // MERGE (no reemplazo): el storage se conserva entre saves parciales —
+    // antes cada call reemplazaba todo y un save parcial posterior (p. ej. un
+    // dato de obra) borraba claves ajenas (bug real: la luz de frente volvía
+    // a 1). Las claves numéricas presentes en overrides que vuelven al
+    // default se ELIMINAN (revert); las ausentes se conservan.
+    let existing = {};
+    try {
+      const parsed = JSON.parse(storage.getItem(STORAGE_KEY) || '{}');
+      if (parsed && typeof parsed === 'object') existing = parsed;
+    } catch {
+      existing = {};
+    }
+    const diff = { ...existing };
     for (const key of Object.keys(VERTICAL_POSITIONS)) {
       const value = overrides?.[key];
       if (
         Object.prototype.hasOwnProperty.call(overrides || {}, key) &&
-        Number.isFinite(value) &&
-        value !== defaults[key]
+        Number.isFinite(value)
       ) {
-        diff[key] = value;
+        if (value !== defaults[key]) diff[key] = value;
+        else delete diff[key];
       }
     }
-    if (
-      overrides?.pieceOffsets &&
-      typeof overrides.pieceOffsets === 'object' &&
-      Object.keys(overrides.pieceOffsets).length > 0
-    ) {
-      diff.pieceOffsets = overrides.pieceOffsets;
+    if (overrides && Object.prototype.hasOwnProperty.call(overrides, 'pieceOffsets')) {
+      if (
+        overrides.pieceOffsets &&
+        typeof overrides.pieceOffsets === 'object' &&
+        Object.keys(overrides.pieceOffsets).length > 0
+      ) {
+        diff.pieceOffsets = overrides.pieceOffsets;
+      } else {
+        delete diff.pieceOffsets; // reset explícito
+      }
     }
-    // Mismo patrón que pieceOffsets: solo se persiste si no está vacío.
-    if (
-      overrides?.fichaCorrections &&
-      typeof overrides.fichaCorrections === 'object' &&
-      Object.keys(overrides.fichaCorrections).length > 0
-    ) {
-      diff.fichaCorrections = overrides.fichaCorrections;
+    if (overrides && Object.prototype.hasOwnProperty.call(overrides, 'fichaCorrections')) {
+      if (
+        overrides.fichaCorrections &&
+        typeof overrides.fichaCorrections === 'object' &&
+        Object.keys(overrides.fichaCorrections).length > 0
+      ) {
+        diff.fichaCorrections = overrides.fichaCorrections;
+      } else {
+        delete diff.fichaCorrections; // reset explícito
+      }
     }
     for (const key of STRING_PREFS) {
-      if (typeof overrides?.[key] === 'string' && overrides[key]) {
-        diff[key] = overrides[key];
+      if (typeof overrides?.[key] === 'string') {
+        if (overrides[key]) diff[key] = overrides[key];
+        else delete diff[key];
       }
     }
     storage.setItem(STORAGE_KEY, JSON.stringify(diff));

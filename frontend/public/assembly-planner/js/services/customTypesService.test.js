@@ -116,7 +116,7 @@ describe('customTypesService — integración con el contrato', () => {
 
   it('el gola trata al custom zapatera como fijo (fijoEnGola del contrato)', () => {
     saveCustomType({ id: 'cus-gola', label: 'Gola fix', ...ZAPATERA, altoVano: 220 });
-    // Módulo: custom zapatera (frente 217, fijo) + cajón (reescala).
+    // Módulo: custom zapatera (frente 130 = bandeja + 30, fijo) + cajón (reescala).
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     assert.ok(casco.ok);
     const custom = getContentType('shoeRack', 'cus-gola');
@@ -137,11 +137,11 @@ describe('customTypesService — integración con el contrato', () => {
     const pieces = [...casco.pieces, ...tray.pieces, ...cajon.pieces, ...repisa.pieces];
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
-    // La zapatera custom queda fija en 217; el cajón absorbe el aire.
+    // La zapatera custom queda fija en 130 (bandeja + 30); el cajón absorbe el aire.
     const fijos = r.pieces.filter((p) => p.id.endsWith('-frente'));
     const zap = fijos.find((p) => p.id.includes('zapatera'));
     const caj = fijos.find((p) => p.id.includes('cajon'));
-    assert.equal(zap.alto, 217, 'frente custom fijo en su tipo');
+    assert.equal(zap.alto, 130, 'frente custom fijo en su tipo (bandeja + 30)');
     assert.ok(caj.alto !== 197 || r.warnings.length >= 0, 'cajón reescala (valor según span)');
     assert.ok(caj.alto > 177 - 1, 'cajón cubre su caja tras el reparto');
   });

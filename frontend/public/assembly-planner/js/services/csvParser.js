@@ -249,9 +249,11 @@ function validateDimensions(pieces, warnings) {
       // Rangos ergonómicos de frente (guía de diseño del taller). No aplican
       // a volquetes/abatibles ('abatible'): su frente alto pivotante es el
       // propio mecanismo, no una bandeja profunda.
-      //   cajón corredero: delgado 120-160 / estándar 150-200 / profundo 250-300;
-      //   bandeja zapatera extraíble: 150-220 mm (botas altas: vano abierto
-      //   de 350-450 mm, no bandeja).
+      //   cajón corredero: delgado 120-160 / estándar 150-200 / profundo 250-300.
+      // La zapatera NO tiene rango ergonómico: desde el modo de frente
+      // configurable (bandeja al alto que elija el usuario + 30 mm) la altura
+      // es decisión de diseño — avisar por rango era un falso positivo (p. ej.
+      // bandeja 80 → frente 110) y contradecía el frente completo de botas.
       if (front) {
         const frontName = normalizeName(front.nombre);
         const esZapatera = frontName.includes('zapatera');
@@ -261,13 +263,7 @@ function validateDimensions(pieces, warnings) {
         // rango ergonómico clásico no aplica.
         const esGola = modPieces.some((p) => inferRole(p) === 'gola_strip');
         const altoFrente = Number(front.alto) || 0;
-        if (esZapatera && !esGola) {
-          if (altoFrente < 120) {
-            warnings.push(`Módulo ${modId} → ${subId}: frente de zapatera muy bajo (${altoFrente} mm); lo habitual es 150-220 mm.`);
-          } else if (altoFrente > 340) {
-            warnings.push(`Módulo ${modId} → ${subId}: frente de zapatera muy alto (${altoFrente} mm); para calzado normal use 150-220 mm y deje las botas en vano abierto de 350-450 mm.`);
-          }
-        } else if (!esAbatible && !esGola && altoFrente > 320) {
+        if (!esZapatera && !esAbatible && !esGola && altoFrente > 320) {
           warnings.push(`Módulo ${modId} → ${subId}: frente de cajón muy alto (${altoFrente} mm); lo profundo habitual es 250-300 mm (suéteres/sábanas).`);
         }
       }
@@ -398,7 +394,20 @@ function validateDimensions(pieces, warnings) {
         // bajo el frente. Volquete/abatible queda exento (caja derivada del
         // frente). El espBase es el de la base PROPIA del cajón (puede ser
         // distinto del del módulo padre).
-        if (subBack && subLaterals.length && !esPivotante) {
+        // Zapatera (bandeja): el fondo es BAJO por diseño — es bandeja, no
+        // caja de cajón — así que no hereda la validación de altura de caja
+        // según riel (disparaba 3 avisos idénticos por módulo en bandejas
+        // personales con fondo de ~60 mm). Solo una coherencia suave propia:
+        // el fondo no debería superar a los laterales de la bandeja.
+        const esZapateraSub = normalizeName(front.nombre).includes('zapatera')
+          || subPieces.some((p) => normalizeName(p.nombre).includes('zapatera'));
+        if (subBack && subLaterals.length && esZapateraSub) {
+          const latMax = Math.max(...subLaterals.map((l) => Number(l.alto) || 0));
+          if (Number(subBack.alto) > latMax + 2) {
+            warnings.push(`Módulo ${modId} → ${subId}: fondo de zapatera (${subBack.alto} mm) más alto que los laterales de la bandeja (${latMax} mm); lo habitual es un fondo bajo (≈ 60-100 mm).`);
+          }
+        }
+        if (subBack && subLaterals.length && !esPivotante && !esZapateraSub) {
           const railType = inferRailType(front);
           const railDef = getRailType(railType);
           const vanoH = (Number(front.alto) || 0) + 2;

@@ -86,7 +86,7 @@ test('agregar cajón a un módulo con zócalo: dims derivadas de la tapa, no de 
   click(container, '[data-action="add-content"][data-kind="drawer"]');
 
   const drawerPieces = store.get().pieces.filter((p) => p.modulo === '11');
-  assert.equal(drawerPieces.length, 7);
+  assert.equal(drawerPieces.length, 6, 'cajón sin tirador (apertura sin jaladera)');
   const frente = drawerPieces.find((p) => p.id.includes('-frente'));
   assert.equal(frente.alto, 277); // 280 - 3
   // Si se hubiera derivado ancho de la base interna (820), el frente sería 816.
@@ -252,11 +252,8 @@ test('editar a ancho donde el cajon no cabe aborta sin cambios', () => {
 test('orden de inserción define el orden vertical (repisa entre cajones se respeta)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  // Zapateras de bandeja abierta (modo 'borde', sin frente): su ancla
-  // vertical es la cara.
-  const modoZap = container.querySelector('[data-module-scoped="1"] [data-modo-zapatera]');
-  modoZap.value = 'borde';
-  modoZap.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Zapateras de bandeja abierta (sin frente): su ancla vertical es la cara.
+  container.querySelector('[data-module-scoped="1"] [data-con-frente-zapatera]').checked = false;
   const add = (kind) => click(container, `[data-action="add-content"][data-kind="${kind}"]`);
   add('shelf');
   add('shelf');
@@ -309,20 +306,18 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   click(container, '[data-action="add-module"]');
   const scoped = '[data-module-scoped="1"]';
   // Elegir el tipo botas (frente completo 450) y una estándar para comparar.
-  // Modo 'completo': frente decorativo (el tipo botas lo fuerza igual).
-  const modoZap = container.querySelector(`${scoped} [data-modo-zapatera]`);
-  modoZap.value = 'completo';
-  modoZap.dispatchEvent(new window.Event('change', { bubbles: true }));
   const sel = container.querySelector(`${scoped} [data-tipo-zapatera]`);
   sel.value = 'tenis';
   sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Modo default 'normal': frente = vano − 3 (el tipo botas fuerza su
+  // frente completo igual).
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
 
   const z1frente = store.get().pieces.find((p) => p.id === 'm1zapatera1-frente');
-  assert.equal(z1frente.alto, 197, 'tenis: vano 200 → frente 197');
-  assert.ok(store.get().pieces.some((p) => p.id === 'm1zapatera1-cara'), 'frente bajo: lleva cara');
+  assert.equal(z1frente.alto, 130, 'tenis en modo normal: bandeja 100 + frente corto 130');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1zapatera1-cara'), 'frente corto: lleva cara (borde uniforme)');
   const z1lat = store.get().pieces.find((p) => p.id === 'm1zapatera1-lateral-izq');
-  assert.equal(z1lat.alto, 100, 'lateral bajo: cubre solo la riel (100 mm)');
+  assert.equal(z1lat.alto, 100, 'lateral = alto de bandeja (uniforme)');
 
   const sel2 = container.querySelector(`${scoped} [data-tipo-zapatera]`);
   sel2.value = 'botas';
@@ -333,11 +328,12 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   assert.equal(z2frente.alto, 447, 'botas: vano 450 → frente 447 (frente completo)');
   assert.ok(!store.get().pieces.some((p) => p.id === 'm1zapatera2-cara'), 'frente completo: SIN cara');
   const z2 = store.get().pieces.find((p) => p.id === 'm1zapatera2-lateral-izq');
-  assert.equal(z2.alto, 100, 'lateral sigue bajo (riel) aun con frente completo');
-  // Apilado: botas (sin gap) arranca justo donde termina el frente anterior.
+  assert.equal(z2.alto, 100, 'lateral = alto de bandeja aun con frente completo');
+  // Apilado: la zapatera de frente corto reserva SU vano completo (200):
+  // botas arranca a vano(200) + gap de la primera, no a frente(130) + gap.
   const pos1 = Number(store.get().pieces.find((p) => p.id === 'm1zapatera1-frente').pos_z);
   const pos2 = Number(z2frente.pos_z);
-  assert.equal(pos2, Math.round((pos1 + 197 + 2.5) * 10) / 10, 'apilado: tenis(con gap) + botas(flush)');
+  assert.equal(pos2, Math.round((pos1 + 200 + 2.5) * 10) / 10, 'apilado: tenis reserva su vano (200) + botas(flush)');
   view.destroy();
 });
 
@@ -501,7 +497,7 @@ test('deshacer (Ctrl+Z y botón) revierte la última acción estructural', () =>
   // Ctrl+Z con dos acciones: revierte la más reciente primero.
   click(container, '[data-action="add-module"]');
   container.querySelector('[data-action="add-content"][data-kind="drawer"]').click();
-  assert.equal(store.get().pieces.filter((p) => p.modulo === '11').length, 7);
+  assert.equal(store.get().pieces.filter((p) => p.modulo === '11').length, 6);
   container.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
   assert.equal(store.get().pieces.filter((p) => p.modulo === '11').length, 0, 'Ctrl+Z deshizo el cajón');
   assert.ok(store.get().pieces.length > 0, 'el módulo queda');
@@ -830,6 +826,57 @@ test('Zócalo estructural: generar marco reemplaza frentes simples y ancla el ap
   view.destroy();
 });
 
+test('Zócalo aplicado: el frente del CAJÓN inferior crece +30 mm centrado; zapateras intactas', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // Pila: cajón, zapatera (completo), cajón — el más bajo es un cajón.
+  // Contador unificado: cajon1, zapatera2, cajon3.
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const antes = new Map(store.get().pieces.map((p) => [p.id, { alto: p.alto, pos_z: p.pos_z }]));
+  click(container, '[data-action="apply-plinth"]');
+  const pieces = store.get().pieces;
+  // Solo el frente del cajón MÁS BAJO (m1cajon1): +30 mm y centrado (−15).
+  const f1 = pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.equal(f1.alto, antes.get('m1cajon1-frente').alto + 30, 'frente del cajón inferior +30 mm');
+  assert.equal(f1.pos_z, Math.round((antes.get('m1cajon1-frente').pos_z - 15) * 10) / 10, 'centrado: −15 mm en su vano');
+  // El segundo cajón (más arriba) NO se toca.
+  const f2 = pieces.find((p) => p.id === 'm1cajon3-frente');
+  assert.equal(f2.alto, antes.get('m1cajon3-frente').alto, 'el cajón superior no cambia');
+  assert.equal(f2.pos_z, antes.get('m1cajon3-frente').pos_z, 'el cajón superior no se mueve');
+  // La zapatera (aunque esté entre los cajones) NO se toca.
+  const zap = pieces.find((p) => p.id === 'm1zapatera2-frente');
+  assert.equal(zap.alto, antes.get('m1zapatera2-frente').alto, 'frente de zapatera intacto');
+  assert.equal(zap.pos_z, antes.get('m1zapatera2-frente').pos_z, 'zapatera sin mover');
+  // Regenerar el marco NO duplica el incremento.
+  click(container, '[data-action="apply-plinth"]');
+  const f1b = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.equal(f1b.alto, f1.alto, 'regenerar no duplica el +30');
+  // Quitar el zócalo revierte el ajuste.
+  click(container, '[data-action="remove-plinth"]');
+  const f1c = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.equal(f1c.alto, antes.get('m1cajon1-frente').alto, 'alto restaurado al quitar el zócalo');
+  assert.equal(f1c.pos_z, antes.get('m1cajon1-frente').pos_z, 'anclaje restaurado al quitar el zócalo');
+  view.destroy();
+});
+
+test('Zócalo aplicado: si lo más bajo es una ZAPATERA, ningún frente se ajusta', () => {
+  const { store, view, container } = mountView();
+  click(container, '[data-action="add-module"]');
+  // Zapatera primero (la más baja) y cajón arriba.
+  click(container, '[data-action="add-content"][data-kind="shoeRack"]');
+  click(container, '[data-action="add-content"][data-kind="drawer"]');
+  const antes = new Map(store.get().pieces.map((p) => [p.id, { alto: p.alto, pos_z: p.pos_z }]));
+  click(container, '[data-action="apply-plinth"]');
+  const pieces = store.get().pieces;
+  const zap = pieces.find((p) => p.id === 'm1zapatera1-frente');
+  assert.equal(zap.alto, antes.get('m1zapatera1-frente').alto, 'zapatera (la más baja) sin tocar');
+  const f = pieces.find((p) => p.id === 'm1cajon2-frente');
+  assert.equal(f.alto, antes.get('m1cajon2-frente').alto, 'cajón que NO está sobre el zócalo sin tocar');
+  view.destroy();
+});
+
 test('Zócalo único: división paralela al frente bajo el módulo con cajón', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
@@ -1080,10 +1127,8 @@ test('Reordenar módulo con cajones/zapateras: los submódulos viajan sin quedar
 test('Zapatera: división central por defecto, opcional, y se elimina con el grupo', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  // Bandeja abierta (modo 'borde', sin frente): la referencia del chip es su cara.
-  const modoZap = container.querySelector('[data-module-scoped="1"] [data-modo-zapatera]');
-  modoZap.value = 'borde';
-  modoZap.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Bandeja abierta (sin frente): la referencia del chip es su cara.
+  container.querySelector('[data-module-scoped="1"] [data-con-frente-zapatera]').checked = false;
   // Por defecto (checkbox activado): la zapatera lleva división.
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
   let pieces = store.get().pieces;
@@ -1157,11 +1202,12 @@ test('Canto PVC configurable: reflejado en la lista de herrajes', () => {
   view.destroy();
 });
 
-test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + caja superior rebajada + round-trip', () => {
+test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin canal L + round-trip', () => {
   const { store, view, container } = mountView();
-  // Vano exacto del taller: tipo "estandar" (vano 200 → frente 197) y alto 913
-  // → H útil 703 = 3×197 + 2×(3+50+3) + 20: el repartidor no estira ni capa.
-  container.querySelector('[data-cfg="alto"]').value = '913';
+  // Vano exacto del taller: tipo "estandar" (vano 200 → frente 197), zócalo
+  // 150 (frentes desde z=175) y alto 895.5 → H útil 703 = 3×197 + 2×(3+50+3)
+  // + 2.5: el repartidor no estira ni reduce.
+  container.querySelector('[data-cfg="alto"]').value = '895.5';
   click(container, '[data-action="add-module"]'); // 850×600, cuerpo #C19A6B
   const tipoSel = container.querySelector('[data-module-scoped="1"] [data-tipo-drawer]');
   tipoSel.value = 'estandar';
@@ -1173,14 +1219,14 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + caja 
   click(container, '[data-action="confirm-gola"][data-module="1"]');
   const pieces = store.get().pieces;
   const pieza = (id) => pieces.find((p) => p.id === id);
-  // El vano exacto no estira ni capa: los tres frentes quedan en 197 mm.
+  // El vano exacto no estira ni reduce: los tres frentes quedan en 197 mm.
   for (const n of [1, 2, 3]) {
     assert.equal(pieza(`m1cajon${n}-frente`).alto, 197, `frente ${n} conserva 197 mm`);
   }
 
-  // Canal C 1: fondo 820×perfil a techo del cajón 1 + paso; pestañas 820×prof. tira.
+  // Canal C 1: fondo 820×perfil a techo del cajón 1 + paso; pestañas 820×(retranqueo+15).
   const PROF = GOLA_DEFAULTS.golaPerfilHeight;
-  const TIRA = GOLA_DEFAULTS.golaStripDepth;
+  const TIRA = GOLA_DEFAULTS.golaStripSetback + 15;
   const PASO = GOLA_DEFAULTS.golaPaso;
   const f1 = pieza('m1cajon1-frente');
   const fondo1 = pieza('m1gola-c1-fondo');
@@ -1191,30 +1237,26 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + caja 
   const sup1 = pieza('m1gola-c1-pestana-sup');
   const inf1 = pieza('m1gola-c1-pestana-inf');
   assert.equal(sup1.ancho, 820);
-  assert.equal(sup1.alto, TIRA, 'alcance de la pestaña');
+  assert.equal(sup1.alto, TIRA, 'alcance de la pestaña = retranqueo + 15');
   assert.equal(sup1.pos_z, Math.round((fondo1.pos_z + PROF - 15) * 10) / 10, 'pestaña sup en el techo del fondo');
   assert.equal(inf1.pos_z, fondo1.pos_z, 'pestaña inf en la base del fondo');
   assert.equal(fondo1.color.toLowerCase(), '#c19a6b', 'mismo material que el módulo');
 
-  // Canal C 2 y canal L (fondo + pestaña inferior solamente).
+  // SOLO canales C entre cajones: 2 canales (N−1), SIN canal L.
   assert.ok(pieza('m1gola-c2-fondo'), 'canal C 2');
-  const lFondo = pieza('m1gola-l3-fondo');
-  assert.ok(lFondo, 'canal L');
-  assert.ok(pieza('m1gola-l3-pestana'), 'pestaña inferior del L');
-  assert.equal(pieza('m1gola-l3-pestana-sup'), undefined, 'el L no lleva pestaña superior');
+  assert.ok(!pieces.some((p) => /gola-l\d*-/.test(String(p.id))), 'sin canal L');
+  assert.equal(pieces.filter((p) => /^m1gola-c\d+-/.test(String(p.id))).length, 2 * 3, '2 canales × 3 piezas');
 
-  // Regla de la L: la caja del cajón superior quedó rebajada y el frente no.
+  // Sin canal L: la caja del cajón superior NO se rebaja y el frente 3 queda
+  // a drawerFrontGap del techo útil (gap habitual, como sin gola).
   const lat3 = pieza('m1cajon3-lateral-izq');
   const frente3 = pieza('m1cajon3-frente');
-  assert.ok(lat3.alto < lat3Original, `caja superior rebajada (${lat3.alto} < ${lat3Original}) para pasar bajo la L`);
-  assert.ok(frente3.alto > lat3.alto, 'el frente 3 tapa la pestaña (más alto que su caja)');
-  // Tapa la pestaña: el techo del frente 3 llega bajo la cara inferior de la
-  // tapa con el aire de agarre configurado (topRef = techoInterior del casco).
+  assert.equal(lat3.alto, lat3Original, 'caja 3 sin rebaja (sin canal L)');
   const tapa = pieza('m1-tapa');
   const altoCasco = pieza('m1-lateral-izq').alto;
   const techoUtil = altoCasco - tapa.espesor;
-  const esperado = techoUtil - GOLA_DEFAULTS.golaFingerClearance;
-  assert.ok(Math.abs(frente3.pos_z + frente3.alto - esperado) <= 1.5, `frente 3 a ${GOLA_DEFAULTS.golaFingerClearance} mm del techo útil (techo ${frente3.pos_z + frente3.alto} vs ${esperado})`);
+  const esperado = techoUtil - 2.5; // drawerFrontGap (default)
+  assert.ok(Math.abs(frente3.pos_z + frente3.alto - esperado) <= 1.5, `frente 3 a 2.5 mm del techo útil (techo ${frente3.pos_z + frente3.alto} vs ${esperado})`);
 
   // Sin tiradores en el módulo 1.
   assert.equal(pieces.some((p) => p.id.endsWith('-tirador') && String(p.modulo).startsWith('1')), false);
@@ -1225,7 +1267,7 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + caja 
   assert.equal(off.some((p) => p.id.includes('gola')), false, 'canales fuera');
   assert.equal(off.find((p) => p.id === 'm1cajon3-lateral-izq').alto, lat3Original, 'caja 3 restaurada');
   assert.equal(off.find((p) => p.id === 'm1cajon1-frente').alto, 197, 'frentes restaurados');
-  assert.ok(off.some((p) => p.id === 'm1cajon1-tirador'), 'tiradores regenerados');
+  assert.equal(off.some((p) => p.id.endsWith('-tirador')), false, 'sin tiradores (no se regeneran: apertura sin jaladera)');
   view.destroy();
 });
 
@@ -1246,7 +1288,8 @@ test('Gola robustez: reordenar módulo migra canales y meta (round-trip intacto)
   const mods = [...new Set(pieces.map((p) => String(p.modulo)))];
   assert.ok(!mods.some((m) => m.startsWith('x')), `sin módulos temporales: ${mods.join(',')}`);
   assert.ok(pieces.some((p) => p.id === 'm1gola-c1-fondo'), 'canal C renombró a M1');
-  assert.ok(pieces.some((p) => p.id === 'm1gola-l2-fondo'), 'canal L renombró a M1');
+  assert.ok(!pieces.some((p) => /gola-l\d*-/.test(String(p.id))), 'sin canal L');
+  assert.equal(pieces.filter((p) => /^m1gola-c\d+-/.test(String(p.id))).length, 3, '1 canal C (fondo + 2 pestañas)');
   assert.equal(pieces.some((p) => String(p.id).includes('gola') && String(p.id).startsWith('m2')), false, 'sin canales huérfanos de M2');
 
   // Round-trip tras el reorden: el meta migrado restaura el frente exacto.

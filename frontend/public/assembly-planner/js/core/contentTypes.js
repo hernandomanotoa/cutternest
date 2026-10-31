@@ -23,6 +23,13 @@ export const RAIL_SIDE_HEIGHT = 100;
 // por arriba y por el frente cuando va sin frente decorativo.
 export const BANDEJA_RIM_HEIGHT = 120;
 
+// Diferencia fija frente↔bandeja del modo 'normal' de la zapatera (frente
+// normal): el frente mide bandeja + 30 mm — NO cubre el vano: el aire
+// superior del vano queda abierto para el calzado (la unidad reserva SU vano
+// completo en el apilado). La bandeja va de borde uniforme (cara = laterales
+// = fondo = división al alto configurado) y el frente es 30 mm más alto.
+export const ZAPATERA_FRENTE_DROP = 30;
+
 // ── Tag de tipo en el nombre (sobrevive al CSV) ────────────────────────────
 // El tipo de una unidad-cajón/zapatera se estampa entre corchetes en el
 // nombre de su pieza ancla (frente, o cara si va sin frente): las versiones

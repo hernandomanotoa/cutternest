@@ -139,11 +139,11 @@ describe('addHangerRail', () => {
 });
 
 describe('addDrawer', () => {
-  it('cajon corredera de 7 piezas coherente con el vano', () => {
+  it('cajon corredera de 6 piezas (sin tirador) coherente con el vano', () => {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     const r = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
     assert.ok(r.ok, r.errors?.join('; '));
-    assert.equal(r.pieces.length, 7);
+    assert.equal(r.pieces.length, 6);
     assert.equal(r.submodulo, '11');
     const frente = r.pieces.find((p) => p.id.includes('-frente'));
     assert.equal(frente.ancho, 818); // W(820) - 2
@@ -208,7 +208,7 @@ describe('rootModuleIds / duplicateModulePieces / addDoubleRail', () => {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     const cajon = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
     const copias = duplicateModulePieces([...casco.pieces, ...cajon.pieces], '1', '2');
-    assert.equal(copias.length, 12);
+    assert.equal(copias.length, 11); // casco 5 + cajon 6 (sin tirador)
     assert.ok(copias.every((p) => String(p.modulo) === '2' || String(p.modulo) === '21'));
     assert.ok(copias.every((p) => String(p.id).startsWith('m2')));
     // Sin colisiones con los originales.
@@ -240,10 +240,10 @@ describe('buildCloset', () => {
     assert.ok(r.ok, r.errors?.join('; '));
     // M1: casco 5 + zocalo 1 + barra 1 + repisa(820>=600, con refuerzo) 2 = 9
     assert.equal(r.pieces.filter((p) => p.modulo === '1').length, 9);
-    // M2: casco 5 + repisa 2 + cajon 7 + zapatera(addShoeTray: frente + 2
-    // laterales + fondo + cara + division + base + tirador = 8)
+    // M2: casco 5 + repisa 2 + cajon 6 + zapatera(addShoeTray: frente + 2
+    // laterales + fondo + cara + division + base = 7, sin tirador)
     assert.equal(r.pieces.filter((p) => p.modulo === '2').length, 7);
-    assert.equal(r.pieces.filter((p) => p.modulo === '21' || p.modulo === '22').length, 15);
+    assert.equal(r.pieces.filter((p) => p.modulo === '21' || p.modulo === '22').length, 13);
     const { result } = reparse(r.pieces);
     assert.equal(result.ok, true, result.errors?.join('; '));
     assert.equal(result.warnings.length, 0, result.warnings?.join('; '));
@@ -262,8 +262,9 @@ describe('buildCloset', () => {
     const frente = r.pieces.find((p) => p.id === 'm1zapatera1-frente');
     assert.match(frente.nombre, /zapatera extraible/);
     assert.match(frente.nombre, /\[tenis\]/, 'contrato de tipo en el frente');
-    // El vano del tipo (tenis = 200) manda sobre el default.
-    assert.equal(frente.alto, 197);
+    // Modo 'normal': frente corto = bandeja (100) + 30 = 130; el vano del
+    // tipo (tenis = 200) queda reservado en el apilado con el aire abierto.
+    assert.equal(frente.alto, 130);
     const { result } = reparse(r.pieces);
     assert.equal(result.ok, true, result.errors?.join('; '));
     assert.equal(result.warnings.length, 0, result.warnings?.join('; '));
@@ -301,10 +302,11 @@ describe('buildCloset', () => {
     // Bandeja: prof = 600 − 36 − 25 = 539; interior = 753.
     assert.equal(porId('-lateral-izq').ancho, 539);
     assert.equal(porId('-fondo').ancho, 753);
-    assert.equal(porId('-cara').alto, 161, 'cara = frente − 2·18');
+    assert.equal(porId('-cara').alto, 100, 'modo normal: cara = alto de bandeja (uniforme)');
     const division = porId('-division');
     assert.ok(division);
     assert.equal(division.ancho, 753, 'misma luz que el fondo');
+    assert.equal(division.alto, 100, 'división al alto de la bandeja (uniforme)');
     assert.equal(division.alto, porId('-fondo').alto, 'alto del lateral');
     assert.equal(division.espesor, 18);
     // Base confinada: 539 − 36 = 503.
@@ -384,23 +386,23 @@ describe('zapatera: división central (apoyo de la fila delantera)', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, division: false, conFrente: true });
     assert.ok(r.ok);
     assert.equal(r.pieces.some((p) => p.id.endsWith('-division')), false);
-    // El resto del conjunto intacto (frente, laterales, fondo, cara, base, tirador).
-    assert.equal(r.pieces.length, 7);
+    // El resto del conjunto intacto (frente, laterales, fondo, cara, base — sin tirador).
+    assert.equal(r.pieces.length, 6);
   });
 });
 
 describe('zapatera: frente opcional (CON frente por defecto)', () => {
-  it('por defecto (conFrente omitido) genera frente decorativo + tirador (8 piezas con división)', () => {
+  it('por defecto (conFrente omitido) genera frente decorativo SIN tirador (7 piezas con división)', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 });
     assert.ok(r.ok);
     assert.equal(r.conFrente, true);
-    assert.deepEqual(r.frente, { ancho: 818, alto: 197 });
-    assert.equal(r.pieces.length, 8);
+    assert.deepEqual(r.frente, { ancho: 818, alto: 130 });
+    assert.equal(r.pieces.length, 7);
     assert.ok(r.pieces.some((p) => p.id.endsWith('-frente')));
-    assert.ok(r.pieces.some((p) => p.id.endsWith('-tirador')));
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador (apertura sin jaladera)');
   });
 
-  it('conFrente: false genera la bandeja abierta: sin frente ni tirador; la cara queda como frente visible', () => {
+  it('conFrente: false genera la bandeja abierta: sin frente; la cara queda como frente visible', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: false });
     assert.ok(r.ok);
     assert.equal(r.conFrente, false);
@@ -408,7 +410,7 @@ describe('zapatera: frente opcional (CON frente por defecto)', () => {
     // laterales ×2 + fondo + cara + división + base = 6; sin frente ni tirador.
     assert.equal(r.pieces.length, 6);
     assert.equal(r.pieces.some((p) => p.id.endsWith('-frente')), false, 'sin pieza de frente');
-    assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador (va atornillado al frente)');
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador');
     const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
     assert.ok(cara, 'la cara del cuerpo queda como frente visible/de agarre');
     // division: false => 5 piezas.
@@ -422,15 +424,15 @@ describe('zapatera: frente opcional (CON frente por defecto)', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, frenteCompleto: true });
     assert.ok(r.ok);
     assert.ok(r.pieces.some((p) => p.id.endsWith('-frente')), 'el frente cierra la bandeja (botas)');
-    assert.ok(r.pieces.some((p) => p.id.endsWith('-tirador')), 'con tirador para jalar');
+    assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador (apertura sin jaladera)');
     assert.equal(r.pieces.some((p) => p.id.endsWith('-cara')), false, 'sin cara (frente completo)');
   });
 
-  it('riel marco siempre lleva frente + tirador (el herraje es solo el frente)', () => {
+  it('riel marco siempre lleva frente (el herraje es solo el frente), sin tirador', () => {
     const r = addShoeTray('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'marco', conFrente: false });
     assert.ok(r.ok);
     assert.equal(r.conFrente, true, 'marco fuerza frente aunque conFrente=false');
-    assert.deepEqual(r.pieces.map((p) => p.id.split('-').pop()), ['frente', 'tirador']);
+    assert.deepEqual(r.pieces.map((p) => p.id.split('-').pop()), ['frente']);
   });
 });
 
@@ -453,10 +455,10 @@ describe('tipo de riel: define las medidas de la caja', () => {
     assert.ok((r.warnings || []).some((w) => w.includes('Oculta')));
   });
 
-  it('marco regulable (zapatera): sin cajón, solo frente + tirador, con aviso del rango', () => {
+  it('marco regulable (zapatera): sin cajón, solo frente, con aviso del rango', () => {
     const r = addShoeTray('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'marco' });
     assert.ok(r.ok);
-    assert.deepEqual(r.pieces.map((p) => p.id.split('-').pop()), ['frente', 'tirador']);
+    assert.deepEqual(r.pieces.map((p) => p.id.split('-').pop()), ['frente']);
     assert.ok((r.warnings || []).some((w) => w.includes('marco de aluminio regulable') && w.includes('850')));
   });
 
@@ -491,20 +493,25 @@ describe('zapatera: bandeja a la vista (ladosIguales)', () => {
     }
   });
 
-  it('con frente la geometría es la habitual (cara detrás del frente, lateral bajo)', () => {
-    // ladosIguales solo aplica cuando la bandeja va SIN frente.
+  it('con frente (modo normal) la bandeja es uniforme al alto configurado', () => {
+    // ladosIguales solo aplica cuando la bandeja va SIN frente; con frente en
+    // modo 'normal' la bandeja es de borde uniforme (cara = laterales = fondo
+    // = división) y el frente corto mide bandeja + 30.
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true, conFrente: true });
     assert.ok(r.ok);
-    assert.equal(altoDe(r, '-frente'), 157, 'frente = vano − 3');
-    assert.equal(altoDe(r, '-cara'), 127, 'cara = frente − 2·15 (detrás del frente)');
-    assert.equal(altoDe(r, '-lateral-izq'), 100, 'lateral bajo: cubre solo la riel');
+    assert.equal(altoDe(r, '-frente'), 130, 'frente = bandeja (100) + 30');
+    assert.equal(altoDe(r, '-cara'), 100, 'cara = alto de bandeja (uniforme)');
+    assert.equal(altoDe(r, '-lateral-izq'), 100, 'laterales = alto de bandeja');
+    assert.equal(altoDe(r, '-fondo'), 100, 'fondo = alto de bandeja');
+    assert.equal(altoDe(r, '-division'), 100, 'división = alto de bandeja');
   });
 
-  it('sin ladosIguales (tipos normales) la cara sigue más alta que los laterales', () => {
+  it('sin ladosIguales (tipos normales) la bandeja es uniforme (cara = laterales)', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160 });
     assert.ok(r.ok);
-    assert.equal(altoDe(r, '-cara'), 127, 'cara = frente − 30');
-    assert.equal(altoDe(r, '-lateral-izq'), 100, 'lateral bajo (riel)');
+    assert.equal(altoDe(r, '-frente'), 130, 'frente = bandeja + 30');
+    assert.equal(altoDe(r, '-cara'), 100, 'cara = alto de bandeja (uniforme)');
+    assert.equal(altoDe(r, '-lateral-izq'), 100, 'lateral = alto de bandeja');
   });
 });
 
@@ -546,7 +553,7 @@ describe('addDrawer: método del fondo (fondoMetodo)', () => {
       fondo.alto > lateral.alto - 15,
       'más alto que un fondo apoyado sobre la base (lateral − E = 152)'
     );
-    // Frente/cara/tirador no cambian respecto al método apoyado:
+    // Frente/cara no cambian respecto al método apoyado:
     const rApoyado = addDrawer('1', 1, { ...BASE_OPTS });
     const clave = (piezas) => piezas
       .filter((p) => !p.id.endsWith('-fondo'))

@@ -49,13 +49,76 @@ describe('parseCSV - rangos ergonómicos de frente', () => {
     );
   });
 
-  it('marca bandejas zapatera fuera de 150-220 mm', () => {
-    const csv = [...MODULE_CSV, ...drawer('11', 'Frente zapatera extraible M1', 400)].join('\n');
+  it('no avisa por rango ergonómico en zapateras (alturas configurables)', () => {
+    // Bandeja 80 → frente 110 (modo normal, cara+30): decisión de diseño,
+    // sin warning. Igual el frente completo de botas (397).
+    for (const alto of [110, 397]) {
+      const csv = [...MODULE_CSV, ...drawer('11', 'Frente zapatera extraible M1', alto)].join('\n');
+      const result = parseCSV(csv);
+      assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+      assert.equal(
+        result.warnings.some((w) => w.includes('frente de zapatera')),
+        false,
+        `warning inesperado con frente ${alto}: ${result.warnings.join(' | ')}`
+      );
+    }
+  });
+});
+
+describe('parseCSV - fondo de caja según riel (cajones, no zapateras)', () => {
+  // Regresión: la validación 'fondo cajón no coincide con el alto de la caja
+  // según riel' heredaba de los cajones y disparaba 3 avisos idénticos por
+  // módulo en zapateras (la bandeja es BAJA por diseño: fondo ~60 mm, no es
+  // una caja de cajón). Las zapateras quedan exentas de esa validación.
+  const zapatera = (sub, fondoAlto) => [
+    `${sub}-frente,Frente zapatera extraible ${sub},464,197,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-cara,Cara zapatera extraible ${sub},434,167,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-lat,Lateral zapatera ${sub},350,100,1,no,#FFFFFF,15,"T,B,L",m${sub},`,
+    `${sub}-lat2,Lateral zapatera der ${sub},350,100,1,no,#FFFFFF,15,"T,B,R",m${sub},`,
+    `${sub}-base,Base zapatera ${sub},434,350,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-fondo,Fondo zapatera ${sub},434,${fondoAlto},1,no,#FFFFFF,15,,m${sub},`,
+  ];
+  const cajon = (sub, fondoAlto) => [
+    `${sub}-frente,Frente cajon ${sub},464,197,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-lat,Lateral cajon ${sub},350,167,1,no,#FFFFFF,15,"T,B,L",m${sub},`,
+    `${sub}-lat2,Lateral cajon der ${sub},350,167,1,no,#FFFFFF,15,"T,B,R",m${sub},`,
+    `${sub}-base,Base cajon ${sub},434,350,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
+    `${sub}-fondo,Fondo cajon ${sub},434,${fondoAlto},1,no,#FFFFFF,15,,m${sub},`,
+  ];
+
+  it('zapatera con fondo bajo (60 mm): sin aviso de caja de cajón (regresión 3 avisos por módulo)', () => {
+    // Tres zapateras (11, 12, 13) con fondo de 60 mm: la validación de
+    // cajones diría 'fondo cajón (60 mm) no coincide…' en cada una.
+    const csv = [
+      ...MODULE_CSV,
+      ...zapatera('11', 60), ...zapatera('12', 60), ...zapatera('13', 60),
+    ].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.equal(
+      result.warnings.filter((w) => w.includes('fondo cajón')).length,
+      0,
+      `sin warnings de fondo de cajón en zapateras: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('el control sigue aplicando a los cajones (fondo incoherente → aviso)', () => {
+    const csv = [...MODULE_CSV, ...cajon('11', 60)].join('\n');
     const result = parseCSV(csv);
     assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
     assert.ok(
-      result.warnings.some((w) => w.includes('frente de zapatera muy alto')),
-      `se esperaba warning de zapatera: ${result.warnings.join(' | ')}`
+      result.warnings.some((w) => w.includes('fondo cajón (60 mm) no coincide')),
+      `se esperaba warning de fondo de cajón: ${result.warnings.join(' | ')}`
+    );
+  });
+
+  it('coherencia suave propia de zapatera: fondo más alto que los laterales → aviso', () => {
+    const csv = [...MODULE_CSV, ...zapatera('11', 140)].join('\n');
+    const result = parseCSV(csv);
+    assert.equal(result.ok, true, `errores inesperados: ${result.errors.join(' | ')}`);
+    assert.ok(
+      result.warnings.some((w) => w.includes('fondo de zapatera (140 mm) más alto')),
+      `se esperaba warning suave de zapatera: ${result.warnings.join(' | ')}`
     );
   });
 });
@@ -556,7 +619,7 @@ describe('parseCSV - gola: frentes reescalados exentos del rango ergonómico', (
     assert.ok(result.warnings.some((w) => w.includes('frente de cajón muy alto (510 mm)')));
   });
 
-  it('frente de 510 mm CON gola: no avisa (la L-gola alarga el frente a propósito)', () => {
+  it('frente de 510 mm CON gola: no avisa (el reescalado gola redistribuye los frentes a propósito)', () => {
     const csv = [...MOD1, ...cajonAlto('11', 510), tira].join('\n');
     const result = parseCSV(csv);
     assert.ok(
