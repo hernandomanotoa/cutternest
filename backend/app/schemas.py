@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -71,6 +71,10 @@ class BoardInput(BaseModel):
     espesor: float = Field(18.0, gt=0)
     kerf_mm: float = Field(3.0, ge=0)
     margen_mm: float = Field(5.0, ge=0)
+    # Eje de veta del tablero: las piezas con rotate=False (veta bloqueada a
+    # lo largo de su primera medida) se cortan con la veta paralela a este
+    # eje. Default 'ancho' (veta a lo largo del lado más largo, 2440).
+    eje_veta: Literal["ancho", "alto"] = "ancho"
 
 
 class PieceInput(BaseModel):
@@ -109,6 +113,10 @@ class PlacementRead(BaseModel):
     rotado: bool
     en_sobrante: bool = False
     offcut_id: Optional[str] = None
+    # Sentido de veta sobre el tablero: 'horizontal'/'vertical' para piezas
+    # con rotate=False (paralela al eje de veta del tablero), 'libre' para
+    # el resto.
+    veta: str = "libre"
 
 
 class BoardResult(BaseModel):

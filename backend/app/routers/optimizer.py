@@ -42,6 +42,7 @@ def optimize(request: Request, payload: OptimizeRequest, db: Session = Depends(g
         offcuts=offcuts,
         kerf_mm=payload.tablero.kerf_mm,
         margin_mm=payload.tablero.margen_mm,
+        eje_veta=payload.tablero.eje_veta,
     )
     if payload.use_offcuts:
         for bid in result["offcut_ids_used"]:

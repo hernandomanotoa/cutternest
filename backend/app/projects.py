@@ -136,6 +136,7 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
         offcuts=offcuts,
         kerf_mm=project.kerf_mm,
         margin_mm=project.margin_mm,
+        eje_veta=payload.tablero.eje_veta if payload.tablero else "ancho",
     )
 
     exports_dir = "/app/data/exports"
