@@ -677,6 +677,26 @@ export function OptimizerPage() {
                 </div>
               </div>
 
+              <div>
+                <label className='mb-1 block text-xs font-medium text-muted-foreground'>
+                  Veta del tablero
+                </label>
+                <select
+                  className='flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
+                  value={tablero.eje_veta ?? 'ancho'}
+                  onChange={(e) =>
+                    setTablero((t) => ({ ...t, eje_veta: e.target.value as 'ancho' | 'alto' }))
+                  }
+                >
+                  <option value='ancho'>A lo largo del ancho ({tablero.ancho} mm)</option>
+                  <option value='alto'>A lo largo del alto ({tablero.alto} mm)</option>
+                </select>
+                <p className='mt-1 text-xs text-muted-foreground'>
+                  Las piezas con rotación bloqueada (rotate=no) se cortan con la veta paralela a
+                  este eje.
+                </p>
+              </div>
+
               <label className='flex items-center gap-2 text-sm text-foreground'>
                 <input
                   type='checkbox'

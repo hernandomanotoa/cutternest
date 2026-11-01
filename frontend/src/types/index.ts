@@ -20,6 +20,9 @@ export interface BoardInput {
   espesor: number;
   kerf_mm: number;
   margen_mm: number;
+  /** Eje de veta del tablero: las piezas con rotate=false se cortan con la
+   * veta paralela a este eje. */
+  eje_veta?: 'ancho' | 'alto';
 }
 
 export interface PieceInput {
