@@ -149,7 +149,7 @@ export function cajon(parent, index, opts) {
     const fondoAncho = interior + 2 * ranura;
     const fondoAlto = Math.max(0, altoFondoEf - 2 * ranura);
     rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${fondoAlto},1,si,#F2F2F2,${E},,${sm}`);
-    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${caraAlto},1,si,${colorLateral},${E},"T,B,L,R",${sm}`);
+    rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${caraAlto},1,si,${colorLateral},${E},,${sm}`);
   } else {
     // Volquete/abatible: se conserva el fondo clásico derivado del frente.
     rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - E},1,si,#F2F2F2,${E},,${sm}`);
@@ -162,7 +162,7 @@ export function cajon(parent, index, opts) {
   rows.push(
     // Base confinada (perimetral): largo = lateral − 2·espLat, entre la
     // cara y el fondo.
-    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * E},1,si,${colorLateral},${E},"T,B,L,R",${sm}`
+    `m${sm}-${idp}-base,Base ${vocab}${label} M${parent},${interior},${volquete ? profCajon : profCajon - 2 * E},1,si,${colorLateral},${E},,${sm}`
   );
   if (llevaFrente) {
     rows.push(`m${sm}-${idp}-tirador,Tirador ${vocab}${label} M${parent},2,20,1,no,#A0A0A0,5,,${sm}`);
@@ -212,7 +212,7 @@ export function zocaloModulo(mod, parent, ancho, altoZocalo, color) {
 export function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerpo) {
   const E = 15;
   return [
-    line(`m${mod}-base`, `Base modulo M${parent}`, ancho - 2 * E, prof - 2 * E, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
+    line(`m${mod}-base`, `Base modulo M${parent}`, ancho - 2 * E, prof - 2 * E, 1, 'si', colorCuerpo, 15, '', mod),
     line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'no', colorCuerpo, 15, 'T,B,L,R', mod),
     line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, altoTotal, prof, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
     line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, altoTotal, prof, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),

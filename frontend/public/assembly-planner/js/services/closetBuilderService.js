@@ -7,7 +7,7 @@
 
 import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, stampTipoTag, getContentType, fondoMetodoDeTipo } from '../core/contentTypes.js';
 import { DRAWER_GROOVE_DEPTH } from '../core/config.js';
-import { rotateDeRol } from './cutOrientationService.js';
+import { rotateDeRol, cantosDeRol } from './cutOrientationService.js';
 
 const ESPESORES_VALIDOS = [15, 18, 25];
 const HOLGURA_CORREDERA = 12.7; // mm por lado (RAIL_TYPES.telescopica)
@@ -120,7 +120,7 @@ function piece(id, nombre, ancho, alto, opts = {}) {
     rotate,
     color: opts.color || '#C19A6B',
     espesor: opts.espesor ?? 15,
-    cantos: opts.cantos || '',
+    cantos: opts.cantos !== undefined ? opts.cantos : cantosDeRol(opts.rol) ?? '',
     modulo: opts.modulo,
     ...(opts.pos_z != null ? { pos_z: opts.pos_z } : {}),
   };
@@ -160,8 +160,8 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
   const plinthDrop = baseInterna ? Math.max(0, Number(alturaZocalo) || 0) : 0;
   const fondoH = Math.max(100, alto - 2 * E - plinthDrop);
   const pieces = [
-    piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rol: 'bottom_panel', color, espesor: E, cantos: 'T,B,L,R', modulo }),
-    piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rol: 'top_panel', color, espesor: E, cantos: 'T,B,L,R', modulo }),
+    piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rol: 'bottom_panel', color, espesor: E, modulo }),
+    piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rol: 'top_panel', color, espesor: E, modulo }),
     // Laterales en ORIENTACIÓN DE CORTE (veta vertical): ancho = alto del
     // mueble, alto = profundidad. Los consumidores de geometría proyectan a
     // orientación de mueble con cutOrientationService.proyectaMueble.
@@ -169,7 +169,7 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
     piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
     // Fondo del casco: pieza oculta → rotate libre (tabla). Sus dims se
     // quedan en orientación de mueble (las ocultas no tienen swap).
-    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', color: '#F2F2F2', espesor: E, cantos: '', modulo }),
+    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', color: '#F2F2F2', espesor: E, modulo }),
   ];
   return { ok: true, pieces, interiorWidth: ancho - 2 * E, interiorDepth: prof - 2 * E };
 }
@@ -202,10 +202,10 @@ export function addShelf(moduleId, { anchoUtil, profReal, espesor = 15, color = 
   if (errors.length) return { ok: false, errors };
 
   const pieces = [
-    piece(`m${moduleId}-repisa-${index}`, `Repisa ${index} M${moduleId}`, anchoUtil, profReal, { rol: 'shelf', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
+    piece(`m${moduleId}-repisa-${index}`, `Repisa ${index} M${moduleId}`, anchoUtil, profReal, { rol: 'shelf', color: c, espesor, modulo: moduleId }),
   ];
   if (anchoUtil >= LUZ_PARA_REFUERZO) {
-    pieces.push(piece(`m${moduleId}-refuerzo-repisa-${index}`, `Refuerzo repisa ${index} M${moduleId}`, anchoUtil, 100, { rol: 'brace', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }));
+    pieces.push(piece(`m${moduleId}-refuerzo-repisa-${index}`, `Refuerzo repisa ${index} M${moduleId}`, anchoUtil, 100, { rol: 'brace', color: c, espesor, modulo: moduleId }));
   }
   return { ok: true, pieces, conRefuerzo: anchoUtil >= LUZ_PARA_REFUERZO };
 }
@@ -389,22 +389,22 @@ export function addDrawer(moduleId, index, {
   const fondoAncho = interior + 2 * ranura;
   const fondoAlto = Math.max(0, latAlto - 2 * ranura);
   const pieces = [
-    piece(`m${moduleId}${idp}${index}-frente`, stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-frente`, stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
     // Laterales y fondo de la caja: piezas ocultas → rotate libre (tabla).
     // Dims en orientación de mueble (las ocultas no tienen swap); los
     // servicios (drawerGeometryService, golaService) las leen crudas.
     piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, fondoAncho, fondoAlto, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, fondoAncho, fondoAlto, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, modulo: sub }),
   ];
   if (!volquete) {
-    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, stampTipoTag(`Cara ${vocab}${num} M${moduleId}`, tipoId), interior, latAlto, { rol: 'drawer_part', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}${idp}${index}-cara`, stampTipoTag(`Cara ${vocab}${num} M${moduleId}`, tipoId), interior, latAlto, { rol: 'drawer_part', color: cl, espesor: E, modulo: sub }));
   }
   pieces.push(
     // Convención perimetral (auditoría estructural): la base queda confinada
     // entre la cara y el fondo → largo = lateral − 2·espLat. El volquete
     // conserva su bandeja clásica.
-    piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab}${num} M${moduleId}`, interior, volquete ? profCajon : profCajon - 2 * E, { rol: 'drawer_bottom', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-base`, `Base ${vocab}${num} M${moduleId}`, interior, volquete ? profCajon : profCajon - 2 * E, { rol: 'drawer_bottom', color: cl, espesor: E, modulo: sub }),
   );
   const warnings = [];
   if (!volquete && rielRegla.nota) warnings.push(rielRegla.nota);
@@ -577,7 +577,7 @@ export function addShoeTray(moduleId, index, {
       frente: { ancho: frenteAncho, alto: frenteAlto },
       warnings: [`${RIEL_RULES.marco.nota} Vano de ${anchoModulo} mm (p. ej. marco regulable 800–900).`],
       pieces: [
-        piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
+        piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
       ],
     };
   }
@@ -598,14 +598,14 @@ export function addShoeTray(moduleId, index, {
   const altoDivisionEf = bandejaUniformeNormal ? altoLado : Math.max(20, Math.min(altoDivision ?? altoLado, frenteAltoEf));
   const pieces = [];
   if (llevaFrente) {
-    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }));
   }
   // Laterales y fondo de la bandeja: piezas ocultas → rotate libre (tabla);
   // dims en orientación de mueble (las ocultas no tienen swap).
   pieces.push(
     piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
     piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, altoFondoEf, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, altoFondoEf, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, modulo: sub }),
   );
   if (!frenteCompleto) {
     // Sin frente decorativo, la cara ES la cara visible de la bandeja y por
@@ -617,18 +617,18 @@ export function addShoeTray(moduleId, index, {
     const altoCara = bandejaUniformeNormal
       ? altoLado
       : ladosIguales && !llevaFrente ? altoLado : cajaCap;
-    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { rol: 'drawer_part', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { rol: 'drawer_part', color: cl, espesor: E, modulo: sub }));
   }
   if (division) {
     // División central (por defecto): apoyo paralelo al fondo a media
     // profundidad de la bandeja. Sirve de respaldo para la fila delantera
     // de zapatos; la fila trasera se apoya en el fondo. El renderer la
     // posiciona centrada (rol drawer_divider).
-    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, altoDivisionEf, { rol: 'drawer_divider', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, altoDivisionEf, { rol: 'drawer_divider', color: cl, espesor: E, modulo: sub }));
   }
   pieces.push(
     // Base confinada (perimetral): entre la cara y el fondo.
-    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior2, Math.max(50, profBandeja2 - 2 * E), { rol: 'drawer_bottom', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-base`, `Base zapatera extraible${num} M${moduleId}`, interior2, Math.max(50, profBandeja2 - 2 * E), { rol: 'drawer_bottom', color: cl, espesor: E, modulo: sub }),
   );
   const warnings = [];
   if (rielRegla.nota) warnings.push(rielRegla.nota);

@@ -37,30 +37,30 @@ export const CLASE_VETA = {
 // los que no aparecen aquí no tienen regla de veta — p. ej. 'panel' genérico).
 export const VETA_POR_ROL = {
   // ── Vista horizontal: veta a lo largo del ancho, rotate bloqueado ──
-  drawer_face: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
-  door: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
-  front_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
-  gola_strip: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
-  shelf: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
-  top_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
-  drawer_divider: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho' },
+  drawer_face: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
+  door: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
+  front_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
+  gola_strip: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B' },
+  shelf: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B' },
+  top_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
+  drawer_divider: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
 
   // ── Vista vertical: veta a lo largo del alto, rotate bloqueado ──
   side_panel: { clase: CLASE_VETA.VISTA_VERTICAL, rotate: false, ladoVeta: 'alto' },
   divider: { clase: CLASE_VETA.VISTA_VERTICAL, rotate: false, ladoVeta: 'alto' },
 
   // ── Ocultas / estructurales: rotación libre (ahorro de material) ──
-  drawer_bottom: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  drawer_side: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  drawer_back: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  drawer_part: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  bottom_panel: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  back_panel: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  plinth_side: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  plinth_divider: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  brace: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  hanger_rail: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
-  leg: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null },
+  drawer_bottom: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  drawer_side: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  drawer_back: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  drawer_part: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  bottom_panel: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  back_panel: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  plinth_side: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  plinth_divider: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  brace: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  hanger_rail: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
+  leg: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
 };
 
 // Clasificación de una pieza a partir de su rol inferido; null si el rol no
@@ -74,6 +74,14 @@ export function clasificacionVeta(rol) {
 export function rotateDeRol(rol) {
   const c = clasificacionVeta(rol);
   return c ? c.rotate : null;
+}
+
+// Tapacantos por defecto del rol (guía del taller: solo caras visibles);
+// el caller puede sobreescribirlo pieza a pieza. Null si el rol no tiene
+// preset (p. ej. laterales, donde L/R dependen del lado).
+export function cantosDeRol(rol) {
+  const c = clasificacionVeta(rol);
+  return c && 'cantos' in c ? c.cantos : null;
 }
 
 // Roles cuya veta es libre (rotate 'si' permitido sin observación): los de

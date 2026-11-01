@@ -9,6 +9,7 @@ import {
   VETA_POR_ROL,
   clasificacionVeta,
   rotateDeRol,
+  cantosDeRol,
   rolesVetaLibre,
   swapEnCorte,
 } from './cutOrientationService.js';
@@ -66,4 +67,18 @@ test('rotateDeRol devuelve el booleano de la tabla para roles conocidos', () => 
   assert.equal(rotateDeRol('drawer_face'), false);
   assert.equal(rotateDeRol('side_panel'), false);
   assert.equal(rotateDeRol('drawer_bottom'), true);
+});
+
+test('cantosDeRol: presets de la guía del taller (solo caras visibles)', () => {
+  assert.equal(cantosDeRol('drawer_face'), 'T,B,L,R', 'frente: perímetro completo');
+  assert.equal(cantosDeRol('door'), 'T,B,L,R');
+  assert.equal(cantosDeRol('gola_strip'), 'T,B');
+  assert.equal(cantosDeRol('shelf'), 'T,B', 'repisa visible: lados paralelos a la veta');
+  assert.equal(cantosDeRol('drawer_divider'), 'T,B,L,R');
+  for (const rol of ['drawer_bottom', 'drawer_side', 'drawer_back', 'drawer_part', 'bottom_panel', 'back_panel', 'brace', 'hanger_rail', 'leg']) {
+    assert.equal(cantosDeRol(rol), '', `${rol}: oculta, sin tapacantos`);
+  }
+  assert.equal(cantosDeRol('side_panel'), null, 'laterales: L/R dependen del lado (sin preset)');
+  assert.equal(cantosDeRol('divider'), null);
+  assert.equal(cantosDeRol('panel'), null);
 });

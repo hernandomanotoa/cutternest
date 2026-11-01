@@ -3,7 +3,7 @@
 # Closet abierto modular 3400×2400×600 sin puertas, melamina 15 mm, 100% modular (4 modulos de 850) SIN piezas globales: cada modulo lleva su propio zocalo inferior INTERNO (frente 820×150, embutido entre laterales) y su propio casco completo (base interna + tapa + laterales + fondo). Alturas ergonomicas: barras dobles a 2100/1000 mm (colgado corto por nivel) y barra camisera a 1800 mm (colgado largo). M1 doble colgado (2 barras cromadas + repisa superior), M2 cajonera con frentes mixtos (delgado 130 accesorios, 4 estandar 200, profundo 280 sueteres; caja 30 mm mas baja que el frente y holgura de rieles 12.7 mm/lado), M3 zapatera por tipo de calzado (bandejas extraibles de borde uniforme: bandeja 100 mm con frente corto 130 mm = bandeja + 30; vanos 180 planos, 200 tenis y 220 tacones/botines, con el aire superior abierto para el calzado; vano abierto 450 para botas altas) y M4 colgador camisero (barra a 1800 + 3 repisas). Todas las repisas de 820 mm de luz llevan refuerzo interior de 100 mm (melamina 15 mm). Herrajes: barras cromadas Ø25 y correderas telescopicas.
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 # --- Modulo 1: doble colgado (2 barras a dos alturas + repisa superior) ---
-m1-base,Base modulo M1,820,570,1,si,#C19A6B,15,"T,B,L,R",1
+m1-base,Base modulo M1,820,570,1,si,#C19A6B,15,"",1
 m1-tapa,Tapa modulo M1,850,600,1,no,#C19A6B,15,"T,B,L,R",1
 m1-lateral-izq,Lateral izquierdo M1,2400,600,1,no,#C19A6B,15,"T,B,L",1
 m1-lateral-der,Lateral derecho M1,2400,600,1,no,#C19A6B,15,"T,B,R",1
@@ -18,7 +18,7 @@ m1-barra-baja,Barra colgadora baja M1,820,25,1,si,#A0A0A0,25,"",1
 # estandar 200 (camisetas, camisas, pantalones), profundo 280 (sueteres,
 # sabanas). La caja de cada cajon queda 30 mm mas baja que el frente
 # (evita choque con el armazon) y usa holgura de rieles de 12.7 mm/lado.
-m2-base,Base modulo M2,820,570,1,si,#8B5A2B,15,"T,B,L,R",2
+m2-base,Base modulo M2,820,570,1,si,#8B5A2B,15,"",2
 m2-tapa,Tapa modulo M2,850,600,1,no,#8B5A2B,15,"T,B,L,R",2
 m2-lateral-izq,Lateral izquierdo M2,2400,600,1,no,#8B5A2B,15,"T,B,L",2
 m2-lateral-der,Lateral derecho M2,2400,600,1,no,#8B5A2B,15,"T,B,R",2
@@ -30,49 +30,49 @@ m21-cajon-frente,Frente cajon accesorios M2,818,127,1,no,#C19A6B,15,"T,B,L,R",21
 m21-cajon-lateral-izq,Lateral cajon accesorios M2,545,97,1,si,#D9C2A3,15,"T,B,L",21
 m21-cajon-lateral-der,Lateral cajon accesorios M2,545,97,1,si,#D9C2A3,15,"T,B,R",21
 m21-cajon-fondo,Fondo cajon accesorios M2,765,97,1,si,#F2F2F2,15,,21
-m21-cajon-cara,Cara cajon accesorios M2,765,97,1,si,#D9C2A3,15,"T,B,L,R",21
-m21-cajon-base,Base cajon accesorios M2,765,515,1,si,#D9C2A3,15,"T,B,L,R",21
+m21-cajon-cara,Cara cajon accesorios M2,765,97,1,si,#D9C2A3,15,,21
+m21-cajon-base,Base cajon accesorios M2,765,515,1,si,#D9C2A3,15,,21
 m21-cajon-tirador,Tirador cajon accesorios M2,2,20,1,no,#A0A0A0,5,,21
 m22-cajon-frente,Frente cajon camisetas M2,818,197,1,no,#C19A6B,15,"T,B,L,R",22
 m22-cajon-lateral-izq,Lateral cajon camisetas M2,545,167,1,si,#D9C2A3,15,"T,B,L",22
 m22-cajon-lateral-der,Lateral cajon camisetas M2,545,167,1,si,#D9C2A3,15,"T,B,R",22
 m22-cajon-fondo,Fondo cajon camisetas M2,765,167,1,si,#F2F2F2,15,,22
-m22-cajon-cara,Cara cajon camisetas M2,765,167,1,si,#D9C2A3,15,"T,B,L,R",22
-m22-cajon-base,Base cajon camisetas M2,765,515,1,si,#D9C2A3,15,"T,B,L,R",22
+m22-cajon-cara,Cara cajon camisetas M2,765,167,1,si,#D9C2A3,15,,22
+m22-cajon-base,Base cajon camisetas M2,765,515,1,si,#D9C2A3,15,,22
 m22-cajon-tirador,Tirador cajon camisetas M2,2,20,1,no,#A0A0A0,5,,22
 m23-cajon-frente,Frente cajon camisas M2,818,197,1,no,#C19A6B,15,"T,B,L,R",23
 m23-cajon-lateral-izq,Lateral cajon camisas M2,545,167,1,si,#D9C2A3,15,"T,B,L",23
 m23-cajon-lateral-der,Lateral cajon camisas M2,545,167,1,si,#D9C2A3,15,"T,B,R",23
 m23-cajon-fondo,Fondo cajon camisas M2,765,167,1,si,#F2F2F2,15,,23
-m23-cajon-cara,Cara cajon camisas M2,765,167,1,si,#D9C2A3,15,"T,B,L,R",23
-m23-cajon-base,Base cajon camisas M2,765,515,1,si,#D9C2A3,15,"T,B,L,R",23
+m23-cajon-cara,Cara cajon camisas M2,765,167,1,si,#D9C2A3,15,,23
+m23-cajon-base,Base cajon camisas M2,765,515,1,si,#D9C2A3,15,,23
 m23-cajon-tirador,Tirador cajon camisas M2,2,20,1,no,#A0A0A0,5,,23
 m24-cajon-frente,Frente cajon pantalones M2,818,197,1,no,#C19A6B,15,"T,B,L,R",24
 m24-cajon-lateral-izq,Lateral cajon pantalones M2,545,167,1,si,#D9C2A3,15,"T,B,L",24
 m24-cajon-lateral-der,Lateral cajon pantalones M2,545,167,1,si,#D9C2A3,15,"T,B,R",24
 m24-cajon-fondo,Fondo cajon pantalones M2,765,167,1,si,#F2F2F2,15,,24
-m24-cajon-cara,Cara cajon pantalones M2,765,167,1,si,#D9C2A3,15,"T,B,L,R",24
-m24-cajon-base,Base cajon pantalones M2,765,515,1,si,#D9C2A3,15,"T,B,L,R",24
+m24-cajon-cara,Cara cajon pantalones M2,765,167,1,si,#D9C2A3,15,,24
+m24-cajon-base,Base cajon pantalones M2,765,515,1,si,#D9C2A3,15,,24
 m24-cajon-tirador,Tirador cajon pantalones M2,2,20,1,no,#A0A0A0,5,,24
 m25-cajon-frente,Frente cajon ropa doblada M2,818,197,1,no,#C19A6B,15,"T,B,L,R",25
 m25-cajon-lateral-izq,Lateral cajon ropa doblada M2,545,167,1,si,#D9C2A3,15,"T,B,L",25
 m25-cajon-lateral-der,Lateral cajon ropa doblada M2,545,167,1,si,#D9C2A3,15,"T,B,R",25
 m25-cajon-fondo,Fondo cajon ropa doblada M2,765,167,1,si,#F2F2F2,15,,25
-m25-cajon-cara,Cara cajon ropa doblada M2,765,167,1,si,#D9C2A3,15,"T,B,L,R",25
-m25-cajon-base,Base cajon ropa doblada M2,765,515,1,si,#D9C2A3,15,"T,B,L,R",25
+m25-cajon-cara,Cara cajon ropa doblada M2,765,167,1,si,#D9C2A3,15,,25
+m25-cajon-base,Base cajon ropa doblada M2,765,515,1,si,#D9C2A3,15,,25
 m25-cajon-tirador,Tirador cajon ropa doblada M2,2,20,1,no,#A0A0A0,5,,25
 m26-cajon-frente,Frente cajon sueteres M2,818,277,1,no,#C19A6B,15,"T,B,L,R",26
 m26-cajon-lateral-izq,Lateral cajon sueteres M2,545,247,1,si,#D9C2A3,15,"T,B,L",26
 m26-cajon-lateral-der,Lateral cajon sueteres M2,545,247,1,si,#D9C2A3,15,"T,B,R",26
 m26-cajon-fondo,Fondo cajon sueteres M2,765,247,1,si,#F2F2F2,15,,26
-m26-cajon-cara,Cara cajon sueteres M2,765,247,1,si,#D9C2A3,15,"T,B,L,R",26
-m26-cajon-base,Base cajon sueteres M2,765,515,1,si,#D9C2A3,15,"T,B,L,R",26
+m26-cajon-cara,Cara cajon sueteres M2,765,247,1,si,#D9C2A3,15,,26
+m26-cajon-base,Base cajon sueteres M2,765,515,1,si,#D9C2A3,15,,26
 m26-cajon-tirador,Tirador cajon sueteres M2,2,20,1,no,#A0A0A0,5,,26
 # --- Modulo 3: zapatera con alturas por tipo de calzado ---
 # Bandejas extraibles con frente 180 (luz util ~150: zapatos planos),
 # frente 200 (luz util ~170: tenis) y frente 220 (luz util ~190: tacones
 # y botines); vano abierto de 450 para botas altas (luz util 350-450).
-m3-base,Base modulo M3,820,570,1,si,#C19A6B,15,"T,B,L,R",3
+m3-base,Base modulo M3,820,570,1,si,#C19A6B,15,"",3
 m3-tapa,Tapa modulo M3,850,600,1,no,#C19A6B,15,"T,B,L,R",3
 m3-lateral-izq,Lateral izquierdo M3,2400,600,1,no,#C19A6B,15,"T,B,L",3
 m3-lateral-der,Lateral derecho M3,2400,600,1,no,#C19A6B,15,"T,B,R",3
@@ -84,40 +84,40 @@ m31-zapatera-frente,Frente zapatera extraible planos M3,818,130,1,no,#8B5A2B,15,
 m31-zapatera-lateral-izq,Lateral zapatera extraible planos izq M3,545,100,1,si,#D9C2A3,15,"T,B,L",31
 m31-zapatera-lateral-der,Lateral zapatera extraible planos der M3,545,100,1,si,#D9C2A3,15,"T,B,R",31
 m31-zapatera-fondo,Fondo zapatera extraible planos M3,765,100,1,si,#F2F2F2,15,,31
-m31-zapatera-cara,Cara zapatera extraible planos M3,765,100,1,si,#D9C2A3,15,"T,B,L,R",31
+m31-zapatera-cara,Cara zapatera extraible planos M3,765,100,1,si,#D9C2A3,15,,31
 m31-zapatera-division,Division zapatera extraible planos M3,765,100,1,no,#D9C2A3,15,"T,B,L,R",31
-m31-zapatera-base,Base zapatera extraible planos M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",31
+m31-zapatera-base,Base zapatera extraible planos M3,765,515,1,si,#D9C2A3,15,,31
 m31-zapatera-tirador,Tirador zapatera extraible planos M3,2,20,1,no,#A0A0A0,5,,31
 m32-zapatera-frente,Frente zapatera extraible tenis M3,818,130,1,no,#8B5A2B,15,"T,B,L,R",32
 m32-zapatera-lateral-izq,Lateral zapatera extraible tenis izq M3,545,100,1,si,#D9C2A3,15,"T,B,L",32
 m32-zapatera-lateral-der,Lateral zapatera extraible tenis der M3,545,100,1,si,#D9C2A3,15,"T,B,R",32
 m32-zapatera-fondo,Fondo zapatera extraible tenis M3,765,100,1,si,#F2F2F2,15,,32
-m32-zapatera-cara,Cara zapatera extraible tenis M3,765,100,1,si,#D9C2A3,15,"T,B,L,R",32
+m32-zapatera-cara,Cara zapatera extraible tenis M3,765,100,1,si,#D9C2A3,15,,32
 m32-zapatera-division,Division zapatera extraible tenis M3,765,100,1,no,#D9C2A3,15,"T,B,L,R",32
-m32-zapatera-base,Base zapatera extraible tenis M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",32
+m32-zapatera-base,Base zapatera extraible tenis M3,765,515,1,si,#D9C2A3,15,,32
 m32-zapatera-tirador,Tirador zapatera extraible tenis M3,2,20,1,no,#A0A0A0,5,,32
 m33-zapatera-frente,Frente zapatera extraible tacones M3,818,130,1,no,#8B5A2B,15,"T,B,L,R",33
 m33-zapatera-lateral-izq,Lateral zapatera extraible tacones izq M3,545,100,1,si,#D9C2A3,15,"T,B,L",33
 m33-zapatera-lateral-der,Lateral zapatera extraible tacones der M3,545,100,1,si,#D9C2A3,15,"T,B,R",33
 m33-zapatera-fondo,Fondo zapatera extraible tacones M3,765,100,1,si,#F2F2F2,15,,33
-m33-zapatera-cara,Cara zapatera extraible tacones M3,765,100,1,si,#D9C2A3,15,"T,B,L,R",33
+m33-zapatera-cara,Cara zapatera extraible tacones M3,765,100,1,si,#D9C2A3,15,,33
 m33-zapatera-division,Division zapatera extraible tacones M3,765,100,1,no,#D9C2A3,15,"T,B,L,R",33
-m33-zapatera-base,Base zapatera extraible tacones M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",33
+m33-zapatera-base,Base zapatera extraible tacones M3,765,515,1,si,#D9C2A3,15,,33
 m33-zapatera-tirador,Tirador zapatera extraible tacones M3,2,20,1,no,#A0A0A0,5,,33
 m34-zapatera-frente,Frente zapatera extraible botines M3,818,130,1,no,#8B5A2B,15,"T,B,L,R",34
 m34-zapatera-lateral-izq,Lateral zapatera extraible botines izq M3,545,100,1,si,#D9C2A3,15,"T,B,L",34
 m34-zapatera-lateral-der,Lateral zapatera extraible botines der M3,545,100,1,si,#D9C2A3,15,"T,B,R",34
 m34-zapatera-fondo,Fondo zapatera extraible botines M3,765,100,1,si,#F2F2F2,15,,34
-m34-zapatera-cara,Cara zapatera extraible botines M3,765,100,1,si,#D9C2A3,15,"T,B,L,R",34
+m34-zapatera-cara,Cara zapatera extraible botines M3,765,100,1,si,#D9C2A3,15,,34
 m34-zapatera-division,Division zapatera extraible botines M3,765,100,1,no,#D9C2A3,15,"T,B,L,R",34
-m34-zapatera-base,Base zapatera extraible botines M3,765,515,1,si,#D9C2A3,15,"T,B,L,R",34
+m34-zapatera-base,Base zapatera extraible botines M3,765,515,1,si,#D9C2A3,15,,34
 m34-zapatera-tirador,Tirador zapatera extraible botines M3,2,20,1,no,#A0A0A0,5,,34
 m3-repisa-botas,Repisa botas M3,820,400,1,si,#D9C2A3,15,"T,B,L,R",3
 m3-refuerzo-repisa-botas,Refuerzo repisa botas M3,820,100,1,si,#C19A6B,15,"T,B,L,R",3
 m3-repisa-superior,Repisa superior M3,820,300,1,si,#D9C2A3,15,"T,B,L,R",3
 m3-refuerzo-repisa,Refuerzo repisa superior M3,820,100,1,si,#C19A6B,15,"T,B,L,R",3
 # --- Modulo 4: colgador simple con 3 repisas ---
-m4-base,Base modulo M4,820,570,1,si,#8B5A2B,15,"T,B,L,R",4
+m4-base,Base modulo M4,820,570,1,si,#8B5A2B,15,"",4
 m4-tapa,Tapa modulo M4,850,600,1,no,#8B5A2B,15,"T,B,L,R",4
 m4-lateral-izq,Lateral izquierdo M4,2400,600,1,no,#8B5A2B,15,"T,B,L",4
 m4-lateral-der,Lateral derecho M4,2400,600,1,no,#8B5A2B,15,"T,B,R",4
