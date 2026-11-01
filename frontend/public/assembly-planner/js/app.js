@@ -248,6 +248,45 @@ export function updateSummary() {
     graphStatus.className = `summary-value ${state.cycle ? 'text-danger' : state.pieces.length ? 'text-success' : ''}`;
   }
 
+  // E7 — Paneles Materiales / Piezas / Alertas del panel derecho (tolerante
+  // a DOM parcial: los tests DOM crean solo los ids clásicos del chrome).
+  const materiales = new Map();
+  const porRol = new Map();
+  for (const p of state.pieces || []) {
+    const cant = Math.max(1, Number(p.cantidad) || 1);
+    const matKey = `${p.color || '—'} · ${Number(p.espesor) || 15} mm`;
+    materiales.set(matKey, (materiales.get(matKey) || 0) + cant);
+    const rol = inferRole(p);
+    porRol.set(rol, (porRol.get(rol) || 0) + cant);
+  }
+  const materialsList = $('#materials-list');
+  if (materialsList) {
+    materialsList.innerHTML = materiales.size
+      ? [...materiales.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `
+        <div class="summary-row"><span class="summary-row__label">${k}</span><span class="summary-row__qty">×${n}</span></div>`).join('')
+      : '<p class="empty-state">Sin piezas todavía.</p>';
+  }
+  const piecesList = $('#pieces-list');
+  if (piecesList) {
+    const NOMBRES_ROL = {
+      drawer_face: 'Frentes', drawer_side: 'Laterales de cajón', drawer_part: 'Caras',
+      drawer_back: 'Fondos de cajón', drawer_bottom: 'Bases de cajón',
+      side_panel: 'Laterales', top_panel: 'Tapas', bottom_panel: 'Bases', back_panel: 'Fondos',
+      shelf: 'Repisas', gola_strip: 'Gola', hanger_rail: 'Barras', brace: 'Refuerzos', plinth: 'Zócalos',
+    };
+    piecesList.innerHTML = porRol.size
+      ? [...porRol.entries()].sort((a, b) => b[1] - a[1]).map(([rol, n]) => `
+        <div class="summary-row"><span class="summary-row__label">${NOMBRES_ROL[rol] || rol}</span><span class="summary-row__qty">×${n}</span></div>`).join('')
+      : '<p class="empty-state">Sin piezas todavía.</p>';
+  }
+  const alertsList = $('#alerts-list');
+  if (alertsList) {
+    const avisos = (state.warnings || []).map((w) => String(w).replace(/&/g, '&amp;').replace(/</g, '&lt;'));
+    alertsList.innerHTML = avisos.length
+      ? avisos.map((w) => `<div class="summary-alert">${w}</div>`).join('')
+      : '<p class="empty-state">Sin alertas. Todo listo.</p>';
+  }
+
   const hardwareList = $('#hardware-list');
   if (!hardwareList) return;
   if (state.hardware.length === 0) {

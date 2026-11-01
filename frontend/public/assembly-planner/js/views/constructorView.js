@@ -210,12 +210,49 @@ export function createConstructorView(store) {
     }, 800);
   }
 
+  function onMouseover(e) {
+    // E6.2: hover en un glifo del esquema resalta el chip del mismo
+    // contenido (y viceversa). Solo clases CSS: sin lógica de negocio.
+    const row = e.target.closest?.('.cn-scheme__row');
+    const chipEl = e.target.closest?.('.cn-chip');
+    const refId = row?.dataset.ref || chipEl?.dataset.ref;
+    container.querySelectorAll('.is-highlighted').forEach((el) => el.classList.remove('is-highlighted'));
+    if (!refId) return;
+    container.querySelector(`.cn-chip[data-ref="${CSS.escape(refId)}"]`)?.classList.add('is-highlighted');
+    container.querySelector(`.cn-scheme__row[data-ref="${CSS.escape(refId)}"]`)?.classList.add('is-highlighted');
+  }
+
+  function onMouseleave(e) {
+    if (e.target === container) {
+      container.querySelectorAll('.is-highlighted').forEach((el) => el.classList.remove('is-highlighted'));
+    }
+  }
+
+  function onWheel(e) {
+    // E6.1: zoom con la rueda sobre un esquema (Ctrl/Cmd libre: cualquier
+    // wheel sobre el SVG hace zoom; se evita el scroll de la página).
+    const svg = e.target.closest?.('.cn-scheme svg');
+    if (!svg) return;
+    e.preventDefault();
+    const mod = svg.closest('[data-module-scoped]')?.dataset.moduleScoped;
+    if (!mod) return;
+    const actual = schemeZoomFor(mod);
+    const next = Math.min(SCHEME_ZOOM_MAX, Math.max(1, actual + (e.deltaY < 0 ? 0.5 : -0.5)));
+    if (next !== actual) {
+      schemeZoomState.set(String(mod), next);
+      render();
+    }
+  }
+
   function mount(parent) {
     container = parent;
     unsubscribe = store.subscribe('state:changed', render);
     container.addEventListener('click', onClick);
     container.addEventListener('keydown', onKeydown);
     container.addEventListener('change', onChange);
+    container.addEventListener('wheel', onWheel, { passive: false });
+    container.addEventListener('mouseover', onMouseover);
+    container.addEventListener('mouseleave', onMouseleave);
     render();
     maybeAutostartTour();
   }
@@ -235,6 +272,9 @@ export function createConstructorView(store) {
       container.removeEventListener('click', onClick);
       container.removeEventListener('keydown', onKeydown);
       container.removeEventListener('change', onChange);
+      container.removeEventListener('wheel', onWheel);
+      container.removeEventListener('mouseover', onMouseover);
+      container.removeEventListener('mouseleave', onMouseleave);
     }
     container = null;
   }
@@ -977,6 +1017,15 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       const id = String(btn.dataset.module);
       moduleFoldState.set(id, !isModuleCollapsed(id));
       render();
+    } else if (action === 'scheme-zoom') {
+      // E6.1: zoom del esquema (in/out/reset) con factor por módulo.
+      const id = String(btn.dataset.module);
+      const actual = schemeZoomFor(id);
+      const next = btn.dataset.dir === 'in' ? Math.min(SCHEME_ZOOM_MAX, actual + 0.5)
+        : btn.dataset.dir === 'out' ? Math.max(1, actual - 0.5) : 1;
+      if (next === actual && btn.dataset.dir !== 'reset') return;
+      schemeZoomState.set(id, next);
+      render();
     } else if (action === 'scheme-remove') {
       // Esquema interactivo: clic en un elemento lo quita (undo = Ctrl+Z).
       const r = removeContentPiece(btn.dataset.ref);
@@ -1281,6 +1330,14 @@ const CONTENT_ICON = {
 const moduleFoldState = new Map();
 let collapseDefault = false;
 
+// E6.1 — Zoom del esquema frontal por módulo (factor 1 = ajustado; máx 4).
+const SCHEME_ZOOM_MAX = 4;
+const schemeZoomState = new Map();
+function schemeZoomFor(moduleId) {
+  const f = Number(schemeZoomState.get(String(moduleId))) || 1;
+  return Math.min(SCHEME_ZOOM_MAX, Math.max(1, f));
+}
+
 function isModuleCollapsed(moduleId) {
   const key = String(moduleId);
   return moduleFoldState.has(key) ? moduleFoldState.get(key) : collapseDefault;
@@ -1354,7 +1411,7 @@ function renderContentList(moduleId, allPieces) {
         const altura = Number.isFinite(piece?.pos_z) ? ` · z=${Math.round(piece.pos_z)} mm` : '';
         const sufijo = i.kind === 'shoeRack' ? sufijoModoZapatera(i.refId) : '';
         return `
-        <span class="cn-chip cn-chip--${i.kind}" role="listitem" title="${escapeHtml(i.label)}${altura}">
+        <span class="cn-chip cn-chip--${i.kind}" role="listitem" data-ref="${escapeHtml(i.refId)}" title="${escapeHtml(i.label)}${altura}">
           <span class="cn-chip__icon" aria-hidden="true">${CONTENT_ICON[i.kind] || '·'}</span>
           <span class="cn-chip__label"${Number.isFinite(piece?.pos_z) ? ` data-posz="${Math.round(piece.pos_z)}"` : ''}>${escapeHtml(nombreCorto(i.label))}${sufijo}</span>
           ${i.kind === 'zocalo' || i.kind === 'divider' ? '' : `
@@ -1408,13 +1465,22 @@ function renderModuleScheme(moduleId, allPieces, piezas, menuOpen = false) {
           <rect x="${r1(inner.x)}" y="${r1(inner.y)}" width="${r1(inner.w)}" height="${r1(rowH - 2)}" rx="3"/>
           <text x="${r1(inner.x + inner.w / 2)}" y="${r1(inner.y + (rowH - 2) / 2 + 3)}" text-anchor="middle">＋</text>
         </g>`;
+  // Zoom: el viewBox se encoge alrededor del centro (factor 1 = ajustado).
+  const zoom = schemeZoomFor(moduleId);
+  const vbW = r1(W / zoom), vbH = r1(H / zoom);
+  const vbX = r1((W - vbW) / 2), vbY = r1((H - vbH) / 2);
   return `
     <figure class="cn-scheme">
       <figcaption class="cn-scheme__caption">
         <span>Esquema frontal</span>
-        <span class="cn-scheme__hint">clic en elemento: quitar · ＋: añadir</span>
+        <span class="cn-scheme__hint">clic: quitar · ＋: añadir</span>
+        <span class="cn-scheme__tools">
+          <button type="button" class="cn-scheme__zoombtn" data-action="scheme-zoom" data-module="${escId}" data-dir="out" title="Alejar" aria-label="Alejar esquema">−</button>
+          <button type="button" class="cn-scheme__zoombtn" data-action="scheme-zoom" data-module="${escId}" data-dir="reset" title="Ajustar a pantalla" aria-label="Ajustar esquema">${zoom > 1 ? Math.round(zoom * 100) + '%' : '⤢'}</button>
+          <button type="button" class="cn-scheme__zoombtn" data-action="scheme-zoom" data-module="${escId}" data-dir="in" title="Acercar" aria-label="Acercar esquema">＋</button>
+        </span>
       </figcaption>
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Esquema frontal del módulo ${escId}">
+      <svg viewBox="${vbX} ${vbY} ${vbW} ${vbH}" data-scheme-zoom="${zoom}" role="img" aria-label="Esquema frontal del módulo ${escId}">
         <rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" class="cn-scheme__body" rx="2"/>
         ${zocalo ? `<rect x="${r1(inner.x)}" y="${r1(y + h - e - zk)}" width="${r1(inner.w)}" height="${r1(zk)}" class="cn-scheme__zocalo"/>` : ''}
         ${addZone}

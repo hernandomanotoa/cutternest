@@ -115,7 +115,10 @@
         <div class="summary-panel__bar">
           <div class="summary-tabs" role="tablist" aria-label="Resumen del proyecto">
             <button class="summary-tab is-active" data-summary-tab="resumen" role="tab" aria-selected="true">Resumen</button>
+            <button class="summary-tab" data-summary-tab="piezas" role="tab" aria-selected="false">Piezas</button>
+            <button class="summary-tab" data-summary-tab="materiales" role="tab" aria-selected="false">Materiales</button>
             <button class="summary-tab" data-summary-tab="herrajes" role="tab" aria-selected="false">Herrajes</button>
+            <button class="summary-tab" data-summary-tab="alertas" role="tab" aria-selected="false">Alertas</button>
           </div>
           <button class="summary-collapse" id="summary-collapse" title="Contraer panel" aria-label="Contraer panel">⇥</button>
         </div>
@@ -140,9 +143,24 @@
               </div>
             </div>
           </div>
+          <div data-summary-pane="piezas" hidden>
+            <div id="pieces-list" class="summary-list">
+              <p class="empty-state">Sin piezas todavía.</p>
+            </div>
+          </div>
+          <div data-summary-pane="materiales" hidden>
+            <div id="materials-list" class="summary-list">
+              <p class="empty-state">Sin piezas todavía.</p>
+            </div>
+          </div>
           <div data-summary-pane="herrajes" hidden>
             <div id="hardware-list" class="hardware-list">
               <p class="empty-state">Importa un CSV para ver la lista.</p>
+            </div>
+          </div>
+          <div data-summary-pane="alertas" hidden>
+            <div id="alerts-list" class="summary-list">
+              <p class="empty-state">Sin alertas. Todo listo.</p>
             </div>
           </div>
         </div>

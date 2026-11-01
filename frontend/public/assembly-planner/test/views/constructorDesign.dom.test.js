@@ -195,6 +195,60 @@ test('diseño: «+ Añadir» del riel vuelve a los Datos generales (limpia la se
   view.destroy();
 });
 
+test('diseño E6.1: zoom del esquema (+/−/ajustar) sobre el viewBox', () => {
+  const { view, container } = mountView();
+  container.querySelector('[data-action="add-module"]').click();
+  const svg = () => container.querySelector('[data-module-scoped="1"] .cn-scheme svg');
+  assert.equal(svg().getAttribute('viewBox'), '0 0 200 230', 'ajustado por defecto');
+  container.querySelector('[data-action="scheme-zoom"][data-dir="in"]').click();
+  const vb = svg().getAttribute('viewBox').split(' ').map(Number);
+  assert.ok(vb[2] < 200 && vb[3] < 230, `zoom in: viewBox más pequeño (${vb})`);
+  assert.equal(svg().dataset.schemeZoom, '1.5');
+  container.querySelector('[data-action="scheme-zoom"][data-dir="out"]').click();
+  assert.equal(svg().getAttribute('viewBox'), '0 0 200 230', 'zoom out vuelve a ajustar');
+  container.querySelector('[data-action="scheme-zoom"][data-dir="in"]').click();
+  container.querySelector('[data-action="scheme-zoom"][data-dir="reset"]').click();
+  assert.equal(svg().getAttribute('viewBox'), '0 0 200 230', 'reset ajusta a pantalla');
+  view.destroy();
+});
+
+test('diseño E6.2: hover en el esquema resalta el chip del mismo contenido (y viceversa)', () => {
+  const { view, container } = mountView();
+  container.querySelector('[data-action="add-module"]').click();
+  container.querySelector('[data-action="add-content"][data-kind="drawer"]').click();
+  const row = container.querySelector('.cn-scheme__row');
+  row.dispatchEvent(new window.MouseEvent('mouseover', { bubbles: true }));
+  const ref = row.dataset.ref;
+  const chip = container.querySelector(`.cn-chip[data-ref="${ref}"]`);
+  assert.ok(chip.classList.contains('is-highlighted'), 'hover en glifo → chip resaltado');
+  assert.ok(row.classList.contains('is-highlighted'), 'el glifo también se resalta');
+  // En sentido contrario: hover en el chip resalta el glifo.
+  container.querySelectorAll('.is-highlighted').forEach((el) => el.classList.remove('is-highlighted'));
+  chip.dispatchEvent(new window.MouseEvent('mouseover', { bubbles: true }));
+  assert.ok(container.querySelector(`.cn-scheme__row[data-ref="${ref}"]`).classList.contains('is-highlighted'),
+    'hover en chip → glifo resaltado');
+  view.destroy();
+});
+
+test('diseño E7: el panel derecho agrega Materiales/Piezas/Alertas con datos del store', () => {
+  // Chrome extendido con los ids nuevos del panel (updateSummary es tolerante
+  // a DOM parcial: sin ellos no falla).
+  for (const id of ['pieces-list', 'materials-list', 'alerts-list']) {
+    const d = document.createElement('div');
+    d.id = id;
+    document.body.appendChild(d);
+  }
+  const { view, container } = mountView();
+  container.querySelector('[data-action="add-module"]').click();
+  assert.match(document.getElementById('materials-list').textContent, /#c19a6b · 15 mm/, 'material del casco listado');
+  assert.match(document.getElementById('pieces-list').textContent, /Laterales/, 'piezas por rol listadas');
+  assert.match(document.getElementById('alerts-list').textContent, /Sin alertas|mm/, 'panel de alertas renderizado');
+  view.destroy();
+  for (const id of ['pieces-list', 'materials-list', 'alerts-list']) {
+    document.getElementById(id).remove();
+  }
+});
+
 test('diseño: validación de diseño con ítems por nivel', () => {
   const { view, container } = mountView();
   container.querySelector('[data-action="add-module"]').click();

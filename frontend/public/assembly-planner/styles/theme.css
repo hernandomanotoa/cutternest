@@ -304,8 +304,54 @@ html, body {
 
 .summary-panel__body { padding: 1rem; }
 
+/* Filas de las pestañas Materiales / Piezas / Alertas (E7) */
+.summary-list { display: flex; flex-direction: column; gap: 6px; }
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 0.78rem;
+}
+
+.summary-row__label {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-row__qty {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.summary-alert {
+  padding: 8px 10px;
+  border: 1px solid rgba(233, 174, 84, 0.35);
+  border-radius: 7px;
+  background: rgba(233, 174, 84, 0.08);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 /* Contraído: ocupa el mínimo y deja ver el área de trabajo. */
 .summary-panel.is-collapsed { width: 40px; }
+
+/* Resoluciones medianas (1024-1280): paneles algo más estrechos para dar
+   protagonismo al área central y a la vista gráfica. */
+@media (max-width: 1280px) {
+  .cn-constructor .cn-constructor__layout { grid-template-columns: 240px minmax(0, 1fr); }
+  .summary-panel { width: 240px; }
+}
 
 /* Responsive (FASE 7/8): en pantallas estrechas el panel derecho pasa a
    ser un overlay contraíble (el área de trabajo gana protagonismo). */
@@ -2113,6 +2159,36 @@ input[type="search"]:focus-visible {
   letter-spacing: 0.03em;
   text-transform: none;
   color: var(--cn-text-4);
+}
+.cn-constructor .cn-scheme__tools {
+  display: inline-flex;
+  gap: 2px;
+}
+.cn-constructor .cn-scheme__zoombtn {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--cn-line);
+  border-radius: 4px;
+  background: var(--cn-panel-2);
+  color: var(--cn-text-3);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+.cn-constructor .cn-scheme__zoombtn:hover {
+  color: var(--cn-accent-hi);
+  border-color: var(--cn-accent-deep);
+}
+/* E6.2 — cross-highlight esquema↔chips */
+.cn-constructor .cn-chip.is-highlighted,
+.cn-constructor .cn-constructor__module:hover .cn-chip.is-highlighted {
+  border-color: var(--cn-accent);
+  box-shadow: 0 0 0 2px var(--cn-accent-soft);
+}
+.cn-constructor .cn-scheme__row.is-highlighted .cn-scheme__hit {
+  fill: var(--cn-accent-soft);
 }
 .cn-constructor .cn-scheme svg {
   display: block;
