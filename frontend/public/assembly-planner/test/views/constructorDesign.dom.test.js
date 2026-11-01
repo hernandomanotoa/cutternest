@@ -188,18 +188,25 @@ test('diseño: la selección PERSISTE al re-montar la vista (volver de otra pest
   // Regresión: cambiar de pestaña destruye y recrea la vista; sin persistencia
   // el módulo en edición "desaparecía" (placeholder) al volver al Constructor.
   localStorage.removeItem('cn-constructor-selected-module');
-  const primera = mountView();
-  primera.container.querySelector('[data-action="add-module"]').click();
-  primera.container.querySelector('[data-action="rail-focus-module"][data-module="1"]').click();
-  assert.ok(!primera.container.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'));
-  primera.view.destroy();
-  // Segunda montada = "volver de la pestaña Isométrica": misma clave, vista nueva.
-  const segunda = mountView();
-  const card = segunda.container.querySelector('[data-module-scoped="1"]');
+  const store = createStore();
+  setStore(store);
+  const v1 = createConstructorView(store);
+  const c1 = createContainer();
+  v1.mount(c1);
+  c1.querySelector('[data-action="add-module"]').click();
+  c1.querySelector('[data-action="rail-focus-module"][data-module="1"]').click();
+  assert.ok(!c1.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'));
+  v1.destroy();
+  // Segunda vista sobre la MISMA store (las piezas siguen ahí): simula volver
+  // de la pestaña Isométrica con la vista recién creada.
+  const v2 = createConstructorView(store);
+  const c2 = createContainer();
+  v2.mount(c2);
+  const card = c2.querySelector('[data-module-scoped="1"]');
   assert.ok(card, 'la tarjeta existe tras re-montar');
   assert.ok(!card.classList.contains('cn-constructor__module--concealed'), 'el módulo seleccionado sigue visible (selección persistida)');
-  assert.ok(!segunda.container.querySelector('.cn-modulos-view__placeholder'), 'sin placeholder');
-  segunda.view.destroy();
+  assert.ok(!c2.querySelector('.cn-modulos-view__placeholder'), 'sin placeholder');
+  v2.destroy();
   localStorage.removeItem('cn-constructor-selected-module');
 });
 
