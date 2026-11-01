@@ -4,8 +4,8 @@
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 # --- Estructura global: cabecero, montantes, tablero frontal, tarima y láminas ---
 glb-cabecero,Cabecero cama,1500,600,1,no,#C19A6B,18,"T,B,L,R",estructura
-glb-montante-izq,Montante cabecero izquierdo,350,600,1,no,#C19A6B,18,"T,B,L",estructura
-glb-montante-der,Montante cabecero derecho,350,600,1,no,#C19A6B,18,"T,B,R",estructura
+glb-montante-izq,Montante cabecero izquierdo,600,350,1,no,#C19A6B,18,"T,B,L",estructura
+glb-montante-der,Montante cabecero derecho,600,350,1,no,#C19A6B,18,"T,B,R",estructura
 glb-frontal,Tablero frontal cama,1500,300,1,si,#C19A6B,18,"T,B,L,R",estructura
 glb-tarima,Tarima somier,1500,1850,1,si,#D9C2A3,18,"T,B,L,R",estructura
 glb-lamina-1,Lamina somier 1,130,25,1,no,#D9C2A3,8,"",estructura
@@ -25,16 +25,16 @@ m1-lateral-izq,Lateral izquierdo M1,1850,350,1,no,#C19A6B,18,"T,B,L",1
 m1-lateral-der,Lateral derecho M1,1850,350,1,no,#C19A6B,18,"T,B,R",1
 m1-fondo,Fondo modulo M1,400,350,1,no,#F2F2F2,18,"",1
 m11-cajon-frente,Frente cajon largo superior M1,362,147,1,no,#8B5A2B,15,"T,B,L,R",11
-m11-cajon-lateral-izq,Lateral cajon largo superior M1,1795,117,1,no,#D9C2A3,15,"T,B,L",11
-m11-cajon-lateral-der,Lateral cajon largo superior M1,1795,117,1,no,#D9C2A3,15,"T,B,R",11
-m11-cajon-fondo,Fondo cajon largo superior M1,309,117,1,no,#F2F2F2,15,,11
+m11-cajon-lateral-izq,Lateral cajon largo superior M1,1795,117,1,si,#D9C2A3,15,"T,B,L",11
+m11-cajon-lateral-der,Lateral cajon largo superior M1,1795,117,1,si,#D9C2A3,15,"T,B,R",11
+m11-cajon-fondo,Fondo cajon largo superior M1,309,117,1,si,#F2F2F2,15,,11
 m11-cajon-cara,Cara cajon largo superior M1,309,117,1,si,#D9C2A3,15,"T,B,L,R",11
 m11-cajon-base,Base cajon largo superior M1,309,1765,1,si,#D9C2A3,15,"T,B,L,R",11
 m11-cajon-tirador,Tirador cajon largo superior M1,2,20,1,no,#A0A0A0,5,,11
 m12-cajon-frente,Frente cajon largo inferior M1,362,147,1,no,#8B5A2B,15,"T,B,L,R",12
-m12-cajon-lateral-izq,Lateral cajon largo inferior M1,1795,117,1,no,#D9C2A3,15,"T,B,L",12
-m12-cajon-lateral-der,Lateral cajon largo inferior M1,1795,117,1,no,#D9C2A3,15,"T,B,R",12
-m12-cajon-fondo,Fondo cajon largo inferior M1,309,117,1,no,#F2F2F2,15,,12
+m12-cajon-lateral-izq,Lateral cajon largo inferior M1,1795,117,1,si,#D9C2A3,15,"T,B,L",12
+m12-cajon-lateral-der,Lateral cajon largo inferior M1,1795,117,1,si,#D9C2A3,15,"T,B,R",12
+m12-cajon-fondo,Fondo cajon largo inferior M1,309,117,1,si,#F2F2F2,15,,12
 m12-cajon-cara,Cara cajon largo inferior M1,309,117,1,si,#D9C2A3,15,"T,B,L,R",12
 m12-cajon-base,Base cajon largo inferior M1,309,1765,1,si,#D9C2A3,15,"T,B,L,R",12
 m12-cajon-tirador,Tirador cajon largo inferior M1,2,20,1,no,#A0A0A0,5,,12
@@ -45,16 +45,16 @@ m2-lateral-izq,Lateral izquierdo M2,1850,350,1,no,#C19A6B,18,"T,B,L",2
 m2-lateral-der,Lateral derecho M2,1850,350,1,no,#C19A6B,18,"T,B,R",2
 m2-fondo,Fondo modulo M2,400,350,1,no,#F2F2F2,18,"",2
 m21-cajon-frente,Frente cajon largo superior M2,362,147,1,no,#8B5A2B,15,"T,B,L,R",21
-m21-cajon-lateral-izq,Lateral cajon largo superior M2,1795,117,1,no,#D9C2A3,15,"T,B,L",21
-m21-cajon-lateral-der,Lateral cajon largo superior M2,1795,117,1,no,#D9C2A3,15,"T,B,R",21
-m21-cajon-fondo,Fondo cajon largo superior M2,309,117,1,no,#F2F2F2,15,,21
+m21-cajon-lateral-izq,Lateral cajon largo superior M2,1795,117,1,si,#D9C2A3,15,"T,B,L",21
+m21-cajon-lateral-der,Lateral cajon largo superior M2,1795,117,1,si,#D9C2A3,15,"T,B,R",21
+m21-cajon-fondo,Fondo cajon largo superior M2,309,117,1,si,#F2F2F2,15,,21
 m21-cajon-cara,Cara cajon largo superior M2,309,117,1,si,#D9C2A3,15,"T,B,L,R",21
 m21-cajon-base,Base cajon largo superior M2,309,1765,1,si,#D9C2A3,15,"T,B,L,R",21
 m21-cajon-tirador,Tirador cajon largo superior M2,2,20,1,no,#A0A0A0,5,,21
 m22-cajon-frente,Frente cajon largo inferior M2,362,147,1,no,#8B5A2B,15,"T,B,L,R",22
-m22-cajon-lateral-izq,Lateral cajon largo inferior M2,1795,117,1,no,#D9C2A3,15,"T,B,L",22
-m22-cajon-lateral-der,Lateral cajon largo inferior M2,1795,117,1,no,#D9C2A3,15,"T,B,R",22
-m22-cajon-fondo,Fondo cajon largo inferior M2,309,117,1,no,#F2F2F2,15,,22
+m22-cajon-lateral-izq,Lateral cajon largo inferior M2,1795,117,1,si,#D9C2A3,15,"T,B,L",22
+m22-cajon-lateral-der,Lateral cajon largo inferior M2,1795,117,1,si,#D9C2A3,15,"T,B,R",22
+m22-cajon-fondo,Fondo cajon largo inferior M2,309,117,1,si,#F2F2F2,15,,22
 m22-cajon-cara,Cara cajon largo inferior M2,309,117,1,si,#D9C2A3,15,"T,B,L,R",22
 m22-cajon-base,Base cajon largo inferior M2,309,1765,1,si,#D9C2A3,15,"T,B,L,R",22
 m22-cajon-tirador,Tirador cajon largo inferior M2,2,20,1,no,#A0A0A0,5,,22

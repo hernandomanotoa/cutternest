@@ -73,8 +73,10 @@ export function rootModuleDims(pieces) {
     if (/^m\d+-tapa$/.test(p.id)) { dims.ancho = Number(p.ancho) || 0; dims.alto = Number(p.alto) || 0; dims.espesor = Number(p.espesor) || 15; }
     else if (/^m\d+-base$/.test(p.id) && !dims.ancho) { dims.ancho = (Number(p.ancho) || 0) + 2 * dims.espesor; dims.espesor = Number(p.espesor) || 15; }
     else if (/^m\d+-lateral-izq$/.test(p.id)) {
-      dims.profundidad = Number(p.ancho) || 0;
-      dims.alto = Number(p.alto) || 0; // el alto del módulo vive en los laterales (la tapa es horizontal)
+      // Despiece: el lateral guarda ancho = alto del mueble (lado de la
+      // veta) y alto = profundidad.
+      dims.profundidad = Number(p.alto) || 0;
+      dims.alto = Number(p.ancho) || 0; // el alto del módulo vive en los laterales (la tapa es horizontal)
     }
   }
   return [...mods.values()]

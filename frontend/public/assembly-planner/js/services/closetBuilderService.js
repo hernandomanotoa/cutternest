@@ -103,11 +103,10 @@ export function moduleEspesor(pieces, moduleId) {
 // csvParser.js lo normaliza a boolean); 'si'/true → true, resto → false.
 // El rotate DEFAULT sale de la tabla maestra de veta (cutOrientationService)
 // cuando el caller pasa `rol` y no `rotate` explícito: piezas de vista con
-// veta bloqueada ('no') y ocultas libres ('si'). Fase C: las piezas ocultas
-// de cajón (drawer_side/drawer_back/back_panel) aún se emiten en orientación
-// de mueble con rotate implícito 'no' porque drawerGeometryService y
-// golaService leen sus ancho/alto crudos; su paso a rotate 'si' va junto con
-// el swap de columnas a orientación de corte.
+// veta bloqueada ('no') y ocultas libres ('si'). El CSV es DESPIECE: las
+// piezas de vista vertical (side_panel, divider) se emiten con
+// ancho = alto del mueble (lado de la veta); los consumidores de geometría
+// proyectan a orientación de mueble con cutOrientationService.proyectaMueble.
 function piece(id, nombre, ancho, alto, opts = {}) {
   const rotate = opts.rotate !== undefined
     ? opts.rotate === true || opts.rotate === 'si'
@@ -163,12 +162,14 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
   const pieces = [
     piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rol: 'bottom_panel', color, espesor: E, cantos: 'T,B,L,R', modulo }),
     piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rol: 'top_panel', color, espesor: E, cantos: 'T,B,L,R', modulo }),
-    piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,L', modulo }),
-    piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
-    // Fondo del casco: oculto (rotate libre, tabla), pero su flip a 'si' se
-    // hace en Fase C junto con el swap a orientación de corte (hoy se leen
-    // sus dims crudos como geometría del módulo).
-    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', rotate: 'no', color: '#F2F2F2', espesor: E, cantos: '', modulo }),
+    // Laterales en ORIENTACIÓN DE CORTE (veta vertical): ancho = alto del
+    // mueble, alto = profundidad. Los consumidores de geometría proyectan a
+    // orientación de mueble con cutOrientationService.proyectaMueble.
+    piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,L', modulo }),
+    piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
+    // Fondo del casco: pieza oculta → rotate libre (tabla). Sus dims se
+    // quedan en orientación de mueble (las ocultas no tienen swap).
+    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', color: '#F2F2F2', espesor: E, cantos: '', modulo }),
   ];
   return { ok: true, pieces, interiorWidth: ancho - 2 * E, interiorDepth: prof - 2 * E };
 }
@@ -389,13 +390,12 @@ export function addDrawer(moduleId, index, {
   const fondoAlto = Math.max(0, latAlto - 2 * ranura);
   const pieces = [
     piece(`m${moduleId}${idp}${index}-frente`, stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }),
-    // Laterales y fondo de la caja: ocultos (rotate libre, tabla), pero su
-    // flip a 'si' va en Fase C con el swap a orientación de corte: hoy
-    // drawerGeometryService/golaService leen sus dims crudos (orientación de
-    // mueble).
-    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', rotate: 'no', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', rotate: 'no', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, fondoAncho, fondoAlto, { rol: 'drawer_back', rotate: 'no', color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
+    // Laterales y fondo de la caja: piezas ocultas → rotate libre (tabla).
+    // Dims en orientación de mueble (las ocultas no tienen swap); los
+    // servicios (drawerGeometryService, golaService) las leen crudas.
+    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, fondoAncho, fondoAlto, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
   ];
   if (!volquete) {
     pieces.push(piece(`m${moduleId}${idp}${index}-cara`, stampTipoTag(`Cara ${vocab}${num} M${moduleId}`, tipoId), interior, latAlto, { rol: 'drawer_part', color: cl, espesor: E, cantos: 'T,B,L,R', modulo: sub }));
@@ -600,13 +600,12 @@ export function addShoeTray(moduleId, index, {
   if (llevaFrente) {
     pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, cantos: 'T,B,L,R', modulo: sub }));
   }
-  // Laterales y fondo de la bandeja: ocultos (rotate libre, tabla); el flip a
-  // 'si' va en Fase C con el swap a orientación de corte (sus dims crudos se
-  // leen hoy en drawerGeometryService/golaService).
+  // Laterales y fondo de la bandeja: piezas ocultas → rotate libre (tabla);
+  // dims en orientación de mueble (las ocultas no tienen swap).
   pieces.push(
-    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', rotate: 'no', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', rotate: 'no', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, altoFondoEf, { rol: 'drawer_back', rotate: 'no', color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, altoFondoEf, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, cantos: '', modulo: sub }),
   );
   if (!frenteCompleto) {
     // Sin frente decorativo, la cara ES la cara visible de la bandeja y por
@@ -646,9 +645,11 @@ export function addShoeTray(moduleId, index, {
 }
 
 
-// Divisor vertical entre bahias (convencion del catalogo: la pieza guarda
-// ancho=espesor y alto=alto util; el renderer lo clasifica 'divider' y lo
-// dibuja como panel vertical entre repisas). Span completo del vano.
+// Divisor vertical entre bahias (convencion del catalogo): pieza de vista
+// vertical, emitida en ORIENTACIÓN DE CORTE — ancho = alto útil del vano
+// (lado de la veta), alto = espesor. El renderer lo proyecta a mueble con
+// cutOrientationService.proyectaMueble y lo dibuja como panel vertical
+// entre repisas.
 export function addDivider(moduleId, { altoUtil, espesor = 15, color = '#C19A6B', index = 1 } = {}) {
   const errors = [];
   validateDimension(altoUtil, 'altoUtil', errors, { min: 100 });
@@ -657,7 +658,7 @@ export function addDivider(moduleId, { altoUtil, espesor = 15, color = '#C19A6B'
   return {
     ok: true,
     pieces: [
-      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, espesor, altoUtil, { rol: 'divider', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
+      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, altoUtil, espesor, { rol: 'divider', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
     ],
   };
 }

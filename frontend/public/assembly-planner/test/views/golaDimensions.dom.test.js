@@ -121,7 +121,9 @@ test('A1: si el vano nuevo no alcanza, la edición NO se aborta y avisa', () => 
     `el motivo del fallo se devuelve como warning: ${JSON.stringify(edit.warnings || [])}`,
   );
   const lateral = getStore().get().pieces.find((p) => p.id === 'm1-lateral-izq');
-  assert.equal(lateral.alto, 300, 'el casco quedó editado pese al fallo gola');
+  // Despiece: el alto del mueble vive en la primera medida (lado de la veta).
+  assert.equal(lateral.ancho, 300, 'el casco quedó editado pese al fallo gola (alto del mueble en ancho)');
+  assert.equal(lateral.alto, 600, 'la profundidad queda en la segunda medida');
 });
 
 test('A2: save/load de versión local preserva y rehidrata los metas gola', () => {

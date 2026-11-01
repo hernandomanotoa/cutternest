@@ -57,13 +57,14 @@ export function validateStackClearance(pieces) {
     const top = modPieces.find((p) => nameIncludes(p.nombre, ['tapa', 'techo']));
     if (!base || !top) continue;
 
-    const laterals = modPieces.filter((p) => nameIncludes(p.nombre, ['lateral']));
-    const sideThickness = laterals.length ? Number(laterals[0].espesor) || 15 : Number(base.espesor) || 15;
-    // Altura del casco: los laterales mandan (getModuleDimensions aplica
-    // heurísticas por familia —p. ej. 'patas + tapa' en seating— que aquí
-    // falsearían el vano interior del cabinet).
-    const sideH = laterals.length
-      ? Math.max(...laterals.map((p) => (p.rotate ? Number(p.ancho) || 0 : Number(p.alto) || 0)))
+    const sidePanels = modPieces.filter((p) => inferRole(p) === 'side_panel');
+    const sideThickness = sidePanels.length ? Number(sidePanels[0].espesor) || 15 : Number(base.espesor) || 15;
+    // Altura del casco: los costados mandan. El CSV es despiece: el
+    // side_panel guarda ancho = alto del mueble (lado de la veta). (Antes se
+    // leían 'laterales' por nombre con heurística rotate; mezclaba los
+    // laterales internos de cajón y falseaba el vano.)
+    const sideH = sidePanels.length
+      ? Math.max(...sidePanels.map((p) => Number(p.ancho) || 0))
       : 0;
     const boxH = sideH || getModuleDimensions(modPieces, sideThickness, 'cabinet').height;
 

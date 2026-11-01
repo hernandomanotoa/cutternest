@@ -28,6 +28,7 @@
 // se deduplican conservando la fuente directa.
 
 import { parseCSV, piecesToCSV } from './csvParser.js';
+import { migraPiezasACorte } from './cutOrientationService.js';
 import { validateStackClearance } from './stackClearanceService.js';
 import { validateShoeClearance } from './shoeClearanceService.js';
 import { validateGola, getGolaCfg, aberturaCanalGola } from './golaService.js';
@@ -166,7 +167,10 @@ function deduplicar(filas) {
  *   pendiente:number}, corteAutorizado: boolean}}
  */
 export function buildAuditReport(pieces, userConfig = {}, opts = {}) {
-  const lista = Array.isArray(pieces) ? pieces.slice() : [];
+  // El CSV es despiece: se normaliza a orientación de corte (los laterales
+  // legacy en orientación de mueble se invierten) para que el chequeo
+  // directo de pilas y el re-parseo de csvParser vean las mismas medidas.
+  const lista = migraPiezasACorte(Array.isArray(pieces) ? pieces : []).pieces;
   const filas = [];
 
   const correr = (fn, fuente, elemento) => {

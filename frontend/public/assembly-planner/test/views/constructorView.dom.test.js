@@ -748,7 +748,9 @@ test('Lote B: divisor vertical span completo, cajones 2 por fila y espesor de fr
   click(container, '[data-action="add-content"][data-kind="divider"]');
   const div = store.get().pieces.find((p) => p.id === 'm1-divisor-1');
   assert.ok(div, 'divisor creado');
-  assert.equal(div.alto, 2235, 'span completo del vano util');
+  // Despiece: el span del vano vive en la primera medida (lado de la veta).
+  assert.equal(div.ancho, 2235, 'span completo del vano util');
+  assert.equal(div.alto, 15, 'espesor del panel en la segunda medida');
   assert.equal(div.pos_z, 165, 'anclado al piso del vano (zocalo+base)');
   assert.match(div.nombre, /Divisor 1 M1/);
   // B2: cajon 2 por fila (frente mitad de ancho)
@@ -993,7 +995,8 @@ test('Altura fija del mueble: el fondo descuenta el zócalo y se apoya sobre la 
   assert.equal(fondoMarco.alto, 2400 - 100 - 2 * 15, 'fondo reajustado al Z del marco');
   // Altura total del mueble: inalterada (2400) — el zócalo ocupa su zona.
   const lateral = store.get().pieces.find((p) => p.id === 'm1-lateral-izq');
-  assert.equal(lateral.alto, 2400, 'el alto del módulo es el total (fijo)');
+  assert.equal(lateral.ancho, 2400, 'el alto del módulo es el total (fijo), en la 1ª medida');
+  assert.equal(lateral.alto, 600, 'la profundidad queda en la 2ª medida');
   // Quitar el marco: frente simple restaurado (Z=100) y fondo consistente.
   click(container, '[data-action="remove-plinth"]');
   const fondoRestaurado = store.get().pieces.find((p) => p.id === 'm1-fondo');
@@ -1258,7 +1261,7 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin c
   const frente3 = pieza('m1cajon3-frente');
   assert.equal(lat3.alto, lat3Original, 'caja 3 sin rebaja (sin canal L)');
   const tapa = pieza('m1-tapa');
-  const altoCasco = pieza('m1-lateral-izq').alto;
+  const altoCasco = pieza('m1-lateral-izq').ancho; // despiece: alto del módulo en la 1ª medida
   const techoUtil = altoCasco - tapa.espesor;
   const esperado = techoUtil - 2.5; // drawerFrontGap (default)
   assert.ok(Math.abs(frente3.pos_z + frente3.alto - esperado) <= 1.5, `frente 3 a 2.5 mm del techo útil (techo ${frente3.pos_z + frente3.alto} vs ${esperado})`);

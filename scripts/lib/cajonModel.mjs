@@ -134,8 +134,8 @@ export function cajon(parent, index, opts) {
     rows.push(`m${sm}-${idp}-frente,Frente ${frenteVocab}${label} M${parent},${frenteAncho},${frenteAltoEf},1,no,${colorFrente},15,"T,B,L,R",${sm}`);
   }
   rows.push(
-    `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${E},"T,B,L",${sm}`,
-    `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,no,${colorLateral},${E},"T,B,R",${sm}`
+    `m${sm}-${idp}-lateral-izq,Lateral ${vocab}${label}${ladoIzq} M${parent},${profCajon},${latAlto},1,si,${colorLateral},${E},"T,B,L",${sm}`,
+    `m${sm}-${idp}-lateral-der,Lateral ${vocab}${label}${ladoDer} M${parent},${profCajon},${latAlto},1,si,${colorLateral},${E},"T,B,R",${sm}`
   );
   if (!volquete) {
     // Fondo: según el método. Apoyado: interno a los laterales, a todo lo
@@ -148,11 +148,11 @@ export function cajon(parent, index, opts) {
       : 0;
     const fondoAncho = interior + 2 * ranura;
     const fondoAlto = Math.max(0, altoFondoEf - 2 * ranura);
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${fondoAlto},1,no,#F2F2F2,${E},,${sm}`);
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${fondoAncho},${fondoAlto},1,si,#F2F2F2,${E},,${sm}`);
     rows.push(`m${sm}-${idp}-cara,Cara ${vocab}${label} M${parent},${interior},${caraAlto},1,si,${colorLateral},${E},"T,B,L,R",${sm}`);
   } else {
     // Volquete/abatible: se conserva el fondo clásico derivado del frente.
-    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - E},1,no,#F2F2F2,${E},,${sm}`);
+    rows.push(`m${sm}-${idp}-fondo,Fondo ${vocab}${label} M${parent},${interior},${latAlto - E},1,si,#F2F2F2,${E},,${sm}`);
   }
   if (esZapatera && !volquete && division) {
     // División transversal (espejo de addShoeTray): misma luz que el fondo
@@ -177,8 +177,8 @@ export function baseTapaLateralesFondo(mod, parent, ancho, alto, prof, colorCuer
   return [
     line(`m${mod}-base`, `Base modulo M${parent}`, ancho, prof, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
     line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'no', colorCuerpo, 15, 'T,B,L,R', mod),
-    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, prof, alto, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
-    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, prof, alto, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
+    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, alto, prof, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
+    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, alto, prof, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
     fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho - 2 * E, alto - 2 * E, '#F2F2F2', mod)
   ];
 }
@@ -214,8 +214,8 @@ export function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerp
   return [
     line(`m${mod}-base`, `Base modulo M${parent}`, ancho - 2 * E, prof - 2 * E, 1, 'si', colorCuerpo, 15, 'T,B,L,R', mod),
     line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'no', colorCuerpo, 15, 'T,B,L,R', mod),
-    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, prof, altoTotal, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
-    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, prof, altoTotal, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
+    line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, altoTotal, prof, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
+    line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, altoTotal, prof, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
     fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho - 2 * E, altoTotal - 2 * E, '#F2F2F2', mod),
   ];
 }

@@ -49,13 +49,16 @@ export function buildDividerGeometries(renderer, dividers, moduleW, moduleD, mod
     const bottomOffset = Number.isFinite(cfg.offset) ? cfg.offset : 0;
     const topInset = Number.isFinite(cfg.gap) ? cfg.gap : 0;
     const z = baseTop + bottomOffset;
-    // Se respeta el alto de la pieza, sin pasar por encima de la repisa
-    // superior (o tapa) que haya encima del divisor.
+    // Se respeta el alto de la pieza (despiece: el alto útil del vano está
+    // en la primera medida, lado de la veta), sin pasar por encima de la
+    // repisa superior (o tapa) que haya encima del divisor.
     const dividerTopLimit = findTopShelfLimit(shelfPositions, topLimit) - topInset;
     const availableH = Math.max(0, dividerTopLimit - z);
-    const requestedH = Number(div.alto) || availableH;
+    const requestedH = dims.h || availableH;
     const h = Math.min(requestedH, availableH);
-    const d = Math.min(Number(div.ancho) || interiorDepth, interiorDepth);
+    // Profundidad del divisor: la segunda medida del despiece (el espesor
+    // del panel vertical). Default: profundidad interior del módulo.
+    const d = Math.min(Number(div.alto) || interiorDepth, interiorDepth);
     geometries.push({
       x, y: depthOffset, z, w: divW, d, h,
       color: div.color, role: 'divider', name: div.nombre, id: div.id,

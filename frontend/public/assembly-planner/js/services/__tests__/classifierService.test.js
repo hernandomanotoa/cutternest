@@ -167,18 +167,18 @@ describe('inferRole - zapatera-cajón', () => {
 });
 
 describe('isDividerVertical', () => {
-  it('detects tall dividers as vertical', () => {
-    assert.equal(isDividerVertical(piece('Division vertical', { ancho: 550, alto: 2400 })), true);
-    assert.equal(isDividerVertical(piece('Divisor', { ancho: 18, alto: 1800 })), true);
+  it('detects tall dividers as vertical (despiece: ancho = alto del vano)', () => {
+    assert.equal(isDividerVertical(piece('Division vertical', { ancho: 2400, alto: 15 })), true);
+    assert.equal(isDividerVertical(piece('Divisor', { ancho: 1800, alto: 18 })), true);
   });
 
-  it('detects wide dividers as horizontal', () => {
-    assert.equal(isDividerVertical(piece('Division horizontal', { ancho: 800, alto: 18 })), false);
-    assert.equal(isDividerVertical(piece('Divisor', { ancho: 600, alto: 200 })), false);
+  it('detects wide-and-not-thin dividers as horizontal', () => {
+    assert.equal(isDividerVertical(piece('Division horizontal', { ancho: 800, alto: 600 })), false);
+    assert.equal(isDividerVertical(piece('Divisor', { ancho: 600, alto: 400 })), false);
   });
 
-  it('respects rotate flag', () => {
-    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 2400, alto: 550, rotate: 'si' }), true);
-    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 550, alto: 2400, rotate: 'si' }), false);
+  it('rotate no longer affects orientation (despiece por rol)', () => {
+    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 2400, alto: 15, rotate: 'si' }), true);
+    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 15, alto: 2400, rotate: 'no' }), false);
   });
 });

@@ -148,7 +148,7 @@ const examples = [];
 
   lines.push('# --- Modulo 3: repisa superior ---');
   lines.push(...cascoZocaloCajon(3, 3, 1600, 400, 250, '#C19A6B'));
-  lines.push(line('m3-montante-central', 'Montante central M3', 250, 400, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-montante-central', 'Montante central M3', 400, 250, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
   lines.push(line('m3-travesano', 'Travesano trasero M3', 1540, 60, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-superior', 'Repisa superior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-inferior', 'Repisa inferior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
@@ -587,8 +587,8 @@ function cajonOculto(parent, index, opts) {
 
   lines.push('# --- Modulo 2: alzada de espejo (montantes + respaldo, no es casco rectangular) ---');
   lines.push(line('m2-tapa', 'Tapa alzada M2', 1200, 300, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 2));
-  lines.push(line('m2-montante-izq', 'Montante alzada izquierdo M2', 300, 900, 1, 'no', '#C19A6B', 15, 'T,B,L', 2));
-  lines.push(line('m2-montante-der', 'Montante alzada derecho M2', 300, 900, 1, 'no', '#C19A6B', 15, 'T,B,R', 2));
+  lines.push(line('m2-montante-izq', 'Montante alzada izquierdo M2', 900, 300, 1, 'no', '#C19A6B', 15, 'T,B,L', 2));
+  lines.push(line('m2-montante-der', 'Montante alzada derecho M2', 900, 300, 1, 'no', '#C19A6B', 15, 'T,B,R', 2));
   lines.push(fondo('m2-respaldo', 'Respaldo alzada M2', 1200, 900, '#F2F2F2', 2));
   lines.push(line('m2-puerta-espejo-izq', 'Puerta espejo izquierda M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
   lines.push(line('m2-puerta-espejo-der', 'Puerta espejo derecha M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));

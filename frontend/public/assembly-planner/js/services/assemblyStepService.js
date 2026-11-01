@@ -167,14 +167,15 @@ function marcoStepKey(piece) {
 }
 
 /**
- * Ancho físico de la pieza en plano (rotate=si intercambia ancho/alto,
- * como en buildPiece3D). Null si no hay medidas válidas.
+ * Ancho físico de la pieza en plano (el CSV es despiece: las piezas de
+ * vista vertical traen ancho = alto del mueble — ver cutOrientationService;
+ * el orden del manual usa la primera medida tal cual). Null si no hay
+ * medidas válidas.
  */
 function pieceWidth(piece) {
   const a = Number(piece.ancho);
-  const b = Number(piece.alto);
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  return String(piece.rotate).toLowerCase() === 'si' ? b : a;
+  if (!Number.isFinite(a)) return null;
+  return a;
 }
 
 /**

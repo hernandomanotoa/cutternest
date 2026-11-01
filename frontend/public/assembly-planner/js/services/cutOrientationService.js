@@ -1,8 +1,10 @@
 // js/services/cutOrientationService.js — Tabla maestra de clasificación de
 // veta (sentido de la veta por función de la pieza). Fuente única de verdad
 // del flag `rotate` y de la orientación de corte, consumida por el
-// Constructor (closetBuilderService) y coherente con la auditoría de veta
-// (despieceAuditService). Lógica pura: sin DOM, sin SVG ni estado global.
+// Constructor (closetBuilderService), el parser (migración legacy) y la
+// auditoría de veta (despieceAuditService). Lógica pura: sin DOM, sin SVG
+// ni estado global.
+import { inferRole } from './classifierService.js';
 //
 // Convención del taller (spec CNC):
 //   - Piezas de VISTA VERTICAL (costados, montantes, divisiones expuestas):
@@ -19,11 +21,11 @@
 //
 // `ladoVeta` indica, en la orientación de MUEBLE de la pieza, por qué lado
 // corre la veta: 'ancho' = pieza horizontal (sin swap), 'alto' = pieza
-// vertical (en orientación de corte se invierten las columnas: ancho=alto
-// del mueble, alto=profundidad). Las piezas ocultas tienen `ladoVeta: null`
-// (libres). La proyección de corte se aplica en la Fase C (el CSV pasa a ser
-// despiece en orientación de corte); hoy las piezas se emiten en orientación
-// de mueble y `swapEnCorte` solo documenta la regla.
+// vertical. El CSV es despiece: el Constructor emite con `proyectaCorte`
+// (las de vista vertical van ancho=alto del mueble, alto=profundidad) y los
+// consumidores de geometría proyectan de vuelta con `proyectaMueble`.
+// `migraPiezasACorte` convierte CSV legacy (orientación de mueble) al
+// importar. Las piezas ocultas tienen `ladoVeta: null` (libres, sin swap).
 
 export const CLASE_VETA = {
   VISTA_VERTICAL: 'vista-vertical',
@@ -81,9 +83,55 @@ export function rolesVetaLibre() {
 }
 
 // true si en orientación de corte las columnas ancho/alto se invierten
-// (piezas de vista vertical). Fase C: el CSV pasará a ser despiece y el
-// renderer proyectará de vuelta por rol; hoy solo documenta la regla.
+// (piezas de vista vertical: costados, divisores de vano). Es la regla que
+// aplica el Constructor al emitir y el proyector al leer.
 export function swapEnCorte(rol) {
   const c = clasificacionVeta(rol);
   return !!c && c.ladoVeta === 'alto';
+}
+
+// Dimensiones en ORIENTACIÓN DE CORTE para el rol: el lado de la veta va en
+// la primera medida (convención del taller y del CSV). Las piezas de vista
+// vertical se invierten; el resto queda igual.
+export function proyectaCorte(rol, ancho, alto) {
+  return swapEnCorte(rol)
+    ? { ancho: alto, alto: ancho }
+    : { ancho, alto };
+}
+
+// Dimensiones en ORIENTACIÓN DE MUEBLE (la que usan renderer y servicios
+// estructurales): inversa de proyectaCorte.
+export function proyectaMueble(rol, ancho, alto) {
+  return swapEnCorte(rol)
+    ? { ancho: alto, alto: ancho }
+    : { ancho, alto };
+}
+
+// Migra piezas en convención LEGACY (laterales/divisores en orientación de
+// mueble: alto > ancho) a orientación de corte. Devuelve { pieces, migradas }
+// con una entrada por pieza migrada {id, nombre, rol, ancho, alto} (las
+// medidas NUEvas). Las piezas ya en corte (ancho ≥ alto) pasan igual; las
+// ocultas y las de vista horizontal no se tocan. Idempotente. El punto de
+// aplicación es csvParser.parseCSV: versiones locales y autoguardado se
+// persisten como CSV y re-parsean al cargar, con lo que un solo punto cubre
+// los diseños guardados.
+export function migraPiezasACorte(pieces) {
+  const resultado = [];
+  const migradas = [];
+  for (const p of pieces || []) {
+    const rol = inferRole(p);
+    if (!swapEnCorte(rol)) {
+      resultado.push(p);
+      continue;
+    }
+    const ancho = Number(p.ancho) || 0;
+    const alto = Number(p.alto) || 0;
+    if (ancho >= alto) {
+      resultado.push(p); // ya en orientación de corte
+      continue;
+    }
+    resultado.push({ ...p, ancho: alto, alto: ancho });
+    migradas.push({ id: String(p.id), nombre: String(p.nombre || p.id), rol, ancho: alto, alto: ancho });
+  }
+  return { pieces: resultado, migradas };
 }

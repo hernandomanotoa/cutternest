@@ -49,27 +49,29 @@ describe('getPieceDims', () => {
     assert.deepEqual(getPieceDims(p, 'shelf', 18, 'shelving'), { w: 500, h: 100 });
   });
 
-  it('computes side panel seen from edge', () => {
-    const p = piece('Lateral', 600, 400, 18);
-    // ancho = profundidad, alto = altura -> el alto del lateral es `alto` (400).
-    assert.deepEqual(getPieceDims(p, 'side_panel', 18, 'cabinet'), { w: 18, h: 400 });
+  it('computes side panel seen from edge (despiece: ancho = alto del mueble)', () => {
+    // Orientación de corte: ancho = alto del mueble (lado de la veta),
+    // alto = profundidad.
+    const p = piece('Lateral', 2400, 600, 18);
+    assert.deepEqual(getPieceDims(p, 'side_panel', 18, 'cabinet'), { w: 18, h: 2400 });
   });
 
-  it('computes vertical divider dims as thickness x height', () => {
-    const p = piece('Division vertical', 550, 2400, 15);
+  it('computes vertical divider dims as thickness x height (despiece)', () => {
+    // Despiece: ancho = alto útil del vano, alto = espesor.
+    const p = piece('Division vertical', 2400, 15, 15);
     assert.deepEqual(getPieceDims(p, 'divider', 15, 'cabinet'), { w: 15, h: 2400 });
   });
 
-  it('computes horizontal divider dims as width x visual thickness', () => {
-    const p = piece('Division horizontal', 800, 18, 15);
-    const dims = getPieceDims(p, 'divider', 15, 'cabinet');
-    assert.equal(dims.w, 800);
-    assert.equal(dims.h, 18);
+  it('proyección por rol: las piezas ocultas se leen tal cual aunque rotate=si', () => {
+    // rotate ya no intercambia dims: solo indica libertad de rotación en el
+    // optimizador. Las ocultas (back_panel) se dibujan con sus dims.
+    const p = piece('Fondo', 100, 500, 18, 'si');
+    assert.deepEqual(getPieceDims(p, 'back_panel', 18, 'cabinet'), { w: 100, h: 500 });
   });
 
-  it('rotates dims when rotate is si', () => {
-    const p = piece('Pieza', 100, 500, 18, 'si');
-    assert.deepEqual(getPieceDims(p, 'back_panel', 18, 'cabinet'), { w: 500, h: 100 });
+  it('los drawer internos se leen en orientación de mueble (ocultos, sin swap)', () => {
+    const p = piece('Lateral cajon', 545, 167, 15, 'si');
+    assert.deepEqual(getPieceDims(p, 'drawer_side', 15, 'cabinet'), { w: 545, h: 167 });
   });
 });
 

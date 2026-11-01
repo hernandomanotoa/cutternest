@@ -121,7 +121,7 @@ describe('helpers derivados de las piezas (CSV-safe)', () => {
     const pieces = [
       { id: 'm2-tapa', nombre: 'Tapa', ancho: 400, alto: 2400, espesor: 15, modulo: '2' },
       { id: 'm1-tapa', nombre: 'Tapa', ancho: 600, alto: 600, espesor: 15, modulo: '1' },
-      { id: 'm1-lateral-izq', nombre: 'Lateral', ancho: 550, alto: 2400, modulo: '1' },
+      { id: 'm1-lateral-izq', nombre: 'Lateral', ancho: 2400, alto: 550, modulo: '1' },
       { id: 'm1cajon1-base', nombre: 'Base cajon', ancho: 765, alto: 545, modulo: '11' },
       { id: 'glb-zocalo-frente', nombre: 'Zocalo', ancho: 300, alto: 90, modulo: 'estructura' },
     ];

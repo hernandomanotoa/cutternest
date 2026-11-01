@@ -106,29 +106,29 @@ describe('distributeHorizontally', () => {
 
 describe('inferDividerX', () => {
   it('centers central divider', () => {
-    assert.equal(inferDividerX({ nombre: 'Divisor central', ancho: 300 }, 1000, 18), 350);
+    assert.equal(inferDividerX({ nombre: 'Divisor central', ancho: 300, alto: 200 }, 1000, 18), 350);
   });
 
   it('places left divider near left side', () => {
-    assert.equal(inferDividerX({ nombre: 'Divisor izquierdo', ancho: 30 }, 1000, 18), 18);
+    assert.equal(inferDividerX({ nombre: 'Divisor izquierdo', ancho: 30, alto: 200 }, 1000, 18), 18);
   });
 
   it('places right divider near right side', () => {
-    assert.equal(inferDividerX({ nombre: 'Divisor derecho', ancho: 30 }, 1000, 18), 952);
+    assert.equal(inferDividerX({ nombre: 'Divisor derecho', ancho: 30, alto: 200 }, 1000, 18), 952);
   });
 
   it('centers vertical divider without directional keyword', () => {
-    const div = { nombre: 'Division vertical M3', ancho: 550, alto: 2400, espesor: 15 };
+    const div = { nombre: 'Division vertical M3', ancho: 2400, alto: 550, espesor: 15 };
     assert.equal(inferDividerX(div, 800, 15), 392.5);
   });
 
   it('places left vertical divider at inner face of side panel', () => {
-    const div = { nombre: 'Division izquierda', ancho: 550, alto: 2400, espesor: 15 };
+    const div = { nombre: 'Division izquierda', ancho: 2400, alto: 550, espesor: 15 };
     assert.equal(inferDividerX(div, 800, 15), 15);
   });
 
   it('places right vertical divider at inner face of right side', () => {
-    const div = { nombre: 'Division derecha', ancho: 550, alto: 2400, espesor: 15 };
+    const div = { nombre: 'Division derecha', ancho: 2400, alto: 550, espesor: 15 };
     assert.equal(inferDividerX(div, 800, 15), 770);
   });
 });
@@ -139,7 +139,7 @@ describe('computeBays', () => {
   });
 
   it('computes two bays around a centered vertical divider', () => {
-    const div = { nombre: 'Division vertical', ancho: 550, alto: 2400, espesor: 15 };
+    const div = { nombre: 'Division vertical', ancho: 2400, alto: 550, espesor: 15 };
     const bays = computeBays([div], 800, 15);
     assert.equal(bays.length, 2);
     assert.deepEqual(bays[0], { left: 15, right: 392.5 });
@@ -147,8 +147,8 @@ describe('computeBays', () => {
   });
 
   it('computes bays around multiple vertical dividers', () => {
-    const left = { nombre: 'Division izquierda', ancho: 550, alto: 2400, espesor: 15 };
-    const central = { nombre: 'Division central', ancho: 550, alto: 2400, espesor: 15 };
+    const left = { nombre: 'Division izquierda', ancho: 2400, alto: 550, espesor: 15 };
+    const central = { nombre: 'Division central', ancho: 2400, alto: 550, espesor: 15 };
     const bays = computeBays([central, left], 1000, 15);
     assert.equal(bays.length, 2);
     assert.deepEqual(bays[0], { left: 30, right: 492.5 });

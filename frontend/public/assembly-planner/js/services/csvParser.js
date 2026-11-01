@@ -3,6 +3,7 @@
 import { isHexColor, normalizeColor } from '../utils/helpers.js';
 import { normalizeName, nameIncludes } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
+import { migraPiezasACorte } from './cutOrientationService.js';
 import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
 import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight, drawerBackMaxHeight } from './railService.js';
 import { tipoTagDe, fondoMetodoDeTipo } from '../core/contentTypes.js';
@@ -61,6 +62,19 @@ export function parseCSV(text) {
         seenIds.add(p.id);
       });
     }
+  }
+
+  // Migración a orientación de corte (veta): los laterales/divisores de CSV
+  // legacy venían en orientación de mueble (ancho=prof, alto=alto); el
+  // despiece exige la veta en la primera medida. Versiones locales y
+  // autoguardado se persisten como CSV, con lo que este punto único cubre
+  // los diseños guardados.
+  const migracion = migraPiezasACorte(pieces);
+  if (migracion.migradas.length) {
+    pieces.length = 0;
+    pieces.push(...migracion.pieces);
+    warnings.push(...migracion.migradas.map((m) =>
+      `"${m.nombre}": CSV en orientación de mueble; migrado a orientación de corte (ancho=${m.ancho} mm, alto=${m.alto} mm) — la veta queda en la primera medida.`));
   }
 
   // Detecciones globales
@@ -444,10 +458,13 @@ function validateDimensions(pieces, warnings) {
       }
     });
 
-    // Laterales con rotate=si
+    // Costados del casco: veta vertical bloqueada. En despiece el lateral
+    // guarda ancho = alto del mueble (lado de la veta); con rotate=si la
+    // veta puede cruzarse (la auditoría lo marca como error). Los laterales
+    // internos de cajón (ocultos) sí pueden ir libres.
     laterals.forEach((lat) => {
-      if (lat.rotate && lat.alto <= lat.ancho) {
-        warnings.push(`Módulo ${modId}: "${lat.nombre}" tiene rotate=si pero alto (${lat.alto} mm) ≤ ancho (${lat.ancho} mm). Se recomienda rotate=no para laterales.`);
+      if (inferRole(lat) === 'side_panel' && lat.rotate) {
+        warnings.push(`Módulo ${modId}: "${lat.nombre}" es costado con rotate=si: la veta vertical debe quedar bloqueada (rotate=no).`);
       }
     });
   });

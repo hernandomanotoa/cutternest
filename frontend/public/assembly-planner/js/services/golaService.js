@@ -238,13 +238,15 @@ function cascoDims(pieces, moduleId) {
   if (!tapa && !lateral) return null;
   const espesor = Number((tapa || lateral).espesor) || 15;
   const anchoModulo = tapa ? Number(tapa.ancho) || 0 : 0;
-  const altoModulo = lateral ? Number(lateral.alto) || 0 : 0;
+  // El CSV es despiece: el lateral guarda ancho = alto del mueble (lado de
+  // la veta) y alto = profundidad.
+  const altoModulo = lateral ? Number(lateral.ancho) || 0 : 0;
   if (!anchoModulo || !altoModulo) return null;
   // Profundidad del casco: el ALTO de la tapa (se modela ancho × prof) o, en
-  // su defecto, el ANCHO de un lateral (prof × alto). 0 = no derivable (p. ej.
-  // CSV sin tapa reconocible): validateGola omite entonces el chequeo de
-  // interferencia tira↔caja en el eje Y.
-  const profundidad = (tapa && Number(tapa.alto)) || (lateral && Number(lateral.ancho)) || 0;
+  // su defecto, el ALTO almacenado de un lateral (profundidad). 0 = no
+  // derivable (p. ej. CSV sin tapa reconocible): validateGola omite entonces
+  // el chequeo de interferencia tira↔caja en el eje Y.
+  const profundidad = (tapa && Number(tapa.alto)) || (lateral && Number(lateral.alto)) || 0;
   return {
     anchoModulo,
     altoModulo,

@@ -10,8 +10,8 @@ const HEADER = 'id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 // warnings de estructura que ensucien las aserciones de pandeo.
 const MODULE_CSV = [
   HEADER,
-  'lat-1,Lateral izquierdo,500,700,1,no,#FFFFFF,18,"T,B,L,R",m1,',
-  'lat-2,Lateral derecho,500,700,1,no,#FFFFFF,18,"T,B,L,R",m1,',
+  'lat-1,Lateral izquierdo,700,500,1,no,#FFFFFF,18,"T,B,L,R",m1,',
+  'lat-2,Lateral derecho,700,500,1,no,#FFFFFF,18,"T,B,L,R",m1,',
   'base-1,Base,600,500,1,no,#FFFFFF,18,"T,B",m1,',
   'tapa-1,Tapa,600,500,1,no,#FFFFFF,18,"T,B",m1,',
   'fondo-1,Fondo trasero,564,664,1,no,#FFFFFF,15,,m1,',

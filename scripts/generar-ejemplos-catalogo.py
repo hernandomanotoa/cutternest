@@ -48,8 +48,8 @@ class M:
         self.add('glb-zocalo-lateral-der', f'Lateral zocalo derecho {nombre}', p, alto, 1, 'no', C_BODY, TH_BODY, 'T,B,R', 'estructura')
     def laterales(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
-        self.add(f'{mod}-lateral-izq', f'Lateral izquierdo {n}', self.d, self.h, 1, 'no', C_BODY, TH_BODY, 'T,B,L', mod)
-        self.add(f'{mod}-lateral-der', f'Lateral derecho {n}', self.d, self.h, 1, 'no', C_BODY, TH_BODY, 'T,B,R', mod)
+        self.add(f'{mod}-lateral-izq', f'Lateral izquierdo {n}', self.h, self.d, 1, 'no', C_BODY, TH_BODY, 'T,B,L', mod)
+        self.add(f'{mod}-lateral-der', f'Lateral derecho {n}', self.h, self.d, 1, 'no', C_BODY, TH_BODY, 'T,B,R', mod)
     def fondo(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
         # Fondo de casco INTERNO (embutido): luz interior (w−2t × h−2t).
@@ -90,9 +90,9 @@ class M:
         interior = frente_w - 2 * ESP_LAT if volquete else round(vano_cajon - 25.4) - 2 * ESP_LAT
         nombre_tipo = ' abatible' if volquete else ''
         self.add(f'{mod}{sub}-frente', f'Frente cajon{nombre_tipo} {sub}', frente_w, frente_h, 1, 'no', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
-        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', interior, lat_h if not volquete else lat_h - ESP_BASE, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'si', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'si', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', interior, lat_h if not volquete else lat_h - ESP_BASE, 1, 'si', C_FONDO, TH_BODY, '', f'{mod}{sub}')
         if not volquete:
             self.add(f'{mod}{sub}-cara', f'Cara cajon {sub}', interior, lat_h, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         base_prof = prof_caj if volquete else prof_caj - 2 * ESP_LAT
