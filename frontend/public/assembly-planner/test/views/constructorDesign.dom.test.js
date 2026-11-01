@@ -184,6 +184,25 @@ test('diseño: clic en módulo del riel revela solo ese módulo y lo marca activ
   view.destroy();
 });
 
+test('diseño: la selección PERSISTE al re-montar la vista (volver de otra pestaña)', () => {
+  // Regresión: cambiar de pestaña destruye y recrea la vista; sin persistencia
+  // el módulo en edición "desaparecía" (placeholder) al volver al Constructor.
+  localStorage.removeItem('cn-constructor-selected-module');
+  const primera = mountView();
+  primera.container.querySelector('[data-action="add-module"]').click();
+  primera.container.querySelector('[data-action="rail-focus-module"][data-module="1"]').click();
+  assert.ok(!primera.container.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'));
+  primera.view.destroy();
+  // Segunda montada = "volver de la pestaña Isométrica": misma clave, vista nueva.
+  const segunda = mountView();
+  const card = segunda.container.querySelector('[data-module-scoped="1"]');
+  assert.ok(card, 'la tarjeta existe tras re-montar');
+  assert.ok(!card.classList.contains('cn-constructor__module--concealed'), 'el módulo seleccionado sigue visible (selección persistida)');
+  assert.ok(!segunda.container.querySelector('.cn-modulos-view__placeholder'), 'sin placeholder');
+  segunda.view.destroy();
+  localStorage.removeItem('cn-constructor-selected-module');
+});
+
 test('diseño: «+ Añadir» del riel vuelve a los Datos generales (limpia la selección)', () => {
   const { view, container } = mountView();
   container.querySelector('[data-action="add-module"]').click();

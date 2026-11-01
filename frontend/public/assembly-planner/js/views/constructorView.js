@@ -182,7 +182,19 @@ export function createConstructorView(store) {
   // el centro): solo se muestra el módulo seleccionado desde el riel (clic
   // en un módulo). '+ Añadir' del riel vuelve a los Datos generales (01).
   // null = sin selección (placeholder).
+  // La selección PERSISTE: cambiar de pestaña recrea la vista y sin esto el
+  // módulo en edición "desaparecía" al volver. Si el id no existe en el
+  // diseño actual, la guardia del render muestra el placeholder.
+  const SELECTED_MODULE_KEY = 'cn-constructor-selected-module';
   let selectedModuleId = null;
+  try { selectedModuleId = localStorage.getItem(SELECTED_MODULE_KEY) || null; } catch { /* sin storage */ }
+  function setSelectedModule(id) {
+    selectedModuleId = id == null ? null : String(id);
+    try {
+      if (selectedModuleId) localStorage.setItem(SELECTED_MODULE_KEY, selectedModuleId);
+      else localStorage.removeItem(SELECTED_MODULE_KEY);
+    } catch { /* sin storage */ }
+  }
   // Tour guiado del sistema gola (components/tour/driver.js): se ofrece con
   // store vacío y tour no visto; la vista decide cuándo lanzarlo.
   let tour = null;
@@ -691,7 +703,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
         // Selecciona el primer módulo creado: la sección 02 lo muestra (el
         // re-render del store ya ocurrió dentro de addModuleFromBuilder, con
         // la selección anterior: se re-renderiza para revelarlo).
-        selectedModuleId = r.moduleIds[0] ?? selectedModuleId;
+        if (r.moduleIds[0] != null) setSelectedModule(r.moduleIds[0]);
         render();
         toast(`${r.moduleIds.length} módulo(s) agregado(s)`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -776,7 +788,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     } else if (action === 'remove-module') {
       confirmable(btn, '¿Seguro?', () => {
         removeModule(btn.dataset.module);
-        if (String(selectedModuleId) === String(btn.dataset.module)) selectedModuleId = null;
+        if (String(selectedModuleId) === String(btn.dataset.module)) setSelectedModule(null);
         toast(`Módulo ${btn.dataset.module} eliminado`, { type: 'info' });
       });
     } else if (action === 'duplicate-module') {
@@ -996,7 +1008,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     } else if (action === 'rail-add-module') {
       // Riel izquierdo: "Añadir" muestra los Datos generales (01) para crear
       // el módulo (la sección 02 queda oculta hasta elegir un módulo).
-      selectedModuleId = null;
+      setSelectedModule(null);
       render();
       const target = container.querySelector('[data-cfg="ancho"]');
       target?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
@@ -1004,7 +1016,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     } else if (action === 'rail-focus-module') {
       // Riel izquierdo: clic en un módulo REVELA su tarjeta en la sección 02
       // (la única visible) y hace scroll hasta ella.
-      selectedModuleId = btn.dataset.module;
+      setSelectedModule(btn.dataset.module);
       moduleFoldState.set(String(btn.dataset.module), false);
       render();
       const card = container.querySelector(`[data-module-scoped="${CSS.escape(btn.dataset.module)}"]`);
