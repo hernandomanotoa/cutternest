@@ -60,7 +60,7 @@ const JUSTIFICACION = {
   collision: 'Detección de colisiones al abrir piezas móviles contra otras móviles o contra obstáculos fijos del sistema gola (collisionService.js).',
   riel: 'Holgura lateral del tipo de riel según catálogo (RAIL_TYPES, core/config.js), verificada por el validador estructural sin avisos para este tipo.',
   luz: `Regla de control estricto del taller (auditoría de despiece): la luz libre entre frentes consecutivos —el canal por donde entra la mano en la gola— debe ser ≥ ${LUZ_MIN_MANO_MM} mm; por debajo, los frentes obstruyen el agarre.`,
-  veta: 'Regla de control estricto del taller (auditoría de despiece): el sentido de la veta (rotate) se audita por función de la pieza para garantizar la continuidad estética del diseño de madera: frentes y golas con veta horizontal obligatoria, laterales/caras/fondos recomendados, bases libres.',
+  veta: 'Regla de control estricto del taller (auditoría de despiece): el sentido de la veta (rotate) se audita por función de la pieza según la tabla maestra cutOrientationService — piezas de vista (frentes, puertas, repisas, tapas, golas, costados, divisores) con veta obligatoria (error si rotan) y piezas ocultas (bases, internos de cajón, fondos, zócalos, amarres, barras) con rotate libre para ahorrar material.',
   colision: `Regla de control estricto del taller (auditoría de despiece): la estructura interna de la caja debe quedar ≥ ${COLISION_GOLA_MIN_MM} mm por debajo del frente; con menos holgura el cajón choca la gola al cerrar.`,
   audit: 'Consolidado de la auditoría: las validaciones existentes pasan limpias sobre las piezas actuales.',
 };
@@ -247,20 +247,20 @@ export function buildAuditReport(pieces, userConfig = {}, opts = {}) {
       filas.push({
         elemento: `${v.etiqueta} "${v.nombre}"`,
         seccion: v.rol === 'gola_strip' ? 'Gola' : 'Cajones',
-        estado: v.nivel === 'error' ? 'por-corregir' : 'pendiente',
+        estado: 'por-corregir',
         problema: v.mensaje,
-        correccion: `Cortar la pieza con rotate 'no' (veta ${v.etiqueta === 'Lateral' ? 'a lo largo de la profundidad' : 'horizontal a lo largo del ancho'}) y rehacer el despiece.`,
+        correccion: `Cortar la pieza con rotate 'no' (veta ${v.ladoVeta === 'alto' ? 'vertical a lo largo del alto' : 'horizontal a lo largo del ancho'}) y rehacer el despiece.`,
         justificacion: JUSTIFICACION.veta,
         fuente: 'despiece',
       });
     }
-    for (const b of veta.basesLibres) {
+    for (const b of veta.libres) {
       filas.push({
-        elemento: `M${b.modulo}: bases de cajón (×${b.cantidad})`,
+        elemento: `M${b.modulo}: ${b.etiqueta.toLowerCase()} (×${b.cantidad})`,
         seccion: 'Cajones',
         estado: 'validado',
         problema: b.mensaje,
-        correccion: 'Ninguna: el rotate de las bases es libre; el optimizador puede rotarlas para ahorrar material.',
+        correccion: 'Ninguna: el rotate de las piezas ocultas es libre; el optimizador puede rotarlas para ahorrar material.',
         justificacion: JUSTIFICACION.veta,
         fuente: 'despiece',
       });

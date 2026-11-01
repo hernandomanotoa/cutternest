@@ -79,7 +79,7 @@ describe('auditarLuzLibreGola — canal de la mano (mínimo 40 mm)', () => {
 });
 
 describe('auditarVeta — sentido de veta (rotate) por función', () => {
-  it('frente y gola con rotate: nivel error; lateral/cara/fondo: warning; base: info', () => {
+  it('frente y gola con rotate: nivel error; laterales/caras/fondos/bases: libres (info)', () => {
     const piezas = [
       { id: 'm1cajon1-frente', nombre: 'Frente cajon 1 M1', ancho: 818, alto: 197, rotate: true, modulo: '11' },
       { id: 'm1gola-c1-fondo', nombre: 'Fondo de canal Gola C 1', ancho: 788, alto: 50, rotate: true, modulo: '1' },
@@ -88,16 +88,15 @@ describe('auditarVeta — sentido de veta (rotate) por función', () => {
       { id: 'm1cajon1-fondo', nombre: 'Fondo cajon 1 M1', ancho: 735, alto: 167, rotate: true, modulo: '11' },
       { id: 'm1cajon1-base', nombre: 'Base cajon 1 M1', ancho: 765, alto: 515, rotate: true, modulo: '11' },
     ];
-    const { incumplimientos, basesLibres } = auditarVeta(piezas);
-    const porNivel = { error: [], warning: [] };
-    for (const i of incumplimientos) porNivel[i.nivel].push(i);
-    assert.equal(porNivel.error.length, 2, 'frente + gola');
-    assert.ok(porNivel.error.some((i) => i.rol === 'drawer_face' && /horizontal a lo largo del ancho/.test(i.mensaje)));
-    assert.ok(porNivel.error.some((i) => i.rol === 'gola_strip' && /visible en el fondo del canal/.test(i.mensaje)));
-    assert.equal(porNivel.warning.length, 3, 'lateral + cara + fondo');
-    assert.ok(porNivel.warning.some((i) => i.rol === 'drawer_side' && /de adelante hacia atrás/.test(i.mensaje)));
-    assert.equal(basesLibres.length, 1, 'una fila informativa por módulo');
-    assert.match(basesLibres[0].mensaje, /optimizador SÍ puede rotar la pieza para ahorrar material/);
+    const { incumplimientos, libres } = auditarVeta(piezas);
+    assert.equal(incumplimientos.length, 2, 'frente + gola');
+    assert.ok(incumplimientos.every((i) => i.nivel === 'error'));
+    assert.ok(incumplimientos.some((i) => i.rol === 'drawer_face' && /horizontal a lo largo del ancho/.test(i.mensaje)));
+    assert.ok(incumplimientos.some((i) => i.rol === 'gola_strip' && /visible en el fondo del canal/.test(i.mensaje)));
+    const rolesLibres = libres.map((l) => l.rol).sort();
+    assert.deepEqual(rolesLibres, ['drawer_back', 'drawer_bottom', 'drawer_part', 'drawer_side']);
+    assert.ok(libres.every((l) => /rotate libre permitido/.test(l.mensaje)));
+    assert.ok(libres.every((l) => /optimizador SÍ puede rotarlas para ahorrar material/.test(l.mensaje)));
   });
 
   it('piezas con rotate en regla → sin incumplimientos', () => {
@@ -107,9 +106,35 @@ describe('auditarVeta — sentido de veta (rotate) por función', () => {
       { id: 'm1cajon1-lateral-izq', nombre: 'Lateral cajon 1 M1', ancho: 545, alto: 167, rotate: false, modulo: '11' },
       { id: 'm1cajon1-base', nombre: 'Base cajon 1 M1', ancho: 765, alto: 515, rotate: true, modulo: '11' },
     ];
-    const { incumplimientos, basesLibres } = auditarVeta(piezas);
+    const { incumplimientos } = auditarVeta(piezas);
     assert.deepEqual(incumplimientos, []);
-    assert.equal(basesLibres.length, 1, 'la base rotate=si sigue siendo libre (info)');
+  });
+
+  it('piezas de vista verticales (costado, divisor) con rotate: error de veta vertical', () => {
+    const piezas = [
+      { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 600, alto: 2400, rotate: true, modulo: '1' },
+      { id: 'm1-divisor-1', nombre: 'Divisor 1 M1', ancho: 15, alto: 2000, rotate: true, modulo: '1' },
+      { id: 'm1-repisa-1', nombre: 'Repisa 1 M1', ancho: 800, alto: 400, rotate: true, modulo: '1' },
+      { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 850, alto: 600, rotate: true, modulo: '1' },
+    ];
+    const { incumplimientos } = auditarVeta(piezas);
+    assert.equal(incumplimientos.length, 4);
+    const porRol = Object.fromEntries(incumplimientos.map((i) => [i.rol, i]));
+    assert.match(porRol.side_panel.mensaje, /vertical a lo largo del alto/);
+    assert.match(porRol.divider.mensaje, /vertical a lo largo del alto/);
+    assert.match(porRol.shelf.mensaje, /horizontal a lo largo del ancho/);
+    assert.match(porRol.top_panel.mensaje, /horizontal a lo largo del ancho/);
+  });
+
+  it('Constructor: un cajón completo queda verde (frente bloqueado, caja libre)', () => {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
+    const cajon = addDrawer('1', 1, {
+      anchoModulo: 850, profundidadModulo: 600, altoVano: 250,
+      espesorModulo: 15, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3',
+    });
+    assert.ok(cajon.ok);
+    const { incumplimientos } = auditarVeta([...casco.pieces, ...cajon.pieces]);
+    assert.deepEqual(incumplimientos, []);
   });
 });
 

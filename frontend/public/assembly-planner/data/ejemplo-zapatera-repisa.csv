@@ -3,7 +3,7 @@
 # Módulo de clóset 800×1800×500 con 6 bandejas zapatera extraíbles en correderas telescópicas de extensión total. Cada bandeja: caja de 7 piezas (frente + 2 laterales + base + fondo + cara + divisor central, sin tirador).
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 m1-base,Base modulo M1,800,500,1,si,#8B5A2B,15,"T,B,L,R",1
-m1-tapa,Tapa modulo M1,800,500,1,si,#8B5A2B,15,"T,B,L,R",1
+m1-tapa,Tapa modulo M1,800,500,1,no,#8B5A2B,15,"T,B,L,R",1
 m1-lateral-izq,Lateral izquierdo M1,500,1800,1,no,#8B5A2B,15,"T,B,L",1
 m1-lateral-der,Lateral derecho M1,500,1800,1,no,#8B5A2B,15,"T,B,R",1
 m1-fondo,Fondo modulo M1,770,1770,1,no,#F2F2F2,15,"",1

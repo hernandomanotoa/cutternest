@@ -49,11 +49,13 @@ function buildHealthyModule() {
 }
 
 // Casco estándar de 600 mm de vano (mismo fixture que stackClearanceService.test.js).
+// La tapa es pieza de vista (veta horizontal, rotate 'no'); la base es oculta
+// (rotate libre).
 function casco(modulo = '1', alto = 600) {
   const m = String(modulo);
   return [
     { id: `m${m}-base`, nombre: `Base modulo M${m}`, ancho: 500, alto: 400, cantidad: 1, rotate: true, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
-    { id: `m${m}-tapa`, nombre: `Tapa modulo M${m}`, ancho: 500, alto: 400, cantidad: 1, rotate: true, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
+    { id: `m${m}-tapa`, nombre: `Tapa modulo M${m}`, ancho: 500, alto: 400, cantidad: 1, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
     { id: `m${m}-lat-izq`, nombre: `Lateral izquierdo M${m}`, ancho: 400, alto, cantidad: 1, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
     { id: `m${m}-lat-der`, nombre: `Lateral derecho M${m}`, ancho: 400, alto, cantidad: 1, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
   ];
@@ -80,12 +82,23 @@ test('módulo con gola aplicada → la auditoría estricta de despiece reporta v
     if (['m1cajon2-lateral-izq', 'm1cajon2-lateral-der', 'm1cajon2-cara', 'm1cajon2-fondo'].includes(p.id)) p.alto = 197;
   }
 
+  // Un frente y una pieza del canal mal despiezados (rotate 'si') deben
+  // detectarse como error de veta. El Constructor ya emite las piezas de
+  // vista con rotate 'no' (regresión: el módulo sano queda verde), así que
+  // se inyecta el incumplimiento a mano, como llegaría de un CSV legacy.
+  const frenteMalo = gola.pieces.find((p) => p.id === 'm1cajon1-frente');
+  assert.ok(frenteMalo, 'fixture con cajón 1');
+  frenteMalo.rotate = true;
+  const piezaGolaMala = gola.pieces.find((p) => p.id.includes('gola-c1'));
+  assert.ok(piezaGolaMala, 'fixture con canal gola');
+  piezaGolaMala.rotate = true;
+
   const reporte = buildAuditReport(gola.pieces, {});
 
-  // Reglas de control estricto: los frentes del Constructor llevan rotate
-  // 'si' (veta vertical → error de continuidad estética) y el cajón legacy
-  // de caja alta deja 30 mm bajo el frente (< 60 mm → colisión con la gola).
-  // El corte queda bloqueado hasta corregir.
+  // Reglas de control estricto: los frentes/gola con rotate 'si' son error
+  // de continuidad estética y el cajón legacy de caja alta deja 30 mm bajo
+  // el frente (< 60 mm → colisión con la gola). El corte queda bloqueado
+  // hasta corregir.
   assert.equal(reporte.corteAutorizado, false, 'errores de despiece → corte NO autorizado');
   const veta = reporte.rows.filter((f) => f.problema.includes("rotate 'si'"));
   assert.ok(veta.some((f) => f.estado === 'por-corregir' && /Frente/.test(f.problema)), 'frentes con rotate: error de veta');

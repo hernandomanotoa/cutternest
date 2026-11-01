@@ -7,16 +7,20 @@
 //      luz (pos_z del superior − techo del inferior − LABIO de 30 mm que
 //      cuelga del frente superior) debe ser ≥ 40 mm; si no, ERROR CRÍTICO
 //      DE BLOQUEO con los mm a restar de los frentes.
-//   2) Sentido de veta (rotate) por función de la pieza: frentes y golas
-//      rotate 'no' (obligatorio, continuidad estética horizontal); laterales,
-//      caras y fondos rotate 'no' (recomendado); bases rotate libre (el
-//      optimizador SÍ puede rotarlas para ahorrar material).
+//   2) Sentido de veta (rotate) por función de la pieza, derivado de la
+//      tabla maestra cutOrientationService: piezas de VISTA (frentes,
+//      puertas, repisas, tapas, golas, costados, divisores) con rotate 'no'
+//      (obligatorio, continuidad estética) — nivel 'error' si rotan; piezas
+//      OCULTAS/estructurales (bases, laterales internos, traseras, caras,
+//      fondos, zócalos, amarres, barras) con rotate libre — fila informativa
+//      por módulo y rol (el optimizador las rota para ahorrar material).
 //   3) Colisión gola: la estructura interna de la caja (laterales/caras)
 //      debe quedar al menos 60 mm por debajo del frente; si no, ERROR DE
 //      COLISIÓN (el cajón choca la gola al cerrar) con los mm de déficit.
 
 import { inferRole } from './classifierService.js';
 import { rootModuleIds } from './closetBuilderService.js';
+import { CLASE_VETA, VETA_POR_ROL } from './cutOrientationService.js';
 import { GOLA_LABIO_MM, GOLA_DEFAULTS } from './golaService.js';
 
 // Luz mínima del hueco de la mano: el dedo entra por el paso y necesita el
@@ -134,63 +138,93 @@ export function auditarLuzLibreGola(pieces, { luzMinMm = LUZ_MIN_MANO_MM } = {})
   return filas;
 }
 
-// Roles de veta estricta: nivel 'error' = obligatorio (continuidad estética
-// frontal), 'warning' = recomendado (interior), 'info' = rotate libre.
-const VETA_POR_ROL = {
-  drawer_face: { nivel: 'error', etiqueta: 'Frente', motivo: 'la veta debe correr estrictamente horizontal a lo largo del ancho para que coincida visualmente en todo el frente del mueble' },
-  door: { nivel: 'error', etiqueta: 'Puerta', motivo: 'la veta debe correr horizontal a lo largo del ancho del frente' },
-  front_panel: { nivel: 'error', etiqueta: 'Frente', motivo: 'la veta debe correr horizontal a lo largo del ancho del frente' },
-  gola_strip: { nivel: 'error', etiqueta: 'Gola', motivo: 'al ser pieza frontal visible en el fondo del canal, su veta debe correr horizontal a lo largo de su ancho, igual que los frentes' },
-  drawer_side: { nivel: 'warning', etiqueta: 'Lateral', motivo: 'la veta interna debe correr a lo largo de la profundidad para que, al abrir el cajón, la madera se vea natural de adelante hacia atrás' },
-  drawer_part: { nivel: 'warning', etiqueta: 'Cara', motivo: 'la veta debe correr horizontal a lo largo de su ancho' },
-  drawer_back: { nivel: 'warning', etiqueta: 'Fondo', motivo: 'la veta debe correr horizontal a lo largo de su ancho' },
+// Etiquetas y motivos por rol para los mensajes de veta. Las reglas (qué rol
+// es vista u oculta) viven en la tabla maestra cutOrientationService
+// (VETA_POR_ROL); aquí solo el texto. Motivo según el lado de la veta en la
+// orientación de mueble: 'ancho' = pieza horizontal, 'alto' = vertical.
+const ETIQUETA_POR_ROL = {
+  drawer_face: 'Frente',
+  door: 'Puerta',
+  front_panel: 'Frente',
+  gola_strip: 'Gola',
+  shelf: 'Repisa',
+  top_panel: 'Tapa',
+  drawer_divider: 'División',
+  side_panel: 'Lateral',
+  divider: 'Divisor',
 };
-const ROL_VETA_INFO = 'drawer_bottom'; // bases: rotate libre (ahorro de material)
+
+const ETIQUETA_LIBRE_POR_ROL = {
+  drawer_bottom: 'Bases de cajón',
+  drawer_side: 'Laterales internos de cajón',
+  drawer_back: 'Traseras de cajón',
+  drawer_part: 'Caras de cajón',
+  bottom_panel: 'Bases de módulo',
+  back_panel: 'Fondos de módulo',
+  plinth_side: 'Laterales de zócalo',
+  plinth_divider: 'Divisiones de zócalo',
+  brace: 'Amarres/refuerzos',
+  hanger_rail: 'Barras',
+  leg: 'Patas',
+};
+
+function motivoVeta(rol, ladoVeta) {
+  if (rol === 'gola_strip') {
+    return 'al ser pieza frontal visible en el fondo del canal, su veta debe correr horizontal a lo largo de su ancho, igual que los frentes';
+  }
+  if (ladoVeta === 'alto') {
+    return 'la veta debe correr vertical a lo largo del alto, en continuidad con los costados del mueble';
+  }
+  return 'la veta debe correr estrictamente horizontal a lo largo del ancho para que coincida visualmente en todo el frente del mueble';
+}
 
 /**
  * 2) Auditoría estricta del sentido de veta (rotate) por función.
  *
- * @returns {{incumplimientos: Array, basesLibres: Array}}
- *   incumplimientos: filas {id, nombre, rol, etiqueta, nivel: 'error'|
- *   'warning', ancho, alto, mensaje} de piezas con rotate cuando la regla
- *   pide 'no'. basesLibres: una fila informativa por módulo con bases de
- *   cajón (rotate permitido; el optimizador puede rotar para ahorrar).
+ * @returns {{incumplimientos: Array, libres: Array}}
+ *   incumplimientos: filas {id, nombre, rol, etiqueta, nivel: 'error',
+ *   ancho, alto, mensaje} de piezas DE VISTA con rotate (la regla pide 'no').
+ *   libres: una fila informativa por módulo y rol oculto
+ *   {modulo, rol, etiqueta, cantidad, ids, mensaje}.
  */
 export function auditarVeta(pieces) {
   const incumplimientos = [];
-  const basesPorRaiz = new Map();
+  const gruposLibres = new Map();
   for (const p of pieces || []) {
     const rol = inferRole(p);
-    if (rol === ROL_VETA_INFO) {
-      const raiz = raizDePieza(pieces, p.modulo);
-      if (!basesPorRaiz.has(raiz)) basesPorRaiz.set(raiz, []);
-      basesPorRaiz.get(raiz).push(p);
-      continue;
-    }
     const regla = VETA_POR_ROL[rol];
     if (!regla) continue;
-    // rotate: el shape del store lo normaliza a booleano (piece() del
-    // builder); desde CSV puede llegar como booleano o 'si'/'no'.
     const rotate = p.rotate === true || p.rotate === 'si' || p.rotate === 'sí';
+    if (regla.clase === CLASE_VETA.OCULTA) {
+      // Veta libre (pieza oculta): fila informativa agrupada por módulo+rol.
+      const raiz = raizDePieza(pieces, p.modulo);
+      const key = `${raiz}|${rol}`;
+      if (!gruposLibres.has(key)) gruposLibres.set(key, { modulo: raiz, rol, piezas: [] });
+      gruposLibres.get(key).piezas.push(p);
+      continue;
+    }
     if (!rotate) continue;
     incumplimientos.push({
       id: String(p.id),
       nombre: String(p.nombre || p.id),
       rol,
-      etiqueta: regla.etiqueta,
-      nivel: regla.nivel,
+      etiqueta: ETIQUETA_POR_ROL[rol] || 'Pieza',
+      ladoVeta: regla.ladoVeta,
+      nivel: 'error',
       ancho: Number(p.ancho) || 0,
       alto: Number(p.alto) || 0,
-      mensaje: `${regla.etiqueta} "${p.nombre || p.id}" (M${raizDePieza(pieces, p.modulo)}): rotate 'si' — ${regla.motivo}.`,
+      mensaje: `${ETIQUETA_POR_ROL[rol] || 'Pieza'} "${p.nombre || p.id}" (M${raizDePieza(pieces, p.modulo)}): rotate 'si' — ${motivoVeta(rol, regla.ladoVeta)}.`,
     });
   }
-  const basesLibres = [...basesPorRaiz.entries()].map(([raiz, bases]) => ({
-    modulo: raiz,
-    cantidad: bases.length,
-    ids: bases.map((b) => String(b.id)),
-    mensaje: `Bases de cajón M${raiz} (×${bases.length}): rotate libre permitido — al ir ocultas horizontalmente en el piso del cajón el sentido de la veta no importa; aquí el optimizador SÍ puede rotar la pieza para ahorrar material.`,
+  const libres = [...gruposLibres.entries()].map(([, g]) => ({
+    modulo: g.modulo,
+    rol: g.rol,
+    etiqueta: ETIQUETA_LIBRE_POR_ROL[g.rol] || 'Piezas ocultas',
+    cantidad: g.piezas.length,
+    ids: g.piezas.map((b) => String(b.id)),
+    mensaje: `${ETIQUETA_LIBRE_POR_ROL[g.rol] || 'Piezas ocultas'} M${g.modulo} (×${g.piezas.length}): rotate libre permitido — al ir ocultas el sentido de la veta no importa; el optimizador SÍ puede rotarlas para ahorrar material.`,
   }));
-  return { incumplimientos, basesLibres };
+  return { incumplimientos, libres };
 }
 
 /**

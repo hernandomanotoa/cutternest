@@ -45,7 +45,7 @@ function buildOverflowPieces() {
   const m = '1';
   const casco = [
     { id: `m${m}-base`, nombre: `Base modulo M${m}`, ancho: 500, alto: 400, cantidad: 1, rotate: true, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
-    { id: `m${m}-tapa`, nombre: `Tapa modulo M${m}`, ancho: 500, alto: 400, cantidad: 1, rotate: true, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
+    { id: `m${m}-tapa`, nombre: `Tapa modulo M${m}`, ancho: 500, alto: 400, cantidad: 1, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
     { id: `m${m}-lat-izq`, nombre: `Lateral izquierdo M${m}`, ancho: 400, alto: 600, cantidad: 1, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
     { id: `m${m}-lat-der`, nombre: `Lateral derecho M${m}`, ancho: 400, alto: 600, cantidad: 1, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: m, pos_z: null },
   ];

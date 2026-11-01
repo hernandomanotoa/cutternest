@@ -36,7 +36,7 @@ class M:
         # El módulo apoya sobre el zócalo-cajón global, no al piso (modelo
         # zócalo-cajón, mismo patrón que cascoZocaloCajon() del generador mjs).
         self.add(f'{mod}-base', f'Base {n}', self.w - 2 * TH_BODY, self.d - 2 * TH_BODY, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', mod)
-        self.add(f'{mod}-tapa', f'Tapa {n}', self.w, self.d, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', mod)
+        self.add(f'{mod}-tapa', f'Tapa {n}', self.w, self.d, 1, 'no', C_BODY, TH_TOP, 'T,B,L,R', mod)
     def zocalo_cajon(self, nombre, alto, n_modulos=1, prof=None):
         # Zócalo-cajón global: frente corrido (n×w) + laterales del cajón
         # (prof × alto del zócalo). Los módulos conservan su base interna
@@ -89,12 +89,12 @@ class M:
         vano_cajon = W if n_por_fila == 1 else frente_w + 2
         interior = frente_w - 2 * ESP_LAT if volquete else round(vano_cajon - 25.4) - 2 * ESP_LAT
         nombre_tipo = ' abatible' if volquete else ''
-        self.add(f'{mod}{sub}-frente', f'Frente cajon{nombre_tipo} {sub}', frente_w, frente_h, 1, 'si', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
+        self.add(f'{mod}{sub}-frente', f'Frente cajon{nombre_tipo} {sub}', frente_w, frente_h, 1, 'no', color, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-lateral-izq', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L', f'{mod}{sub}')
         self.add(f'{mod}{sub}-lateral-der', f'Lateral cajon {sub}', prof_caj, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-fondo', f'Fondo cajon {sub}', interior, lat_h if not volquete else lat_h - ESP_BASE, 1, 'no', C_FONDO, TH_BODY, '', f'{mod}{sub}')
         if not volquete:
-            self.add(f'{mod}{sub}-cara', f'Cara cajon {sub}', interior, lat_h, 1, 'no', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
+            self.add(f'{mod}{sub}-cara', f'Cara cajon {sub}', interior, lat_h, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         base_prof = prof_caj if volquete else prof_caj - 2 * ESP_LAT
         self.add(f'{mod}{sub}-base', f'Base cajon {sub}', interior, base_prof, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', f'{mod}{sub}')
         self.add(f'{mod}{sub}-tirador', f'Tirador cajon {sub}', 2, 20, 1, 'no', C_TIR, TH_TIR, '', f'{mod}{sub}')
@@ -131,19 +131,19 @@ m.add('m2-puerta', 'Puerta aparador', 460, 760, 1, 'no', C_DOOR, TH_DOOR, 'T,B,L
 m.add('m2-puerta-bisagra', 'Bisagra puerta aparador', 2, 20, 2, 'no', C_TIR, TH_TIR, '', 'm2')
 # Modulo 3: repisa central abierta
 m.box('m3', 'vitrina')
-m.add('m3-repisa-superior', 'Repisa superior vitrina', 500, 200, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm3')
-m.add('m3-repisa-inferior', 'Repisa inferior vitrina', 500, 200, 1, 'si', C_FRONT, TH_BODY, 'T,B,L,R', 'm3')
+m.add('m3-repisa-superior', 'Repisa superior vitrina', 500, 200, 1, 'no', C_FRONT, TH_BODY, 'T,B,L,R', 'm3')
+m.add('m3-repisa-inferior', 'Repisa inferior vitrina', 500, 200, 1, 'no', C_FRONT, TH_BODY, 'T,B,L,R', 'm3')
 m.add('m3-vidrio', 'Vidrio vitrina', 500, 500, 1, 'no', C_CRIS, 4, '', 'm3')
 write('Aparador', 'Aparador tipo buffet para salón o comedor: cajonera, puertas y vitrina central.', m.pieces, 'ejemplo-aparador.csv')
 
 # Estantería (estantería/librería abierta)
 m = M('estanteria', 900, 300, 1800)
 m.zocalo_cajon('estanteria', 80)
-m.add('glb-tapa', 'Tapa estanteria', 900, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
+m.add('glb-tapa', 'Tapa estanteria', 900, 40, 1, 'no', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior estanteria', 900, 1800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 for i in range(1, 5):
-    m.add(f'm1-repisa-{i}', f'Repisa {i} estanteria', 840, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+    m.add(f'm1-repisa-{i}', f'Repisa {i} estanteria', 840, 250, 1, 'no', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 write('Estantería', 'Estantería alta abierta para salón o estudio con 4 repisas ajustables.', m.pieces, 'ejemplo-estanteria.csv')
 
 # === COMEDOR ===
@@ -151,18 +151,18 @@ write('Estantería', 'Estantería alta abierta para salón o estudio con 4 repis
 # Vitrina (alta)
 m = M('vitrina', 800, 400, 2000)
 m.zocalo_cajon('vitrina', 100)
-m.add('glb-tapa', 'Tapa vitrina', 800, 40, 1, 'si', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
+m.add('glb-tapa', 'Tapa vitrina', 800, 40, 1, 'no', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-trasera', 'Panel posterior vitrina', 800, 2000, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 m.add('m1-puerta', 'Puerta superior vitrina', 360, 900, 1, 'no', C_DOOR, TH_DOOR, 'T,B,L,R', 'm1')
 m.add('m1-vidrio', 'Cristal puerta vitrina', 300, 700, 1, 'no', C_CRIS, 4, '', 'm1')
-m.add('m1-repisa-superior', 'Repisa superior vitrina', 740, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
-m.add('m1-repisa-inferior', 'Repisa inferior vitrina', 740, 250, 1, 'si', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+m.add('m1-repisa-superior', 'Repisa superior vitrina', 740, 250, 1, 'no', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
+m.add('m1-repisa-inferior', 'Repisa inferior vitrina', 740, 250, 1, 'no', C_FRONT, TH_DOOR, 'T,B,L,R', 'm1')
 write('Vitrina', 'Vitrina alta para salón o comedor con puerta de cristal.', m.pieces, 'ejemplo-vitrina.csv')
 
 # Mesa extensible (solo estructura/soporte)
 m = M('mesa', 1800, 900, 750)
-m.add('glb-tablero', 'Tablero mesa extensible', 1800, 900, 1, 'si', C_FRONT, TH_TOP, 'T,B,L,R', 'estructura')
+m.add('glb-tablero', 'Tablero mesa extensible', 1800, 900, 1, 'no', C_FRONT, TH_TOP, 'T,B,L,R', 'estructura')
 m.add('glb-pata-izq', 'Pata izquierda mesa', 100, 720, 1, 'no', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-pata-der', 'Pata derecha mesa', 100, 720, 1, 'no', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
 m.add('glb-travesano', 'Travesano mesa', 1600, 80, 1, 'si', C_BODY, TH_BODY, 'T,B,L,R', 'estructura')
