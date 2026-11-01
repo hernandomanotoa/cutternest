@@ -148,7 +148,8 @@ test('diseño: tarjeta de módulo agrupada en Contenido/Cajón/Zapatera/Módulo'
 
 test('diseño: sección 01 agrupada en Mueble / Nuevo módulo / Acciones', () => {
   const { view, container } = mountView();
-  const titles = [...container.querySelectorAll('.cn-form-section__title')].map((el) => el.textContent);
+  // Solo el nodo de texto del título (el de "Nuevo módulo" lleva un botón).
+  const titles = [...container.querySelectorAll('.cn-form-section__title')].map((el) => el.childNodes[0].textContent.trim());
   assert.deepEqual(titles, ['Mueble', 'Nuevo módulo', 'Acciones del mueble']);
   assert.ok(container.querySelector('[data-furniture-name]').closest('.cn-form-section').textContent.includes('Mueble'));
   assert.ok(container.querySelector('[data-cfg="ancho"]').closest('.cn-form-section').textContent.includes('Nuevo módulo'));
@@ -210,14 +211,20 @@ test('diseño: la selección PERSISTE al re-montar la vista (volver de otra pest
   localStorage.removeItem('cn-constructor-selected-module');
 });
 
-test('diseño: «+ Añadir» del riel vuelve a los Datos generales (limpia la selección)', () => {
+test('diseño: «+ Añadir» expande el grupo Nuevo módulo y mantiene la selección visible', () => {
   const { view, container } = mountView();
   container.querySelector('[data-action="add-module"]').click();
-  container.querySelector('[data-action="rail-focus-module"][data-module="1"]').click();
-  assert.ok(!container.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'));
+  // Tras agregar: el grupo "Nuevo módulo" queda colapsado.
+  const grupo = () => [...container.querySelectorAll('.cn-form-section')].find((g) => g.textContent.includes('Nuevo módulo'));
+  assert.ok(grupo().classList.contains('is-collapsed'), 'grupo Nuevo módulo colapsado tras agregar');
+  assert.ok(!container.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'), 'el módulo agregado se ve');
+  // «+ Añadir» del riel: expande el grupo y conserva la selección visible.
   container.querySelector('[data-action="rail-add-module"]').click();
-  assert.ok(container.querySelector('.cn-modulos-view__placeholder'), 'la sección 02 vuelve al placeholder');
-  assert.ok(container.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'), 'tarjetas ocultas de nuevo');
+  assert.ok(!grupo().classList.contains('is-collapsed'), '«+ Añadir» expande el grupo para el siguiente alta');
+  assert.ok(!container.querySelector('[data-module-scoped="1"]').classList.contains('cn-constructor__module--concealed'), 'el módulo en edición sigue visible');
+  // La chevron del grupo lo colapsa manualmente.
+  grupo().querySelector('[data-action="toggle-nuevo-modulo"]').click();
+  assert.ok(grupo().classList.contains('is-collapsed'), 'toggle manual colapsa de nuevo');
   view.destroy();
 });
 

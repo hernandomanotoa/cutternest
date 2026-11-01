@@ -185,6 +185,11 @@ export function createConstructorView(store) {
   // La selección PERSISTE: cambiar de pestaña recrea la vista y sin esto el
   // módulo en edición "desaparecía" al volver. Si el id no existe en el
   // diseño actual, la guardia del render muestra el placeholder.
+  // Grupo "Nuevo módulo" (01): tras agregar un módulo queda COLAPSADO y se
+  // mantiene así hasta pulsar «+ Añadir» del riel (que lo vuelve a expandir
+  // para el siguiente alta).
+  let nuevoModuloCollapsed = false;
+
   const SELECTED_MODULE_KEY = 'cn-constructor-selected-module';
   let selectedModuleId = null;
   try { selectedModuleId = localStorage.getItem(SELECTED_MODULE_KEY) || null; } catch { /* sin storage */ }
@@ -704,6 +709,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
         // re-render del store ya ocurrió dentro de addModuleFromBuilder, con
         // la selección anterior: se re-renderiza para revelarlo).
         if (r.moduleIds[0] != null) setSelectedModule(r.moduleIds[0]);
+        nuevoModuloCollapsed = true;
         render();
         toast(`${r.moduleIds.length} módulo(s) agregado(s)`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -1000,6 +1006,10 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       refresh();
     } else if (action === 'goto-view') {
       switchTab(btn.dataset.view);
+    } else if (action === 'toggle-nuevo-modulo') {
+      // Colapsar/expandir el grupo "Nuevo módulo" de Datos generales.
+      nuevoModuloCollapsed = !nuevoModuloCollapsed;
+      render();
     } else if (action === 'rail-toggle') {
       // Contraer/mostrar el riel izquierdo (persistido).
       railCollapsed = !railCollapsed;
@@ -1008,7 +1018,9 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     } else if (action === 'rail-add-module') {
       // Riel izquierdo: "Añadir" muestra los Datos generales (01) para crear
       // el módulo (la sección 02 queda oculta hasta elegir un módulo).
-      setSelectedModule(null);
+      // Expande el grupo "Nuevo módulo" (tras agregar quedó colapsado) y
+      // conserva la selección actual: el módulo en edición sigue visible.
+      nuevoModuloCollapsed = false;
       render();
       const target = container.querySelector('[data-cfg="ancho"]');
       target?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
@@ -1226,8 +1238,13 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
               </label>
             </div>
           </div>
-          <div class="cn-form-section">
-            <h4 class="cn-form-section__title">Nuevo módulo</h4>
+          <div class="cn-form-section${nuevoModuloCollapsed ? ' is-collapsed' : ''}">
+            <h4 class="cn-form-section__title">
+              Nuevo módulo
+              <button type="button" class="cn-form-section__toggle" data-action="toggle-nuevo-modulo"
+                aria-expanded="${nuevoModuloCollapsed ? 'false' : 'true'}"
+                title="${nuevoModuloCollapsed ? 'Expandir formulario de nuevo módulo' : 'Colapsar formulario de nuevo módulo'}">${nuevoModuloCollapsed ? '▸' : '▾'}</button>
+            </h4>
             <div class="cn-constructor__grid">
               <label class="form-group">Ancho total (mm)
                 <input type="number" data-cfg="ancho-total" placeholder="3400" min="100" step="10" />
@@ -1283,10 +1300,15 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
         <div class="card__body">
           ${groups.length === 0
             ? '<p class="empty-state">Todavía no hay módulos. Agrega el primero arriba.</p>'
-            : `${!selectedModuleId || !groups.some((g) => String(g.id) === String(selectedModuleId))
-              ? '<p class="empty-state cn-modulos-view__placeholder">Selecciona un módulo en la lista de la izquierda para verlo aquí, o pulsa «+ Añadir» para crear uno.</p>'
-              : ''}
-            ${groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {}, golaPreview, schemeMenuFor, String(g.id) === String(selectedModuleId))).join('')}`}
+            : (() => {
+              // Se revela el módulo seleccionado; si la selección es nula o
+              // quedó stale (otro diseño cargado), el PRIMER módulo se ve por
+              // defecto: agregar siempre muestra el módulo, nunca el placeholder.
+              const reveladaId = groups.some((g) => String(g.id) === String(selectedModuleId))
+                ? String(selectedModuleId)
+                : String(groups[0].id);
+              return groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {}, golaPreview, schemeMenuFor, String(g.id) === reveladaId)).join('');
+            })()}
         </div>
       </section>
       </div>

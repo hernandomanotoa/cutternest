@@ -2360,6 +2360,20 @@ input[type="search"]:focus-visible {
 .cn-constructor .cn-form-section .btn--primary {
   margin-top: 12px;
 }
+.cn-constructor .cn-form-section.is-collapsed > :not(.cn-form-section__title) { display: none; }
+.cn-constructor .cn-form-section__title { display: flex; align-items: center; gap: 8px; }
+.cn-constructor .cn-form-section__toggle {
+  border: 1px solid var(--cn-line);
+  border-radius: 5px;
+  background: var(--cn-panel-2);
+  color: var(--cn-text-3);
+  width: 22px;
+  height: 20px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cn-constructor .cn-form-section__toggle:hover { color: var(--cn-accent-hi); border-color: var(--cn-accent-deep); }
 .cn-constructor .cn-form-section__title {
   margin: 0 0 12px;
   font-size: 10.5px;
