@@ -174,6 +174,10 @@ export function createConstructorView(store) {
   // Fase esquema interactivo: módulo cuyo menú "+ añadir" del esquema está
   // abierto (null = ninguno).
   let schemeMenuFor = null;
+  // Riel izquierdo: contraíble (persistido); libera el área central.
+  let railCollapsed = false;
+  try { railCollapsed = localStorage.getItem('cn-rail-collapsed') === '1'; } catch { /* sin storage */ }
+
   // Vista de módulos: la sección 02 arranca OCULTA (ocupa mucho espacio en
   // el centro): solo se muestra el módulo seleccionado desde el riel (clic
   // en un módulo). '+ Añadir' del riel vuelve a los Datos generales (01).
@@ -944,6 +948,11 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       refresh();
     } else if (action === 'goto-view') {
       switchTab(btn.dataset.view);
+    } else if (action === 'rail-toggle') {
+      // Contraer/mostrar el riel izquierdo (persistido).
+      railCollapsed = !railCollapsed;
+      try { localStorage.setItem('cn-rail-collapsed', railCollapsed ? '1' : '0'); } catch { /* sin storage */ }
+      render();
     } else if (action === 'rail-add-module') {
       // Riel izquierdo: "Añadir" muestra los Datos generales (01) para crear
       // el módulo (la sección 02 queda oculta hasta elegir un módulo).
@@ -1023,10 +1032,11 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     // (cabecera + chips + esquema); el usuario expande las que edita.
     collapseDefault = groups.length > 3;
     container.innerHTML = `
-      <div class="cn-constructor">
+      <div class="cn-constructor${railCollapsed ? ' cn-rail-off' : ''}">
       ${pieces.length === 0 && hasAutosave() ? renderAutosaveBanner() : ''}
       <div class="cn-constructor__layout">
-      <aside class="cn-rail">
+      <aside class="cn-rail" style="position:relative;">
+        <button class="cn-rail-toggle" data-action="rail-toggle" title="${railCollapsed ? 'Mostrar panel de módulos' : 'Contraer panel de módulos'}" aria-label="${railCollapsed ? 'Mostrar panel de módulos' : 'Contraer panel de módulos'}">${railCollapsed ? '⇥' : '⇤'}</button>
         ${renderModuleRail(groups, pieces, selectedModuleId)}
         <section class="cn-rail__section">
           ${renderCustomTypesPanel()}
