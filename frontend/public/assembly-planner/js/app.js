@@ -1223,7 +1223,7 @@ function reapplyGolaPieces(modId, basePieces, cfg) {
     if (restored.ok) pieces = restored.pieces;
   }
   const result = applyGola(pieces, modId, cfg);
-  if (!result.ok) return { ok: false, errors: result.errors, warnings: result.warnings };
+  if (!result.ok) return { ok: false, errors: result.errors, warnings: result.warnings, fixes: result.fixes || [] };
   return { ok: true, pieces: result.pieces, meta: result.meta, warnings: result.warnings || [] };
 }
 
@@ -1239,7 +1239,7 @@ export function previewGola(moduleId) {
   const cfg = getGolaCfgForModule(modId);
 
   const dry = reapplyGolaPieces(modId, state.pieces, cfg);
-  if (!dry.ok) return { ok: false, errors: dry.errors, warnings: dry.warnings };
+  if (!dry.ok) return { ok: false, errors: dry.errors, warnings: dry.warnings, fixes: dry.fixes || [] };
 
   const alturasActuales = new Map(
     (state.pieces || []).map((p) => [String(p.id), Number(p.alto) || 0]),
@@ -1270,6 +1270,66 @@ export function previewGola(moduleId) {
     cuerpoPerfil: cfg.golaPerfilHeight,
   };
   return { ok: true, warnings: dry.warnings || [], plan };
+}
+
+// Aplica un fix de vano sugerido por applyGola y RE-INTENTA el gola en la
+// MISMA acción (un solo undo devuelve todo). Fixes soportados:
+// - 'subir-repisa': sube la repisa ancla (topRef) mm → crece el span.
+// - 'bajar-primer-cajon': baja los frentes de la primera unidad mm (hay aire
+//   real debajo, verificado por applyGola al proponerlo).
+// Devuelve { ok, gola } donde gola es el resultado del re-intento (ok o el
+// nuevo error con sus fixes actualizados).
+export function applyGolaFix(moduleId, fix) {
+  const modId = String(moduleId);
+  const mm = Math.max(1, Number(fix?.mm) || 0);
+  const store = getStore();
+  const state = store.get();
+  const unidades = drawerUnits(state.pieces, modId);
+  if (!unidades.length) return { ok: false, errors: [`El módulo ${modId} no tiene unidades`] };
+  let pieces = state.pieces;
+
+  if (fix.id === 'subir-repisa') {
+    // Repisa ancla: la shelf del módulo con menor pos_z por encima del techo
+    // de la pila (mismo criterio que topRefDe en golaService).
+    const techoUlt = Math.max(...unidades.flatMap((u) =>
+      u.frentes.map((f) => (Number(f.pos_z) || 0) + (Number(f.alto) || 0))));
+    const anclas = pieces
+      .filter((p) => inferRole(p) === 'shelf' && String(p.modulo) === modId
+        && Number.isFinite(Number(p.pos_z)) && Number(p.pos_z) >= techoUlt - 0.5)
+      .sort((a, b) => Number(a.pos_z) - Number(b.pos_z));
+    if (!anclas.length) return { ok: false, errors: [`Gola: el módulo ${modId} no tiene repisa que subir (añade una o usa otro ajuste).`] };
+    // Sube la repisa ancla Y sus refuerzos (misma pos_z: la estructura sube
+    // junta; si solo subiera una pieza, el topRef seguiría en la otra).
+    const anclaZ = Number(anclas[0].pos_z);
+    pieces = pieces.map((p) => (inferRole(p) === 'shelf' && String(p.modulo) === modId
+      && Math.abs((Number(p.pos_z) || 0) - anclaZ) <= 1
+      ? { ...p, pos_z: Math.round(((Number(p.pos_z) || 0) + mm) * 10) / 10 }
+      : p));
+  } else if (fix.id === 'bajar-primer-cajon') {
+    const primeros = new Set(unidades[0].frentes.map((f) => String(f.id)));
+    pieces = pieces.map((p) => (primeros.has(String(p.id))
+      ? { ...p, pos_z: Math.round(((Number(p.pos_z) || 0) - mm) * 10) / 10 }
+      : p));
+  } else {
+    return { ok: false, errors: [`Gola: fix no soportado (${fix?.id})`] };
+  }
+
+  snapshotUndo('Ajustar vano para gola');
+  // Re-intento del gola con el vano ajustado (misma acción).
+  const gola = applyGola(pieces, modId, getGolaCfgForModule(modId));
+  if (!gola.ok) {
+    // El ajuste se aplica igual (el usuario ve el nuevo error con sus fixes);
+    // el gola queda pendiente.
+    store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+    recalculateAll();
+    return { ok: true, gola: { ok: false, errors: gola.errors, fixes: gola.fixes || [] } };
+  }
+  store.set({ pieces: gola.pieces, dependencies: sugerirDependencias(gola.pieces) });
+  const golaMetas = loadGolaMetas();
+  golaMetas[modId] = gola.meta;
+  saveGolaMetas(golaMetas);
+  recalculateAll();
+  return { ok: true, gola: { ok: true } };
 }
 
 // Activa (o re-aplica con los cfg actuales) el sistema gola de un módulo.

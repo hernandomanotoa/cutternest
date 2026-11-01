@@ -451,9 +451,16 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     consejos.push(`suba la repisa +${deficit} mm (de ${Math.round(topRef)} a ≥ ${Math.round(topRef + deficit)})`);
     if (aireDebajo >= deficit) consejos.push(`baje el primer cajón ${deficit} mm (hay ${Math.round(aireDebajo)} mm libres debajo)`);
     consejos.push('reduzca cajones');
+    // Fixes APLICABLES (la UI los ofrece como botones que ajustan el vano y
+    // re-intentan el gola en la misma acción):
+    const fixes = [{ id: 'subir-repisa', label: `Subir la repisa +${deficit} mm`, mm: deficit }];
+    if (aireDebajo >= deficit) {
+      fixes.push({ id: 'bajar-primer-cajon', label: `Bajar el primer cajón −${deficit} mm`, mm: deficit });
+    }
     return {
       ok: false,
       errors: [`Gola: el vano no alcanza (span ${Math.round(H_new)} mm, ${N} unidad(es), gap gola ${G} mm${nota}; la pila con los frentes + labio mide ${Math.round(techoPila - bottom)} mm y faltan ${deficit} mm). ${consejos.join(' · ')}.`],
+      fixes,
     };
   }
 

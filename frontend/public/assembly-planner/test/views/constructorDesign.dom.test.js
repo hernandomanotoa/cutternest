@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 import { createStore, setStore } from '../../js/core/store.js';
 import { createConstructorView } from '../../js/views/constructorView.js';
+import { isGolaEnabled } from '../../js/services/golaService.js';
 import { createContainer, resetDocument } from './setup.mjs';
 
 beforeEach(() => {
@@ -280,6 +281,47 @@ test('diseño E7: el panel derecho agrega Materiales/Piezas/Alertas con datos de
   for (const id of ['pieces-list', 'materials-list', 'alerts-list']) {
     document.getElementById(id).remove();
   }
+});
+
+test('diseño: error de gola con fixes aplicables — «Subir la repisa» ajusta y activa el gola', () => {
+  const { store, view, container } = mountView();
+  // 3 cajones (vano 250) + repisa justo sobre la pila: el gola no cabe.
+  container.querySelector('[data-action="add-module"]').click();
+  for (let i = 0; i < 3; i++) {
+    const scoped = '[data-module-scoped="1"]';
+    // Tipo 'personalizado' para que mande el vano libre (el tipo del
+    // catálogo tiene prioridad sobre el input).
+    const tipo = container.querySelector(`${scoped} [data-tipo-drawer]`);
+    tipo.value = 'personalizado';
+    container.querySelector(`${scoped} [data-alto-vano]`).value = '250';
+    container.querySelector('[data-action="add-content"][data-kind="drawer"]').click();
+  }
+  container.querySelector('[data-action="add-content"][data-kind="shelf"]').click();
+  const repisaAntes = store.get().pieces.find((p) => String(p.id) === 'm1-repisa-1');
+  // Ancla la repisa justo sobre la pila (posición determinista, independiente
+  // de prefs acumuladas de otros tests): techo del último cajón + 2.5.
+  const frentes = store.get().pieces.filter((p) => String(p.id).endsWith('-frente'));
+  const techoPila = Math.max(...frentes.map((f) => Number(f.pos_z) + (Number(f.alto) || 0)));
+  repisaAntes.pos_z = Math.round((techoPila + 2.5) * 10) / 10;
+  const zAntes = Number(repisaAntes.pos_z);
+
+  container.querySelector('[data-action="toggle-gola"]').click();
+
+  // Panel de error con el fix aplicable en la tarjeta.
+  const panelError = container.querySelector('.cn-pref-group__gola-error');
+  assert.ok(panelError, 'panel de error con fixes visible');
+  const btnFix = panelError.querySelector('[data-action="apply-gola-fix"][data-fix-id="subir-repisa"]');
+  assert.ok(btnFix, 'botón «Subir la repisa» presente');
+  assert.match(btnFix.textContent, /Subir la repisa \+\d+ mm/);
+
+  btnFix.click();
+
+  // La repisa subió el déficit y el gola quedó activo.
+  const repisaDespues = store.get().pieces.find((p) => String(p.id) === String(repisaAntes.id));
+  assert.ok(Number(repisaDespues.pos_z) > zAntes, `repisa subida (${zAntes} → ${repisaDespues.pos_z})`);
+  assert.equal(isGolaEnabled(store.get().pieces, '1'), true, 'gola activada tras el ajuste');
+  assert.ok(!container.querySelector('.cn-pref-group__gola-error'), 'el panel de error se cierra al aplicar');
+  view.destroy();
 });
 
 test('diseño: validación de diseño con ítems por nivel', () => {

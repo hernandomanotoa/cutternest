@@ -260,6 +260,10 @@ describe('applyGola — último frente (gap habitual, sin canal L)', () => {
     assert.equal(r.ok, false);
     assert.ok(r.errors[0].includes('el vano no alcanza'), `error de vano: ${r.errors[0]}`);
     assert.ok(r.errors[0].includes('frentes + labio'), 'el error menciona el crecimiento del labio');
+    // FIXES APLICABLES: subir repisa siempre; bajar primer cajón solo con
+    // aire real debajo (aquí no hay: la pila arranca en el piso).
+    assert.deepEqual(r.fixes.map((f) => f.id), ['subir-repisa'], 'fix subir-repisa presente');
+    assert.equal(r.fixes[0].mm > 0, true, 'el fix trae los mm exactos');
     const frentes = frentesOrdenados(pieces);
     assert.ok(frentes.every((f) => f.alto === 197), 'frentes originales intactos');
   });

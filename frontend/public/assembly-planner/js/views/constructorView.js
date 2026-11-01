@@ -10,6 +10,7 @@ import { listVersions, suggestedVersionName, togglePinVersion } from '../service
 import { parseCSV, piecesToCSV } from '../services/csvParser.js';
 import { toast } from '../components/toast.js';
 import {
+  applyGolaFix,
   addModuleFromBuilder,
   addContentToModule,
   removeModule,
@@ -185,6 +186,11 @@ export function createConstructorView(store) {
   // La selección PERSISTE: cambiar de pestaña recrea la vista y sin esto el
   // módulo en edición "desaparecía" al volver. Si el id no existe en el
   // diseño actual, la guardia del render muestra el placeholder.
+  // Error de activación del gola con FIXES APLICABLES (subir repisa / bajar
+  // primer cajón): se muestra en la tarjeta con botones que ajustan el vano
+  // y re-intentan el gola (app.js applyGolaFix). null = sin error pendiente.
+  let golaError = null;
+
   // Grupo "Nuevo módulo" (01): tras agregar un módulo queda COLAPSADO y se
   // mantiene así hasta pulsar «+ Añadir» del riel (que lo vuelve a expandir
   // para el siguiente alta).
@@ -892,19 +898,23 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       // Activación: vista previa con confirmación (dry-run, no muta el store).
       const pv = previewGola(moduleId);
       if (!pv.ok) {
-        toast(pv.errors.join('; '), { type: 'error' });
+        golaError = { moduleId: String(moduleId), errors: pv.errors || [], fixes: pv.fixes || [] };
+        toast(pv.errors.join('; '), { type: 'error', durationMs: 8000 });
         golaPreview = null;
         render(); // revertir el checkbox (sigue apagado en el store)
         return;
       }
+      golaError = null;
       golaPreview = { moduleId, plan: pv.plan, warnings: pv.warnings };
       render();
     } else if (action === 'confirm-gola') {
       const moduleId = btn.dataset.module;
       golaPreview = null;
+      golaError = null;
       const r = enableGola(moduleId);
       if (!r.ok) {
-        toast(r.errors.join('; '), { type: 'error' });
+        golaError = { moduleId: String(moduleId), errors: r.errors || [], fixes: r.fixes || [] };
+        toast(r.errors.join('; '), { type: 'error', durationMs: 8000 });
         render();
         return;
       }
@@ -913,6 +923,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     } else if (action === 'cancel-gola') {
       // El dry-run nunca tocó el store: basta re-render para volver a off.
       golaPreview = null;
+      golaError = null;
       render();
     } else if (action === 'clear-all') {
       confirmable(btn, '¿Borrar TODO?', () => {
@@ -1006,6 +1017,23 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       refresh();
     } else if (action === 'goto-view') {
       switchTab(btn.dataset.view);
+    } else if (action === 'apply-gola-fix') {
+      // Aplica el ajuste de vano sugerido (subir repisa / bajar primer
+      // cajón) y re-intenta el gola en la misma acción (un solo undo).
+      const mod = String(btn.dataset.module);
+      const r = applyGolaFix(mod, { id: btn.dataset.fixId, mm: Number(btn.dataset.fixMm) || 0 });
+      if (!r.ok) {
+        toast(r.errors.join('; '), { type: 'error' });
+        return;
+      }
+      if (r.gola.ok) {
+        golaError = null;
+        toast('Vano ajustado y gola aplicada ✓', { type: 'success' });
+      } else {
+        golaError = { moduleId: mod, errors: r.gola.errors || [], fixes: r.gola.fixes || [] };
+        toast('Vano ajustado; el gola aún no cabe — nuevas opciones en la tarjeta', { type: 'info', durationMs: 6000 });
+      }
+      render();
     } else if (action === 'toggle-nuevo-modulo') {
       // Colapsar/expandir el grupo "Nuevo módulo" de Datos generales.
       nuevoModuloCollapsed = !nuevoModuloCollapsed;
@@ -1307,7 +1335,11 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
               const reveladaId = groups.some((g) => String(g.id) === String(selectedModuleId))
                 ? String(selectedModuleId)
                 : String(groups[0].id);
-              return groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {}, golaPreview, schemeMenuFor, String(g.id) === reveladaId)).join('');
+              return groups.map((g) => renderModuleCard(
+                g, pieces, state.userConfig || {}, golaPreview, schemeMenuFor,
+                String(g.id) === reveladaId,
+                golaError && String(golaError.moduleId) === String(g.id) ? golaError : null,
+              )).join('');
             })()}
         </div>
       </section>
@@ -1568,7 +1600,7 @@ function toggleCamposZapatera(scoped, modo) {
   });
 }
 
-function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, schemeMenuFor = null, revelada = true) {
+function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, schemeMenuFor = null, revelada = true, golaErrorFor = null) {
   // Preferencias persistidas del formulario de contenido (se reutilizan al
   // crear cada módulo): vano, tipos, división, riel y N por fila.
   const prefVano = Number(cfg.contentVano) || 200;
@@ -1691,6 +1723,13 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
               <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn || golaPreviewHere ? 'checked' : ''} />
               <span class="cn-toggle__text"><span class="cn-toggle__label">Gola</span></span>
             </label>` : ''}
+            ${golaErrorFor ? `
+            <div class="cn-pref-group__gola-error">
+              <p class="cn-gola-error__msg">⚠ ${golaErrorFor.errors.map((e2) => escapeHtml(e2)).join(' ')}</p>
+              <div class="cn-gola-error__fixes">
+                ${golaErrorFor.fixes.map((f) => `<button type="button" class="btn btn--primary btn--sm" data-action="apply-gola-fix" data-module="${escapeHtml(moduleId)}" data-fix-id="${escapeHtml(f.id)}" data-fix-mm="${Number(f.mm) || 0}">${escapeHtml(f.label)}</button>`).join('')}
+              </div>
+            </div>` : ''}
             <div class="cn-constructor__content-btns cn-pref-group__actions">
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
