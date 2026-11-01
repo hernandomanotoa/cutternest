@@ -150,6 +150,21 @@ describe('buildDrawerBoxGeometries', () => {
     assert.equal(cara.real, true);
   });
 
+  it('frente con gola (caja + 60): voladizo centrado 30/30 respecto de la caja', () => {
+    // Frente 230 (caja 170 + 60: 2·E + labio de 30): la caja queda con
+    // 30 mm de frente volado arriba y 30 abajo (centrada, no pegada abajo).
+    const frenteGola = { ...FACE, alto: 230 };
+    const parts = matchDrawerBoxParts(frenteGola, [LAT_IZQ, LAT_DER, BASE, FONDO, CARA]);
+    const box = buildDrawerBoxGeometries({ parts, ...PLACE, h: 230 });
+    const lat = box.find((g) => g.id === 'm1-cajon-lat-izq');
+    assert.equal(lat.z, PLACE.z + 30, 'caja centrada: z = z + (230−170)/2');
+    const cara = box.find((g) => g.id === 'm1-cajon-cara');
+    assert.equal(cara.z, PLACE.z + 30, 'cara centrada con la caja');
+    assert.equal(cara.z + cara.h, PLACE.z + 30 + 170, 'techo de la cara');
+    assert.equal(PLACE.z + 230 - (cara.z + cara.h), 30, '30 mm de frente volado ARRIBA de la cara');
+    assert.equal(cara.z - PLACE.z, 30, '30 mm de frente volado ABAJO de la cara (labio)');
+  });
+
   it('riel oculta: modo catálogo — laterales retranqueados, base = vano − 42, rebajo inferior y alto capado', () => {
     const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, FONDO, CARA]);
     const box = buildDrawerBoxGeometries({ parts, ...PLACE, railType: 'oculta' });

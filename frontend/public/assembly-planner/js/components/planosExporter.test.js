@@ -58,8 +58,8 @@ describe('buildPlanosData', () => {
     assert.equal(planos.secciones.length, 1);
     const c = planos.secciones.find((s) => s.tipo === 'C');
     assert.match(c.svg, /Canal C 1/);
-    assert.match(c.svg, /Abertura útil 20 mm/);
-    assert.match(c.svg, /Retranqueo 10/);
+    assert.match(c.svg, /Abertura útil 44 mm/);
+    assert.match(c.svg, /Retranqueo 60/);
     assert.ok(!planos.secciones.some((s) => s.tipo === 'L'), 'sin sección L');
     assert.match(c.planTxt, /3\.5×16/);
     assert.equal(planos.advertencias.length, 0);
@@ -73,8 +73,8 @@ describe('buildPlanosHtml', () => {
     assert.match(html, /Alzado frontal — Módulo 1 \(800 × 1600 mm\)/);
     assert.match(html, /Sección transversal — Canal C 1/);
     assert.doesNotMatch(html, /Canal L/);
-    assert.match(html, /Retranqueo 10 mm/);
-    assert.match(html, /Abertura útil 20 mm/);
+    assert.match(html, /Retranqueo 60 mm/);
+    assert.match(html, /Abertura útil 44 mm/);
     assert.match(html, /Paso 3 mm/);
     assert.match(html, /<strong>Fijación:<\/strong>/);
   });

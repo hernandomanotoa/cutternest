@@ -24,16 +24,21 @@ import {
   GOLA_BROCA_FIJACION,
   GOLA_DEFAULTS,
   GOLA_PESTANA_ALTO_MM,
+  GOLA_LABIO_MM,
 } from './golaService.js';
 import { GOLA_PERFIL_TALLER } from '../core/config.js';
 import { calculateHardware } from './hardware.js';
+import { validateShoeClearance } from './shoeClearanceService.js';
 import { IsometricRenderer } from '../components/renderers/isometricRenderer.js';
 
 const ANCHO = 800;
 const ALTO = 1600;
 const PROF = 500;
 const ESP = 15;
-const VANO = 200; // frente 197, lateral de caja 167 (addDrawer: frente − 2·15)
+const VANO = 200; // frente 197 (caja 167). Con gola: frente 227 (197+30 de
+// labio; frente = cara + 60). La gola TAPA el espacio: gap visible = la
+// entrada de dedos (golaEntradaMm, default 20) y las alas viven detrás de
+// los frentes, casi topando las caras. Canales SOLO entre cajones.
 const DRAWER_FRONT_GAP = 2.5;
 const INTERIOR = ANCHO - 2 * ESP; // 770
 const TECHO_INTERIOR = ALTO - ESP; // 1585
@@ -117,7 +122,9 @@ describe('getGolaCfg', () => {
 describe('applyGola — tiras entre frentes (N = 2..5)', () => {
   for (const n of [2, 3, 4, 5]) {
     it(`N=${n}: exactamente N−1 tiras con ids m1-gola-{i}, sobre el techo del frente inferior y agarre hacia arriba`, () => {
-      const pieces = buildModule(n);
+      const pieces = buildModule(n, {
+        repisaZ: ESP + 10 + n * 227 + (n - 1) * GOLA_DEFAULTS.golaEntradaMm + DRAWER_FRONT_GAP + 100,
+      });
       const r = applyGola(pieces, '1', {});
       assert.ok(r.ok, r.errors?.join('; '));
       assert.equal(isGolaEnabled(r.pieces, '1'), true);
@@ -131,13 +138,24 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
         assert.equal(tira.id, `m1gola-c${i + 1}-fondo`);
         const inferior = frentes[i]; // unidad i (más abajo)
         const superior = frentes[i + 1];
-        // pos_z = techo del frente inferior + paso inferior
-        assert.ok(Math.abs(tira.pos_z - (inferior.pos_z + inferior.alto + GOLA_DEFAULTS.golaPaso)) <= 0.5,
-          `tira ${i + 1}: pos_z ${tira.pos_z} = techo inferior + paso ${inferior.pos_z + inferior.alto + GOLA_DEFAULTS.golaPaso}`);
-        // Canal centrado: paso + perfil + paso = borde inferior del frente superior.
-        assert.ok(Math.abs(tira.pos_z + tira.alto + GOLA_DEFAULTS.golaPaso - superior.pos_z) <= 0.5,
-          `tira ${i + 1}: paso superior ${GOLA_DEFAULTS.golaPaso} bajo el frente superior`);
-        assert.equal(tira.alto, GOLA_DEFAULTS.golaPerfilHeight, 'alto de tira = cuerpo del perfil C');
+        const techoInf = inferior.pos_z + inferior.alto;
+        // La gola tapa el espacio DETRÁS de los frentes: el fondo va desde el
+        // ala inf (tras el frente inferior, casi topando su cara) hasta el ala
+        // sup (tras el frente superior).
+        const alaInf = r.pieces.find((p) => p.id === `m1gola-c${i + 1}-ala-inf`);
+        const alaSup = r.pieces.find((p) => p.id === `m1gola-c${i + 1}-ala-sup`);
+        assert.ok(Math.abs(alaInf.pos_z - (techoInf - GOLA_LABIO_MM + GOLA_DEFAULTS.golaPaso)) <= 0.5,
+          `ala inf ${i + 1}: tras el frente inferior, casi topando su cara`);
+        assert.ok(Math.abs(alaSup.pos_z + 15 - (superior.pos_z + GOLA_LABIO_MM - GOLA_DEFAULTS.golaPaso)) <= 0.5,
+          `ala sup ${i + 1}: tras el frente superior, casi topando su cara (techo = cara del superior − paso)`);
+        // Gap visible = la entrada de dedos: la gola cubre todo lo demás.
+        assert.ok(Math.abs(superior.pos_z - (techoInf + GOLA_DEFAULTS.golaEntradaMm)) <= 0.5,
+          `gap visible frente ${i + 1}↔${i + 2} = entrada de dedos`);
+        // El fondo conecta las alas (C cerrada).
+        assert.ok(Math.abs(tira.pos_z - alaInf.pos_z) <= 0.5, 'fondo arranca con el ala inf');
+        assert.ok(Math.abs(tira.pos_z + tira.alto - (alaSup.pos_z + 15)) <= 0.5, 'fondo termina con el ala sup');
+        assert.equal(tira.alto, GOLA_DEFAULTS.golaEntradaMm + 2 * GOLA_LABIO_MM - 2 * GOLA_DEFAULTS.golaPaso,
+          'cuerpo = entrada + 2·labio − 2·paso (la zona que tapa)');
         assert.equal(tira.modulo, '1');
         assert.equal(tira.espesor, 15);
         assert.equal(tira.cantidad, 1);
@@ -146,35 +164,36 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
       });
     });
 
-    it(`N=${n}: coherencia del reparto (Σaᵢ' + (N−1)·G = H_new ±2, monótono, sin solapes, cubre caja)`, () => {
-      // Repisa 150 mm sobre la pila: los frentes redistribuidos cubren sus
-      // cajas (≥ lateral + 10) y el último frente queda a drawerFrontGap de
-      // la repisa (sin canal L).
-      const techoUlt = ESP + 10 + n * 197 + (n - 1) * DRAWER_FRONT_GAP;
-      const pieces = buildModule(n, { repisaZ: techoUlt + 150 });
-      const repisaZ = pieces.find((p) => p.id === 'm1-repisa-1').pos_z;
+    it(`N=${n}: coherencia del reparto (frentes = caja + 30 sin reducir, aire libre arriba, monótono, sin solapes)`, () => {
+      // Repisa 150 mm sobre la pila (gap visible = entrada de dedos: la gola
+      // cubre el espacio detrás de los frentes): los frentes crecen +30
+      // (labio) de 197 a 227 y el aire sobra LIBRE sobre el último frente.
+      const G = GOLA_DEFAULTS.golaEntradaMm;
       const bottom = ESP + 10;
-      // Gap entre frentes = paso + perfil + paso (canal centrado).
-      const G = GOLA_DEFAULTS.golaPaso + GOLA_DEFAULTS.golaPerfilHeight + GOLA_DEFAULTS.golaPaso;
+      const techoPila = bottom + n * 227 + (n - 1) * G;
+      const pieces = buildModule(n, { repisaZ: techoPila + DRAWER_FRONT_GAP + 150 });
+      const repisaZ = pieces.find((p) => p.id === 'm1-repisa-1').pos_z;
       const H_new = repisaZ - DRAWER_FRONT_GAP - bottom;
 
       const r = applyGola(pieces, '1', {});
       assert.ok(r.ok, r.errors?.join('; '));
       const frentes = frentesOrdenados(r.pieces);
 
+      // Frentes crecidos +30 (197 → 227): el labio que cuelga sobre el canal.
+      for (const f of frentes) {
+        assert.equal(f.alto, 227, `frente ${f.id} = 197 + 30 (labio)`);
+      }
+      // La pila no excede el span y el aire sobra arriba.
       const suma = frentes.reduce((s, f) => s + f.alto, 0) + (n - 1) * G;
-      assert.ok(Math.abs(suma - H_new) <= 2, `Σ ${suma} ≈ H_new ${H_new}`);
+      assert.ok(suma <= H_new + 0.5, `Σ ${suma} ≤ H_new ${H_new} (aire libre arriba)`);
+      assert.ok(H_new - suma > 100, 'sobra aire sobre el último frente');
       for (let i = 1; i < n; i++) {
         assert.ok(frentes[i].pos_z > frentes[i - 1].pos_z, 'pos_z monótono creciente');
       }
-      // Sin solapes frente↔tira y cada frente cubre su caja (lateral 167 + 10)
-      const tiras = tirasDe(r.pieces);
+      // Las tiras viven DETRÁS de los frentes (la gola tapa el espacio):
+      // el solape en Z es el diseño, no un error. Cada frente cubre su caja.
       for (const f of frentes) {
-        assert.ok(f.alto >= 167 + 10, `frente ${f.alto} mm cubre su caja`);
-        for (const t of tiras) {
-          const solapa = t.pos_z < f.pos_z + f.alto - 0.5 && f.pos_z < t.pos_z + t.alto - 0.5;
-          assert.ok(!solapa, `sin solape ${f.id} ↔ ${t.id}`);
-        }
+        assert.ok(f.alto >= 167 + 30, `frente ${f.alto} mm cubre su caja + labio`);
       }
       const validacion = validateGola(r.pieces, '1', {});
       assert.deepEqual(validacion.errors, [], 'validateGola sin errores');
@@ -183,14 +202,18 @@ describe('applyGola — tiras entre frentes (N = 2..5)', () => {
 });
 
 describe('applyGola — último frente (gap habitual, sin canal L)', () => {
-  it('con repisa: el techo del último frente queda a drawerFrontGap bajo la repisa', () => {
+  it('con repisa: frentes +30 (labio) y el aire sobra libre bajo la repisa', () => {
     const pieces = buildModule(3, { repisaZ: 900 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     const frentes = frentesOrdenados(r.pieces);
+    // Pila: 25 + 3·227 + 2·20 = 746 → techo 746; el aire libre vive sobre
+    // el último frente.
     const ultimo = frentes[frentes.length - 1];
-    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - (900 - DRAWER_FRONT_GAP)) <= 1,
-      `techo ${ultimo.pos_z + ultimo.alto} = repisa − drawerFrontGap (${900 - DRAWER_FRONT_GAP})`);
+    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - 746) <= 1,
+      `techo de la pila ${ultimo.pos_z + ultimo.alto} = 746 (aire libre hasta la repisa)`);
+    assert.ok(r.warnings.some((w) => w.includes('libres sobre el último frente')),
+      `aviso de aire libre: ${r.warnings.join(' | ')}`);
     // La caja no cambia: el lateral del cajón sigue en 167 mm.
     const lateral = r.pieces.find((p) => p.id === 'm1cajon3-lateral-izq');
     assert.equal(lateral.alto, 167);
@@ -198,43 +221,75 @@ describe('applyGola — último frente (gap habitual, sin canal L)', () => {
     assert.ok(!r.pieces.some((p) => /gola-l\d*-/.test(String(p.id))), 'sin ids gola-l*');
   });
 
-  it('sin repisa: el techo del último frente queda a drawerFrontGap bajo el techo interior del casco', () => {
+  it('sin repisa: la pila queda a caja + 30 con aire libre bajo el techo interior', () => {
     const pieces = buildModule(2, { conRepisa: false, alto: 600 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     const frentes = frentesOrdenados(r.pieces);
     const ultimo = frentes[frentes.length - 1];
     const techoInterior = 600 - ESP;
-    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - (techoInterior - DRAWER_FRONT_GAP)) <= 1,
-      `techo ${ultimo.pos_z + ultimo.alto} = techo interior − drawerFrontGap (${techoInterior - DRAWER_FRONT_GAP})`);
+    // Pila: 25 + 227 + 20 + 227 = 499 < 585 − 2.5: aire libre arriba.
+    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - 499) <= 1,
+      `techo de la pila ${ultimo.pos_z + ultimo.alto} = 499`);
+    assert.ok(ultimo.pos_z + ultimo.alto < techoInterior - DRAWER_FRONT_GAP,
+      'aire libre entre la pila y el techo interior');
   });
 
-  it('sin cap: cajón único alto, el frente rellena todo el span sin warning de sobrealtura', () => {
-    // 1 cajón sin repisa: el frente crece hasta topRef − drawerFrontGap (el
-    // golaMaxOverhang del modelo con canal L ya no aplica; no hay extensión
-    // especial del último frente).
+  it('sin cap: cajón único, el frente queda a caja + 30 y el aire libre sobre él', () => {
+    // 1 cajón sin repisa: el frente NO rellena el span (regla: nunca reducir
+    // ni estirar más allá de caja + 30); sobra aire bajo el techo interior.
     const pieces = buildModule(1, { conRepisa: false });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     const frente = frentesOrdenados(r.pieces)[0];
+    assert.equal(frente.alto, 227, 'frente 197 + 30 (labio)');
     const techoInterior = ALTO - ESP;
-    assert.ok(Math.abs(frente.pos_z + frente.alto - (techoInterior - DRAWER_FRONT_GAP)) <= 1,
-      'el frente rellena el span hasta el techo interior − drawerFrontGap');
-    assert.ok(!r.warnings.some((w) => w.includes('cap') || w.includes('limitó')),
-      `sin warning de cap: ${r.warnings.join(' | ')}`);
+    assert.ok(frente.pos_z + frente.alto < techoInterior - DRAWER_FRONT_GAP,
+      'aire libre entre el frente y el techo interior');
+    assert.ok(r.warnings.some((w) => w.includes('libres sobre el último frente')),
+      'aviso de aire libre');
     assert.equal(tirasDe(r.pieces).length, 0, 'un cajón no lleva tiras');
     assert.equal(isGolaEnabled(r.pieces, '1'), false, 'sin canales, el módulo no queda "con gola"');
   });
 
-  it('aviso cuando los frentes se reducen respecto de su alto original', () => {
-    // Repisa baja: los frentes deben achicarse (pero sin perder la caja).
+  it('los frentes NUNCA se reducen: con repisa baja da error de vano con consejos', () => {
+    // Repisa baja: antes los frentes se achicaban; ahora la regla es "caja +
+    // 30, sin reducir" → error con consejos (subir repisa / bajar cajón...).
     const pieces = buildModule(3, { repisaZ: 690 });
     const r = applyGola(pieces, '1', {});
+    assert.equal(r.ok, false);
+    assert.ok(r.errors[0].includes('el vano no alcanza'), `error de vano: ${r.errors[0]}`);
+    assert.ok(r.errors[0].includes('frentes + labio'), 'el error menciona el crecimiento del labio');
+    const frentes = frentesOrdenados(pieces);
+    assert.ok(frentes.every((f) => f.alto === 197), 'frentes originales intactos');
+  });
+});
+
+describe('golaLabioMm configurable', () => {
+  it('labio 40: los frentes crecen +40 (era +30) y el crecimiento estándar no avisa', () => {
+    const pieces = buildModule(3, {
+      repisaZ: ESP + 10 + 3 * (197 + 40) + 2 * GOLA_DEFAULTS.golaEntradaMm + DRAWER_FRONT_GAP + 100,
+    });
+    const r = applyGola(pieces, '1', { golaLabioMm: 40 });
     assert.ok(r.ok, r.errors?.join('; '));
-    assert.ok(r.warnings.some((w) => w.includes('reducido')),
-      `warning de reducción presente: ${r.warnings.join(' | ')}`);
-    const frentes = frentesOrdenados(r.pieces);
-    assert.ok(frentes.every((f) => f.alto < 197 && f.alto >= 167 + 10), 'frentes reducidos pero cubriendo caja');
+    for (const f of frentesOrdenados(r.pieces)) {
+      assert.equal(f.alto, 237, 'frente = 197 + 40 (labio configurable)');
+    }
+    assert.ok(
+      !r.warnings.some((w) => /creció a/.test(w)),
+      'el crecimiento estándar del labio no genera aviso (la vista previa ya lo anuncia)',
+    );
+  });
+
+  it('sin configurar, el labio default es 30 (compatibilidad)', () => {
+    const pieces = buildModule(2, {
+      repisaZ: ESP + 10 + 2 * 227 + GOLA_DEFAULTS.golaEntradaMm + DRAWER_FRONT_GAP + 100,
+    });
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    for (const f of frentesOrdenados(r.pieces)) {
+      assert.equal(f.alto, 227, 'frente = 197 + 30 (default)');
+    }
   });
 });
 
@@ -269,7 +324,7 @@ describe('tiradores', () => {
 
 describe('round-trip enable → disable', () => {
   it('con meta: restaura alturas y pos_z originales exactos (±1 mm)', () => {
-    const pieces = buildModule(4, { repisaZ: 1000 });
+    const pieces = buildModule(4, { repisaZ: 1250 });
     const originales = new Map(frentesOrdenados(pieces).map((f) => [f.id, { alto: f.alto, pos_z: f.pos_z }]));
 
     const r = applyGola(pieces, '1', {});
@@ -314,7 +369,7 @@ describe('round-trip enable → disable', () => {
 
 describe('BOM (calculateHardware)', () => {
   it('lista perfiles gola agrupados por largo y tornillos del plan ((N−1) fondos × por lado × 2 caras)', () => {
-    const pieces = buildModule(4, { repisaZ: 1100 });
+    const pieces = buildModule(4, { repisaZ: 1300 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
 
@@ -374,18 +429,18 @@ describe('validateGola — interferencia del canal en profundidad (eje Y)', () =
 });
 
 describe('límites', () => {
-  it('1 cajón: applyGola ok, 0 canales; el frente rellena el span y isGolaEnabled queda false', () => {
-    // Sin canal L, un cajón único no genera ningún canal: applyGola reescala
-    // el frente para llenar el span hasta topRef − drawerFrontGap y el
-    // módulo NO queda marcado como "con gola" (isGolaEnabled mira las tiras).
+  it('1 cajón: applyGola ok, 0 canales; el frente queda a caja + 30 y isGolaEnabled queda false', () => {
+    // Sin canal L, un cajón único no genera ningún canal: applyGola deja el
+    // frente a caja + 30 (sin rellenar el span) y el módulo NO queda marcado
+    // como "con gola" (isGolaEnabled mira las tiras).
     const pieces = buildModule(1, { repisaZ: 330 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     assert.equal(tirasDe(r.pieces).length, 0);
     assert.ok(!r.pieces.some((p) => /gola-l\d*-/.test(String(p.id))), 'sin canal L');
     const frente = frentesOrdenados(r.pieces)[0];
-    assert.ok(Math.abs(frente.pos_z + frente.alto - (330 - DRAWER_FRONT_GAP)) <= 1,
-      'el frente queda a drawerFrontGap bajo la repisa');
+    assert.equal(frente.alto, 227, 'frente 197 + 30 (labio, sin rellenar el span)');
+    assert.ok(frente.pos_z + frente.alto < 330 - DRAWER_FRONT_GAP, 'aire libre bajo la repisa');
     assert.equal(isGolaEnabled(r.pieces, '1'), false);
     assert.equal(tiradoresDe(r.pieces).length, 0);
     assert.equal(drawerUnits(r.pieces, '1').length, 1);
@@ -400,67 +455,55 @@ describe('límites', () => {
 
   it('vano insuficiente: { ok: false } con explicación', () => {
     // Repisa apenas 20 mm sobre la pila: tras los gaps gola (G = alto de la
-    // tira) no queda vano para que los frentes cubran sus cajas. Con la
-    // rebaja de caja habilitada este déficit cabría, así que aquí la
-    // desactivamos (golaMaxRebajaCaja 0) para probar el error estricto.
+    // tira) no queda vano para los frentes (caja + 30, sin reducirlos).
     const techoUlt = ESP + 10 + 4 * 197 + 3 * DRAWER_FRONT_GAP;
     const pieces = buildModule(4, { repisaZ: techoUlt + 20 });
-    const r = applyGola(pieces, '1', { golaMaxRebajaCaja: 0 });
+    const r = applyGola(pieces, '1', {});
     assert.equal(r.ok, false);
     assert.ok(r.errors[0].includes('vano'));
   });
 
-  it('vano corto por poco → rebaja la caja (con aviso) y aplica; round-trip restaura', () => {
-    // 3 cajones 197/167: span mínimo = Σ pisos (167+10) + 2 canales × 56 +
-    // gap superior. Con 13.5 mm menos, el déficit (4.5/cajón) cabe en la
-    // rebaja default (40) y la gola aplica rebajando las cajas.
-    const G = GOLA_DEFAULTS.golaPaso + GOLA_DEFAULTS.golaPerfilHeight + GOLA_DEFAULTS.golaPaso;
-    const spanMin = 3 * (167 + 10) + 2 * G + DRAWER_FRONT_GAP;
+  it('vano corto por poco → error de vano con consejos (sin rebaja de cajas)', () => {
+    // Regla nueva: NO existe rebaja de caja. 3 cajones 197/167 con 13.5 mm
+    // menos de span: déficit 13.5 → error "el vano no alcanza" con consejos,
+    // y las cajas y frentes quedan intactos.
+    const G = GOLA_DEFAULTS.golaEntradaMm;
+    const spanMin = 3 * 227 + 2 * G + DRAWER_FRONT_GAP;
     const pieces = buildModule(3, { repisaZ: ESP + 10 + spanMin - 13.5 });
     const latOriginal = pieces.find((p) => p.id === 'm1cajon1-lateral-izq').alto;
     const r = applyGola(pieces, '1', {});
-    assert.ok(r.ok, r.errors?.join('; '));
-    // Aviso de rebaja y cajas más bajas en la misma medida.
-    assert.ok(r.warnings.some((w) => w.includes('caja') && w.includes('rebajó')), 'aviso de rebaja de caja');
-    const rebaja = 13.5 / 3; // repartido entre los 3 cajones
-    for (const n of [1, 2, 3]) {
-      const lat = r.pieces.find((p) => p.id === `m1cajon${n}-lateral-izq`);
-      assert.ok(Math.abs(lat.alto - (latOriginal - rebaja)) <= 0.2, `cajón ${n}: caja rebajada ${lat.alto}`);
-      const frente = r.pieces.find((p) => p.id === `m1cajon${n}-frente`);
-      assert.ok(frente.alto >= lat.alto + 10 - 0.5, `cajón ${n}: frente cubre la caja rebajada`);
-    }
-    // Round-trip: cajas y frentes restaurados al desactivar.
-    const off = removeGola(r.pieces, '1', {}, r.meta);
-    assert.ok(off.ok, off.errors?.join('; '));
-    assert.equal(off.pieces.find((p) => p.id === 'm1cajon1-lateral-izq').alto, latOriginal, 'caja restaurada');
-    assert.equal(off.pieces.find((p) => p.id === 'm1cajon1-frente').alto, 197, 'frente restaurado');
+    assert.equal(r.ok, false, 'déficit pequeño también falla (sin rebaja)');
+    assert.ok(r.errors[0].includes('vano'));
+    assert.ok(r.errors[0].includes('suba la repisa'), 'consejo de subir la repisa');
+    assert.equal(pieces.find((p) => p.id === 'm1cajon1-lateral-izq').alto, latOriginal, 'caja intacta');
+    assert.equal(pieces.find((p) => p.id === 'm1cajon1-frente').alto, 197, 'frente intacto');
   });
 
-  it('déficit mayor que golaMaxRebajaCaja → sigue fallando con el error de vano', () => {
-    // 2 cajones, span 402.5: déficit 7.5 mm → 3.75/cajón. Con el default
-    // (40) la rebaja lo absorbe y aplica; con tope 2 mm no cabe y falla con
-    // el error de vano y sus consejos.
+  it('déficit pequeño con config estricta → sigue fallando con el error de vano', () => {
+    // 2 cajones, span 402.5: déficit vs mínimo (167+30)·2 + 56 = 450 → 47.5:
+    // sin rebaja de cajas, siempre error (con o sin golaMaxRebajaCaja, que
+    // quedó sin efecto).
     const pieces = buildModule(2, { alto: 460, repisaZ: 430 });
-    const aplicada = applyGola(pieces, '1', {});
-    assert.ok(aplicada.ok, 'déficit 3.75/cajón ≤ 40 → rebaja y aplica');
-    const estricta = applyGola(pieces, '1', { golaMaxRebajaCaja: 2 });
-    assert.equal(estricta.ok, false, 'déficit 3.75/cajón > 2 → error');
-    assert.ok(estricta.errors[0].includes('vano'));
-    assert.ok(estricta.errors[0].includes('suba la repisa'), 'consejo de subir la repisa');
+    for (const cfg of [{}, { golaMaxRebajaCaja: 2 }, { golaMaxRebajaCaja: 40 }]) {
+      const r = applyGola(pieces, '1', cfg);
+      assert.equal(r.ok, false, `déficit sin rebaja posible → error (${JSON.stringify(cfg)})`);
+      assert.ok(r.errors[0].includes('vano'));
+      assert.ok(r.errors[0].includes('suba la repisa'), 'consejo de subir la repisa');
+    }
   });
 
-  it('golaMaxRebajaCaja=0 desactiva la rebaja (comportamiento estricto)', () => {
-    const G = GOLA_DEFAULTS.golaPaso + GOLA_DEFAULTS.golaPerfilHeight + GOLA_DEFAULTS.golaPaso;
-    const spanMin = 3 * (167 + 10) + 2 * G + DRAWER_FRONT_GAP;
+  it('golaMaxRebajaCaja quedó sin efecto (la rebaja de cajas se eliminó)', () => {
+    const G = GOLA_DEFAULTS.golaEntradaMm;
+    const spanMin = 3 * 227 + 2 * G + DRAWER_FRONT_GAP;
     const pieces = buildModule(3, { repisaZ: ESP + 10 + spanMin - 13.5 });
-    const r = applyGola(pieces, '1', { golaMaxRebajaCaja: 0 });
-    assert.equal(r.ok, false, 'sin rebaja permitida → error de vano');
+    const r = applyGola(pieces, '1', { golaMaxRebajaCaja: 40 });
+    assert.equal(r.ok, false, 'aun con tope 40: sin rebaja, error de vano');
     assert.ok(r.errors[0].includes('vano'));
   });
 });
 
 describe('renderer (computeGeometries)', () => {
-  it('emite geos role gola_strip retranqueadas detrás del plano de frentes', () => {
+  it('emite geos role gola_strip detrás de la cara posterior de los frentes', () => {
     const pieces = buildModule(3, { repisaZ: 900 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
@@ -468,32 +511,37 @@ describe('renderer (computeGeometries)', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.1 });
     const { geometries } = renderer.computeGeometries('1', r.pieces);
     const golas = geometries.filter((g) => g.role === 'gola_strip');
-    // 3 cajones ⇒ 2 canales C (fondo + 2 pestañas c/u) = 6 geometrías.
+    // 3 cajones ⇒ 2 canales C × 3 piezas (fondo + 2 alas) = 6.
     assert.equal(golas.length, 6);
 
     const tiras = tirasDe(r.pieces); // fondos C
     assert.equal(tiras.length, 2);
     const yFace = PROF - ESP + 15;
-    const yBack = yFace - GOLA_DEFAULTS.golaStripSetback;
+    const yCara = yFace - 15; // cara posterior del frente (espesor 15)
+    const yBack = yCara - GOLA_DEFAULTS.golaStripSetback;
     const fondosGeos = golas.filter((g) => g.id.endsWith('-fondo'));
     assert.equal(fondosGeos.length, 2, 'N−1 fondos C');
     tiras.forEach((t, i) => {
       const g = fondosGeos.find((fg) => fg.id === t.id);
       assert.ok(g, `geo del ${t.id}`);
       assert.equal(g.w, INTERIOR, 'ancho = interior (holgura 0)');
-      assert.equal(g.h, GOLA_DEFAULTS.golaPerfilHeight, 'alto = cuerpo del perfil');
+      assert.equal(g.h, GOLA_DEFAULTS.golaEntradaMm + 2 * GOLA_LABIO_MM - 2 * GOLA_DEFAULTS.golaPaso, 'alto = entrada + 2·labio − 2·paso');
       assert.equal(g.d, 15, 'el fondo es un panel vertical de 15');
       assert.ok(Math.abs(g.z - t.pos_z) <= 0.5);
-      assert.ok(Math.abs(g.y - (yBack - 15)) <= 0.5, 'cara frontal del fondo a yBack');
+      assert.ok(Math.abs(g.y - (yBack - 15)) <= 0.5, 'cara frontal del fondo a yBack (interno, detrás de los frentes)');
     });
-    const pestanas = golas.filter((g) => g.id.includes('-pestana'));
-    assert.equal(pestanas.length, 4, '2 sup + 2 inf (una pareja por canal C)');
-    pestanas.forEach((g) => {
-      assert.equal(g.h, 15, 'pestaña: 15 de alto (tablero)');
-      assert.equal(g.d, GOLA_DEFAULTS.golaStripSetback + 15, 'alcance = retranqueo + 15');
-      assert.equal(g.y, yBack - 15, 'arranca en la cara posterior del fondo');
-      assert.ok(g.y + g.d <= yFace + 0.5, 'a ras del plano de frentes: no sobresale por delante');
+    const LARGO_ALA = GOLA_DEFAULTS.golaStripSetback + 15 - 2; // traslape del fondo − holgura frontal
+    const alas = golas.filter((g) => g.id.includes('-ala-'));
+    assert.equal(alas.length, 4, '2 alas sup + 2 alas inf (una pareja por canal C)');
+    alas.forEach((g) => {
+      assert.equal(g.h, 15, 'ala: 15 de alto (tablero)');
+      assert.equal(g.d, LARGO_ALA, 'largo = retranqueo + fondo (traslape) − 2 mm');
+      assert.ok(Math.abs(g.y + g.d - (yCara - 2)) <= 0.5, 'termina 2 mm antes de la espalda del frente');
+      assert.ok(Math.abs(g.y - (yCara - GOLA_DEFAULTS.golaStripSetback - 15)) <= 0.5,
+        'arranca en la cara posterior del fondo (la C queda cerrada: fondo entre las alas)');
+      assert.ok(g.y + g.d <= yFace - 15 + 0.5, 'nada llega al plano de frentes');
     });
+
   });
 
   it('emite marcas gola_grip del canal de agarre (una por fondo de canal C)', () => {
@@ -514,21 +562,24 @@ describe('renderer (computeGeometries)', () => {
     const yFace = PROF - ESP + 15;
     grips.filter((g) => /-fondo-grip$/.test(g.id)).slice(0, 2).forEach((g, i) => {
       assert.equal(g.id, `m1gola-c${i + 1}-fondo-grip`);
-      // Canal de agarre: el paso superior sobre la tira (por donde entran
-      // los dedos); termina en el borde inferior del frente superior.
-      assert.ok(Math.abs(g.z - (tiras[i].pos_z + tiras[i].alto)) <= 0.5,
-        `grip ${i + 1}: z ${g.z} = techo de la tira`);
-      assert.equal(g.h, GOLA_DEFAULTS.golaPaso, 'marca del paso de agarre');
-      assert.ok(Math.abs(Number(frentes[i + 1].pos_z) - (g.z + g.h)) <= 0.5,
-        `grip ${i + 1}: termina en el borde inferior del frente superior`);
+      // La marca es el PASO entre frentes (línea de sombra): arranca en el
+      // techo del frente inferior y termina en el borde inferior del superior.
+      const techoInf = Number(frentes[i].pos_z) + (Number(frentes[i].alto) || 0);
+      assert.ok(Math.abs(g.z - techoInf) <= 0.5,
+        `grip ${i + 1}: z ${g.z} = techo del frente inferior (el paso)`);
+      assert.equal(g.h, GOLA_DEFAULTS.golaPaso, 'marca de la línea de sombra (paso)');
+      // El frente superior queda a la ENTRADA configurable sobre la marca.
+      assert.ok(Math.abs(Number(frentes[i + 1].pos_z) - (g.z + GOLA_DEFAULTS.golaEntradaMm)) <= 0.5,
+        `grip ${i + 1}: el frente superior queda a la entrada de dedos sobre la marca`);
       assert.equal(g.w, INTERIOR, 'ancho = interior');
-      assert.equal(g.d, 2, 'marca fina en el plano de frentes');
-      assert.equal(g.y, yFace, 'en el plano de frentes (no retranqueada)');
+      assert.equal(g.d, 2, 'marca fina');
+      assert.equal(g.y, yFace - 15 - 2, 'a ras de la cara posterior del frente (no sobresale)');
+      assert.ok(g.y + g.d <= yFace - 15 + 0.5, 'nada sobresale delante de la cara posterior del frente');
       assert.equal(g.color, '#4ECDC4', 'color de acento del rol');
     });
   });
 
-  it('sin repisa, solo las marcas de paso de los canales C (N−1); nada sobre el último frente', () => {
+  it('sin repisa, solo las marcas de paso de los canales C (N−1); aire libre sobre el último frente', () => {
     const pieces = buildModule(2, { conRepisa: false });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
@@ -539,11 +590,14 @@ describe('renderer (computeGeometries)', () => {
     assert.equal(grips.length, 1, 'una marca por fondo de canal C');
     assert.ok(!grips.some((g) => /gola-l/.test(g.id)), 'sin marca L bajo el techo interior');
     // Sobre el último frente queda el gap de frente habitual (drawerFrontGap)
-    // hasta el techo interior: sin marca de agarre.
+    // más el aire libre de la regla "caja + 30" hasta el techo interior.
     const frentes = frentesOrdenados(r.pieces);
     const ultimo = frentes[frentes.length - 1];
-    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto + DRAWER_FRONT_GAP - TECHO_INTERIOR) <= 1,
-      'gap de frente habitual sobre el último frente');
+    const aire = TECHO_INTERIOR - DRAWER_FRONT_GAP - (ultimo.pos_z + ultimo.alto);
+    assert.ok(aire > 0, `aire libre sobre el último frente (${aire} mm)`);
+    // Gap visible = entrada de dedos (la gola cubre el resto detrás).
+    assert.ok(Math.abs(frentes[1].pos_z - (frentes[0].pos_z + frentes[0].alto) - GOLA_DEFAULTS.golaEntradaMm) <= 0.5,
+      'gap visible = entrada de dedos');
   });
 });
 
@@ -564,7 +618,7 @@ describe('golaReport — sección del manual', () => {
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     const rows = golaReport(r.pieces, {});
-    // 2 canales C (fondo + 2 pestañas = 3 filas c/u).
+    // 2 canales C (fondo + 2 alas = 3 filas c/u).
     assert.equal(rows.filter((x) => x.id.includes('gola-c')).length, 2 * 3);
     assert.equal(rows.filter((x) => x.id.includes('gola-l')).length, 0, 'sin canal L');
     assert.ok(rows.some((x) => /Canal C 1 \(entre cajones\)/.test(x.ubicacion)));
@@ -578,27 +632,27 @@ describe('abertura útil de agarre', () => {
     const ab = aberturaCanalGola('C', getGolaCfg({}));
     assert.deepEqual(ab, {
       tipo: 'C',
-      alturaExteriorMm: 50,
-      aberturaUtilMm: 50 - 2 * GOLA_PESTANA_ALTO_MM,
-      profundidadEntradaMm: 10,
+      alturaExteriorMm: GOLA_DEFAULTS.golaEntradaMm + 2 * GOLA_LABIO_MM,
+      aberturaUtilMm: GOLA_DEFAULTS.golaEntradaMm + 2 * GOLA_LABIO_MM - 2 * GOLA_PESTANA_ALTO_MM - 2 * GOLA_DEFAULTS.golaPaso,
+      profundidadEntradaMm: GOLA_LABIO_MM,
     });
-    assert.equal(ab.aberturaUtilMm, 20);
+    assert.equal(ab.aberturaUtilMm, 44);
   });
 
   it('canal L: abertura útil = golaFingerClearance (20 mm) — API en desuso (nadie la llama con L)', () => {
     const ab = aberturaCanalGola('L', getGolaCfg({}));
     assert.equal(ab.alturaExteriorMm, 50);
     assert.equal(ab.aberturaUtilMm, 20);
-    assert.equal(ab.profundidadEntradaMm, 10);
+    assert.equal(ab.profundidadEntradaMm, 30);
   });
 
   it('validateGola: warning cuando golaMinAperturaUtil supera la abertura real', () => {
     const pieces = buildModule(3, { repisaZ: 900 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
-    const v = validateGola(r.pieces, '1', { golaMinAperturaUtil: 25 });
+    const v = validateGola(r.pieces, '1', { golaMinAperturaUtil: 45 });
     assert.ok(
-      v.warnings.some((w) => /abertura útil de agarre del canal C \(20 mm\).*mínimo ergonómico configurado \(25 mm\)/.test(w)),
+      v.warnings.some((w) => /abertura útil de agarre del canal C \(44 mm\).*mínimo ergonómico configurado \(45 mm\)/.test(w)),
       `warning de canal C presente: ${v.warnings.join(' | ')}`,
     );
     assert.ok(
@@ -628,9 +682,9 @@ describe('abertura útil de agarre', () => {
     assert.equal(fondos.length, 1, 'N−1 = 1 fondo de canal C');
     for (const f of fondos) {
       assert.ok(f.abertura, `fila ${f.id} con abertura`);
-      assert.equal(f.abertura.aberturaUtilMm, 20);
-      assert.equal(f.abertura.alturaExteriorMm, 50);
-      assert.equal(f.abertura.profundidadEntradaMm, 10);
+      assert.equal(f.abertura.aberturaUtilMm, 44);
+      assert.equal(f.abertura.alturaExteriorMm, 80);
+      assert.equal(f.abertura.profundidadEntradaMm, 30);
     }
     assert.ok(rows.filter((x) => !x.id.endsWith('-fondo')).every((x) => x.abertura === null),
       'pestañas sin abertura (resume al canal, va en el fondo)');
@@ -639,15 +693,13 @@ describe('abertura útil de agarre', () => {
   });
 });
 
-describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', () => {
-  const GAP = 56; // 3 + 50 + 3
+describe('applyGola — mix zapateras CON frente + cajones (frente + 30 labio)', () => {
+  const GAP = GOLA_DEFAULTS.golaEntradaMm; // gap visible = entrada de dedos
   // Casco 850×2400×600 + 2 zapateras con frente (vano 220, modo 'normal':
   // bandeja uniforme 100, frente corto fijo = 130) + 2 cajones (vano 200 →
   // frente 197, lateral 167), apilados como app.js y repisa que ancla el
-  // topRef. El proporcional puro dejaría los frentes de cajón bajo su caja:
-  // el reparto con piso quita aire a los cajones y conserva el fijo de las
-  // zapateras — el aire superior del vano de cada zapatera (cara+30 con el
-  // calzado asomando) es aire real que el reparto puede usar.
+  // topRef. Regla: nadie absorbe aire — zapateras fijas en su tipo y cajones
+  // a caja + 30; el aire que sobra queda libre sobre el último frente.
   function buildMix(repisaZ, { tipoId = 'tacones' } = {}) {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     assert.ok(casco.ok);
@@ -675,41 +727,68 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
 
   const alturaFrente = (pieces, id) => Number(pieces.find((p) => p.id === id)?.alto) || 0;
 
-  it('span ajustado: zapateras fijas en su altura de tipo, cajones reparten el aire', () => {
-    // Con zapateras fijas (2×130) el mínimo es 260+354+3·56 = 818 de span:
-    // repisa @1010 → span 982.5: los cajones absorben TODO el aire sobrante.
+  it('span ajustado: zapateras fijas en su tipo, cajones +30 (labio) y aire libre arriba', () => {
+    // Zapateras fijas (2×130) + cajones con labio (2×227); pila = 714 + 3·20
+    // = 774: repisa @1010 → span 982.5: sobra aire sobre el último frente.
     const pieces = buildMix(1010);
     const bottom = 25;
     const span = 1010 - DRAWER_FRONT_GAP /* gap habitual sobre el último frente */ - bottom; // 982.5
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
-    // Zapateras: sin reescalar — conservan el frente corto (bandeja + 30).
+    // Zapateras: fijas — conservan el frente corto (bandeja + 30).
     assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 130, 'zapatera 1 conserva su frente corto');
     assert.equal(alturaFrente(r.pieces, 'm1zapatera2-frente'), 130, 'zapatera 2 conserva su frente corto');
-    // Cajones: cada frente ≥ su caja (167+10) y absorben TODO el aire.
-    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177, 'cajón 3 cubre su caja (167+10)');
-    assert.ok(alturaFrente(r.pieces, 'm1cajon4-frente') >= 177, 'cajón 4 cubre su caja (167+10)');
-    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') > 197 + 50,
-      `el aire (incluido el de los vanos de las zapateras) va a los cajones: ${alturaFrente(r.pieces, 'm1cajon3-frente')}`);
-    // Invariante: Σ alturas + (N−1)·G = span.
+    // Cajones: frente +30 (197 → 227): el labio que cuelga sobre el canal.
+    assert.equal(alturaFrente(r.pieces, 'm1cajon3-frente'), 227, 'cajón 3 = 197 + 30 (labio)');
+    assert.equal(alturaFrente(r.pieces, 'm1cajon4-frente'), 227, 'cajón 4 = 197 + 30 (labio)');
+    // Invariante: Σ alturas + (N−1)·G ≤ span (el aire sobra arriba).
     const suma = ['m1zapatera1-frente', 'm1zapatera2-frente', 'm1cajon3-frente', 'm1cajon4-frente']
       .reduce((s, id) => s + alturaFrente(r.pieces, id), 0);
-    assert.ok(Math.abs(suma + 3 * GAP - span) <= 0.5, `Σ${suma} + 3·56 ≈ span ${span}`);
-    // Canales entre TODAS las unidades (zapatera↔zapatera y zapatera↔cajón).
-    assert.equal(r.pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).length, 3);
+    assert.ok(suma + 3 * GAP <= span + 0.5, `Σ${suma} + 3·86 ≤ span ${span}`);
+    assert.ok(r.warnings.some((w) => w.includes('libres sobre el último frente')),
+      'aviso de aire libre');
+    // Canales SOLO entre cajones: el mix (zap, zap, caj, caj) tiene exactamente 1.
+    assert.equal(r.pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).length, 1, '1 canal: solo entre los dos cajones');
+    assert.ok(!r.pieces.some((p) => /gola-c[12]-/.test(String(p.id))), 'sin canales en los pares con zapateras (c1↔c2 solo)');
+  });
+
+  it('las zapateras NO varían (posición ni medida) y el gap tras ellas respeta su vano', () => {
+    // Spec: al aplicar gola con cajones en el módulo, las zapateras quedan
+    // INAMOVIBLES. Los cajones se apilan desde el techo de la última zapatera
+    // con el gap de su vano (220 − 130 = 90), y entre cajones con la entrada.
+    const pieces = buildMix(1010);
+    // Espaciado ergonómico previo (gap 90 entre zapateras: clearance 205).
+    const previas = { m1zapatera1: 25, m1zapatera2: 245, m1cajon3: 540, m1cajon4: 739.5 };
+    for (const [pref, z] of Object.entries(previas)) {
+      const f = pieces.find((p2) => p2.id === `${pref}-frente`);
+      if (f) f.pos_z = z;
+    }
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const pieza = (id) => r.pieces.find((p2) => p2.id === id);
+    // Zapateras: posición y medida intactas.
+    assert.equal(Number(pieza('m1zapatera1-frente').pos_z), 25, 'zapatera 1: posición sin cambios');
+    assert.equal(Number(pieza('m1zapatera1-frente').alto), 130, 'zapatera 1: medida sin cambios');
+    assert.equal(Number(pieza('m1zapatera2-frente').pos_z), 245, 'zapatera 2: posición sin cambios');
+    assert.equal(Number(pieza('m1zapatera2-frente').alto), 130, 'zapatera 2: medida sin cambios');
+    // Cajones: +30 de labio y apilados desde el techo de la zapatera 2.
+    assert.equal(Number(pieza('m1cajon3-frente').alto), 227, 'cajón 3: 197 + 30');
+    assert.equal(Number(pieza('m1cajon3-frente').pos_z), 465, 'cajón 3: 245 + 130 + 90 (vano de la zapatera)');
+    assert.equal(Number(pieza('m1cajon4-frente').pos_z), 712, 'cajón 4: 465 + 227 + 20 (entrada, canal C)');
+    // El clearance del calzado queda por encima del mínimo de tacones.
+    const { warnings } = validateShoeClearance(r.pieces, {});
+    assert.deepEqual(warnings, [], 'sin avisos de altura libre: 130 + 90 − 15 = 205 ≥ 180');
   });
 
   it('span insuficiente con zapateras fijas: rechaza indicando el fijo de las zapateras', () => {
-    // Repisa @750 → span 722.5, disponible 554.5 < mínimo 614 (2×130 fijas +
-    // 2 pisos de 177): el error debe mencionar que el mínimo incluye las
-    // zapateras a altura de tipo. Con la rebaja habilitada este déficit
-    // (29.75/cajón ≤ 40) se absorbería, así que aquí se desactiva (tope 0)
-    // para ejercitar el error.
+    // Repisa @750 → span 722.5, disponible 662.5 < mínimo 714 (2×130 fijas +
+    // 2×227 con labio): el error debe mencionar que el mínimo incluye las
+    // zapateras a altura de tipo.
     const pieces = buildMix(750);
-    const r = applyGola(pieces, '1', { golaMaxRebajaCaja: 0 });
+    const r = applyGola(pieces, '1', {});
     assert.equal(r.ok, false);
     assert.match(r.errors[0], /el vano no alcanza/);
-    assert.match(r.errors[0], /zapateras a altura de tipo/);
+    assert.match(r.errors[0], /fijas en su posición y medida/);
   });
 
   it('solo zapateras: la pila fija cabe con el aire abierto encima (frentes cortos)', () => {
@@ -724,25 +803,24 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
     // La pila no llega a la repisa: aire abierto sobre el último frente.
     const techoPila = 25 + 130 + GAP + 130;
     assert.ok(techoPila < 1010 - 100, `la pila (${techoPila} mm) queda muy por debajo de la repisa: aire abierto`);
-    // Un canal C entre las dos zapateras.
-    assert.equal(r.pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).length, 1);
+    // La gola es SOLO entre cajones: entre zapateras NO va canal.
+    assert.equal(r.pieces.filter((p) => /^m1gola-c\d+-fondo$/.test(String(p.id))).length, 0, 'sin canales entre zapateras');
+    assert.equal(isGolaEnabled(r.pieces, '1'), false, 'sin canales, el módulo no queda "con gola"');
     // Y si la pila NO CABE (repisa demasiado baja), rechaza:
-    const baja = buildMix(340).filter((p) => !/cajon/.test(String(p.id)));
-    const r2 = applyGola(baja, '1', { golaMaxRebajaCaja: 0 });
+    const baja = buildMix(288).filter((p) => !/cajon/.test(String(p.id)));
+    const r2 = applyGola(baja, '1', {});
     assert.equal(r2.ok, false);
     assert.match(r2.errors[0], /el vano no alcanza/);
   });
 
   it('span insuficiente: sigue rechazando con "el vano no alcanza"', () => {
     // Módulo corto (460) con la repisa justo sobre los cajones: span 402.5,
-    // disponible 346.5 < 354 (2 cajones × (167+10)) → rechazo. El déficit
-    // (3.75/cajón) lo absorbería la rebaja default, así que se desactiva
-    // (tope 0) para ejercitar el error estricto.
+    // disponible 346.5 < 394 (2 cajones × (167+30)) → rechazo.
     const pieces = buildModule(2, { alto: 460, repisaZ: 430 });
-    const r = applyGola(pieces, '1', { golaMaxRebajaCaja: 0 });
+    const r = applyGola(pieces, '1', {});
     assert.equal(r.ok, false);
     assert.match(r.errors[0], /el vano no alcanza/);
-    assert.match(r.errors[0], /mínimo 354 mm/);
+    assert.match(r.errors[0], /faltan 71\.5 mm/);
   });
 
   it('con tag manda el CONTRATO aunque el nombre no diga "zapatera"', () => {
@@ -758,7 +836,7 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
     assert.ok(r.ok, r.errors?.join('; '));
     assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 130, 'fija por contrato [tacones] (frente corto)');
     assert.equal(alturaFrente(r.pieces, 'm1zapatera2-frente'), 130);
-    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177, 'los cajones siguen reescalando');
+    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 227, 'los cajones crecen +30 (labio)');
   });
 
   it('sin tag: la heurística por nombre sigue marcando la zapatera como fija', () => {
@@ -766,7 +844,7 @@ describe('applyGola — mix zapateras CON frente + cajones (reparto con piso)', 
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     assert.equal(alturaFrente(r.pieces, 'm1zapatera1-frente'), 130, 'fija por palabra clave (retrocompatibilidad)');
-    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 177);
+    assert.ok(alturaFrente(r.pieces, 'm1cajon3-frente') >= 227);
   });
 });
 
@@ -783,7 +861,7 @@ describe('plan de fijación de canales gola', () => {
     assert.equal(plan.tornillos.diametro, GOLA_TORNILLO_FIJACION);
     assert.equal(plan.tornillos.broca, GOLA_BROCA_FIJACION);
     assert.deepEqual(plan.tornillos.posicionZmm, [15, 35]);
-    assert.equal(plan.tornillos.posicionYmm, 10, 'retranqueo por defecto');
+    assert.equal(plan.tornillos.posicionYmm, GOLA_DEFAULTS.golaStripSetback, 'retranqueo por defecto (fondo interno)');
     assert.equal(plan.soporteTrasero, null, '770 < 900: sin soporte');
     assert.deepEqual(plan.warnings, []);
   });

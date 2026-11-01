@@ -147,7 +147,12 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
     Math.max(0, Number(lat.alto) || 0) || Math.max(0, h - 2 * espBase),
     maxBoxH
   );
-  const zBox = z + espBase - bottomDrop;
+  // Frente CENTRADO respecto de la caja: el voladizo (frente − caja) se
+  // reparte mitad arriba y mitad abajo. Con el frente clásico (caja + 2·E)
+  // el voladizo es 2·E y coincide con el anclaje histórico (z + espBase);
+  // con gola (caja + 60: 2·E + labio de 30) queda dividido 30/30.
+  const voladizo = Math.max(0, (h - latAlto) / 2);
+  const zBox = z + Math.max(espBase, voladizo) - bottomDrop;
   const box = [];
 
   const latX = [x + latInset, x + Math.max(0, w - espLat - latInset)];

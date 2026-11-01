@@ -35,14 +35,14 @@ function buildModuleConGola(n, cfgGola = {}) {
     ultimoTecho = frente.pos_z + frente.alto;
     pieces.push(...d.pieces);
   }
-  // Repisa en el span EXACTO de la pila: los frentes conservan 197 mm
-  // (vano − 3) y la caja queda en 167 (holgura 30 < 60 → colisión detectable).
+  // Repisa en el span EXACTO de la pila con gola B2: frentes 197+30 (labio)
+  // y gaps 86 = 30 labio + paso + perfil + paso (caja en 167).
   const paso = cfgGola.golaPaso ?? 3;
   const perfil = cfgGola.golaPerfilHeight ?? 50;
-  const G = paso + perfil + paso;
+  const G = 30 + paso + perfil + paso;
   const s = addShelf('1', { anchoUtil: ANCHO - 2 * 15, profReal: PROF - 2 * 15, index: 1 });
   assert.ok(s.ok);
-  s.pieces[0].pos_z = Math.round((25 + n * 197 + (n - 1) * G + 2.5) * 10) / 10;
+  s.pieces[0].pos_z = Math.round((25 + n * 227 + (n - 1) * G + 2.5) * 10) / 10;
   pieces.push(...s.pieces);
   const r = applyGola(pieces, '1', cfgGola);
   assert.ok(r.ok, r.errors?.join('; '));
@@ -50,22 +50,25 @@ function buildModuleConGola(n, cfgGola = {}) {
 }
 
 describe('auditarLuzLibreGola — canal de la mano (mínimo 40 mm)', () => {
-  it('gola bien construida: gap gola 56 mm ≥ 40 → sin filas', () => {
+  it('gola bien construida: voladizo 30 (luz 27 ≥ 25) → sin filas', () => {
     const pieces = buildModuleConGola(3);
     assert.deepEqual(auditarLuzLibreGola(pieces), []);
   });
 
-  it('perfil bajo (gap 36 mm < 40): ERROR CRÍTICO con el déficit exacto', () => {
-    const pieces = buildModuleConGola(3, { golaPerfilHeight: 30 });
+  it('voladizo insuficiente (caja alta, luz < 25): ERROR CRÍTICO con el déficit exacto', () => {
+    // Frente 227 con caja 200 → voladizo 13.5 → luz = 20 + 27 − 3 − 30 = 14 mm.
+    const pieces = buildModuleConGola(2);
+    for (const p of pieces) {
+      if (/m1cajon\d+-(lateral-izq|lateral-der|cara|fondo)$/.test(String(p.id))) p.alto = 200;
+    }
     const filas = auditarLuzLibreGola(pieces);
-    assert.equal(filas.length, 2, 'un par de frentes por cada uno de los 2 canales');
+    assert.equal(filas.length, 1, 'un par de frentes para el único canal');
     for (const f of filas) {
-      assert.equal(f.luzMm, 36);
-      assert.equal(f.deficitMm, LUZ_MIN_MANO_MM - 36);
+      assert.equal(f.luzMm, 14);
+      assert.equal(f.deficitMm, LUZ_MIN_MANO_MM - 14);
       assert.match(f.mensaje, /ERROR CRÍTICO DE BLOQUEO/);
-      assert.match(f.mensaje, /obstruyen el canal de la mano/);
-      assert.match(f.correccion, /Restar 4 mm al alto de los frentes/);
-      assert.match(f.correccion, /2 mm a cada uno/);
+      assert.match(f.mensaje, /obstruye el agarre/);
+      assert.match(f.correccion, /Rebajar la caja|voladizo/i);
     }
   });
 
@@ -111,17 +114,35 @@ describe('auditarVeta — sentido de veta (rotate) por función', () => {
 });
 
 describe('auditarColisionGola — caja ≥60 mm bajo el frente', () => {
-  it('cajón estándar (holgura 30 mm < 60): ERROR DE COLISIÓN con déficit', () => {
-    const pieces = buildModuleConGola(3);
+  it('caja alta (holgura 30 mm < 60): ERROR DE COLISIÓN con déficit', () => {
+    // El cajón estándar del Constructor cumple justo con la regla (frente
+    // 227 con labio − caja 167 = 60), así que se ejercita con una caja alta
+    // (CSV legacy / personalizada) que incumple.
+    const casco = createModule({ ancho: ANCHO, alto: ALTO, prof: PROF, modulo: '1' });
+    const pieces = [
+      ...casco.pieces,
+      { id: 'm1cajon1-frente', nombre: 'Frente cajon 1 M1', ancho: 818, alto: 227, rotate: false, cantidad: 1, espesor: 15, cantos: 'T,B,L,R', modulo: '11', pos_z: 25 },
+      { id: 'm1cajon1-lateral-izq', nombre: 'Lateral cajon 1 M1', ancho: 545, alto: 197, rotate: false, cantidad: 1, espesor: 15, cantos: 'T,B,L', modulo: '11' },
+      { id: 'm1cajon1-cara', nombre: 'Cara cajon 1 M1', ancho: 735, alto: 197, rotate: false, cantidad: 1, espesor: 15, cantos: 'T,B,L,R', modulo: '11' },
+      { id: 'm1cajon2-frente', nombre: 'Frente cajon 2 M1', ancho: 818, alto: 227, rotate: false, cantidad: 1, espesor: 15, cantos: 'T,B,L,R', modulo: '12', pos_z: 320 },
+      { id: 'm1cajon2-lateral-izq', nombre: 'Lateral cajon 2 M1', ancho: 545, alto: 197, rotate: false, cantidad: 1, espesor: 15, cantos: 'T,B,L', modulo: '12' },
+      // canal C del módulo (la presencia de gola activa la auditoría).
+      { id: 'm1gola-c1-fondo', nombre: 'Fondo de canal Gola C 1', ancho: 788, alto: 50, rotate: false, cantidad: 1, espesor: 15, cantos: 'T,B', modulo: '1', pos_z: 255 },
+    ];
     const filas = auditarColisionGola(pieces);
-    assert.equal(filas.length, 3, 'un cajón por unidad');
+    assert.equal(filas.length, 2, 'un cajón por unidad');
     for (const f of filas) {
-      assert.equal(f.holguraMm, 30, 'caja = frente − 2·E (197 − 167)');
+      assert.equal(f.holguraMm, 30, 'caja = frente − 30 (227 − 197)');
       assert.equal(f.deficitMm, COLISION_GOLA_MIN_MM - 30);
       assert.match(f.mensaje, /ERROR DE COLISIÓN/);
       assert.match(f.mensaje, /chocará contra la gola al intentar cerrar/);
       assert.match(f.correccion, /Rebajar la estructura interna 30 mm/);
     }
+  });
+
+  it('cajón estándar del Constructor con gola B2: holgura 60 → sin colisión', () => {
+    const pieces = buildModuleConGola(3);
+    assert.deepEqual(auditarColisionGola(pieces), [], 'frente 227 − caja 167 = 60: cumple justo');
   });
 
   it('sin gola → sin auditoría de colisión', () => {

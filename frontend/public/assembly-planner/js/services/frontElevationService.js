@@ -61,7 +61,7 @@ function cascoDims(pieces, moduleId) {
   return { ancho, alto, espesor, anchoInterior: ancho - 2 * espesor };
 }
 
-const esPestanaGola = (p) => /-pestana(-sup|-inf)?$/.test(String(p.id));
+const esAlaGola = (p) => /-ala(-sup|-inf)?$/.test(String(p.id));
 
 /**
  * Modelo de la vista frontal acotada de un módulo.
@@ -148,9 +148,9 @@ export function buildFrontElevation(pieces, moduleId, userConfig = {}) {
         });
         break;
       case 'gola_strip': {
-        // Pestañas: su 'alto' es la PROFUNDIDAD de la tira; en el plano X-Z
-        // su altura vertical es el espesor (15), anclada en su pos_z.
-        if (esPestanaGola(p)) {
+        // Alas: su 'alto' es la PROFUNDIDAD de la tira; en el plano X-Z su
+        // altura vertical es el espesor (15), anclada en su pos_z.
+        if (esAlaGola(p)) {
           rectangulos.push({
             id, nombre: String(p.nombre || id), rol,
             x: centroX(w), z: mm(Number.isFinite(zNum) ? zNum : 0),

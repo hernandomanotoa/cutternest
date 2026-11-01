@@ -17,16 +17,15 @@ const VANO = 200;
 const DRAWER_FRONT_GAP = 2.5;
 const INTERIOR = ANCHO - 2 * 15;
 
-// Geometría esperada con los defaults de taller (golaPerfilHeight 50,
-// golaPaso 3): frentes 197 originales, cajas 167 (piso 177), span
-// H_new = 721.5 − 2.5 − 25 = 694, gap G = 56, disponible 638: el reparto
-// puro da 319 a cada frente (piso 177 + aire 142). El último frente queda a
-// drawerFrontGap (2.5) de la repisa: sin canal L ni cap.
+// Geometría esperada (la gola tapa el espacio): frentes 227 (197+30 de
+// labio), gap visible = entrada de dedos (20): frente 1 (z=25, techo 252),
+// frente 2 (z=272, techo 499), repisa a 781.5 (aire libre arriba). El canal
+// vive detrás: fondo z = techo frente 1 − labio + paso = 225.
 const Z1 = 25;
-const ALTO_FRENTE_1 = 319;
-const Z2 = 400;
-const ALTO_FRENTE_2 = 319; // mismo criterio que el frente 1 (sin extensión L)
-const Z_BASE_C1 = 347; // techo frente 1 (344) + paso
+const ALTO_FRENTE_1 = 227;
+const Z2 = 272;
+const ALTO_FRENTE_2 = 227; // mismo criterio que el frente 1 (197 + 30 labio)
+const Z_BASE_C1 = 225; // techo frente 1 (252) − labio (30) + paso (3)
 
 // Casco + 2 cajones + repisa con gola aplicada (mismo patrón que
 // golaService.test.js y auditView.dom.test.js).
@@ -91,11 +90,13 @@ describe('buildFrontElevation: proyección X-Z del módulo', () => {
     const fondo = modelo.rectangulos.find((r) => r.id === 'm1gola-c1-fondo');
     assert.ok(fondo, 'fondo del canal C proyectado');
     assert.equal(fondo.fija, true);
-    assert.equal(fondo.alto, 50, 'cuerpo del perfil');
+    assert.equal(fondo.alto, 74, 'cuerpo = entrada + 2·labio − 2·paso');
     assert.ok(Math.abs(fondo.z - Z_BASE_C1) < 0.01, `z del fondo C1 (${fondo.z} ≈ ${Z_BASE_C1})`);
-    const pestanas = modelo.rectangulos.filter((r) => r.rol === 'gola_strip' && /-pestana/.test(r.id));
-    assert.equal(pestanas.length, 2, 'pestaña sup e inf del único canal C');
-    for (const p of pestanas) assert.equal(p.alto, 15, 'pestaña: altura vertical = espesor');
+    // C de 3 piezas: las alas sup/inf acompañan al fondo (sin pestañas).
+    assert.ok(!modelo.rectangulos.some((r) => /-pestana-/.test(String(r.id))), 'sin pestañas proyectadas');
+    const alas = modelo.rectangulos.filter((r) => r.rol === 'gola_strip' && /-ala-/.test(r.id));
+    assert.equal(alas.length, 2, 'ala sup e inf del único canal C');
+    for (const a2 of alas) assert.equal(a2.alto, 15, 'ala: altura vertical = espesor');
     assert.ok(!modelo.rectangulos.some((r) => /gola-l\d*-/.test(r.id)), 'sin canal L proyectado');
   });
 

@@ -1204,10 +1204,11 @@ test('Canto PVC configurable: reflejado en la lista de herrajes', () => {
 
 test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin canal L + round-trip', () => {
   const { store, view, container } = mountView();
-  // Vano exacto del taller: tipo "estandar" (vano 200 → frente 197), zócalo
-  // 150 (frentes desde z=175) y alto 895.5 → H útil 703 = 3×197 + 2×(3+50+3)
-  // + 2.5: el repartidor no estira ni reduce.
-  container.querySelector('[data-cfg="alto"]').value = '895.5';
+  // Vano exacto del taller: tipo "estandar" (vano 200 → frente 197 → 227
+  // con labio +30), zócalo 150 (frentes desde z=175) y alto 913.5 → H útil =
+  // 3×227 + 2×20 (entrada de dedos) + 2.5: ni sobra ni falta aire (la gola
+  // tapa el espacio detrás de los frentes).
+  container.querySelector('[data-cfg="alto"]').value = '913.5';
   click(container, '[data-action="add-module"]'); // 850×600, cuerpo #C19A6B
   const tipoSel = container.querySelector('[data-module-scoped="1"] [data-tipo-drawer]');
   tipoSel.value = 'estandar';
@@ -1219,33 +1220,37 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin c
   click(container, '[data-action="confirm-gola"][data-module="1"]');
   const pieces = store.get().pieces;
   const pieza = (id) => pieces.find((p) => p.id === id);
-  // El vano exacto no estira ni reduce: los tres frentes quedan en 197 mm.
+  // El vano exacto no sobra ni falta aire: los frentes crecen +30 (labio).
   for (const n of [1, 2, 3]) {
-    assert.equal(pieza(`m1cajon${n}-frente`).alto, 197, `frente ${n} conserva 197 mm`);
+    assert.equal(pieza(`m1cajon${n}-frente`).alto, 227, `frente ${n} = 197 + 30 (labio)`);
   }
 
-  // Canal C 1: fondo 820×perfil a techo del cajón 1 + paso; pestañas 820×(retranqueo+15).
-  const PROF = GOLA_DEFAULTS.golaPerfilHeight;
-  const TIRA = GOLA_DEFAULTS.golaStripSetback + 15;
+  // Canal C 1 (la gola tapa el espacio, detrás de los frentes): fondo
+  // 820×(2·labio) interno; alas 820×(retranqueo+13) tras los frentes, casi
+  // topando las caras.
+  const SETBACK = GOLA_DEFAULTS.golaStripSetback;
   const PASO = GOLA_DEFAULTS.golaPaso;
   const f1 = pieza('m1cajon1-frente');
+  const techo1 = f1.pos_z + f1.alto;
   const fondo1 = pieza('m1gola-c1-fondo');
   assert.ok(fondo1, 'existe m1gola-c1-fondo');
   assert.equal(fondo1.ancho, 820, 'fondo a lo ancho del interior (850−2×15)');
-  assert.equal(fondo1.alto, PROF, 'cuerpo del canal');
-  assert.equal(fondo1.pos_z, Math.round((f1.pos_z + f1.alto + PASO) * 10) / 10, 'techo del cajón 1 + paso');
-  const sup1 = pieza('m1gola-c1-pestana-sup');
-  const inf1 = pieza('m1gola-c1-pestana-inf');
-  assert.equal(sup1.ancho, 820);
-  assert.equal(sup1.alto, TIRA, 'alcance de la pestaña = retranqueo + 15');
-  assert.equal(sup1.pos_z, Math.round((fondo1.pos_z + PROF - 15) * 10) / 10, 'pestaña sup en el techo del fondo');
-  assert.equal(inf1.pos_z, fondo1.pos_z, 'pestaña inf en la base del fondo');
+  assert.equal(fondo1.alto, 74, 'cuerpo = entrada + 2·labio − 2·paso');
+  assert.equal(fondo1.pos_z, Math.round((techo1 - 30 + PASO) * 10) / 10, 'fondo detrás: techo del cajón 1 − labio + paso');
+  const alaSup1 = pieza('m1gola-c1-ala-sup');
+  const alaInf1 = pieza('m1gola-c1-ala-inf');
+  assert.equal(alaSup1.ancho, 820);
+  assert.equal(alaSup1.alto, SETBACK + 13, 'largo del ala = retranqueo + fondo (traslape) − 2 mm');
+  assert.equal(alaInf1.pos_z, fondo1.pos_z, 'ala inf: tras el frente inferior, casi topando su cara');
+  assert.equal(alaSup1.pos_z, Math.round((techo1 + 20 + 30 - 15 - PASO) * 10) / 10, 'ala sup: tras el frente superior, casi topando su cara');
+  // C de 3 piezas: SIN pestañas (fondo + 2 alas).
+  assert.ok(!pieces.some((p) => /-pestana-/.test(String(p.id))), 'sin pestañas: canal C de 3 piezas');
   assert.equal(fondo1.color.toLowerCase(), '#c19a6b', 'mismo material que el módulo');
 
   // SOLO canales C entre cajones: 2 canales (N−1), SIN canal L.
   assert.ok(pieza('m1gola-c2-fondo'), 'canal C 2');
   assert.ok(!pieces.some((p) => /gola-l\d*-/.test(String(p.id))), 'sin canal L');
-  assert.equal(pieces.filter((p) => /^m1gola-c\d+-/.test(String(p.id))).length, 2 * 3, '2 canales × 3 piezas');
+  assert.equal(pieces.filter((p) => /^m1gola-c\d+-/.test(String(p.id))).length, 2 * 3, '2 canales × 3 piezas (fondo + 2 alas)');
 
   // Sin canal L: la caja del cajón superior NO se rebaja y el frente 3 queda
   // a drawerFrontGap del techo útil (gap habitual, como sin gola).
@@ -1289,7 +1294,7 @@ test('Gola robustez: reordenar módulo migra canales y meta (round-trip intacto)
   assert.ok(!mods.some((m) => m.startsWith('x')), `sin módulos temporales: ${mods.join(',')}`);
   assert.ok(pieces.some((p) => p.id === 'm1gola-c1-fondo'), 'canal C renombró a M1');
   assert.ok(!pieces.some((p) => /gola-l\d*-/.test(String(p.id))), 'sin canal L');
-  assert.equal(pieces.filter((p) => /^m1gola-c\d+-/.test(String(p.id))).length, 3, '1 canal C (fondo + 2 pestañas)');
+  assert.equal(pieces.filter((p) => /^m1gola-c\d+-/.test(String(p.id))).length, 3, '1 canal C (fondo + 2 alas)');
   assert.equal(pieces.some((p) => String(p.id).includes('gola') && String(p.id).startsWith('m2')), false, 'sin canales huérfanos de M2');
 
   // Round-trip tras el reorden: el meta migrado restaura el frente exacto.

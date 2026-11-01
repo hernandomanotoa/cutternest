@@ -18,12 +18,13 @@ const VANO = 200;
 const DRAWER_FRONT_GAP = 2.5;
 const INTERIOR = ANCHO - 2 * 15;
 
-// Defaults de taller: golaPerfilHeight 50, golaPaso 3, golaStripSetback 10.
-// Con la repisa a +300 del último techo: span = 721.5 − 2.5 − 25 = 694,
-// disponible = 638; los 2 frentes reparten a 319 c/u (piso 177 + aire 142):
-// frente 1 (z=25, techo 344), frente 2 (z=400, techo 719, gap 2.5 a la
-// repisa), zBase C1 = 347.
-const Z_BASE_C1 = 347;
+// Defaults de taller: golaPaso 3, golaEntradaMm 20, golaStripSetback 60. La
+// gola tapa el espacio: gap visible = entrada (20) — con la repisa a +300
+// del último techo (apilado con gaps 2.5): frentes 197→227, pila
+// = 25 + 227 + 20 + 227 = 499, frente 1 (z=25, techo 252), frente 2
+// (z=272, techo 499), repisa a 781.5, aire libre; el canal vive detrás:
+// zBase C1 = 252 − 30 + 3 = 225 (fondo 74: 20 + 60 − 6).
+const Z_BASE_C1 = 225;
 
 function buildPieces() {
   const casco = createModule({ ancho: ANCHO, alto: ALTO, prof: PROF, modulo: '1' });
@@ -63,30 +64,32 @@ describe('buildGolaSections: canal C entre frentes', () => {
   });
 
   it('expone las medidas reales del perfil de taller', () => {
-    assert.equal(canalC.perfilMm, 50);
+    assert.equal(canalC.perfilMm, 74, 'cuerpo = entrada + 2·labio − 2·paso (la pieza real)');
     assert.equal(canalC.pasoMm, 3);
-    assert.equal(canalC.retranqueoMm, 10);
-    assert.equal(canalC.profundidadMm, 25, 'alcance del labio: retranqueo 10 + traslape 15');
+    assert.equal(canalC.retranqueoMm, 60, 'fondo interno (default 60)');
+    assert.equal(canalC.profundidadMm, 60, 'alcance del ala = retranqueo');
     assert.equal(canalC.espesorMm, 15);
   });
 
-  it('secciona el cuerpo del canal: fondo 50×15 retranqueado y dos labios a ras del plano de frentes', () => {
+  it('secciona el cuerpo del canal: fondo 50×15 interno y dos alas (C de 3 piezas)', () => {
     const fondo = canalC.piezas.find((p) => p.rol === 'fondo');
     assert.ok(fondo);
-    assert.equal(fondo.alto, 50, 'cuerpo del perfil');
-    assert.equal(fondo.y, 10, 'retranqueo detrás del plano de frentes');
+    assert.equal(fondo.alto, 74, 'cuerpo = entrada + 2·labio − 2·paso');
+    assert.equal(fondo.y, 60, 'fondo interno: retranqueo 60 detrás de la espalda del frente');
     assert.equal(fondo.profundidad, 15, 'el fondo es un panel vertical de 15');
     assert.ok(Math.abs(fondo.z - Z_BASE_C1) < 0.01);
-    const pestanas = canalC.piezas.filter((p) => p.rol === 'pestana');
-    assert.equal(pestanas.length, 2);
-    for (const p of pestanas) {
-      assert.equal(p.alto, 15, 'labio: espesor de la melamina');
-      assert.equal(p.y, 0, 'labios a ras del plano de frentes (sin sobresalir)');
-      assert.equal(p.profundidad, 10 + 15, 'alcance = retranqueo + traslape del fondo');
+    const alas = canalC.piezas.filter((p) => p.rol === 'ala');
+    assert.equal(alas.length, 2, 'ala sup + ala inf');
+    for (const p of alas) {
+      assert.equal(p.alto, 15, 'ala: espesor de la melamina');
+      assert.equal(p.y, 0, 'alas desde la espalda del frente');
+      assert.equal(p.profundidad, 73, 'largo del ala = retranqueo 60 + fondo 15 − 2 mm (traslape: C cerrada)');
     }
-    const zInf = pestanas.map((p) => p.z).sort((a, b) => a - b);
-    assert.ok(Math.abs(zInf[0] - Z_BASE_C1) < 0.01, 'pestaña inferior al pie del cuerpo');
-    assert.ok(Math.abs(zInf[1] - (Z_BASE_C1 + 50 - 15)) < 0.01, 'pestaña superior bajo el techo del cuerpo');
+    const zAlas = alas.map((p) => p.z).sort((a, b) => a - b);
+    assert.ok(Math.abs(zAlas[0] - Z_BASE_C1) < 0.01, 'ala inferior al pie del cuerpo');
+    assert.ok(Math.abs(zAlas[1] - (Z_BASE_C1 + 74 - 15)) < 0.01, 'ala superior bajo el techo del cuerpo');
+    // La C es de 3 piezas: sin pestañas (fondo + 2 alas).
+    assert.ok(!canalC.piezas.some((p) => p.rol === 'pestana'), 'sin pestañas en el canal');
   });
 
   it('incluye los frentes adyacentes como piezas móviles', () => {
@@ -94,28 +97,32 @@ describe('buildGolaSections: canal C entre frentes', () => {
     assert.equal(frentes.length, 2);
     assert.ok(frentes.every((p) => p.fija === false));
     assert.ok(frentes.every((p) => p.y === -15));
-    const frenteInf = frentes.find((p) => p.z + p.alto <= Z_BASE_C1);
-    const frenteSup = frentes.find((p) => p.z >= Z_BASE_C1);
-    assert.ok(frenteInf && frenteSup, 'un frente abajo y otro arriba del canal');
-    assert.ok(Math.abs(frenteInf.z + frenteInf.alto - (Z_BASE_C1 - 3)) < 0.01, 'techo del frente inferior = zBase − paso');
-    assert.ok(Math.abs(frenteSup.z - (Z_BASE_C1 + 50 + 3)) < 0.01, 'z del frente superior = zBase + perfil + paso');
+    // La gola vive DETRÁS de los frentes: el fondo (zBase..zBase+60) se
+    // solapa en Z con ambos frentes (el inferior lo cubre por abajo, el
+    // superior por arriba).
+    const frenteInf = frentes.find((p) => p.z + p.alto >= Z_BASE_C1 + 20 && p.z + p.alto <= Z_BASE_C1 + 35);
+    const frenteSup = frentes.find((p) => p.z >= Z_BASE_C1 + 40 && p.z <= Z_BASE_C1 + 55);
+    assert.ok(frenteInf && frenteSup, 'un frente abajo y otro arriba del canal (la gola detrás de ellos)');
+    assert.ok(Math.abs(frenteInf.z + frenteInf.alto - (Z_BASE_C1 + 30 - 3)) < 0.01, 'techo del frente inferior (zBase = techo − labio + paso)');
+    assert.ok(Math.abs(frenteSup.z - (Z_BASE_C1 + 47)) < 0.01, // 225 + 27 (techoInf) + 20 (entrada)
+      'z del frente superior = techo inferior + entrada (gap visible: la gola tapa el resto)');
   });
 
   it('anota la abertura útil de agarre (20 mm) y su entrada', () => {
-    assert.equal(canalC.abertura.utilMm, 20);
-    assert.equal(canalC.abertura.altoMm, 20);
-    assert.equal(canalC.abertura.profundidadMm, 10);
-    assert.match(canalC.abertura.etiqueta, /abertura útil 20/i);
+    assert.equal(canalC.abertura.utilMm, 44, 'hueco entre alas (20 + 2·30 − 2·15 − 2·3)');
+    assert.equal(canalC.abertura.altoMm, 44);
+    assert.equal(canalC.abertura.profundidadMm, 30, 'entrada = labio (30): el dedo engancha por detrás de él');
+    assert.match(canalC.abertura.etiqueta, /abertura útil 44/i);
     assert.ok(Math.abs(canalC.abertura.desdeZ - (Z_BASE_C1 + 15)) < 0.01);
-    assert.ok(Math.abs(canalC.abertura.hastaZ - (Z_BASE_C1 + 50 - 15)) < 0.01);
+    assert.ok(Math.abs(canalC.abertura.hastaZ - (Z_BASE_C1 + 74 - 15)) < 0.01);
   });
 
-  it('cotas: cuerpo 50, retranqueo 10, labio 25 y paso 3 anotados', () => {
+  it('cotas: cuerpo 74, retranqueo 60, ala 60 y paso 3 anotados', () => {
     const porEtiqueta = (re) => canalC.cotas.find((c) => re.test(c.etiqueta));
     assert.ok(porEtiqueta(/Cuerpo del perfil/), 'cota del cuerpo');
-    assert.equal(porEtiqueta(/Cuerpo del perfil/).valor, 50);
-    assert.equal(porEtiqueta(/Retranqueo/).valor, 10);
-    assert.equal(porEtiqueta(/Labio/).valor, 25);
+    assert.equal(porEtiqueta(/Cuerpo del perfil/).valor, 74);
+    assert.equal(porEtiqueta(/Retranqueo/).valor, 60);
+    assert.equal(porEtiqueta(/Ala/).valor, 60);
     assert.equal(porEtiqueta(/Paso/).valor, 3);
   });
 
@@ -123,7 +130,7 @@ describe('buildGolaSections: canal C entre frentes', () => {
     assert.equal(canalC.puntosFijacion.length, 2, '2 tornillos por lado (defaults)');
     assert.deepEqual(
       canalC.puntosFijacion.map((p) => p.distDesdeBordeMm).sort((a, b) => a - b),
-      [15, 35],
+      [15, 59],
     );
     assert.ok(canalC.puntosFijacion.every((p) => /Tornillo/.test(p.nota)));
     assert.match(canalC.planTxt, /3\.5×16/);

@@ -68,7 +68,6 @@ test('A1: editModuleDimensions con gola activo re-anchoa y reposiciona las tiras
   const tirasAntes = tirasDe(piecesAntes);
   assert.equal(tirasAntes.length, 2, '3 cajones ⇒ 2 tiras');
   assert.ok(tirasAntes.every((t) => t.ancho === anchoTiraEsperado(850)), 'tiras al vano inicial');
-  const techoAntes = techoMaxFrentes(piecesAntes);
 
   // Editar dimensiones: más ancho y más alto ⇒ vano y topRef nuevos.
   const edit = editModuleDimensions('1', { ancho: 900, alto: 2600, prof: 600 });
@@ -81,13 +80,16 @@ test('A1: editModuleDimensions con gola activo re-anchoa y reposiciona las tiras
     tirasDespues.every((t) => t.ancho === anchoTiraEsperado(900)),
     `tiras re-anchoadas al nuevo vano: ${tirasDespues.map((t) => t.ancho).join(',')}`,
   );
-  // El topRef sube (techoInterior 2385 → 2585): las tiras se reposicionan y
-  // los frentes se re-escalan hacia arriba.
+  // El topRef sube (techoInterior 2385 → 2585) y los frentes conservan su
+  // vano: el reapply del gola vuelve a sumar el labio (+30 sobre 247).
   assert.ok(
-    tirasDespues[1].pos_z > tirasAntes[1].pos_z,
-    `la tira superior sube con el vano (${tirasAntes[1].pos_z} → ${tirasDespues[1].pos_z})`,
+    Math.abs(tirasDespues[1].pos_z - tirasAntes[1].pos_z) <= 0.5,
+    `la tira superior se recalcula en la pila (${tirasAntes[1].pos_z} → ${tirasDespues[1].pos_z})`,
   );
-  assert.ok(techoMaxFrentes(piecesDespues) > techoAntes, 'frentes re-escalados hacia el topRef nuevo');
+  assert.ok(
+    frentesDe(piecesDespues).every((f) => f.alto === 277),
+    'frentes 247 + 30 (labio): el vano se conserva al editar',
+  );
 });
 
 test('A1: un solo undo devuelve la edición completa (casco + tiras gola)', () => {

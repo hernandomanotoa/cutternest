@@ -41,7 +41,7 @@ import { getContentType, tipoTagDe } from '../core/contentTypes.js';
 // Una unidad es de altura FIJA en el gola según su CONTRATO (tag [tipo] en el
 // nombre del frente, sobrevive al CSV). Sin tag (catálogo o diseños previos),
 // la regla histórica por palabra clave: 'zapatera' en nombre/id.
-function esUnidadFijaGola(u) {
+export function esUnidadFijaGola(u) {
   const ref = u.frentes[0];
   const t = tipoTagDe(ref.nombre);
   const tipo = t ? getContentType('shoeRack', t) : null;
@@ -59,6 +59,8 @@ export const GOLA_PERFIL_TALLER_INFO = { fuente, editable };
 export const GOLA_DEFAULTS = { ...GOLA_PERFIL_TALLER_VALORES };
 
 export const GOLA_NUMERIC_KEYS = [
+  'golaLabioMm',
+  'golaEntradaMm',
   'golaPerfilHeight',
   'golaPaso',
   'golaFingerClearance',
@@ -75,6 +77,14 @@ export const GOLA_NUMERIC_KEYS = [
 // canal: es el espesor de la tira (15). La abertura útil del canal C parte
 // de esta constante.
 export const GOLA_PESTANA_ALTO_MM = 15;
+// Labio: incremento del frente (mm) al aplicar gola — el frente crece 30 y
+// cuelga sobre el canal; ES el labio de agarre (el dedo engancha su borde
+// inferior por detrás). Ocupa 30 mm del gap: gap gola = 30 (labio) + paso +
+// perfil + paso.
+export const GOLA_LABIO_MM = 30;
+// Holgura del extremo frontal del ala respecto de la espalda del frente
+// (mm): el ala termina 2 mm antes para no rozar el frente al abrir.
+export const GOLA_ALA_HOLGURA_FRENTE_MM = 2;
 
 // Plan de fijación: tornillo estándar del canal y herramienta de perforación
 // en melamina (el tornillo 3.5×16 se atornilla con broca de 3 mm).
@@ -90,26 +100,35 @@ export const GOLA_MIN_DIST_BORDE_MM = 10;
  * Canal C: los dedos pasan por el gap entre frentes y agarran el interior
  * del canal retranqueado; el hueco libre vertical es el cuerpo del perfil
  * menos las dos pestañas (15 mm arriba y abajo) y la profundidad útil de
- * entrada es el retranqueo (golaStripSetback). Canal L: el agarre entra
- * desde arriba y la abertura es el aire bajo la repisa (golaFingerClearance).
+ * entrada es el LABIO (GOLA_LABIO_MM): el tunel libre tras el frente
+ * extendido donde engancha el dedo. Canal L: el agarre entra desde arriba y
+ * la abertura es el aire bajo la repisa (golaFingerClearance).
  *
  * @returns {{tipo:string, alturaExteriorMm:number, aberturaUtilMm:number, profundidadEntradaMm:number}}
  */
 export function aberturaCanalGola(tipo, cfg = GOLA_DEFAULTS) {
   const c = { ...GOLA_DEFAULTS, ...(cfg || {}) };
   if (tipo === 'C') {
+    // La gola tapa el espacio tras los frentes: la zona cubierta mide la
+    // entrada de dedos + 2·labio (el voladizo de cada frente); el hueco útil
+    // entre las alas es esa zona menos las dos alas (15) y las dos holguras
+    // de paso (frente a las caras). La profundidad de entrada es el labio
+    // (el dedo engancha por detrás de él).
+    const entrada = Number(c.golaEntradaMm) > 0 ? Number(c.golaEntradaMm) : c.golaPaso;
+    const labio = Number(c.golaLabioMm) > 0 ? Number(c.golaLabioMm) : GOLA_LABIO_MM;
+    const zona = entrada + 2 * labio;
     return {
       tipo: 'C',
-      alturaExteriorMm: c.golaPerfilHeight,
-      aberturaUtilMm: Math.max(0, c.golaPerfilHeight - 2 * GOLA_PESTANA_ALTO_MM),
-      profundidadEntradaMm: c.golaStripSetback,
+      alturaExteriorMm: zona,
+      aberturaUtilMm: Math.max(0, zona - 2 * GOLA_PESTANA_ALTO_MM - 2 * c.golaPaso),
+      profundidadEntradaMm: labio,
     };
   }
   return {
     tipo: 'L',
     alturaExteriorMm: c.golaPerfilHeight,
     aberturaUtilMm: c.golaFingerClearance,
-    profundidadEntradaMm: c.golaStripSetback,
+    profundidadEntradaMm: GOLA_LABIO_MM,
   };
 }
 
@@ -296,10 +315,21 @@ function reparteConPiso(orig, pisos, disponible) {
 }
 
 /**
- * Aplica el sistema gola a un módulo. Reescala SOLO los frentes (las cajas
- * no cambian), crea N−1 canales tipo C (UNICAMENTE entre cajones: el canal L
- * bajo la repisa se eliminó — sobre el último frente queda el gap de frente
- * habitual) y elimina los tiradores del módulo si los hay.
+ * Aplica el sistema gola a un módulo. Regla de taller (spec):
+ * - Los frentes móviles crecen +30 mm (GOLA_LABIO_MM): frente = cara + 60
+ *   (voladizo centrado 30/30). NUNCA se reducen; las zapateras quedan fijas
+ *   en su altura de tipo.
+ * - La gola TAPA el espacio entre cajones: los frentes quedan a UN PASO de
+ *   distancia (gap visible = golaPaso, línea de sombra; reemplaza a
+ *   drawerFrontGap) y el canal vive DETRÁS de los frentes.
+ * - Canal tipo C de melamina 15 mm, 3 piezas por gap: fondo INTERNO
+ *   (retranqueado golaStripSetback) + ala sup/inf. Las alas van DETRÁS de
+ *   los frentes, en la zona del voladizo (o = (frente − cara)/2 = 30),
+ *   casi topando las caras (holgura = golaPaso): el ala inf cubre la zona
+ *   baja tras el frente inferior y el ala sup la zona alta tras el frente
+ *   superior; entre ellas queda el hueco de la mano (el dedo entra por el
+ *   paso y engancha el labio del frente superior por detrás). Sobre el
+ *   último frente queda el gap habitual. Elimina los tiradores si los hay.
  *
  * @returns {{ok:true, pieces: object[], warnings: string[], meta: object}
  *         | {ok:false, errors: string[], warnings?: string[]}}
@@ -326,59 +356,68 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     ? Number(userConfig.drawerFrontGap)
     : 2.5;
   const H_new = topRef - topGap - bottom;
-  // Gap entre frentes = paso + perfil + paso (canal centrado).
-  const G = cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso;
-  const disponible = H_new - (N - 1) * G;
-  // Piso por unidad: cada frente debe cubrir su caja (lateral + 10 mm).
-  const pisos = unidades.map((u) => (u.latAltoCaja != null ? u.latAltoCaja + 10 : 30));
-  // Zapateras: el frente queda FIJO en la altura de su tipo (no se reescala).
-  // Si se reescalara podría quedar bajo la cara de la bandeja (cara = frente
-  // − 2·ESP_BASE) y la cara asomaría por arriba del frente. Solo los cajones
-  // absorben el aire del span.
+  // Gap visible entre frentes = la ENTRADA de dedos (configurable,
+  // golaEntradaMm): la gola tapa el espacio viviendo detrás de los frentes y
+  // el dedo entra por ese hueco. Reemplaza a drawerFrontGap.
+  const entrada = Number(cfg.golaEntradaMm) > 0 ? Number(cfg.golaEntradaMm) : cfg.golaPaso;
+  const G = entrada;
+  // Regla de taller (spec): al aplicar gola el frente MÓVIL crece el LABIO
+  // (configurable, golaLabioMm, default 30): el dedo engancha su borde
+  // inferior por detrás. Nunca se reduce: piso = max(frente + labio, caja +
+  // labio). Las zapateras quedan fijas en su altura de tipo (tampoco se
+  // reducen).
+  const labio = Number(cfg.golaLabioMm) > 0 ? Number(cfg.golaLabioMm) : GOLA_LABIO_MM;
+  const origHeights = unidades.map((u) => Math.max(...u.frentes.map((f) => Number(f.alto) || 0)));
+  const pisos = unidades.map((u, i) => (u.latAltoCaja != null
+    ? Math.max(origHeights[i] + labio, u.latAltoCaja + labio)
+    : origHeights[i] + labio));
   const fijas = unidades.map(esUnidadFijaGola);
-  const sumFijas = fijas.reduce((s, f, i) => s + (f ? Math.max(...unidades[i].frentes.map((fr) => Number(fr.alto) || 0)) : 0), 0);
-  let minSuma = sumFijas + pisos.reduce((s, p, i) => s + (fijas[i] ? 0 : p), 0);
+  const sumFijas = fijas.reduce((s, f, i) => s + (f ? origHeights[i] : 0), 0);
+  const minSuma = sumFijas + pisos.reduce((s, p, i) => s + (fijas[i] ? 0 : p), 0);
 
-  // Rebaja de caja (solución de taller cuando el vano no alcanza por poco):
-  // bajar los laterales/cara/fondo de los cajones MÓVILES libera 1 mm de
-  // frente por cada mm rebajado (el piso = caja + 10 baja igual), sin tocar
-  // la repisa ni las zapateras. Si el déficit por cajón cabe en
-  // golaMaxRebajaCaja, se rebaja con aviso en vez de fallar; si falta mucho
-  // (o no hay cajas rebajables), cae al error de vano de abajo.
-  const alturaCajaPorPieza = new Map();
-  let rebajaPorUnidad = 0;
-  let nRebajadas = 0;
-  if (disponible < minSuma) {
-    const deficit = minSuma - disponible;
-    const rebajables = unidades
-      .map((u, i) => i)
-      .filter((i) => !fijas[i] && unidades[i].latAltoCaja != null);
-    const maxRebaja = Number(cfg.golaMaxRebajaCaja) || 0;
-    const delta = rebajables.length ? Math.ceil((deficit / rebajables.length) * 10) / 10 : Infinity;
-    const cabeRebaja = rebajables.length > 0
-      && delta <= maxRebaja + 0.5
-      && rebajables.every((i) => unidades[i].latAltoCaja - delta >= 50);
-    if (cabeRebaja) {
-      rebajaPorUnidad = delta;
-      nRebajadas = rebajables.length;
-      for (const i of rebajables) {
-        pisos[i] = redondea1(Math.max(50, unidades[i].latAltoCaja - rebajaPorUnidad) + 10);
-        for (const p of pieces || []) {
-          if (String(p.modulo || '') !== unidades[i].sub) continue;
-          if (!['drawer_side', 'drawer_back', 'drawer_part'].includes(inferRole(p))) continue;
-          const altoActual = Number(p.alto) || 0;
-          const nuevo = Math.max(50, redondea1(altoActual - rebajaPorUnidad));
-          if (nuevo < altoActual) alturaCajaPorPieza.set(String(p.id), nuevo);
-        }
-      }
-      minSuma = sumFijas + pisos.reduce((s, p, i) => s + (fijas[i] ? 0 : p), 0);
+  // Gap que sigue a cada unidad i (entre i e i+1). Tras una ZAPATERA, el gap
+  // respeta su vano de contrato (reserva su aire de calzado): max(entrada,
+  // vanoTipo − frente). Tras un cajón, el gap es la entrada (ahí vive el
+  // canal). Así las zapateras conservan su ergonomía aunque no lleven canal.
+  const alturaFinal = (i) => (fijas[i] ? origHeights[i] : pisos[i]);
+  const gapTras = (i) => {
+    if (!fijas[i]) return G;
+    const ref = unidades[i].frentes[0];
+    const tag = tipoTagDe(ref.nombre) || tipoTagDe(ref.id);
+    const vanoTipo = tag ? (getContentType('shoeRack', tag)?.altoVano ?? null) : null;
+    if (!vanoTipo) return G;
+    return Math.max(G, redondea1(vanoTipo - alturaFinal(i)));
+  };
+  // ── Posicionamiento (spec: las zapateras NO varían) ──
+  // Las ZAPATERAS fijas son anclas INAMOVIBLES: conservan su posición y su
+  // medida exactas al aplicar el gola. Los CAJONES se apilan desde el techo
+  // de la unidad anterior: gap = gapTras (entrada tras cajones —ahí vive el
+  // canal—; vano de contrato tras zapateras —su aire de calzado—).
+  const origTops = unidades.map((u) => u.minZ);
+  const nuevasAlturas = origHeights.slice();
+  unidades.forEach((u, i) => { if (!fijas[i]) nuevasAlturas[i] = pisos[i]; });
+  const nuevasTops = new Array(N);
+  let cursor = bottom;
+  for (let i = 0; i < N; i++) {
+    nuevasTops[i] = fijas[i]
+      ? redondea1(origTops[i]) // inamovible
+      : redondea1(i === 0 ? cursor : cursor + gapTras(i - 1));
+    cursor = nuevasTops[i] + nuevasAlturas[i];
+    // Un tramo de cajones no puede invadir la zapatera fija que tiene encima.
+    if (!fijas[i] && i + 1 < N && fijas[i + 1] && cursor + gapTras(i) > origTops[i + 1] + 0.5) {
+      const deficit = redondea1(cursor + gapTras(i) - origTops[i + 1]);
+      return {
+        ok: false,
+        errors: [`Gola: los cajones no caben antes de "${unidades[i + 1].frentes[0].nombre}" (zapatera fija: su posición no varía): faltan ${deficit} mm. Reduzca cajones del tramo, use tipos de cajón más bajos o mueva esa zapatera antes de aplicar el gola.`],
+      };
     }
   }
+  const techoPila = redondea1(cursor);
 
-  if (disponible < minSuma) {
-    const deficit = Math.ceil((minSuma - disponible) * 10) / 10;
+  if (techoPila > topRef - topGap + 0.5) {
+    const deficit = Math.ceil((techoPila - (topRef - topGap)) * 10) / 10;
     const nota = sumFijas > 0
-      ? ` (incluye ${Math.round(sumFijas)} mm de zapateras a altura de tipo, sin reescalar)`
+      ? ` (las zapateras quedaron fijas en su posición y medida)`
       : '';
     // Consejos SEGÚN dónde está el contenido que no es unidad de gola: las
     // zapateras/bandejas solo ayudan si ocupan espacio DENTRO del span (entre
@@ -395,8 +434,8 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
       // Zona que la pieza NO-unidad reserva: con tag [tipo], el vano del tipo
       // (p. ej. zapatera [planos] = 180 mm); sin tag, su propio alto.
       const tag = tipoTagDe(String(p.nombre || ''));
-      const vanoTipo = tag ? (getContentType('shoeRack', tag)?.altoVano ?? null) : null;
-      const altoZona = Number(vanoTipo) > 0 ? Number(vanoTipo) : (Number(p.alto) || 0);
+      const vanoTipo2 = tag ? (getContentType('shoeRack', tag)?.altoVano ?? null) : null;
+      const altoZona = Number(vanoTipo2) > 0 ? Number(vanoTipo2) : (Number(p.alto) || 0);
       if (z > bottom + 0.5 && z < topRef - 0.5) hayNoUnidadEnSpan = true;
       else if (z < bottom - 0.5) techoNoUnidadDebajo = Math.max(techoNoUnidadDebajo, z + altoZona);
     }
@@ -414,16 +453,9 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
     consejos.push('reduzca cajones');
     return {
       ok: false,
-      errors: [`Gola: el vano no alcanza (span ${Math.round(H_new)} mm, ${N} cajón/cajones, gap gola ${G} mm; disponible ${Math.round(disponible)} mm < mínimo ${minSuma} mm${nota} para cubrir las cajas; faltan ${deficit} mm). ${consejos.join(' · ')}.`],
+      errors: [`Gola: el vano no alcanza (span ${Math.round(H_new)} mm, ${N} unidad(es), gap gola ${G} mm${nota}; la pila con los frentes + labio mide ${Math.round(techoPila - bottom)} mm y faltan ${deficit} mm). ${consejos.join(' · ')}.`],
     };
   }
-  // Solo zapateras (nada que reescalar): NO se exige que la pila cuadre el
-  // span exacto. Con frentes cortos (modo 'normal': frente = bandeja + 30,
-  // fijo en gola) el span se cuadra con el aire ABIERTO que queda encima de
-  // la pila — es el aire del calzado de la última zapatera —: la pila se
-  // apila desde abajo y el sobrante queda libre bajo la repisa. Solo si la
-  // pila NO CABE en el span falla (el error general 'el vano no alcanza' de
-  // arriba, que menciona el fijo de las zapateras).
 
   // meta para el round-trip (restore exacto al desactivar).
   const meta = {
@@ -438,47 +470,22 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
       meta.origTops[String(f.id)] = Number(f.pos_z) || 0;
     }
   }
-  // Cajas rebajadas: también viajan en meta para restaurarlas al desactivar.
-  for (const id of alturaCajaPorPieza.keys()) {
-    const vieja = (pieces || []).find((p) => String(p.id) === id);
-    meta.origHeights[id] = Number(vieja?.alto) || 0;
-  }
-
-  // Reescalado con PISO por unidad (cada frente ≥ su caja + 10). Las
-  // zapateras quedan fijas en su altura de tipo; el aire se reparte solo
-  // entre los cajones con holgura, con Σaᵢ' + (N−1)·G = H_new exacto.
-  const origHeights = unidades.map((u) => Math.max(...u.frentes.map((f) => Number(f.alto) || 0)));
-  const nuevasAlturas = origHeights.slice();
-  const idxMoviles = unidades.map((_, i) => i).filter((i) => !fijas[i]);
-  if (idxMoviles.length) {
-    const repartidas = reparteConPiso(
-      idxMoviles.map((i) => origHeights[i]),
-      idxMoviles.map((i) => pisos[i]),
-      disponible - sumFijas,
-    );
-    idxMoviles.forEach((i, k) => { nuevasAlturas[i] = repartidas[k]; });
-  }
 
   const warnings = [];
-  if (rebajaPorUnidad > 0) {
-    warnings.push(
-      `Gola: la caja de ${nRebajadas} cajón/cajones se rebajó ${rebajaPorUnidad} mm para que entre el canal entre los frentes (el frente la sigue cubriendo: piso = caja + 10).`
-    );
+  const aireLibre = redondea1(topRef - topGap - techoPila);
+  if (aireLibre >= 5) {
+    warnings.push(`Gola: quedan ${Math.round(aireLibre)} mm libres sobre el último frente (bajo la repisa).`);
   }
-  for (let i = 0; i < N; i++) {
-    if (nuevasAlturas[i] < origHeights[i]) {
+  for (let i = 0; i < N; i += 1) {
+    const crecimiento = redondea1(nuevasAlturas[i] - origHeights[i]);
+    // El crecimiento ESTÁNDAR del labio es el comportamiento esperado (la
+    // vista previa ya lo anuncia): solo se avisa cuando difiere (frente
+    // forzado a más de lo habitual por el vano).
+    if (crecimiento > 0.5 && Math.abs(crecimiento - labio) > 0.5) {
       warnings.push(
-        `Gola: frente "${unidades[i].frentes[0].nombre}" reducido a ${nuevasAlturas[i]} mm (era ${origHeights[i]} mm).`
+        `Gola: frente "${unidades[i].frentes[0].nombre}" creció a ${nuevasAlturas[i]} mm (era ${origHeights[i]} mm): labio de ${labio} mm + ${redondea1(crecimiento - labio)} mm adicionales para el vano.`
       );
     }
-  }
-
-  // Reposicionar: z₁ = bottom, z_{i+1} = zᵢ + aᵢ' + G.
-  const nuevasTops = [];
-  let cursor = bottom;
-  for (let i = 0; i < N; i++) {
-    nuevasTops.push(redondea1(cursor));
-    cursor += nuevasAlturas[i] + G;
   }
 
   // Alturas/pos_z nuevos por frente (todos los frentes de la unidad reciben
@@ -493,32 +500,59 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
   }
 
   // Canales de MELAMINA (mismo material/color que el módulo), SOLO entre
-  // cajones: por cada gap intermedio, un canal tipo C = fondo vertical
-  // retranqueado detrás del plano de frentes (cara frontal a
-  // golaStripSetback) + dos labios (pestañas) de 15 de espesor A RAS del
-  // plano de frentes, de largo retranqueo + 15 para cubrir el hueco de
-  // agarre y traslapsar el fondo (encolado/atornillado). Sobre el último
-  // frente NO va canal L: queda el gap de frente habitual (topGap), como en
-  // el apilado sin gola.
+  // cajones. La gola TAPA el espacio entre cajones viviendo DETRÁS de los
+  // frentes (gap visible = paso). Canal tipo C de 3 piezas:
+  // - ala inf/sup: labios horizontales de 15 DETRÁS de los frentes, en la
+  //   zona del voladizo o = (frente − cara)/2 (30 con labio), casi topando
+  //   las caras (holgura = paso). Su largo (en profundidad) va del fondo
+  //   (traslape) hasta 2 mm antes de la espalda de los frentes.
+  // - fondo: panel vertical de 15 INTERNO que conecta las alas por la cara
+  //   posterior (cierra la C), retranqueado golaStripSetback.
+  // Entre las alas queda el hueco de la mano: el dedo entra por el paso y
+  // engancha el labio del frente superior por detrás.
+  // Sobre el último frente NO va canal: queda el gap habitual.
   const prefijo = stripPrefix(modId);
   const anchoCanal = casco.anchoInterior - 2 * cfg.golaHolguraLateral;
   const color = colorTira(pieces, modId, casco, unidades);
-  const largoLabio = redondea1(cfg.golaStripSetback + GOLA_PESTANA_ALTO_MM);
+  const largoAla = redondea1(cfg.golaStripSetback + 15 - GOLA_ALA_HOLGURA_FRENTE_MM);
+  const paso = cfg.golaPaso;
+  // Voladizo por lado: (frente − cara)/2. Con el labio, frente = cara + 60
+  // → o = 30. Sin laterales derivables, el default del labio.
+  const voladizoDe = (i) => {
+    const caja = unidades[i].latAltoCaja;
+    return caja != null
+      ? Math.max(0, redondea1((nuevasAlturas[i] - caja) / 2))
+      : labio;
+  };
   const mk = (id, nombre, ancho, alto, pos_z, rotate = false) => ({
     id, nombre, ancho, alto, cantidad: 1, rotate,
     color, espesor: 15, cantos: 'T,B', modulo: modId, pos_z,
   });
+  // Canales SOLO entre CAJONES: ni entre zapateras ni zapatera↔cajón (las
+  // zapateras son fijas en su tipo y su apertura es propia).
   const canales = [];
   for (let i = 1; i <= N - 1; i++) {
-    const zBase = redondea1(nuevasTops[i - 1] + nuevasAlturas[i - 1] + cfg.golaPaso);
-    canales.push(mk(`${prefijo}c${i}-fondo`, `Fondo de canal Gola C ${i}`, anchoCanal, cfg.golaPerfilHeight, zBase, false));
-    canales.push(mk(`${prefijo}c${i}-pestana-sup`, `Pestana superior Gola C ${i}`, anchoCanal, largoLabio, redondea1(zBase + cfg.golaPerfilHeight - GOLA_PESTANA_ALTO_MM), true));
-    canales.push(mk(`${prefijo}c${i}-pestana-inf`, `Pestana inferior Gola C ${i}`, anchoCanal, largoLabio, zBase, true));
+    if (fijas[i - 1] || fijas[i]) continue;
+    const techoInf = redondea1(nuevasTops[i - 1] + nuevasAlturas[i - 1]);
+    const oInf = voladizoDe(i - 1);
+    const oSup = voladizoDe(i);
+    const canalId = `${prefijo}c${i}`;
+    // Ala inferior: tras el frente inferior, casi topando su cara (holgura =
+    // paso). Ala superior: simétrica, tras el frente superior.
+    const zAlaInf = redondea1(techoInf - oInf + paso);
+    const zAlaSup = redondea1(techoInf + G + oSup - 15 - paso);
+    // Fondo: de la cara inferior del ala inf a la cara superior del ala sup
+    // (alto = entrada + 2·voladizo − 2·paso: crece con la entrada de dedos).
+    const zFondo = zAlaInf;
+    const altoFondo = redondea1((zAlaSup + 15) - zAlaInf);
+    canales.push(mk(`${canalId}-fondo`, `Fondo de canal Gola C ${i}`, anchoCanal, altoFondo, zFondo, false));
+    canales.push(mk(`${canalId}-ala-inf`, `Ala inferior Gola C ${i}`, anchoCanal, largoAla, zAlaInf, true));
+    canales.push(mk(`${canalId}-ala-sup`, `Ala superior Gola C ${i}`, anchoCanal, largoAla, zAlaSup, true));
   }
 
-  // Ensamblar: frentes reescalados/reposicionados, cajas rebajadas (si el
-  // vano no alcanzaba por poco), tiradores fuera, canales nuevos (reemplaza
-  // los anteriores si los hubiera), resto intacto.
+  // Ensamblar: frentes crecidos/reposicionados (nunca reducidos), tiradores
+  // fuera, canales nuevos (reemplaza los anteriores si los hubiera), resto
+  // intacto.
   const idsFrentes = new Set(alturaPorFrente.keys());
   const tiradoresOut = new Set(
     (pieces || [])
@@ -536,10 +570,6 @@ export function applyGola(pieces, moduleId, userConfig = {}) {
         alto: alturaPorFrente.get(id),
         pos_z: topPorFrente.get(id),
       });
-      continue;
-    }
-    if (alturaCajaPorPieza.has(id)) {
-      resultado.push({ ...p, alto: alturaCajaPorPieza.get(id) });
       continue;
     }
     resultado.push(p);
@@ -648,8 +678,8 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
   const casco = cascoDims(pieces, modId);
   const techoInterior = casco ? casco.techoInterior : Infinity;
   const N = unidades.length;
-  // Gap entre frentes = paso + perfil + paso (canal centrado).
-  const G = cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso;
+  // Gap visible entre frentes = entrada de dedos (la gola tapa el espacio).
+  const G = Number(cfg.golaEntradaMm) > 0 ? Number(cfg.golaEntradaMm) : cfg.golaPaso;
 
   // Frente cubre su caja (aᵢ' ≥ altoLateral + 10) y unidades ordenadas.
   for (const u of unidades) {
@@ -667,36 +697,27 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
-  // Piezas del canal: dentro del vano y sin solape con frentes. La regla
-  // del paso (gap = paso + cuerpo + paso) se verifica sobre el FONDO del
-  // canal; las pestañas viven dentro del cuerpo del gap.
+  // Piezas del canal: dentro del vano. Las alas y pestañas viven detrás de
+  // la espalda de los frentes (modelo B2); la regla del paso (gap = labio +
+  // paso + cuerpo + paso) se verifica sobre el FONDO del canal.
   const tiras = (pieces || []).filter((p) => esTiraGola(p) && perteneceAModulo(p, modId));
   const frentes = unidades.flatMap((u) => u.frentes);
   tiras.forEach((t) => {
     const z = Number(t.pos_z);
     // Las pestañas son horizontales: su 'alto' es la PROFUNDIDAD; su altura
     // vertical es el espesor (15).
-    const esPestana = /-pestana(-sup|-inf)?$/.test(String(t.id));
-    const altoZ = esPestana ? (Number(t.espesor) || 15) : (Number(t.alto) || 0);
+    // Las ALAS son horizontales: su 'alto' es la PROFUNDIDAD (largoAla);
+    // su altura vertical es el espesor (15).
+    const esAla = /-ala(-sup|-inf)?$/.test(String(t.id));
+    const altoZ = esAla ? (Number(t.espesor) || 15) : (Number(t.alto) || 0);
     if (!(z >= 0) || z + altoZ > techoInterior + 0.5) {
       errors.push(`Gola: la pieza "${t.id}" queda fuera del vano (z=${z}, alto=${altoZ}).`);
     }
-    // Sin canal L no hay solape permitido: todo canal se verifica contra
-    // todos los frentes.
-    for (const f of frentes) {
-      const fz = Number(f.pos_z);
-      const fh = Number(f.alto) || 0;
-      if (z < fz + fh - 0.5 && fz < z + altoZ - 0.5) {
-        errors.push(`Gola: la pieza "${t.id}" se solapa con el frente "${f.nombre}".`);
-      }
-    }
-    if (!String(t.id).endsWith('-fondo')) return; // pestañas: dentro del canal
-    const paso = cfg.golaPaso;
-    const inferior = frentes.find((f) => Math.abs(Number(f.pos_z) + (Number(f.alto) || 0) - (z - paso)) <= 1.5);
-    const superior = frentes.find((f) => Math.abs(Number(f.pos_z) - (z + altoZ + paso)) <= 1.5);
-    if (!inferior || !superior) {
-      warnings.push(`Gola: el fondo de canal "${t.id}" debe quedar centrado en el gap con ${paso} mm de paso arriba y abajo respecto de los frentes.`);
-    }
+    // La gola tapa el espacio VIVIENDO DETRÁS de los frentes: el solape en
+    // Z entre tiras y frentes es el diseño (alas y fondo tras los frentes,
+    // casi topando las caras), no un error. Solo se verifica que las piezas
+    // queden dentro del vano (chequeo de arriba).
+    void frentes;
   });
 
   // Ergonomía de la abertura útil de agarre del canal C (hueco libre real
@@ -732,8 +753,11 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
     }
   }
 
-  // Span total: Σaᵢ' + (N−1)·G = H_new (topRef − topGap − bottom). Gap
-  // superior = drawerFrontGap (sin canal L).
+  // Span total: Σaᵢ' + (N−1)·G ≤ H_new (topRef − topGap − bottom). Gap
+  // superior = drawerFrontGap (sin canal L). El reparto NO cierra exacto: el
+  // frente nunca se reduce, así que el aire que sobra queda LIBRE sobre el
+  // último frente (bajo la repisa) — válido para cualquier mezcla de unidades.
+  // Solo es error que la pila EXCEDA el span (Σ > H_new).
   const ultima = unidades[N - 1];
   const techoUltima = Math.max(...ultima.frentes.map((f) => Number(f.pos_z) + (Number(f.alto) || 0)));
   {
@@ -743,17 +767,13 @@ export function validateGola(pieces, moduleId, userConfig = {}) {
       ? Number(userConfig.drawerFrontGap)
       : 2.5;
     const H_new = topRef - topGap - bottom;
-    const suma = unidades.reduce((s, u) => s + Math.max(...u.frentes.map((f) => Number(f.alto) || 0)), 0) + (N - 1) * G;
-    // Con frentes FIJOS (solo zapateras: frentes cortos = bandeja + 30) el
-    // span no necesita cuadrar exacto: el aire que sobra queda ABIERTO
-    // encima de la pila (el aire del calzado de la última zapatera). Solo es
-    // error que la pila no quepa (Σ > span); con unidades móviles el reparto
-    // debe cerrar exacto (Σ = span).
-    const soloFijas = unidades.every((u) => esUnidadFijaGola(u));
-    const desvío = suma - H_new;
-    if (desvío > 2 || (!soloFijas && Math.abs(desvío) > 2)) {
+    // La pila real (con sus gaps: entrada tras cajones, vano tras zapateras)
+    // no debe exceder el span. Gap-agnóstico: se mide sobre las posiciones.
+    const pilaReal = techoUltima - bottom;
+    void G;
+    if (pilaReal > H_new + 2) {
       errors.push(
-        `Gola: el reparto vertical no cierra (Σ ${Math.round(suma)} mm vs span objetivo ${Math.round(H_new)} mm).`
+        `Gola: el reparto vertical no cierra (pila ${Math.round(pilaReal)} mm vs span objetivo ${Math.round(H_new)} mm).`
       );
     }
   }
@@ -812,7 +832,7 @@ function anclajeSuperiorDe(pieces, raiz, techoUltimoFrente, techoInterior) {
 function agrupaCanales(tiras) {
   const canales = new Map(); // prefijo → {tipo, indice, piezas[]}
   for (const t of tiras) {
-    const m = String(t.id).match(/^(.+gola-)(c(\d+)|l(\d+))-(fondo|pestana(-sup|-inf)?)$/);
+    const m = String(t.id).match(/^(.+gola-)(c(\d+)|l(\d+))-(fondo|ala(-sup|-inf)?|pestana(-sup|-inf)?)$/);
     if (!m) continue;
     const pref = m[1] + m[2];
     if (!canales.has(pref)) canales.set(pref, { tipo: m[2][0], indice: Number(m[3] || m[4]), piezas: [] });

@@ -39,12 +39,11 @@ function buildHealthyModule() {
     ultimoTecho = frente.pos_z + frente.alto;
     pieces.push(...d.pieces);
   }
-  // Repisa en el span EXACTO de la pila gola (2 frentes de 197 + 1 canal de
-  // 56 + gap superior 2.5): los frentes conservan 197 y la caja 167 → la
-  // auditoría de despiece detecta la colisión (holgura 30 < 60) y la veta.
+  // Repisa en el span EXACTO de la pila gola B2 (2 frentes de 227 = 197+30
+  // de labio + 1 canal de 86 = 30+3+50+3 + gap superior 2.5).
   const s = addShelf('1', { anchoUtil: INTERIOR, profReal: PROF - 2 * ESP, index: 1 });
   assert.ok(s.ok);
-  s.pieces[0].pos_z = 25 + 2 * 197 + 56 + 2.5;
+  s.pieces[0].pos_z = 25 + 2 * 227 + 86 + 2.5;
   pieces.push(...s.pieces);
   return pieces;
 }
@@ -74,12 +73,19 @@ test('módulo con gola aplicada → la auditoría estricta de despiece reporta v
   const gola = applyGola(pieces, '1', {});
   assert.ok(gola.ok, 'gola aplicada');
 
+  // Un cajón legacy con caja alta (holgura 227−197 = 30 < 60) mantiene la
+  // colisión detectable: el cajón estándar del Constructor cumple justo
+  // (frente 227 − caja 167 = 60) con la regla del modelo B2.
+  for (const p of gola.pieces) {
+    if (['m1cajon2-lateral-izq', 'm1cajon2-lateral-der', 'm1cajon2-cara', 'm1cajon2-fondo'].includes(p.id)) p.alto = 197;
+  }
+
   const reporte = buildAuditReport(gola.pieces, {});
 
   // Reglas de control estricto: los frentes del Constructor llevan rotate
-  // 'si' (veta vertical → error de continuidad estética) y la caja está a
-  // 30 mm del frente (< 60 mm → colisión con la gola). El corte queda
-  // bloqueado hasta corregir.
+  // 'si' (veta vertical → error de continuidad estética) y el cajón legacy
+  // de caja alta deja 30 mm bajo el frente (< 60 mm → colisión con la gola).
+  // El corte queda bloqueado hasta corregir.
   assert.equal(reporte.corteAutorizado, false, 'errores de despiece → corte NO autorizado');
   const veta = reporte.rows.filter((f) => f.problema.includes("rotate 'si'"));
   assert.ok(veta.some((f) => f.estado === 'por-corregir' && /Frente/.test(f.problema)), 'frentes con rotate: error de veta');

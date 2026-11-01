@@ -96,28 +96,32 @@ mecanismos con tiras de **melamina del mismo material/color que el módulo**
 (no perfil comercial de aluminio; todos los valores son **PROVISIONALES** y
 se editan en el mini-panel de la tarjeta o vía `userConfig`):
 
-1. **Canales C entre frentes**: en cada gap entre cajones apilados se genera
-   un canal de melamina de 3 piezas (rol `gola_strip`): un **fondo** vertical
-   de 15 retranqueado `golaStripSetback` detrás del plano de frentes y **dos
-   labios** (pestañas sup/inf) de 15 de espesor **a ras del plano de frentes**,
-   de largo `golaStripSetback + 15` (cubren el retranqueo y traslapsan el
-   fondo para encolar/atornillar). Gap gola `G = golaPerfilHeight +
-   2·golaPaso` **reemplaza** a `drawerFrontGap` (no se suman). Los dedos
-   entran por el **paso superior** (3 mm) y enganchan el borde inferior del
-   frente superior **por detrás**: el hueco entre labios, a la profundidad del
-   retranqueo, es el agarre. **Nada sobresale delante del plano de frentes**:
-   el frente se jala libre, sin obstrucción. El ancho de todas las piezas del
-   canal = ancho interior − 2·`golaHolguraLateral` (nunca el ancho exterior),
-   apoyado en las caras interiores de los laterales cerca de la cara frontal.
+1. **Canales C entre frentes (la gola tapa el espacio)**: los frentes
+   quedan a la **entrada de dedos** de distancia (gap visible =
+   `golaEntradaMm`, default 20 mm, configurable; **reemplaza** a
+   `drawerFrontGap`) y el canal vive **DETRÁS de los frentes**: la gola
+   cubre todo lo demás. **Canales SOLO entre cajones** (ni entre zapateras
+   ni zapatera↔cajón). Por gap, un canal de
+   melamina de **3 piezas** (rol `gola_strip`): dos **alas** horizontales de
+   15 detrás de los frentes, en la zona del voladizo o = (frente − cara)/2
+   (= 30 con labio), **casi topando las caras** (holgura = paso), de largo =
+   retranqueo + espesor del fondo − 2 mm (traslapan el fondo), + un **fondo**
+   vertical de 15 interno (retranqueado `golaStripSetback`, default 60) que
+   conecta las alas por la cara posterior (alto = entrada + 2·labio −
+   2·paso = la zona que tapa). Entre las alas queda el hueco de la mano
+   (abertura útil 44 mm con defaults, crece con `golaEntradaMm`): el dedo
+   entra por el gap visible y engancha el **labio** del frente superior por
+   detrás (túnel de 30 mm). Los frentes móviles **crecen +30 mm
+   (labio)**: quedan a **cara + 60**, voladizo centrado 30/30. El ancho de
+   las piezas del canal = ancho interior − 2·`golaHolguraLateral`.
 2. **Sobre el último frente (sin canal L)**: la gola es **solo entre cajones**.
    Sobre el último frente queda el gap habitual (`drawerFrontGap`, como sin
-   gola); el frente del cajón superior NO se extiende. Los N frentes se
-   reescalen para llenar el span (`topRef − drawerFrontGap − bottom`) con los
-   N−1 canales C entre ellos. **Vano corto por poco**: si el déficit por
-   cajón móvil cabe en `golaMaxRebajaCaja` (40 mm default), la gola **rebaja
-   las cajas** (laterales/cara/fondo) en esa medida —con aviso y restauro en
-   el round-trip— en vez de fallar; si falta mucho, error con consejos
-   exactos (subir repisa N mm / bajar primer cajón si hay aire real debajo).
+   gola). Los frentes móviles quedan a **frente + 30 (labio)** — nunca se
+   reducen; las zapateras quedan fijas en su altura de tipo; el aire que sobra
+   queda libre sobre el último frente (bajo la repisa). Si el vano no alcanza,
+   `applyGola` falla con **consejos exactos** (subir repisa N mm / bajar
+   primer cajón si hay aire real debajo / reducir cajones). La rebaja de
+   cajas (`golaMaxRebajaCaja`) quedó en desuso (retrocompat, sin efecto).
 
 Reglas: los frentes se reescalan **proporcionalmente** (las cajas no se
 tocan) conservando el span y las dimensiones exteriores. Los cajones y

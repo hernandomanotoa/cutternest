@@ -1031,151 +1031,533 @@ tbody.is-collapsed tr:not(.cn-group-header) {
   color: var(--text-secondary);
 }
 
-/* Constructor de closets (vista constructor) */
-.cn-constructor__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+/* ════════════════════════════════════════════════════════════════════
+   Constructor de clósets — Sistema de diseño "taller nocturno"
+   Spec: prototipo Kimi_Agent_Diseño UI_UX muebles (dark workshop).
+   Tiers: primitivo → semántico → componente. Todo acotado al wrapper
+   .cn-constructor: las demás vistas del planner conservan el tema global.
+   Fuentes: stack del sistema (el planner funciona offline).
+   ════════════════════════════════════════════════════════════════════ */
+.cn-constructor {
+  /* Primitivos — azul tinta + acento menta */
+  --cn-ink-950: oklch(0.145 0.018 255);
+  --cn-ink-900: oklch(0.175 0.022 255);
+  --cn-ink-850: oklch(0.205 0.026 255);
+  --cn-ink-800: oklch(0.24 0.03 255);
+  --cn-ink-line: oklch(0.30 0.032 255);
+  --cn-ink-line-strong: oklch(0.38 0.034 255);
+  --cn-paper: oklch(0.96 0.008 230);
+  --cn-mute-1: oklch(0.78 0.015 240);
+  --cn-mute-2: oklch(0.62 0.02 245);
+  --cn-mute-3: oklch(0.50 0.02 250);
+  --cn-mint-500: oklch(0.82 0.16 165);
+  --cn-mint-600: oklch(0.74 0.15 168);
+  --cn-mint-700: oklch(0.60 0.12 170);
+  --cn-mint-ghost: oklch(0.74 0.15 168 / 0.12);
+  --cn-amber-500: oklch(0.80 0.15 85);
+  --cn-red-500: oklch(0.68 0.19 25);
+  --cn-cyan-500: oklch(0.80 0.12 210);
+
+  /* Semánticos */
+  --cn-bg: var(--cn-ink-950);
+  --cn-panel: var(--cn-ink-900);
+  --cn-panel-2: var(--cn-ink-850);
+  --cn-panel-3: var(--cn-ink-800);
+  --cn-line: var(--cn-ink-line);
+  --cn-line-strong: var(--cn-ink-line-strong);
+  --cn-text: var(--cn-paper);
+  --cn-text-2: var(--cn-mute-1);
+  --cn-text-3: var(--cn-mute-2);
+  --cn-text-4: var(--cn-mute-3);
+  --cn-accent: var(--cn-mint-600);
+  --cn-accent-hi: var(--cn-mint-500);
+  --cn-accent-deep: var(--cn-mint-700);
+  --cn-accent-soft: var(--cn-mint-ghost);
+  --cn-warn: var(--cn-amber-500);
+  --cn-danger: var(--cn-red-500);
+  --cn-info: var(--cn-cyan-500);
+
+  --cn-radius-s: 6px;
+  --cn-radius-m: 10px;
+  --cn-radius-l: 14px;
+  --cn-font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --cn-font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--cn-text);
+  font-family: var(--cn-font-ui);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
-.cn-constructor__check {
+/* Utilidades del Constructor (no tocan el tema global) */
+.cn-constructor .is-hidden { display: none !important; }
+
+/* Etiqueta técnica: mayúsculas + tracking amplio (spec .t-label/.t-micro/.t-num) */
+.cn-constructor .t-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cn-text-3);
+}
+.cn-constructor .t-micro { font-size: 11px; color: var(--cn-text-3); }
+.cn-constructor .t-num {
+  font-family: var(--cn-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Superficies (spec .surface): tarjetas del Constructor */
+.cn-constructor .card {
+  background: var(--cn-panel);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-l);
+  box-shadow: none;
+}
+.cn-constructor .card__header {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  align-self: end;
-  padding-bottom: 0.4rem;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--cn-line);
 }
-
-.cn-constructor__module {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.6rem 0.75rem;
-  margin-bottom: 0.6rem;
-  background: var(--bg-primary);
+.cn-constructor .card__title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cn-text);
 }
+.cn-constructor .card__body { padding: 1.25rem; }
 
-.cn-constructor__module-head {
+/* Encabezado de sección numerado (spec SectionHead) */
+.cn-constructor .cn-section-head__index {
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cn-accent);
+}
+.cn-constructor .cn-section-head__aside {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  font-size: 11px;
+  color: var(--cn-text-3);
+}
+.cn-constructor .cn-constructor__summary {
+  font-family: var(--cn-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--cn-text-3);
 }
 
-.cn-constructor__spacer {
-  flex: 1;
+/* Botones (spec .btn primary/ghost/danger-ghost) */
+.cn-constructor .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--cn-radius-s);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 100ms ease;
 }
+.cn-constructor .btn:hover { transform: none; }
+.cn-constructor .btn:active { transform: translateY(1px); }
+.cn-constructor .btn--primary { background: var(--cn-accent); color: oklch(0.16 0.03 200); }
+.cn-constructor .btn--primary:hover { background: var(--cn-accent-hi); }
+.cn-constructor .btn--secondary {
+  background: transparent;
+  border-color: var(--cn-line);
+  color: var(--cn-text-2);
+}
+.cn-constructor .btn--secondary:hover {
+  border-color: var(--cn-line-strong);
+  color: var(--cn-text);
+  background: var(--cn-panel-2);
+}
+.cn-constructor .btn--danger {
+  background: transparent;
+  border-color: oklch(0.68 0.19 25 / 0.4);
+  color: var(--cn-danger);
+}
+.cn-constructor .btn--danger:hover {
+  background: oklch(0.68 0.19 25 / 0.12);
+  border-color: var(--cn-danger);
+}
+.cn-constructor .btn--sm { height: 28px; padding: 0 10px; font-size: 11.5px; }
+.cn-constructor .btn--icon { width: 28px; padding: 0; }
+.cn-constructor .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
 
-.cn-constructor__content-btns {
+/* Campos (spec .field-input): etiqueta técnica arriba, input compacto */
+.cn-constructor .form-group {
   display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.cn-constructor__version-form {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.cn-constructor__version-form input[type="text"] {
-  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 0;
   min-width: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cn-text-3);
+}
+.cn-constructor .form-group small {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--cn-text-4);
+}
+.cn-constructor input[type="text"],
+.cn-constructor input[type="number"],
+.cn-constructor input[type="search"],
+.cn-constructor select,
+.cn-constructor textarea {
+  width: 100%;
+  height: 36px;
+  background: var(--cn-panel-2);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-s);
+  padding: 0 10px;
+  font-family: var(--cn-font-mono);
+  font-size: 13px;
+  color: var(--cn-text);
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+.cn-constructor textarea { height: auto; padding: 8px 10px; line-height: 1.5; }
+.cn-constructor select {
+  appearance: none;
+  font-family: var(--cn-font-ui);
+  font-size: 12.5px;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3c0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  cursor: pointer;
+}
+.cn-constructor input:hover,
+.cn-constructor select:hover,
+.cn-constructor textarea:hover { border-color: var(--cn-line-strong); }
+.cn-constructor input:focus,
+.cn-constructor select:focus,
+.cn-constructor textarea:focus {
+  outline: none;
+  border-color: var(--cn-accent);
+  box-shadow: 0 0 0 3px var(--cn-accent-soft);
+  background: var(--cn-panel-3);
+}
+.cn-constructor input::placeholder { color: var(--cn-text-4); font-family: var(--cn-font-ui); }
+.cn-constructor input[type="color"] {
+  appearance: none;
+  width: 100%;
+  height: 36px;
+  padding: 3px;
+  cursor: pointer;
+}
+.cn-constructor input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.cn-constructor input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+.cn-constructor input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }
+
+/* Interruptor (spec .switch): los checkboxes del Constructor se ven como
+   switch pill. Solo es apariencia: siguen siendo <input type=checkbox>
+   con mismos data-attributes y handlers. */
+.cn-constructor input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  width: 34px;
+  height: 19px;
+  flex: none;
+  margin: 0;
+  border-radius: 99px;
+  background: var(--cn-panel-3);
+  border: 1px solid var(--cn-line-strong);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.cn-constructor input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 99px;
+  background: var(--cn-text-3);
+  transition: transform 160ms ease, background 160ms ease;
+}
+.cn-constructor input[type="checkbox"]:checked {
+  background: var(--cn-accent-deep);
+  border-color: var(--cn-accent);
+}
+.cn-constructor input[type="checkbox"]:checked::after {
+  transform: translateX(15px);
+  background: oklch(0.97 0.01 160);
+}
+/* Fila de checkbox + texto (p. ej. "Con zócalo"): label en formato normal */
+.cn-constructor .cn-constructor__check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--cn-text);
 }
 
-.cn-constructor__actions {
+/* Grids de campos */
+.cn-constructor .cn-constructor__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cn-constructor .cn-constructor__grid:last-child { margin-bottom: 0; }
+
+/* Tarjeta de módulo (spec .surface-2) */
+.cn-constructor .cn-constructor__module {
+  background: var(--cn-panel-2);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-m);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.cn-constructor .cn-constructor__module:last-child { margin-bottom: 0; }
+.cn-constructor .cn-constructor__module-head {
   display: flex;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 10px 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
-
-
-.cn-constructor__edit-form {
+.cn-constructor .cn-constructor__module-head > strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cn-text);
+}
+/* Los campos de la cabecera de módulo fluyen como grid elástico */
+.cn-constructor .cn-constructor__module-head .form-group { flex: 0 1 150px; }
+.cn-constructor .cn-constructor__spacer { flex: 1; }
+.cn-constructor .cn-constructor__content-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.cn-constructor .cn-constructor__version-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cn-constructor .cn-constructor__version-form input[type="text"] { flex: 1 1 220px; }
+.cn-constructor .cn-constructor__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.cn-constructor .cn-constructor__edit-form {
   display: flex;
   align-items: end;
-  gap: 0.5rem;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--cn-panel-2);
+  border: 1px dashed var(--cn-line-strong);
+  border-radius: var(--cn-radius-m);
+}
+.cn-constructor .cn-constructor__edit-form .form-group { flex: 0 1 130px; }
+.cn-constructor .cn-constructor__edit-form small {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--cn-text-3);
 }
 
-.cn-constructor__edit-form small {
-  color: var(--text-secondary);
+/* Badges (chips de estado del Constructor) */
+.cn-constructor .badge {
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
+.cn-constructor .badge--secondary { background: var(--cn-panel-3); color: var(--cn-text-3); }
+.cn-constructor .badge--warning { background: oklch(0.80 0.15 85 / 0.12); color: var(--cn-warn); }
+.cn-constructor .badge--danger { background: oklch(0.68 0.19 25 / 0.15); color: var(--cn-danger); }
+.cn-constructor .badge--success { background: var(--cn-accent-soft); color: var(--cn-accent-hi); }
+.cn-constructor .badge--info { background: oklch(0.80 0.12 210 / 0.12); color: var(--cn-info); }
+
+/* Tablas del Constructor (versiones, tipos personalizados, nube) */
+.cn-constructor table { border-collapse: collapse; font-size: 12.5px; }
+.cn-constructor th {
+  background: transparent;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cn-text-3);
+  border-bottom: 1px solid var(--cn-line);
+}
+.cn-constructor td {
+  padding: 10px;
+  color: var(--cn-text-2);
+  border-bottom: 1px solid var(--cn-line);
+}
+.cn-constructor tr:hover td { background: var(--cn-panel-2); }
+
+/* Disclosure (datos de obra, tipos personalizados) */
+.cn-constructor details.cn-constructor__obra {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: var(--cn-panel-2);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-m);
+}
+.cn-constructor details.cn-constructor__obra summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cn-text-3);
+}
+.cn-constructor details.cn-constructor__obra[open] summary {
+  margin-bottom: 12px;
+  color: var(--cn-text-2);
+}
+
+/* Estados vacíos (spec empty dashed) */
+.cn-constructor .empty-state {
+  margin: 8px 0 0;
+  padding: 14px;
+  border: 1px dashed var(--cn-line-strong);
+  border-radius: var(--cn-radius-s);
+  font-size: 11.5px;
+  font-style: normal;
+  text-align: center;
+  color: var(--cn-text-4);
+}
+
+/* Lift-check de levantamiento (datos de obra) */
+.cn-constructor .cn-constructor__liftcheck {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  list-style: none;
+  background: var(--cn-panel-3);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-s);
+  font-family: var(--cn-font-mono);
+  font-size: 12px;
+  color: var(--cn-text-2);
+}
+.cn-constructor .cn-constructor__liftcheck li + li { margin-top: 4px; }
 
 /* Vista previa de activación gola (Constructor): el edit-form base es una
    fila flex; este panel es contenido en bloque (título, resumen, lista de
    frentes, avisos y botones apilados). */
-.cn-gola-preview {
+.cn-constructor .cn-gola-preview {
   flex-direction: column;
   align-items: stretch;
-  gap: 0.4rem;
+  gap: 8px;
 }
-
-.cn-gola-preview p {
+.cn-constructor .cn-gola-preview p { margin: 0; }
+.cn-constructor .cn-gola-preview__titulo { font-size: 13px; color: var(--cn-text); }
+.cn-constructor .cn-gola-preview__resumen { font-size: 12px; line-height: 1.5; color: var(--cn-text-2); }
+.cn-constructor .cn-gola-preview__frentes {
   margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--cn-text-2);
 }
-
-.cn-gola-preview__titulo {
-  font-size: 0.85rem;
+.cn-constructor .cn-gola-preview__frentes li + li { margin-top: 3px; }
+.cn-constructor .cn-gola-preview__frente { color: var(--cn-text-3); }
+.cn-constructor .cn-gola-preview__id {
+  font-family: var(--cn-font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--cn-panel-3);
+  color: var(--cn-text-3);
 }
-
-.cn-gola-preview__resumen {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.cn-gola-preview__frentes {
-  margin: 0;
-  padding-left: 1.25rem;
-  font-size: 0.8rem;
-}
-
-.cn-gola-preview__frentes li + li {
-  margin-top: 0.15rem;
-}
-
-.cn-gola-preview__frente {
-  color: var(--text-secondary);
-}
-
-.cn-gola-preview__id {
-  font-size: 0.7rem;
-  padding: 0.05rem 0.3rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary, rgba(0, 0, 0, 0.06));
-}
-
-.cn-gola-preview__sin-cambio {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-}
-
-.cn-gola-preview__warnings {
-  margin-top: 0;
-}
+.cn-constructor .cn-gola-preview__sin-cambio { color: var(--cn-text-4); font-size: 11.5px; }
+.cn-constructor .cn-gola-preview__warnings { margin-top: 0; }
 
 /* Panel de avisos de diseno del Constructor */
-.cn-constructor__warnings {
-  margin-top: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--warning, #fbbf24);
-  border-radius: var(--radius-sm);
-  background: rgba(251, 191, 36, 0.08);
-  font-size: 0.78rem;
+.cn-constructor .cn-constructor__warnings {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid oklch(0.80 0.15 85 / 0.35);
+  border-radius: var(--cn-radius-s);
+  background: oklch(0.80 0.15 85 / 0.07);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cn-text-2);
 }
-
-.cn-constructor__warnings ul {
-  margin: 0.25rem 0 0;
-  padding-left: 1.1rem;
+.cn-constructor .cn-constructor__warnings strong { color: var(--cn-warn); }
+/* Ítems de validación (spec "Validación de diseño"): fila con icono por nivel */
+.cn-constructor .cn-warnings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
-
-.cn-constructor__warnings--ok {
-  border-color: var(--success, #10b981);
-  background: rgba(16, 185, 129, 0.08);
+.cn-constructor .cn-warnings__count {
+  font-family: var(--cn-font-mono);
+  font-size: 10.5px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: oklch(0.80 0.15 85 / 0.15);
+  color: var(--cn-warn);
+}
+.cn-constructor .cn-warnings__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cn-constructor .cn-warnings__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid oklch(0.80 0.15 85 / 0.35);
+  border-radius: var(--cn-radius-s);
+  background: oklch(0.80 0.15 85 / 0.07);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--cn-text-2);
+}
+.cn-constructor .cn-warnings__icon { flex: none; color: var(--cn-warn); }
+.cn-constructor .cn-warnings__item--ok {
+  border-color: oklch(0.74 0.15 168 / 0.3);
+  background: var(--cn-accent-soft);
+}
+.cn-constructor .cn-warnings__item--ok .cn-warnings__icon { color: var(--cn-accent-hi); }
+.cn-constructor .cn-constructor__warnings--ok {
+  border-color: oklch(0.74 0.15 168 / 0.3);
+  background: var(--cn-accent-soft);
   margin-bottom: 0;
+}
+
+/* Focus visible consistente dentro del Constructor */
+.cn-constructor .btn:focus-visible,
+.cn-constructor .tab:focus-visible,
+.cn-constructor select:focus-visible,
+.cn-constructor input:focus-visible {
+  outline: 2px solid var(--cn-accent);
+  outline-offset: 2px;
 }
 
 /* Focus visible consistente (navegacion por teclado): outline de acento en
@@ -1192,89 +1574,73 @@ input[type="search"]:focus-visible {
   outline-offset: 1px;
 }
 
-/* Chips de contenido por modulo (reemplaza la lista vertical): una fila que
-   fluye, icono por tipo, nombre corto, tooltip con la altura real y ✕ propio. */
-.cn-constructor__chips {
+/* Chips de contenido por modulo (spec .chip píldora): una fila que fluye,
+   icono por tipo, nombre corto, tooltip con la altura real y ✕ propio. */
+.cn-constructor .cn-constructor__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0 0 0.5rem;
+  gap: 6px;
+  margin: 0 0 10px;
 }
-
-.cn-chip {
+.cn-constructor .cn-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.3rem 0.15rem 0.45rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-secondary);
-  font-size: 0.75rem;
-  line-height: 1.2;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--cn-line);
+  border-radius: 99px;
+  background: var(--cn-panel-3);
+  font-size: 12px;
+  color: var(--cn-text-2);
   max-width: 100%;
+  transition: border-color 150ms ease, color 150ms ease;
 }
-
-.cn-chip__icon {
-  flex-shrink: 0;
-  color: var(--text-secondary);
+.cn-constructor .cn-chip:hover {
+  border-color: var(--cn-line-strong);
+  color: var(--cn-text);
 }
-
-.cn-chip__label {
+.cn-constructor .cn-chip input[type="number"] {
+  width: 5.5rem;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11.5px;
+}
+.cn-constructor .cn-chip__icon { flex-shrink: 0; color: var(--cn-text-3); font-size: 11px; }
+.cn-constructor .cn-chip__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.cn-chip__remove {
+.cn-constructor .cn-chip__remove,
+.cn-constructor .cn-chip__edit,
+.cn-constructor .cn-chip__move {
   flex-shrink: 0;
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--cn-text-4);
   cursor: pointer;
-  font-size: 0.7rem;
-  padding: 0 0.2rem;
-  border-radius: 50%;
+  font-size: 10px;
+  padding: 0 2px;
   line-height: 1.4;
+  border-radius: 4px;
+  transition: color 150ms ease;
 }
-
-.cn-chip__remove:hover {
-  color: var(--danger);
+.cn-constructor .cn-chip__remove:hover { color: var(--cn-danger); }
+.cn-constructor .cn-chip__edit:hover,
+.cn-constructor .cn-chip__move:hover { color: var(--cn-accent-hi); }
+/* Acento por tipo de contenido: cajón/zapatera resaltan (unidad de apilado) */
+.cn-constructor .cn-chip--drawer,
+.cn-constructor .cn-chip--shoeRack {
+  background: var(--cn-accent-soft);
+  border-color: var(--cn-accent-deep);
 }
-
-.cn-chip--drawer, .cn-chip--shoeRack { border-left: 3px solid var(--accent); }
-.cn-chip--shelf { border-left: 3px solid var(--info); }
-.cn-chip--rail { border-left: 3px solid var(--warning); }
-.cn-chip--zocalo { border-left: 3px solid var(--text-secondary); }
-
-.cn-chip__edit {
-  flex-shrink: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.7rem;
-  padding: 0 0.15rem;
-  line-height: 1.4;
-}
-
-.cn-chip__edit:hover {
-  color: var(--accent);
-}
-
-.cn-chip__move {
-  flex-shrink: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.6rem;
-  padding: 0 0.1rem;
-  line-height: 1.4;
-}
-
-.cn-chip__move:hover {
-  color: var(--accent);
-}
+.cn-constructor .cn-chip--drawer .cn-chip__icon,
+.cn-constructor .cn-chip--shoeRack .cn-chip__icon,
+.cn-constructor .cn-chip--drawer .cn-chip__label,
+.cn-constructor .cn-chip--shoeRack .cn-chip__label { color: var(--cn-accent-hi); }
+.cn-constructor .cn-chip--shelf .cn-chip__icon { color: var(--cn-info); }
+.cn-constructor .cn-chip--rail .cn-chip__icon { color: var(--cn-warn); }
 
 /* Tour guiado (js/components/tour/driver.js) */
 .cn-tour__tooltip {
@@ -1327,17 +1693,504 @@ input[type="search"]:focus-visible {
 }
 
 /* Banner de recuperación del autoguardado (vista Constructor) */
-.cn-autosave-banner {
+.cn-constructor .cn-autosave-banner {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--info);
-  border-radius: var(--radius-sm);
-  background: rgba(59, 130, 246, 0.08);
-  font-size: 0.85rem;
+  padding: 12px 16px;
+  background: var(--cn-panel);
+  border: 1px solid oklch(0.80 0.12 210 / 0.35);
+  border-radius: var(--cn-radius-m);
+  font-size: 12.5px;
+  color: var(--cn-text-2);
+}
+
+/* ── Layout 3 columnas (spec Home): riel izquierdo + panel central ── */
+.cn-constructor .cn-constructor__layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.cn-constructor .cn-constructor__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+.cn-constructor .cn-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+}
+.cn-constructor .cn-rail__section {
+  background: var(--cn-panel);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-l);
+  padding: 16px;
+}
+.cn-constructor .cn-rail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.cn-constructor .cn-rail__head h3 {
+  margin: 0;
+}
+.cn-constructor .cn-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cn-constructor .cn-rail__module {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--cn-panel-2);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-m);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.cn-constructor .cn-rail__module:hover {
+  border-color: var(--cn-accent-deep);
+  background: var(--cn-accent-soft);
+}
+.cn-constructor .cn-rail__num {
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cn-text-4);
+}
+.cn-constructor .cn-rail__module:hover .cn-rail__num { color: var(--cn-accent-hi); }
+.cn-constructor .cn-rail__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cn-constructor .cn-rail__label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--cn-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cn-constructor .cn-rail__dims {
+  font-family: var(--cn-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  color: var(--cn-text-3);
+}
+.cn-constructor .cn-rail__count {
+  flex: none;
+  font-family: var(--cn-font-mono);
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--cn-panel-3);
+  color: var(--cn-text-3);
+}
+.cn-constructor .cn-rail__empty {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--cn-line-strong);
+  border-radius: var(--cn-radius-s);
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--cn-text-4);
+}
+/* Tabla de versiones en el riel: compacta para el ancho estrecho */
+.cn-constructor .cn-rail__section th,
+.cn-constructor .cn-rail__section td { padding: 8px 6px; }
+.cn-constructor .cn-rail__section .cn-constructor__actions { gap: 4px; }
+
+/* Control segmentado (spec Segmented) */
+.cn-constructor .cn-segmented {
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+  padding: 3px;
+  background: var(--cn-panel-2);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-s);
+}
+.cn-constructor .cn-segmented__opt {
+  flex: 1;
+  min-height: 30px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-family: var(--cn-font-ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--cn-text-3);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+.cn-constructor .cn-segmented__opt:hover { color: var(--cn-text); }
+.cn-constructor .cn-segmented__opt.is-active {
+  background: var(--cn-accent-soft);
+  color: var(--cn-accent-hi);
+  box-shadow: inset 0 0 0 1px var(--cn-accent-deep);
+}
+
+/* Input numérico con steppers (spec NumberField) */
+.cn-constructor .cn-field-num { position: relative; display: block; }
+.cn-constructor .cn-field-num input[type="number"] { padding-right: 64px; }
+.cn-constructor .cn-field-num__unit {
+  position: absolute;
+  right: 54px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--cn-text-4);
+  pointer-events: none;
+}
+.cn-constructor .cn-field-num__btns {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--cn-line);
+  border-radius: 4px;
+}
+.cn-constructor .cn-field-num__btn {
+  width: 22px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--cn-text-3);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cn-constructor .cn-field-num__btn + .cn-field-num__btn { border-left: 1px solid var(--cn-line); }
+.cn-constructor .cn-field-num__btn:hover {
+  background: var(--cn-panel-3);
+  color: var(--cn-accent-hi);
+}
+/* Steppers propios: se ocultan las flechas nativas del input numérico */
+.cn-constructor input[type="number"]::-webkit-outer-spin-button,
+.cn-constructor input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cn-constructor input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Fila de toggle con descripción (spec Toggle) */
+.cn-constructor .cn-toggle {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--cn-text);
+}
+.cn-constructor .cn-toggle input[type="checkbox"] { margin-top: 1px; }
+.cn-constructor .cn-toggle__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cn-constructor .cn-toggle__label { font-size: 12.5px; font-weight: 500; color: var(--cn-text); }
+.cn-constructor .cn-toggle__desc { font-size: 11px; color: var(--cn-text-3); }
+
+/* Esquema frontal dentro del grupo Módulo: ancho completo del grupo */
+.cn-constructor .cn-pref-group__scheme {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+/* Esquema frontal en vivo (spec "Esquema frontal") */
+.cn-constructor .cn-scheme {
+  margin: 0;
+  background: var(--cn-panel);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-m);
+  overflow: hidden;
+  position: relative;
+}
+.cn-constructor .cn-scheme__caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cn-line);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cn-text-3);
+}
+.cn-constructor .cn-scheme__hint {
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--cn-text-4);
+}
+.cn-constructor .cn-scheme svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.cn-constructor .cn-scheme__body {
+  fill: var(--cn-panel-3);
+  stroke: var(--cn-line-strong);
+  stroke-width: 1.2;
+}
+.cn-constructor .cn-scheme__zocalo {
+  fill: oklch(0.74 0.15 168 / 0.15);
+  stroke: var(--cn-accent-deep);
+  stroke-width: 0.8;
+  stroke-dasharray: 3 2;
+}
+.cn-constructor .cn-scheme__row { cursor: pointer; }
+.cn-constructor .cn-scheme__hit {
+  fill: transparent;
+  stroke: none;
+  transition: fill 150ms ease;
+}
+.cn-constructor .cn-scheme__row:hover .cn-scheme__hit { fill: oklch(0.68 0.19 25 / 0.10); }
+.cn-constructor .cn-scheme__glyph line,
+.cn-constructor .cn-scheme__glyph rect {
+  stroke: var(--cn-accent);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.cn-constructor .cn-scheme__glyph rect { stroke-width: 1.6; }
+.cn-constructor .cn-scheme__glyph circle {
+  fill: var(--cn-accent);
+  stroke: none;
+}
+.cn-constructor .cn-scheme__glyph--divider line { stroke-width: 2; }
+/* Zona "＋" de alta: fila punteada en la cima de la pila */
+.cn-constructor .cn-scheme__add { cursor: pointer; }
+.cn-constructor .cn-scheme__add rect {
+  fill: transparent;
+  stroke: var(--cn-line-strong);
+  stroke-width: 0.8;
+  stroke-dasharray: 3 2;
+  transition: fill 150ms ease, stroke 150ms ease;
+}
+.cn-constructor .cn-scheme__add:hover rect {
+  fill: var(--cn-accent-soft);
+  stroke: var(--cn-accent);
+}
+.cn-constructor .cn-scheme__add text {
+  fill: var(--cn-text-3);
+  font-size: 12px;
+  transition: fill 150ms ease;
+}
+.cn-constructor .cn-scheme__add:hover text { fill: var(--cn-accent-hi); }
+/* Menú flotante de alta (se abre desde la zona ＋) */
+.cn-constructor .cn-scheme-menu {
+  position: absolute;
+  top: 34px;
+  left: 8px;
+  right: 8px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--cn-panel-3);
+  border: 1px solid var(--cn-line-strong);
+  border-radius: var(--cn-radius-s);
+  box-shadow: 0 10px 28px oklch(0 0 0 / 0.5);
+}
+.cn-constructor .cn-scheme-menu__opt {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-family: var(--cn-font-ui);
+  font-size: 12px;
+  text-align: left;
+  color: var(--cn-text-2);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.cn-constructor .cn-scheme-menu__opt:hover {
+  background: var(--cn-accent-soft);
+  color: var(--cn-accent-hi);
+}
+/* Fase plegado: colapsada la tarjeta muestra cabecera + chips + esquema */
+.cn-constructor .cn-constructor__module.is-collapsed .cn-constructor__module-prefs { display: none; }
+/* Vista de módulos: la 02 solo muestra el módulo seleccionado (el resto
+   queda en el DOM, oculto, hasta elegirlo en el riel). */
+.cn-constructor .cn-constructor__module--concealed { display: none; }
+.cn-constructor .cn-modulos-view__placeholder { margin: 0; }
+.cn-constructor .cn-rail__module--active {
+  border-color: var(--cn-accent-deep);
+  background: var(--cn-accent-soft);
+}
+.cn-constructor .cn-rail__module--active .cn-rail__label { color: var(--cn-accent-hi); }
+.cn-constructor .cn-module-collapse { color: var(--cn-text-3); }
+.cn-constructor .cn-module-collapse:hover { color: var(--cn-accent-hi); }
+/* Iconos SVG de los chips de contenido */
+.cn-constructor .cn-chip__icon svg { display: block; }
+.cn-constructor .cn-scheme__empty {
+  fill: var(--cn-text-4);
+  font-size: 9px;
+  font-family: var(--cn-font-ui);
+}
+.cn-constructor .cn-scheme__dims {
+  fill: var(--cn-text-3);
+  font-size: 8.5px;
+  font-family: var(--cn-font-mono);
+}
+
+/* Botones "+ contenido" como chips (spec .chip de "Elementos interiores") */
+.cn-constructor .cn-constructor__content-btns .btn--sm {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 99px;
+  border-color: var(--cn-line);
+  background: var(--cn-panel-3);
+  color: var(--cn-text-2);
+  font-weight: 500;
+}
+.cn-constructor .cn-constructor__content-btns .btn--sm:hover {
+  border-color: var(--cn-line-strong);
+  background: var(--cn-panel-3);
+  color: var(--cn-text);
+}
+.cn-constructor .cn-constructor__content-btns .btn--primary.btn--sm {
+  background: var(--cn-accent);
+  border-color: transparent;
+  color: oklch(0.16 0.03 200);
+}
+.cn-constructor .cn-constructor__content-btns .btn--primary.btn--sm:hover { background: var(--cn-accent-hi); }
+
+/* Resaltado al navegar desde el riel (clic en módulo) */
+@keyframes cn-module-flash {
+  0% {
+    border-color: var(--cn-accent);
+    box-shadow: 0 0 0 3px var(--cn-accent-soft);
+  }
+  100% {
+    border-color: var(--cn-line);
+    box-shadow: none;
+  }
+}
+.cn-constructor .cn-module-flash { animation: cn-module-flash 1.2s ease-out; }
+
+/* Responsive: el riel se apila encima en pantallas estrechas */
+@media (max-width: 1100px) {
+  .cn-constructor .cn-constructor__layout { grid-template-columns: 1fr; }
+  .cn-constructor .cn-rail { position: static; max-height: none; overflow: visible; }
+}
+
+/* Grupos de formulario dentro de una sección (spec SectionHead anidado) */
+.cn-constructor .cn-form-section {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--cn-line);
+}
+.cn-constructor .cn-form-section:last-of-type {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+.cn-constructor .cn-form-section .btn--primary {
+  margin-top: 12px;
+}
+.cn-constructor .cn-form-section__title {
+  margin: 0 0 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cn-accent);
+}
+
+/* Grupos de preferencias de la tarjeta de módulo (spec "Elementos
+   interiores" + Toggle): Contenido / Cajón / Zapatera / Módulo */
+.cn-constructor .cn-constructor__module-prefs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cn-constructor .cn-pref-group {
+  margin: 0;
+  padding: 10px 12px 12px;
+  min-width: 0;
+  background: var(--cn-panel);
+  border: 1px solid var(--cn-line);
+  border-radius: var(--cn-radius-m);
+}
+.cn-constructor .cn-pref-group legend {
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cn-accent);
+}
+.cn-constructor .cn-pref-group__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.cn-constructor .cn-pref-group__fields .form-group { min-width: 0; }
+.cn-constructor .cn-pref-group__fields .cn-toggle { align-self: center; }
+/* Fila de alta de contenido dentro del grupo Contenido: ocupa todo el ancho */
+.cn-constructor .cn-pref-group__actions {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+/* Acciones de la tarjeta de módulo como iconos compactos */
+.cn-constructor .cn-module-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.cn-constructor .cn-module-actions .btn--icon {
+  font-size: 12px;
+  line-height: 1;
 }
 
 /* ── Informe de auditoría (vista Auditoría) ─────────────────────────────── */

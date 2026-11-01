@@ -1,24 +1,22 @@
 /**
- * Geometría de las tiras del sistema gola: canal de melamina ABIERTO AL
- * FRENTE y retranqueado detrás del plano de frentes, anclado con pos_z
- * (borde inferior), entre dos frentes apilados. La vista 3D lo hereda gratis
- * al vivir en el pipeline de computeGeometries().
+ * Geometría de las tiras del sistema gola (modelo B2 de taller): canal tipo
+ * C de melamina 15 mm entre cajones apilados, anclado con pos_z. La vista
+ * 3D lo hereda gratis al vivir en el pipeline de computeGeometries().
  *
- * Modelo (mismo que golaSectionService, el plano de taller): por cada gap
- * entre frentes, un canal tipo C = fondo vertical de 15 retranqueado
- * golaStripSetback detrás del plano de frentes + dos labios (pestañas) de
- * 15 de espesor A RAS del plano de frentes que cubren el retranqueo y
- * traslapan el fondo (encolado/atornillado). El HUECO entre los labios, a
- * la profundidad del retranqueo, es donde entran los dedos: la mano pasa
- * por el paso superior y engancha el borde inferior del frente superior
- * POR DETRÁS. Nada sobresale delante del plano de frentes (así el frente se
- * jala libre y la gola no lo obstruye). SOLO canales C entre cajones: sobre
- * el último frente no va canal ni marca de agarre (gap de frente habitual).
+ * Modelo por gap (spec taller): fondo vertical de 15 INTERNO (retranqueado
+ * golaStripSetback detrás de la espalda de los frentes, detrás de las caras)
+ * + alas horizontales de 15 que cubren el retranqueo hasta 2 mm de la
+ * espalda del frente + pestañas VERTICALES de 15 pegadas a la espalda de los
+ * frentes, OCULTAS detrás de ellos y frenando a golaPaso de las caras de los
+ * cajones relacionados. Los frentes crecen +30 mm (GOLA_LABIO_MM): el labio
+ * cuelga sobre el canal y el dedo entra por el paso superior y engancha su
+ * borde inferior por detrás. Nada se dibuja sobre el frente ni sobresale de
+ * su espalda. SOLO canales C entre cajones: sobre el último frente no va
+ * canal ni marca de agarre (gap de frente habitual).
  *
- * Marca de agarre (rol `gola_grip`, caja de 2 mm en el plano de frentes):
- * el paso superior de cada canal (por donde entran los dedos) y la ranura
- * libre sobre el frente L (techo del último frente → repisa/techo
- * inmediato superior). Solo geometría de renderer (sin piezas ni BOM).
+ * Marca de agarre (rol `gola_grip`, caja de 2 mm a ras de la espalda de los
+ * frentes): el paso superior de cada canal (por donde entran los dedos).
+ * Solo geometría de renderer (sin piezas ni BOM).
  */
 
 import { ROLE_COLORS } from '../../../core/config.js';
@@ -31,6 +29,10 @@ const GRIP_MARK_DEPTH = 2;
 
 // Espesor del tablero de las tiras (fondo y labios), mm.
 const ESP_TIRA = 15;
+
+// Fallback del voladizo (frente − cara)/2 para la marca del agarre cuando
+// no se encuentra el frente inferior (mm).
+const GOLA_LABIO_FALLBACK = 30;
 
 // Pieza del módulo raíz o de sus submódulos ('11', '1.2'...). Mismo criterio
 // que golaService (no exportado): strips frentes y repisas del módulo.
@@ -62,53 +64,62 @@ export function buildGolaGeometries(moduleId, pieces, moduleBox, renderer, cfg =
   strips.sort((a, b) => (Number(a.pos_z) || 0) - (Number(b.pos_z) || 0));
 
   // Plano de frentes: misma referencia que drawerGeometry (yFace). El canal
-  // vive DETRÁS de ese plano: el fondo con su cara frontal a
-  // yFace − golaStripSetback y los labios a ras del plano de frentes.
+  // NO vive en el plano de frentes: va DETRÁS de la cara posterior de los
+  // frentes (entre las caras de los cajones). La cara posterior del frente
+  // está a yFace − espesorFrente; el fondo se retrancha golaStripSetback
+  // desde ahí y los labios van de la cara posterior del fondo hasta a ras de
+  // la cara posterior del frente. Nada queda coplanar con el frente ni se
+  // dibuja sobre él.
   const yFace = moduleD - thickness + (renderer?.drawerGap ?? 15);
+  const frenteRef = (pieces || []).find((p) => inferRole(p) === 'drawer_face' && perteneceAModulo(p, modId));
+  const ESP_FRENTE = Number(frenteRef?.espesor) || 15;
+  const yCara = yFace - ESP_FRENTE;
   const stripW = Number(strips[0].ancho) || 0;
   const x = (moduleW - stripW) / 2;
 
-  // Cada canal se dibuja desde su FONDO (pieza ...-fondo): panel vertical
-  // retranqueado + labios horizontales (sup e inf) A RAS del plano de
-  // frentes que forman el canal de agarre. El canal L solo lleva labio
-  // inferior.
-  const fondos = strips.filter((p) => String(p.id).endsWith('-fondo'));
+  // Modelo B2: canal C de 3 piezas; cada una se dibuja según su tipo:
+  // - fondo: panel vertical de 15 INTERNO (retranqueado golaStripSetback
+  //   detrás de la espalda de los frentes).
+  // - ala sup/inf: labios horizontales de 15 desde la cara frontal del
+  //   fondo hasta 2 mm antes de la espalda de los frentes.
+  // Frentes del módulo (para anclar la marca del agarre al paso real).
+  const frentesGeo = (pieces || [])
+    .filter((p) => inferRole(p) === 'drawer_face' && perteneceAModulo(p, modId))
+    .map((f) => ({ top: (Number(f.pos_z) || 0) + (Number(f.alto) || 0) }));
+
   const geos = [];
-  for (const f of fondos) {
-    const z = Number(f.pos_z) || 0;
-    const h = Number(f.alto) || golaCfg.golaPerfilHeight;
-    const w = Number(f.ancho) || stripW;
-    const pref = String(f.id).slice(0, -'-fondo'.length);
-    const pestanaSup = strips.find((p) => p.id === `${pref}-pestana-sup`);
-    const pestanaInf = strips.find((p) => p.id === `${pref}-pestana-inf` || p.id === `${pref}-pestana`);
-    const yWeb = yFace - golaCfg.golaStripSetback; // cara frontal del fondo
-    geos.push({
-      x, y: yWeb - ESP_TIRA, z, w, d: ESP_TIRA, h,
-      color: f.color || ROLE_COLORS.gola_strip,
-      role: 'gola_strip', name: f.nombre, id: f.id,
-    });
-    // Labios: de la cara posterior del fondo hasta a ras del plano de
-    // frentes (cubren el retranqueo y traslapan el fondo ESP_TIRA).
-    const largoLabio = golaCfg.golaStripSetback + ESP_TIRA;
-    if (pestanaSup) {
+  for (const p of strips) {
+    const id = String(p.id);
+    const z = Number(p.pos_z) || 0;
+    const w = Number(p.ancho) || stripW;
+    const color = p.color || ROLE_COLORS.gola_strip;
+    if (id.endsWith('-fondo')) {
+      const h = Number(p.alto) || golaCfg.golaPerfilHeight;
       geos.push({
-        x, y: yWeb - ESP_TIRA, z: z + h - ESP_TIRA, w, d: largoLabio, h: ESP_TIRA,
-        color: pestanaSup.color || ROLE_COLORS.gola_strip,
-        role: 'gola_strip', name: pestanaSup.nombre, id: pestanaSup.id,
+        x, y: yCara - golaCfg.golaStripSetback - ESP_TIRA, z, w, d: ESP_TIRA, h,
+        color, role: 'gola_strip', name: p.nombre, id: p.id,
+      });
+      // Marca del agarre: el PASO entre frentes (línea de sombra por donde
+      // entra el dedo), a ras de la espalda del frente. El paso es el techo
+      // del frente inmediatamente inferior al canal.
+      const inferior = frentesGeo
+        .filter((f) => f.top >= z - 5 && f.top <= z + 50)
+        .reduce((best, f) => (best === null || f.top > best ? f.top : best), null);
+      const labioCfg = Number(golaCfg.golaLabioMm) > 0 ? Number(golaCfg.golaLabioMm) : GOLA_LABIO_FALLBACK;
+      const zPaso = inferior != null ? inferior : z + h - labioCfg;
+      geos.push({
+        x, y: yCara - GRIP_MARK_DEPTH, z: zPaso, w, d: GRIP_MARK_DEPTH, h: golaCfg.golaPaso,
+        color: ROLE_COLORS.gola_grip, role: 'gola_grip', name: '', id: `${p.id}-grip`,
+      });
+    } else if (/-ala-(sup|inf)$/.test(id)) {
+      // Ala horizontal: 'alto' de la pieza = largo (profundidad); su altura
+      // vertical es el espesor (15). Frente a 2 mm de la espalda del frente.
+      const largo = Number(p.alto) || golaCfg.golaStripSetback;
+      geos.push({
+        x, y: yCara - 2 - largo, z, w, d: largo, h: ESP_TIRA,
+        color, role: 'gola_strip', name: p.nombre, id: p.id,
       });
     }
-    if (pestanaInf) {
-      geos.push({
-        x, y: yWeb - ESP_TIRA, z, w, d: largoLabio, h: ESP_TIRA,
-        color: pestanaInf.color || ROLE_COLORS.gola_strip,
-        role: 'gola_strip', name: pestanaInf.nombre, id: pestanaInf.id,
-      });
-    }
-    // Marca del agarre: el paso superior (por donde entran los dedos al canal).
-    geos.push({
-      x, y: yFace, z: z + h, w, d: GRIP_MARK_DEPTH, h: golaCfg.golaPaso,
-      color: ROLE_COLORS.gola_grip, role: 'gola_grip', name: '', id: `${f.id}-grip`,
-    });
   }
 
   // Sin canal L: sobre el último frente no hay marca de agarre (queda el gap

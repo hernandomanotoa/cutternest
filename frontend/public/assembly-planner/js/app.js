@@ -87,6 +87,8 @@ import {
   getGolaCfg,
   drawerUnits,
   aberturaCanalGola,
+  esUnidadFijaGola,
+  GOLA_LABIO_MM,
 } from './services/golaService.js';
 
 export const GLOBAL_MODULE_ID = 'global';
@@ -1214,14 +1216,18 @@ export function previewGola(moduleId) {
     // vista previa del Constructor (mismo nombre, distinto reescalado).
     return { id: ref.id, nombre: ref.nombre, antes, despues };
   });
+  // Canales SOLO entre cajones (las zapateras son fijas: ni entre ellas ni
+  // zapatera↔cajón).
+  const fijas = unidades.map((u) => esUnidadFijaGola(u));
+  const paresCajonCajon = unidades.filter((_, i) => i > 0 && !fijas[i - 1] && !fijas[i]).length;
   const plan = {
     unidades: unidades.length,
-    tiras: Math.max(0, unidades.length - 1),
+    tiras: paresCajonCajon,
     frentes,
-    // Agarre útil real del canal C (perfil − 2 labios); la clave
-    // golaFingerClearance quedó en desuso con la eliminación del canal L.
+    // La gola tapa el espacio tras los frentes: gapGola = paso visible;
+    // agarre = hueco entre alas (2·labio − 2·espesor − paso).
     agarre: aberturaCanalGola('C', cfg).aberturaUtilMm,
-    gapGola: cfg.golaPaso + cfg.golaPerfilHeight + cfg.golaPaso,
+    gapGola: Number(cfg.golaEntradaMm) > 0 ? Number(cfg.golaEntradaMm) : cfg.golaPaso,
     cuerpoPerfil: cfg.golaPerfilHeight,
   };
   return { ok: true, warnings: dry.warnings || [], plan };
@@ -1633,6 +1639,13 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   }
   const baseEsInterna = state.pieces.some((p) => p.id === `m${moduleId}-zocalo`)
     && state.pieces.find((p) => p.id === `m${moduleId}-base`)?.ancho < tapa.ancho;
+  // Con gola activa el frente lleva el LABIO (+30 mm): al regenerar el
+  // cajón se resta del vano para conservar la caja real (el reapply del
+  // gola vuelve a añadir el labio). Sin esto la cara regenerada mediría lo
+  // mismo que el frente restaurado y drawerUnits la tomaría por bandeja.
+  const golaActiva = isGolaEnabled(state.pieces, String(moduleId));
+  const labioGola = Number(getGolaCfgForModule(String(moduleId)).golaLabioMm) || GOLA_LABIO_MM;
+  const vanoRegen = (f) => Math.max(50, (Number(f?.alto) || 200) + 3 - (golaActiva ? labioGola : 0));
 
   // 1. Detectar los grupos de cajon/zapatera del modulo por ROL + submodulo
   //    (agnostico a la convencion de ids: el builder genera 'm1cajon1-frente'
@@ -1717,7 +1730,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         anchoModulo: dims.ancho,
         profundidadModulo: dims.prof,
         espesorModulo: espesor,
-        altoVano: (Number(frente.alto) || 200) + 3, // frente.alto = vano - 3
+        altoVano: vanoRegen(frente), // frente.alto = vano - 3 (− labio si hay gola)
         tipo: esVolquete ? 'volquete' : 'corredera',
         vocabulario: 'cajon',
         colorFrente: frente.color || '#8B5A2B',

@@ -69,6 +69,9 @@ function activarGola(container, idx) {
 }
 
 const tira = (pieces, modId) => pieces.find((p) => p.id === `m${modId}gola-c1-fondo`);
+// Largo del ala (profundidad) = golaStripSetback + 13: refleja overrides del
+// retranqueo (el fondo mide 2·labio y no depende del perfil).
+const alaLargo = (pieces, modId) => pieces.find((p) => p.id === `m${modId}gola-c1-ala-inf`).alto;
 const cfgInput = (container, modId, key) =>
   container.querySelector(`[data-module-scoped="${modId}"] [data-gola-cfg="${key}"]`);
 
@@ -77,32 +80,34 @@ function cambiarInput(input, value) {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-test('panel de la tarjeta: cambiar golaPerfilHeight re-aplica SOLO ese módulo y no escribe la config global', () => {
+test('panel de la tarjeta: cambiar golaStripSetback re-aplica SOLO ese módulo y no escribe la config global', () => {
   const { view, container } = mountView();
   armarDosModulosConCajones();
   activarGola(container, 1);
   activarGola(container, 2);
 
   let pieces = getStore().get().pieces;
-  assert.equal(tira(pieces, 1).alto, 50, 'tira m1 con alto default (global)');
-  assert.equal(tira(pieces, 2).alto, 50, 'tira m2 con alto default (global)');
+  assert.equal(tira(pieces, 1).alto, 74, 'tira m1 con cuerpo default (entrada + 2·labio − 2·paso)');
+  assert.equal(tira(pieces, 2).alto, 74, 'tira m2 con cuerpo default');
+  assert.equal(alaLargo(pieces, 1), 73, 'ala m1 con retranqueo default (60+13)');
+  assert.equal(alaLargo(pieces, 2), 73, 'ala m2 con retranqueo default');
 
   // El input muestra la config efectiva del módulo (global sin overrides).
-  const input = cfgInput(container, 1, 'golaPerfilHeight');
-  assert.ok(input, 'input golaPerfilHeight en la tarjeta del módulo 1');
-  assert.equal(input.value, '50');
+  const input = cfgInput(container, 1, 'golaStripSetback');
+  assert.ok(input, 'input golaStripSetback en la tarjeta del módulo 1');
+  assert.equal(input.value, '60');
 
   cambiarInput(input, 40);
 
   pieces = getStore().get().pieces;
-  assert.equal(tira(pieces, 1).alto, 40, 'tira m1 re-aplicada con el override del módulo');
-  assert.equal(tira(pieces, 2).alto, 50, 'm2 sin overrides sigue con la config global');
+  assert.equal(alaLargo(pieces, 1), 53, 'ala m1 re-aplicada con el override del módulo (40+13)');
+  assert.equal(alaLargo(pieces, 2), 73, 'm2 sin overrides sigue con la config global');
   // El panel re-renderiza con el valor nuevo tras la re-aplicación.
-  assert.equal(cfgInput(container, 1, 'golaPerfilHeight').value, '40');
-  assert.equal(cfgInput(container, 2, 'golaPerfilHeight').value, '50');
+  assert.equal(cfgInput(container, 1, 'golaStripSetback').value, '40');
+  assert.equal(cfgInput(container, 2, 'golaStripSetback').value, '60');
   // La config global queda intacta (el panel ya no escribe userConfig).
   const rawGlobal = localStorage.getItem('cn-assembly-config');
-  assert.ok(!rawGlobal || !rawGlobal.includes('golaPerfilHeight'), 'userConfig global sin golaPerfilHeight');
+  assert.ok(!rawGlobal || !rawGlobal.includes('golaStripSetback'), 'userConfig global sin golaStripSetback');
   view.destroy();
 });
 
@@ -111,11 +116,11 @@ test('overrides del módulo persisten al guardar/cargar versión local (merge de
   armarDosModulosConCajones();
   activarGola(container, 1);
   activarGola(container, 2);
-  cambiarInput(cfgInput(container, 1, 'golaPerfilHeight'), 40);
+  cambiarInput(cfgInput(container, 1, 'golaStripSetback'), 40);
 
   const saved = saveCurrentVersion('Con cfg gola');
   assert.ok(saved.ok, saved.error);
-  assert.deepEqual(loadGolaModuleCfgs(), { 1: { golaPerfilHeight: 40 } }, 'mapa persistido antes de guardar');
+  assert.deepEqual(loadGolaModuleCfgs(), { 1: { golaStripSetback: 40 } }, 'mapa persistido antes de guardar');
 
   // Simula otra sesión: se pierde el mapa en vivo, la versión lo rehidrata.
   localStorage.removeItem(GOLA_MODULE_CFG_KEY);
@@ -124,12 +129,12 @@ test('overrides del módulo persisten al guardar/cargar versión local (merge de
   const loaded = loadVersionById(saved.version.id);
   assert.ok(loaded.ok, loaded.error);
   const mapa = loadGolaModuleCfgs();
-  assert.equal(mapa[1].golaPerfilHeight, 40, 'override del módulo 1 rehidratado');
+  assert.equal(mapa[1].golaStripSetback, 40, 'override del módulo 1 rehidratado');
   assert.ok(!Object.prototype.hasOwnProperty.call(mapa, '2'), 'm2 sigue sin overrides (merge, no borra nada)');
 
   // La pieza cargada conserva la tira re-aplicada con el override.
   const pieces = getStore().get().pieces;
-  assert.equal(tira(pieces, 1).alto, 40, 'tira m1 con el alto del override tras cargar');
+  assert.equal(alaLargo(pieces, 1), 53, 'ala m1 con el retranqueo del override tras cargar (40+13)');
   view.destroy();
 });
 
@@ -138,12 +143,12 @@ test('módulo sin gola activo: el override persiste y se aplica al activar despu
   armarDosModulosConCajones();
 
   // Override directo vía acción (sin gola activo: solo persiste, sin undo).
-  const r = setGolaModuleConfig('1', { golaPerfilHeight: 45 });
+  const r = setGolaModuleConfig('1', { golaStripSetback: 45 });
   assert.ok(r.ok);
 
   activarGola(container, 1);
   const pieces = getStore().get().pieces;
-  assert.equal(tira(pieces, 1).alto, 45, 'al activar se usa el override persistido');
-  assert.equal(cfgInput(container, 1, 'golaPerfilHeight').value, '45');
+  assert.equal(alaLargo(pieces, 1), 58, 'al activar se usa el override persistido (45+13)');
+  assert.equal(cfgInput(container, 1, 'golaStripSetback').value, '45');
   view.destroy();
 });

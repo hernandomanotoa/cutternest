@@ -53,7 +53,7 @@ import {
 import { createTour, hasSeenTour } from '../components/tour/driver.js';
 import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
-import { isGolaEnabled, drawerUnits, getGolaCfg } from '../services/golaService.js';
+import { isGolaEnabled, drawerUnits, getGolaCfg, esUnidadFijaGola } from '../services/golaService.js';
 import { DRAWER_TYPES, SHOE_RACK_TYPES, RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
 import { listCustomTypes, saveCustomType, deleteCustomType, slugCustomType } from '../services/customTypesService.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
@@ -76,16 +76,71 @@ const TIPOS_CAJON = [
 // como overrides en cn-assembly-gola-cfg, con fallback a la userConfig
 // global): clave cfg, label, min, step.
 const GOLA_CFG_FIELDS = [
-  ['golaPerfilHeight', 'Alto perfil (mm)', 10, 5],
-  ['golaPaso', 'Paso frente↔canal (mm)', 1, 1],
+  ['golaLabioMm', 'Labio frente (mm)', 10, 1],
+  ['golaEntradaMm', 'Entrada dedos (mm)', 5, 1],
+  ['golaPaso', 'Holgura ala↔cara (mm)', 1, 1],
   ['golaStripSetback', 'Retranqueo (mm)', 0, 5],
   ['golaHolguraLateral', 'Holgura lat. (mm)', 0, 1],
   ['golaTornillosPorPerfil', 'Tornillos/lado', 1, 1],
   ['golaSoporteTraseroDesde', 'Soporte trasero desde (mm)', 0, 50],
-  ['golaMaxRebajaCaja', 'Máx. rebaja caja (mm)', 0, 5],
 ];
 
 const FURNITURE_NAME_KEY = 'cn-assembly-furniture-name';
+
+// Control segmentado (spec Segmented del prototipo): píldoras role=radio + un
+// <select> REAL oculto con el MISMO data-attribute y opciones. Los clicks
+// escriben el select y disparan 'change': los handlers onChange existentes y
+// los tests (que escriben select.value) quedan intactos.
+function segmentedControl(label, attrs, options, current) {
+  return `
+    <div class="cn-segmented" role="radiogroup" aria-label="${escapeHtml(label)}">
+      ${options.map((o) => `
+        <button type="button" role="radio" aria-checked="${o.value === current}"
+          class="cn-segmented__opt${o.value === current ? ' is-active' : ''}"
+          data-seg-value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</button>`).join('')}
+      <select class="is-hidden" ${attrs}>
+        ${options.map((o) => `<option value="${escapeHtml(o.value)}"${o.value === current ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+      </select>
+    </div>`;
+}
+
+// Steppers − / + de un input numérico (spec NumberField). Los botones ajustan
+// el input hermano (con clamp min/max) y disparan 'change': mismo contrato
+// que escribir el valor a mano.
+function numSteppers() {
+  return `
+    <span class="cn-field-num__unit" aria-hidden="true">mm</span>
+    <span class="cn-field-num__btns">
+      <button type="button" class="cn-field-num__btn" data-step="-1" aria-label="Disminuir">−</button>
+      <button type="button" class="cn-field-num__btn" data-step="1" aria-label="Aumentar">+</button>
+    </span>`;
+}
+
+function stepNumberField(stepBtn) {
+  const input = stepBtn.closest('.cn-field-num')?.querySelector('input');
+  if (!input) return;
+  const step = Number(input.step) > 0 ? Number(input.step) : 10;
+  const min = input.min === '' ? NaN : Number(input.min);
+  const max = input.max === '' ? NaN : Number(input.max);
+  let v = (Number(input.value) || 0) + step * Number(stepBtn.dataset.step);
+  if (Number.isFinite(min)) v = Math.max(min, v);
+  if (Number.isFinite(max)) v = Math.min(max, v);
+  input.value = String(Math.round(v * 100) / 100);
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function activateSegment(segBtn) {
+  const group = segBtn.closest('.cn-segmented');
+  const select = group?.querySelector('select');
+  if (!select) return;
+  select.value = segBtn.dataset.segValue;
+  group.querySelectorAll('.cn-segmented__opt').forEach((b) => {
+    const on = b === segBtn;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
 
 function getFurnitureName() {
   try {
@@ -114,6 +169,16 @@ export function createConstructorView(store) {
   // Vista previa de activación gola (dry-run sin mutar el store): se confirma
   // o cancela desde el panel inline de la tarjeta del módulo.
   let golaPreview = null;
+  // Fase plegado: estado de colapso por módulo (override del usuario); el
+  // default colapsa todo cuando hay muchos módulos (se setea en render()).
+  // Fase esquema interactivo: módulo cuyo menú "+ añadir" del esquema está
+  // abierto (null = ninguno).
+  let schemeMenuFor = null;
+  // Vista de módulos: la sección 02 arranca OCULTA (ocupa mucho espacio en
+  // el centro): solo se muestra el módulo seleccionado desde el riel (clic
+  // en un módulo). '+ Añadir' del riel vuelve a los Datos generales (01).
+  // null = sin selección (placeholder).
+  let selectedModuleId = null;
   // Tour guiado del sistema gola (components/tour/driver.js): se ofrece con
   // store vacío y tour no visto; la vista decide cuándo lanzarlo.
   let tour = null;
@@ -213,6 +278,44 @@ export function createConstructorView(store) {
     toast(`Tipo "${r.type.label}" guardado: ya está en el selector de ${kind === 'drawer' ? 'cajón' : 'zapatera'}`, { type: 'success' });
     refresh();
   }
+
+// Riel izquierdo del Constructor (spec LeftRail): lista compacta de módulos
+// raíz con numeración, dimensiones y conteo de contenido. Clic = bajar a la
+// tarjeta del módulo y resaltarla; "Añadir" baja al formulario de nuevo
+// módulo. Sin lógica de negocio: solo navegación dentro de la vista.
+function renderModuleRail(groups, pieces, selectedModuleId = null) {
+  return `
+    <section class="cn-rail__section">
+      <div class="cn-rail__head">
+        <h3 class="t-label">Módulos</h3>
+        <button class="btn btn--secondary btn--sm" data-action="rail-add-module">+ Añadir</button>
+      </div>
+      ${groups.length === 0
+        ? '<p class="cn-rail__empty">Sin módulos todavía.</p>'
+        : `<ul class="cn-rail__list">
+            ${groups.map((g, i) => {
+              const mods = pieces.filter((p) => String(p.modulo) === String(g.id));
+              const tapa = mods.find((p) => String(p.id).endsWith('-tapa'));
+              const lat = mods.find((p) => String(p.id).endsWith('-lateral-izq'));
+              const dims = tapa && lat ? `${tapa.ancho} × ${lat.alto} × ${tapa.alto}` : '';
+              const count = contentItemsForModule(g.id, pieces).length;
+              const activo = String(g.id) === String(selectedModuleId);
+              return `
+              <li>
+                <button class="cn-rail__module${activo ? ' cn-rail__module--active' : ''}" data-action="rail-focus-module" data-module="${escapeHtml(g.id)}"
+                  title="Ir a ${escapeHtml(g.label)}" aria-current="${activo ? 'true' : 'false'}">
+                  <span class="cn-rail__num">${String(i + 1).padStart(2, '0')}</span>
+                  <span class="cn-rail__name">
+                    <span class="cn-rail__label">${escapeHtml(g.label)}</span>
+                    ${dims ? `<span class="cn-rail__dims">${dims}</span>` : ''}
+                  </span>
+                  ${count ? `<span class="cn-rail__count">${count}</span>` : ''}
+                </button>
+              </li>`;
+            }).join('')}
+          </ul>`}
+    </section>`;
+}
 
   function renderCustomTypesPanel() {
     const customs = listCustomTypes();
@@ -421,6 +524,16 @@ export function createConstructorView(store) {
   }
 
   function onKeydown(e) {
+    // Navegación por flechas en los controles segmentados (accesibilidad).
+    if (e.target.matches('.cn-segmented__opt') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      e.preventDefault();
+      const opts = [...e.target.closest('.cn-segmented').querySelectorAll('.cn-segmented__opt')];
+      const i = opts.indexOf(e.target);
+      const next = opts[(i + (e.key === 'ArrowRight' ? 1 : opts.length - 1)) % opts.length];
+      next.focus();
+      activateSegment(next);
+      return;
+    }
     // Enter en el nombre de version guarda (mejora #12).
     if (e.key === 'Enter' && e.target.matches('[data-version-name]')) {
       e.preventDefault();
@@ -501,6 +614,18 @@ export function createConstructorView(store) {
   }
 
   async function onClick(e) {
+    // Steppers numéricos y control segmentado: sin data-action (interacción
+    // local del campo; el 'change' disparado alcanza a onChange delegado).
+    const stepBtn = e.target.closest('[data-step]');
+    if (stepBtn) {
+      stepNumberField(stepBtn);
+      return;
+    }
+    const segBtn = e.target.closest('.cn-segmented__opt');
+    if (segBtn) {
+      activateSegment(segBtn);
+      return;
+    }
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
@@ -519,6 +644,11 @@ export function createConstructorView(store) {
       };
       const r = addModuleFromBuilder(cfg);
       if (r.ok) {
+        // Selecciona el primer módulo creado: la sección 02 lo muestra (el
+        // re-render del store ya ocurrió dentro de addModuleFromBuilder, con
+        // la selección anterior: se re-renderiza para revelarlo).
+        selectedModuleId = r.moduleIds[0] ?? selectedModuleId;
+        render();
         toast(`${r.moduleIds.length} módulo(s) agregado(s)`, { type: 'success' });
         warnIfAny(r.warnings);
       } else {
@@ -602,6 +732,7 @@ export function createConstructorView(store) {
     } else if (action === 'remove-module') {
       confirmable(btn, '¿Seguro?', () => {
         removeModule(btn.dataset.module);
+        if (String(selectedModuleId) === String(btn.dataset.module)) selectedModuleId = null;
         toast(`Módulo ${btn.dataset.module} eliminado`, { type: 'info' });
       });
     } else if (action === 'duplicate-module') {
@@ -813,6 +944,49 @@ export function createConstructorView(store) {
       refresh();
     } else if (action === 'goto-view') {
       switchTab(btn.dataset.view);
+    } else if (action === 'rail-add-module') {
+      // Riel izquierdo: "Añadir" muestra los Datos generales (01) para crear
+      // el módulo (la sección 02 queda oculta hasta elegir un módulo).
+      selectedModuleId = null;
+      render();
+      const target = container.querySelector('[data-cfg="ancho"]');
+      target?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      target?.focus?.();
+    } else if (action === 'rail-focus-module') {
+      // Riel izquierdo: clic en un módulo REVELA su tarjeta en la sección 02
+      // (la única visible) y hace scroll hasta ella.
+      selectedModuleId = btn.dataset.module;
+      moduleFoldState.set(String(btn.dataset.module), false);
+      render();
+      const card = container.querySelector(`[data-module-scoped="${CSS.escape(btn.dataset.module)}"]`);
+      if (!card) return;
+      card.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      card.classList.add('cn-module-flash');
+      setTimeout(() => card.classList?.remove('cn-module-flash'), 1400);
+    } else if (action === 'toggle-collapse') {
+      // Fase plegado: contrae/expande las preferencias de la tarjeta.
+      const id = String(btn.dataset.module);
+      moduleFoldState.set(id, !isModuleCollapsed(id));
+      render();
+    } else if (action === 'scheme-remove') {
+      // Esquema interactivo: clic en un elemento lo quita (undo = Ctrl+Z).
+      const r = removeContentPiece(btn.dataset.ref);
+      if (r.ok) toast('Contenido eliminado desde el esquema (Ctrl+Z deshace)', { type: 'info' });
+      else toast(r.errors.join('; '), { type: 'error' });
+    } else if (action === 'scheme-menu') {
+      // Esquema interactivo: la zona ＋ abre/cierra el menú de alta.
+      const id = String(btn.dataset.module);
+      schemeMenuFor = schemeMenuFor === id ? null : id;
+      render();
+    } else if (action === 'scheme-add') {
+      // El menú reutiliza el botón real "+ Tipo" de la tarjeta: mismas prefs,
+      // mismas validaciones y mismos toasts (cero lógica nueva).
+      const mod = schemeMenuFor;
+      schemeMenuFor = null;
+      const target = container.querySelector(
+        `[data-module-scoped="${CSS.escape(mod || '')}"] [data-action="add-content"][data-kind="${CSS.escape(btn.dataset.kind)}"]`,
+      );
+      if (target) target.click();
     }
   }
 
@@ -845,100 +1019,40 @@ export function createConstructorView(store) {
     const groups = getModuleGroups(pieces);
     const versions = listVersions();
     const dirty = isDesignDirty();
+    // Fase plegado: con muchos módulos las tarjetas arrancan colapsadas
+    // (cabecera + chips + esquema); el usuario expande las que edita.
+    collapseDefault = groups.length > 3;
     container.innerHTML = `
+      <div class="cn-constructor">
       ${pieces.length === 0 && hasAutosave() ? renderAutosaveBanner() : ''}
-      <div class="card mb-2">
-        <div class="card__header">
-          <h2 class="card__title">Constructor de clóset — agregar módulo</h2>
-          ${pieces.length === 0 && !hasSeenTour() ? '<button class="btn btn--secondary btn--sm" data-action="start-tour" title="Recorrido guiado del sistema gola">Tour gola</button>' : ''}
-          <span class="cn-constructor__summary" data-resumen>${resumenMueble(pieces, state)}</span>
-          ${dirty ? '<span class="badge badge--secondary" title="Hay cambios sin guardar en una versión">● sin guardar</span>' : ''}
-        </div>
-        <div class="card__body">
-          <div class="cn-constructor__grid">
-            <label class="form-group">Nombre del mueble
-              <input type="text" data-furniture-name value="${escapeHtml(getFurnitureName())}" placeholder="Clóset dormitorio" maxlength="60" />
-            </label>
-            <label class="form-group">Ancho total (mm)
-              <input type="number" data-cfg="ancho-total" placeholder="3400" min="100" step="10" />
-            </label>
-            <label class="form-group">Repartir en
-              <input type="number" data-cfg="reparto" value="4" min="1" max="12" />
-            </label>
-          </div>
-          <div class="cn-constructor__grid">
-            <label class="form-group">Ancho (mm)
-              <input type="number" data-cfg="ancho" value="850" min="100" step="10" />
-            </label>
-            <label class="form-group">Alto (mm)
-              <input type="number" data-cfg="alto" value="2400" min="100" step="10" />
-            </label>
-            <label class="form-group">Profundidad (mm)
-              <input type="number" data-cfg="prof" value="600" min="100" step="10" />
-            </label>
-            <label class="form-group">Espesor
-              <select data-cfg="espesor">
-                <option value="15" selected>15 mm</option>
-                <option value="18">18 mm</option>
-                <option value="25">25 mm</option>
-              </select>
-            </label>
-            <label class="form-group">Color cuerpo
-              <input type="color" data-cfg="color" value="#c19a6b" />
-            </label>
-            <label class="form-group" title="Espesor del canto PVC para la lista de herrajes (no cambia las medidas de corte)">Canto PVC
-              <select data-obra="canto">
-                ${[0.8, 1, 2].map((e) => `<option value="${e}" ${Number(state.userConfig?.cantoEspesor ?? 0.8) === e ? 'selected' : ''}>${e} mm</option>`).join('')}
-              </select>
-            </label>
-            <label class="form-group">Zócalo (mm)
-              <input type="number" data-cfg="altura-zocalo" value="150" min="50" max="300" step="10" />
-            </label>
-            <label class="form-group">Cantidad
-              <input type="number" data-cfg="cantidad" value="1" min="1" max="12" />
-            </label>
-            <label class="form-group cn-constructor__check">
-              <input type="checkbox" data-cfg="zocalo" checked /> Con zócalo<br />
-              <small>la base queda apoyada sobre el zócalo</small>
-            </label>
-          </div>
-          <div class="cn-constructor__content-btns">
-            <button class="btn btn--primary" data-action="add-module">+ Agregar módulo(s)</button>
-            <button class="btn btn--secondary" data-action="undo" ${canUndo() ? '' : 'disabled'} title="Deshacer última acción (Ctrl+Z)">↩ Deshacer</button>
-            <button class="btn btn--secondary" data-action="duplicate-all" ${pieces.length ? '' : 'disabled'}>Duplicar mueble</button>
-            <button class="btn btn--secondary" data-action="export-current" ${pieces.length ? '' : 'disabled'}>Exportar CSV</button>
-            <button class="btn btn--secondary" data-action="goto-view" data-view="isometric" ${pieces.length ? '' : 'disabled'}>Ver isométrica</button>
-            <button class="btn btn--secondary" data-action="goto-view" data-view="renderer3d" ${pieces.length ? '' : 'disabled'}>Ver 3D</button>
-            <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
-          </div>
+      <div class="cn-constructor__layout">
+      <aside class="cn-rail">
+        ${renderModuleRail(groups, pieces, selectedModuleId)}
+        <section class="cn-rail__section">
           ${renderCustomTypesPanel()}
-          ${renderWarningsPanel(pieces, state)}
-        </div>
-      </div>
-
-      <div class="card mb-2">
-        <div class="card__header">
-          <h2 class="card__title">Zócalo estructural y datos de obra</h2>
-          <span class="cn-constructor__summary" data-plinth-resumen>${resumenPlinth(pieces, state)}</span>
-        </div>
-        <div class="card__body">
+        </section>
+        <section class="cn-rail__section">
+          <div class="cn-rail__head">
+            <h3 class="t-label">Zócalo y obra</h3>
+            <span class="cn-constructor__summary" data-plinth-resumen>${resumenPlinth(pieces, state)}</span>
+          </div>
           <div class="cn-constructor__grid">
-            <label class="form-group">Tipo de zócalo
-              <select data-obra="tipo">
-                <option value="simple" ${hasPlinthFrame(pieces) ? '' : 'selected'}>Frente simple por módulo</option>
-                <option value="marco" ${hasPlinthFrame(pieces) ? 'selected' : ''}>Marco estructural (cajón de 4 lados)</option>
-              </select>
-            </label>
+            <div class="form-group">Tipo de zócalo
+              ${segmentedControl('Tipo de zócalo', 'data-obra="tipo"', [
+                { value: 'simple', label: 'Frente simple por módulo' },
+                { value: 'marco', label: 'Marco estructural (cajón de 4 lados)' },
+              ], hasPlinthFrame(pieces) ? 'marco' : 'simple')}
+            </div>
             <label class="form-group">Cantidad de zócalos
               <select data-obra="nzocalos">
                 ${[1, 2, 3, 4].map((n) => `<option value="${n}" ${Number(state.userConfig?.plinthNZocalos || 1) === n ? 'selected' : ''}>${n === 1 ? '1 (único)' : n}</option>`).join('')}
               </select>
             </label>
             <label class="form-group">Alto zócalo Z (mm)
-              <input type="number" data-obra="altoZocalo" value="${Number(state.userConfig?.plinthAltoZocalo) || 100}" min="50" max="300" step="5" />
+              <span class="cn-field-num"><input type="number" data-obra="altoZocalo" value="${Number(state.userConfig?.plinthAltoZocalo) || 100}" min="50" max="300" step="5" />${numSteppers()}</span>
             </label>
             <label class="form-group">Retraso frente (mm)
-              <input type="number" data-obra="retraso" value="${Number(state.userConfig?.plinthFrontRecess) || 0}" min="0" max="150" step="5" />
+              <span class="cn-field-num"><input type="number" data-obra="retraso" value="${Number(state.userConfig?.plinthFrontRecess) || 0}" min="0" max="150" step="5" />${numSteppers()}</span>
             </label>
           </div>
           <details class="cn-constructor__obra" ${Number(state.userConfig?.obraHTecho) > 0 ? 'open' : ''}>
@@ -967,21 +1081,11 @@ export function createConstructorView(store) {
             <button class="btn btn--primary" data-action="apply-plinth">${marcoDesactualizado(pieces) ? 'Regenerar marco' : 'Generar marco'}</button>
             <button class="btn btn--secondary" data-action="remove-plinth" ${hasPlinthFrame(pieces) ? '' : 'disabled'}>Quitar marco</button>
           </div>
-        </div>
-      </div>
-
-      <div class="card mb-2">
-        <div class="card__header"><h2 class="card__title">Módulos y contenido</h2></div>
-        <div class="card__body">
-          ${groups.length === 0
-            ? '<p class="empty-state">Todavía no hay módulos. Agrega el primero arriba.</p>'
-            : groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {}, golaPreview)).join('')}
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card__header"><h2 class="card__title">Versiones del diseño</h2></div>
-        <div class="card__body">
+        </section>
+        <section class="cn-rail__section">
+          <div class="cn-rail__head">
+            <h3 class="t-label">Versiones guardadas</h3>
+          </div>
           <div class="cn-constructor__version-form">
             <input type="text" data-version-name placeholder="${escapeHtml(suggestedVersionName(getFurnitureName() || 'Closet'))}" maxlength="80" aria-label="Nombre de la versión" />
             <button class="btn btn--primary" data-action="save-version">Guardar versión</button>
@@ -1014,7 +1118,108 @@ export function createConstructorView(store) {
                 </tbody>
               </table></div>
               <button class="btn btn--danger" data-action="delete-all-versions" style="margin-top:0.5rem;">Eliminar todas</button>`}
+        </section>
+      </aside>
+      <div class="cn-constructor__main">
+      <section class="card">
+        <div class="card__header">
+          <span class="cn-section-head__index" aria-hidden="true">01</span>
+          <h2 class="card__title">Datos generales del mueble</h2>
+          <div class="cn-section-head__aside">
+            ${pieces.length === 0 && !hasSeenTour() ? '<button class="btn btn--secondary btn--sm" data-action="start-tour" title="Recorrido guiado del sistema gola">Tour gola</button>' : ''}
+            <span class="cn-constructor__summary" data-resumen>${resumenMueble(pieces, state)}</span>
+            ${dirty ? '<span class="badge badge--secondary" title="Hay cambios sin guardar en una versión">● sin guardar</span>' : ''}
+          </div>
         </div>
+        <div class="card__body">
+          <div class="cn-form-section">
+            <h4 class="cn-form-section__title">Mueble</h4>
+            <div class="cn-constructor__grid">
+              <label class="form-group">Nombre del mueble
+                <input type="text" data-furniture-name value="${escapeHtml(getFurnitureName())}" placeholder="Clóset dormitorio" maxlength="60" />
+              </label>
+              <div class="form-group">Espesor de tablero
+                ${segmentedControl('Espesor de tablero', 'data-cfg="espesor"', [
+                  { value: '15', label: '15 mm' },
+                  { value: '18', label: '18 mm' },
+                  { value: '25', label: '25 mm' },
+                ], '15')}
+              </div>
+              <label class="form-group">Color cuerpo
+                <input type="color" data-cfg="color" value="#c19a6b" />
+              </label>
+              <label class="form-group" title="Espesor del canto PVC para la lista de herrajes (no cambia las medidas de corte)">Canto PVC
+                <select data-obra="canto">
+                  ${[0.8, 1, 2].map((e) => `<option value="${e}" ${Number(state.userConfig?.cantoEspesor ?? 0.8) === e ? 'selected' : ''}>${e} mm</option>`).join('')}
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="cn-form-section">
+            <h4 class="cn-form-section__title">Nuevo módulo</h4>
+            <div class="cn-constructor__grid">
+              <label class="form-group">Ancho total (mm)
+                <input type="number" data-cfg="ancho-total" placeholder="3400" min="100" step="10" />
+              </label>
+              <label class="form-group">Repartir en
+                <input type="number" data-cfg="reparto" value="4" min="1" max="12" />
+              </label>
+              <label class="form-group">Ancho (mm)
+                <span class="cn-field-num"><input type="number" data-cfg="ancho" value="850" min="100" step="10" />${numSteppers()}</span>
+              </label>
+              <label class="form-group">Alto (mm)
+                <span class="cn-field-num"><input type="number" data-cfg="alto" value="2400" min="100" step="10" />${numSteppers()}</span>
+              </label>
+              <label class="form-group">Profundidad (mm)
+                <span class="cn-field-num"><input type="number" data-cfg="prof" value="600" min="100" step="10" />${numSteppers()}</span>
+              </label>
+              <label class="form-group">Zócalo (mm)
+                <input type="number" data-cfg="altura-zocalo" value="150" min="50" max="300" step="10" />
+              </label>
+              <label class="form-group">Cantidad
+                <input type="number" data-cfg="cantidad" value="1" min="1" max="12" />
+              </label>
+              <label class="form-group cn-toggle" title="La base queda apoyada sobre el zócalo">
+                <input type="checkbox" data-cfg="zocalo" checked />
+                <span class="cn-toggle__text">
+                  <span class="cn-toggle__label">Con zócalo</span>
+                  <span class="cn-toggle__desc">La base queda apoyada sobre el zócalo.</span>
+                </span>
+              </label>
+            </div>
+            <button class="btn btn--primary" data-action="add-module">+ Agregar módulo(s)</button>
+          </div>
+          <div class="cn-form-section">
+            <h4 class="cn-form-section__title">Acciones del mueble</h4>
+            <div class="cn-constructor__content-btns">
+              <button class="btn btn--secondary" data-action="undo" ${canUndo() ? '' : 'disabled'} title="Deshacer última acción (Ctrl+Z)">↩ Deshacer</button>
+              <button class="btn btn--secondary" data-action="duplicate-all" ${pieces.length ? '' : 'disabled'}>Duplicar mueble</button>
+              <button class="btn btn--secondary" data-action="export-current" ${pieces.length ? '' : 'disabled'}>Exportar CSV</button>
+              <button class="btn btn--secondary" data-action="goto-view" data-view="isometric" ${pieces.length ? '' : 'disabled'}>Ver isométrica</button>
+              <button class="btn btn--secondary" data-action="goto-view" data-view="renderer3d" ${pieces.length ? '' : 'disabled'}>Ver 3D</button>
+              <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
+            </div>
+          </div>
+          ${renderWarningsPanel(pieces, state)}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__header">
+          <span class="cn-section-head__index" aria-hidden="true">02</span>
+          <h2 class="card__title">Módulos y contenido</h2>
+        </div>
+        <div class="card__body">
+          ${groups.length === 0
+            ? '<p class="empty-state">Todavía no hay módulos. Agrega el primero arriba.</p>'
+            : `${!selectedModuleId || !groups.some((g) => String(g.id) === String(selectedModuleId))
+              ? '<p class="empty-state cn-modulos-view__placeholder">Selecciona un módulo en la lista de la izquierda para verlo aquí, o pulsa «+ Añadir» para crear uno.</p>'
+              : ''}
+            ${groups.map((g) => renderModuleCard(g, pieces, state.userConfig || {}, golaPreview, schemeMenuFor, String(g.id) === String(selectedModuleId))).join('')}`}
+        </div>
+      </section>
+      </div>
+      </div>
       </div>
     `;
     // Fijar el valor de los selects de modo de zapatera: happy-dom (tests)
@@ -1049,16 +1254,32 @@ function renderAutosaveBanner() {
 // barras, zocalo) con boton de eliminacion individual. El orden de la
 // lista es el de insercion (orden del array de piezas).
 // Icono + estilo por tipo de contenido (chips del listado por modulo).
+// Icono por tipo de contenido (chips del listado por modulo). SVG inline
+// 12×12 (nitidez a cualquier tamaño, hereda color del chip).
 const CONTENT_ICON = {
-  zocalo: '▬',
-  shelf: '▔',
-  drawer: '▤',
-  shoeRack: '👟',
-  rail: '⚡',
-  divider: '╫',
+  zocalo: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="7" width="9" height="3" rx="0.8"/></svg>',
+  shelf: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="1" y1="6" x2="11" y2="6"/></svg>',
+  drawer: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2" width="9" height="8" rx="1.2"/><line x1="4.5" y1="6" x2="7.5" y2="6"/></svg>',
+  shoeRack: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="1.5" y1="4" x2="10.5" y2="6.5"/><line x1="1.5" y1="7" x2="10.5" y2="9.5"/></svg>',
+  rail: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="1.5" y1="6" x2="10.5" y2="6"/><circle cx="1.8" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="10.2" cy="6" r="1" fill="currentColor" stroke="none"/></svg>',
+  divider: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="6" y1="1.5" x2="6" y2="10.5"/></svg>',
 };
 
-function renderContentList(moduleId, allPieces) {
+// Fase plegado: estado de colapso por módulo. Override explícito del usuario
+// en moduleFoldState; sin override manda collapseDefault (colapsar listas
+// largas), que render() setea según la cantidad de módulos.
+const moduleFoldState = new Map();
+let collapseDefault = false;
+
+function isModuleCollapsed(moduleId) {
+  const key = String(moduleId);
+  return moduleFoldState.has(key) ? moduleFoldState.get(key) : collapseDefault;
+}
+
+// Items de contenido de un módulo (cajones, zapateras, repisas, barras,
+// zócalo, divisores) en orden de inserción = orden de apilado (abajo ->
+// arriba). Comparten los chips y el esquema frontal del módulo.
+function contentItemsForModule(moduleId, allPieces) {
   const items = [];
   for (const p of allPieces) {
     const id = String(p.id);
@@ -1092,6 +1313,11 @@ function renderContentList(moduleId, allPieces) {
     }
     if (match && !items.some((i) => i.key === match.key)) items.push(match);
   }
+  return items;
+}
+
+function renderContentList(moduleId, allPieces) {
+  const items = contentItemsForModule(moduleId, allPieces);
   if (!items.length) return '';
   // Sufijo del modo en el chip de la zapatera: detectable por geometría
   // (sobrevive al CSV; el modo no se persiste en las piezas). Bandeja SIN
@@ -1132,6 +1358,78 @@ function renderContentList(moduleId, allPieces) {
   `;
 }
 
+// Esquema frontal en vivo del módulo (spec "Esquema frontal" del prototipo):
+// SVG con casco, zócalo y glifos del contenido apilado (mismo orden que los
+// chips: el último item queda arriba). Fase interactiva: clic en un elemento
+// lo QUITA (undo con Ctrl+Z) y la zona "＋" (tope de la pila) abre un menú
+// para AÑADIR contenido con las prefs de la tarjeta. Derivado de las piezas.
+function renderModuleScheme(moduleId, allPieces, piezas, menuOpen = false) {
+  const tapa = piezas.find((p) => String(p.id).endsWith('-tapa'));
+  const lateral = piezas.find((p) => String(p.id).endsWith('-lateral-izq'));
+  if (!tapa || !lateral) return '';
+  const ancho = Number(tapa.ancho) || 0;
+  const alto = Number(lateral.alto) || 0;
+  if (!ancho || !alto) return '';
+  const zocalo = piezas.find((p) => p.id === `m${moduleId}-zocalo`);
+  const items = contentItemsForModule(moduleId, allPieces).filter((i) => i.kind !== 'zocalo');
+  const W = 200, H = 230, DIMS = 20;
+  const ratio = Math.min(W / ancho, (H - DIMS) / alto);
+  const w = ancho * ratio, h = alto * ratio;
+  const x = (W - w) / 2, y = 6;
+  const e = Math.max(2, 15 * ratio);
+  const zk = zocalo ? Math.max(8, (Number(zocalo.alto) || 0) * ratio) : 0;
+  const inner = { x: x + e, y: y + e, w: w - e * 2, h: h - e * 2 - zk };
+  // La zona "añadir" ocupa una fila extra ARRIBA (el nuevo contenido se
+  // apila en la cima); los items reparten el resto (abajo -> arriba).
+  const n = Math.max(items.length, 1);
+  const rowH = inner.h / (items.length + 1);
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const glyphs = {
+    shelf: (gy, rh) => `<line x1="${r1(inner.x)}" y1="${r1(gy + rh / 2)}" x2="${r1(inner.x + inner.w)}" y2="${r1(gy + rh / 2)}"/>`,
+    drawer: (gy, rh) => `<rect x="${r1(inner.x + 5)}" y="${r1(gy + 3)}" width="${r1(inner.w - 10)}" height="${r1(rh - 6)}" rx="2"/><line x1="${r1(inner.x + inner.w / 2 - 8)}" y1="${r1(gy + rh / 2)}" x2="${r1(inner.x + inner.w / 2 + 8)}" y2="${r1(gy + rh / 2)}"/>`,
+    shoeRack: (gy, rh) => `<line x1="${r1(inner.x + 3)}" y1="${r1(gy + rh * 0.3)}" x2="${r1(inner.x + inner.w - 3)}" y2="${r1(gy + rh * 0.55)}"/><line x1="${r1(inner.x + 3)}" y1="${r1(gy + rh * 0.65)}" x2="${r1(inner.x + inner.w - 3)}" y2="${r1(gy + rh * 0.9)}"/>`,
+    rail: (gy, rh) => `<line x1="${r1(inner.x + 6)}" y1="${r1(gy + rh / 2)}" x2="${r1(inner.x + inner.w - 6)}" y2="${r1(gy + rh / 2)}"/><circle cx="${r1(inner.x + 6)}" cy="${r1(gy + rh / 2)}" r="2"/><circle cx="${r1(inner.x + inner.w - 6)}" cy="${r1(gy + rh / 2)}" r="2"/>`,
+    divider: (gy, rh) => `<line x1="${r1(inner.x + inner.w / 2)}" y1="${r1(gy)}" x2="${r1(inner.x + inner.w / 2)}" y2="${r1(gy + rh)}"/>`,
+  };
+  const escId = escapeHtml(String(moduleId));
+  const addZone = `
+        <g class="cn-scheme__add" data-action="scheme-menu" data-module="${escId}" role="button"
+           tabindex="-1" aria-label="Añadir contenido al módulo ${escId}" title="Añadir contenido (usa las preferencias de la tarjeta)">
+          <rect x="${r1(inner.x)}" y="${r1(inner.y)}" width="${r1(inner.w)}" height="${r1(rowH - 2)}" rx="3"/>
+          <text x="${r1(inner.x + inner.w / 2)}" y="${r1(inner.y + (rowH - 2) / 2 + 3)}" text-anchor="middle">＋</text>
+        </g>`;
+  return `
+    <figure class="cn-scheme">
+      <figcaption class="cn-scheme__caption">
+        <span>Esquema frontal</span>
+        <span class="cn-scheme__hint">clic en elemento: quitar · ＋: añadir</span>
+      </figcaption>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Esquema frontal del módulo ${escId}">
+        <rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" class="cn-scheme__body" rx="2"/>
+        ${zocalo ? `<rect x="${r1(inner.x)}" y="${r1(y + h - e - zk)}" width="${r1(inner.w)}" height="${r1(zk)}" class="cn-scheme__zocalo"/>` : ''}
+        ${addZone}
+        ${items.length === 0
+          ? `<text x="${W / 2}" y="${r1(inner.y + rowH + (inner.h - rowH) / 2)}" text-anchor="middle" class="cn-scheme__empty">Sin contenido — usá el ＋ para añadir</text>`
+          : items.map((it, i) => {
+              // El item 0 va abajo; el último queda justo debajo de la zona ＋.
+              const idx = items.length - 1 - i;
+              const gy = inner.y + rowH + idx * rowH;
+              return `<g class="cn-scheme__row" data-action="scheme-remove" data-ref="${escapeHtml(it.refId)}"
+                  role="button" tabindex="-1" aria-label="Quitar ${escapeHtml(nombreCorto(it.label))}" title="Quitar ${escapeHtml(nombreCorto(it.label))} (Ctrl+Z deshace)">
+                  <rect class="cn-scheme__hit" x="${r1(inner.x)}" y="${r1(gy + 1)}" width="${r1(inner.w)}" height="${r1(rowH - 2)}" rx="3"/>
+                  <g class="cn-scheme__glyph cn-scheme__glyph--${it.kind}">${glyphs[it.kind]?.(gy, rowH) ?? ''}</g>
+                </g>`;
+            }).join('')}
+        <text x="${W / 2}" y="${Math.min(y + h + 13, H - 2)}" text-anchor="middle" class="cn-scheme__dims">${ancho} mm</text>
+      </svg>
+      ${menuOpen ? `
+      <div class="cn-scheme-menu" role="menu" aria-label="Añadir contenido al módulo ${escId}">
+        ${[['shelf', 'Repisa'], ['drawer', 'Cajón'], ['shoeRack', 'Zapatera'], ['rail', 'Barra'], ['doubleRail', 'Doble barra'], ['zocalo', 'Zócalo'], ['divider', 'Divisor']]
+          .map(([k, l]) => `<button type="button" role="menuitem" class="cn-scheme-menu__opt" data-action="scheme-add" data-kind="${k}">＋ ${l}</button>`).join('')}
+      </div>` : ''}
+    </figure>`;
+}
+
 // "Frente zapatera extraible 2 M1" -> "Zapatera 2"; "Repisa 3 M1" -> "Repisa 3";
 // "Barra colgadora 1 M1" -> "Barra 1". El tooltip conserva el nombre completo.
 function nombreCorto(nombre) {
@@ -1160,7 +1458,7 @@ function toggleCamposZapatera(scoped, modo) {
   });
 }
 
-function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
+function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, schemeMenuFor = null, revelada = true) {
   // Preferencias persistidas del formulario de contenido (se reutilizan al
   // crear cada módulo): vano, tipos, división, riel y N por fila.
   const prefVano = Number(cfg.contentVano) || 200;
@@ -1227,129 +1525,173 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null) {
   // Sistema gola: solo si el módulo tiene >= 2 unidades-cajón (el caso de 1
   // cajón/L-gola lo soporta el servicio, pero la UI lo reserva a pilas).
   const golaUnidades = drawerUnits(allPieces, moduleId).length;
+  // El gola es SOLO entre cajones: el toggle se ofrece con ≥2 cajones
+  // móviles (las zapateras no forman canal ni entre ellas ni con cajones).
+  const golaCajones = drawerUnits(allPieces, moduleId).filter((u) => !esUnidadFijaGola(u)).length;
   const golaOn = isGolaEnabled(allPieces, moduleId);
   const golaPreviewHere = golaPreview && String(golaPreview.moduleId) === String(moduleId);
   // Config efectiva del módulo: global ← overrides propios (el panel edita el
   // módulo; sin overrides muestra los valores globales, como antes).
   const golaCfg = getGolaCfg(cfg, loadGolaModuleCfgs()[String(moduleId)] || {});
+  const collapsed = isModuleCollapsed(moduleId);
+  // Oculto (display:none) hasta que se selecciona desde el riel: la sección
+  // 02 solo muestra el módulo activo; el resto queda en el DOM.
+  const concealed = !revelada ? ' cn-constructor__module--concealed' : '';
   return `
-    <div class="cn-constructor__module" data-module-scoped="${escapeHtml(moduleId)}">
+    <div class="cn-constructor__module${collapsed ? ' is-collapsed' : ''}${concealed}" data-module-scoped="${escapeHtml(moduleId)}">
       <div class="cn-constructor__module-head">
+        <button class="btn btn--icon btn--sm cn-module-collapse" data-action="toggle-collapse" data-module="${escapeHtml(moduleId)}"
+          aria-expanded="${collapsed ? 'false' : 'true'}"
+          title="${collapsed ? 'Expandir preferencias del módulo' : 'Contraer preferencias del módulo'}"
+          aria-label="${collapsed ? 'Expandir preferencias del módulo' : 'Contraer preferencias del módulo'}">${collapsed ? '▸' : '▾'}</button>
         <strong>${escapeHtml(group.label)}</strong>
         ${vanoInfo ? `<span class="badge ${vanoInfo.pct > 90 ? 'badge--danger' : vanoInfo.pct > 70 ? 'badge--warning' : 'badge--secondary'}">vano ${vanoInfo.usado}/${vanoInfo.util} mm (${vanoInfo.pct}%)</span>` : ''}
         <span class="cn-constructor__spacer"></span>
-        <label class="form-group" style="margin:0;" title="Distancia desde la cara inferior de la tapa (alzamiento/maletero; gana sobre Sep. anterior)">Inset tapa (mm)
-          <input type="number" data-inset-tapa placeholder="auto" min="0" max="2000" step="10" />
-        </label>
-        <label class="form-group" style="margin:0;" title="Distancia desde la cara superior de la pieza anterior (0 o vacio = gap por defecto)">Sep. anterior (mm)
-          <input type="number" data-separacion placeholder="auto" min="0" max="2000" step="10" />
-        </label>
-        <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de la izquierda lo llenan automáticamente)">Vano (mm)
-          <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="${prefVano}" min="50" max="600" step="10" />
-          <datalist id="cn-vanos-sugeridos">
-            ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}"></option>`).join('')}
-          </datalist>
-        </label>
-        <label class="form-group" style="margin:0;" title="Tipo de cajón por prenda (alturas ergonómicas del catálogo)">Tipo cajón
-          <select data-tipo-drawer>
-            ${DRAWER_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoCajon || DRAWER_TYPES[0].id, t.id)}>${t.label}</option>`).join('')}
-            <option value="personalizado" ${sel(cfg.contentTipoCajon, 'personalizado')}>Personalizado (usar vano libre)</option>
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;" title="Tipo de zapatera por calzado. Botas = frente completo (sin cara ni gaps)">Tipo zapatera
-          <select data-tipo-zapatera>
-            ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoZapatera || SHOE_RACK_TYPES[0].id, t.id)}>${t.label}</option>`).join('')}
-            <option value="personalizado" ${sel(cfg.contentTipoZapatera, 'personalizado')}>Personalizada (usar vano libre)</option>
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División zapatera
-          <input type="checkbox" data-division ${prefDivision ? 'checked' : ''} />
-        </label>
-        <label class="form-group" style="margin:0;" title="Modo de construcción del frente de la zapatera. Frente normal (default): el frente mide 30 mm más que la bandeja (alto zapatera + 30) y NO cubre el vano — el aire superior queda abierto para el calzado; la bandeja va de borde uniforme (cara = laterales = fondo = división al alto zapatera). Frente extendido: el frente completa el vano hasta arriba (vano − 1, holgura mínima). Personalizado: alturas independientes (frente, laterales, fondo y división)">Modo zapatera
-          <select data-modo-zapatera data-modo-default="${prefModoZapatera}">
-            <option value="normal" ${sel(prefModoZapatera, 'normal')}>Frente normal</option>
-            <option value="extendido" ${sel(prefModoZapatera, 'extendido')}>Frente extendido</option>
-            <option value="personalizado" ${sel(prefModoZapatera, 'personalizado')}>Personalizado</option>
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;" title="Frente decorativo de la zapatera (sin tirador: se jala del borde). Desmarcado = bandeja a la vista: la cara queda como frente visible y de agarre (el tipo 'bandeja a la vista' lo desmarca por defecto)">Frente zapatera
-          <input type="checkbox" data-con-frente-zapatera ${prefConFrenteZapatera ? 'checked' : ''} />
-        </label>
-        <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del frente decorativo (vacío = alto zapatera + 30 en 'Frente normal', vano − 1 en 'Frente extendido')">Alto frente (mm)
-          <input type="number" data-alto-frente-zapatera value="${numPref(cfg.contentAltoFrenteZapatera)}" placeholder="según modo" min="50" step="5" />
-        </label>
-        <label class="form-group" style="margin:0;${zapAltoVisible ? '' : 'display:none;'}" data-zapatera-campo="alto" title="Altura de la zapatera (cara/bandeja): en 'Frente normal' la bandeja va de borde uniforme a este alto y el frente mide alto + 30 mm (vacío = 100 mm, alto de riel); en 'Personalizado' es el alto de los laterales">Alto zapatera (mm)
-          <input type="number" data-alto-lateral-zapatera value="${numPref(cfg.contentAltoLateralZapatera) || RAIL_SIDE_HEIGHT}" min="40" step="5" />
-        </label>
-        <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del borde trasero / fondo de la bandeja (vacío = laterales)">Alto fondo (mm)
-          <input type="number" data-alto-fondo-zapatera value="${numPref(cfg.contentAltoFondoZapatera)}" placeholder="= laterales" min="20" step="5" />
-        </label>
-        <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura de la división transversal (vacío = laterales)">Alto división (mm)
-          <input type="number" data-alto-division-zapatera value="${numPref(cfg.contentAltoDivisionZapatera)}" placeholder="= laterales" min="20" step="5" />
-        </label>
-        <label class="form-group" style="margin:0;">Mecanismo
-          <select data-mecanismo>
-            ${TIPOS_CAJON.map((t) => `<option value="${t.value}">${t.label}</option>`).join('')}
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;" title="El tipo de riel DEFINE las medidas de la caja del cajón/zapatera (descuentos por holgura y largo del fondo). 'Marco regulable' = herraje de catálogo para zapateras: sin cajón, solo el frente.">Tipo de riel
-          <select data-tipo-riel>
-            <option value="catalogo" ${sel(cfg.contentRiel || 'catalogo', 'catalogo')}>Catálogo (estándar del proyecto)</option>
-            <option value="telescopica26" ${sel(cfg.contentRiel, 'telescopica26')}>Telescópica balines (−26 mm, fondo = riel)</option>
-            <option value="oculta" ${sel(cfg.contentRiel, 'oculta')}>Oculta bajo cajón (−10 mm, cierre suave)</option>
-            <option value="marco" ${sel(cfg.contentRiel, 'marco')}>Marco aluminio regulable (zapatera, sin cajón)</option>
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;" title="Sistema de montaje del fondo (solo cajones). Apoyado: fondo sobre la base, interno a los laterales. Ranurado: fondo embutido en ranura corrida en cada lateral — se corta más ancho (cantos enterrados) y sube casi a la cara superior del lateral">Fondo ranurado
-          <input type="checkbox" data-fondo-ranurado ${prefFondoRanurado ? 'checked' : ''} />
-        </label>
-        <label class="form-group" style="margin:0;" title="Cajones por fila: 2 divide el ancho del vano en dos frentes (modulos anchos)">N por fila
-          <select data-n-por-fila>
-            <option value="1" ${prefNPorFila === 1 ? 'selected' : ''}>1</option>
-            <option value="2" ${prefNPorFila === 2 ? 'selected' : ''}>2</option>
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;" title="Luz perimetral del frente por lado respecto del vano interior (spec gola: 3 mm)">Luz frente (mm)
-          <input type="number" data-luz-frente value="${Number(cfg.drawerFrontLuz ?? 1)}" min="0.5" max="5" step="0.5" />
-        </label>
-        <label class="form-group" style="margin:0;" title="Espesor del frente decorativo (puede diferir del cuerpo: frente 18 con cuerpo 15 es lo mas comun)">Esp. frente
-          <select data-espesor-frente>
-            <option value="15" selected>15 mm</option>
-            <option value="18">18 mm</option>
-            <option value="25">25 mm</option>
-          </select>
-        </label>
-        <label class="form-group" style="margin:0;">Frente
-          <input type="color" data-color-frente value="#8b5a2b" />
-        </label>
-        <label class="form-group" style="margin:0;">Cuerpo
-          <input type="color" data-color-cuerpo value="#c19a6b" />
-        </label>
-        ${golaUnidades >= 2 ? `
-        <label class="form-group cn-constructor__check" style="margin:0;" title="Sistema gola: canales de melamina entre frentes de cajones (sin tiradores — tipo C retranqueado con su agarre; sobre el último frente queda el gap habitual)">
-          <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn || golaPreviewHere ? 'checked' : ''} /> Gola
-        </label>` : ''}
-        <button class="btn btn--secondary btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica">👁 Ver</button>
-        <button class="btn btn--secondary btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}">Editar</button>
-        <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="izq" title="Mover a la izquierda">◀</button>
-        <button class="btn btn--secondary btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="der" title="Mover a la derecha">▶</button>
-        <button class="btn btn--secondary btn--sm" data-action="recolor-module" data-module="${escapeHtml(moduleId)}">Color</button>
-        <button class="btn btn--secondary btn--sm" data-action="duplicate-module" data-module="${escapeHtml(moduleId)}">Duplicar</button>
-        <button class="btn btn--danger btn--sm" data-action="remove-module" data-module="${escapeHtml(moduleId)}">Eliminar módulo</button>
+        <span class="cn-module-actions">
+          <button class="btn btn--icon btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica" aria-label="Ver módulo en isométrica">👁</button>
+          <button class="btn btn--icon btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}" title="Editar dimensiones del casco" aria-label="Editar dimensiones del casco">✎</button>
+          <button class="btn btn--icon btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="izq" title="Mover a la izquierda" aria-label="Mover módulo a la izquierda">◀</button>
+          <button class="btn btn--icon btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="der" title="Mover a la derecha" aria-label="Mover módulo a la derecha">▶</button>
+          <button class="btn btn--icon btn--sm" data-action="recolor-module" data-module="${escapeHtml(moduleId)}" title="Recolorear con el color Cuerpo del grupo Módulo" aria-label="Recolorear módulo">🎨</button>
+          <button class="btn btn--icon btn--sm" data-action="duplicate-module" data-module="${escapeHtml(moduleId)}" title="Duplicar módulo" aria-label="Duplicar módulo">⿻</button>
+          <button class="btn btn--icon btn--sm btn--danger" data-action="remove-module" data-module="${escapeHtml(moduleId)}" title="Eliminar módulo" aria-label="Eliminar módulo">🗑</button>
+        </span>
       </div>
-      ${renderContentList(moduleId, allPieces)}
-      ${golaPreviewHere ? renderGolaPreviewPanel(golaPreview) : ''}
-      ${golaOn && golaUnidades >= 2 ? renderGolaPanel(golaCfg) : ''}
-      <div class="cn-constructor__content-btns">
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shoeRack">+ Zapatera (${countByKind('shoeRack')})</button>
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="rail">+ Barra (${countByKind('rail')})</button>
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="doubleRail">+ Doble barra</button>
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="zocalo">+ Zócalo</button>
-        <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="divider" title="Divisor vertical de bahias (span completo del vano)">+ Divisor (${countByKind('divider')})</button>
+      <div class="cn-constructor__module-prefs">
+        <fieldset class="cn-pref-group">
+          <legend>Contenido</legend>
+          <div class="cn-pref-group__fields">
+            <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de cajón/zapatera lo llenan automáticamente)">Vano (mm)
+              <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="${prefVano}" min="50" max="600" step="10" />
+              <datalist id="cn-vanos-sugeridos">
+                ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}"></option>`).join('')}
+              </datalist>
+            </label>
+            <label class="form-group" style="margin:0;" title="Distancia desde la cara inferior de la tapa (alzamiento/maletero; gana sobre Sep. anterior)">Inset tapa (mm)
+              <input type="number" data-inset-tapa placeholder="auto" min="0" max="2000" step="10" />
+            </label>
+            <label class="form-group" style="margin:0;" title="Distancia desde la cara superior de la pieza anterior (0 o vacio = gap por defecto)">Sep. anterior (mm)
+              <input type="number" data-separacion placeholder="auto" min="0" max="2000" step="10" />
+            </label>
+            <label class="form-group" style="margin:0;">Cuerpo
+              <input type="color" data-color-cuerpo value="#c19a6b" />
+            </label>
+            ${golaCajones >= 2 ? `
+            <label class="form-group cn-toggle" style="margin:0;" title="Sistema gola: canales de melamina entre frentes de cajones (sin tiradores — tipo C retranqueado con su agarre; sobre el último frente queda el gap habitual)">
+              <input type="checkbox" data-action="toggle-gola" data-module="${escapeHtml(moduleId)}" ${golaOn || golaPreviewHere ? 'checked' : ''} />
+              <span class="cn-toggle__text"><span class="cn-toggle__label">Gola</span></span>
+            </label>` : ''}
+            <div class="cn-constructor__content-btns cn-pref-group__actions">
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shoeRack">+ Zapatera (${countByKind('shoeRack')})</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="rail">+ Barra (${countByKind('rail')})</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="doubleRail">+ Doble barra</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="zocalo">+ Zócalo</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="divider" title="Divisor vertical de bahias (span completo del vano)">+ Divisor (${countByKind('divider')})</button>
+            </div>
+          </div>
+        </fieldset>
+        <fieldset class="cn-pref-group">
+          <legend>Cajón</legend>
+          <div class="cn-pref-group__fields">
+            <label class="form-group" style="margin:0;" title="Tipo de cajón por prenda (alturas ergonómicas del catálogo)">Tipo cajón
+              <select data-tipo-drawer>
+                ${DRAWER_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoCajon || DRAWER_TYPES[0].id, t.id)}>${t.label} · ${t.altoVano} mm</option>`).join('')}
+                <option value="personalizado" ${sel(cfg.contentTipoCajon, 'personalizado')}>Personalizado (usar vano libre: ${prefVano} mm)</option>
+              </select>
+            </label>
+            <div class="form-group" style="margin:0;">Mecanismo
+              ${segmentedControl('Mecanismo de apertura', 'data-mecanismo', TIPOS_CAJON, TIPOS_CAJON[0].value)}
+            </div>
+            <label class="form-group" style="margin:0;" title="El tipo de riel DEFINE las medidas de la caja del cajón/zapatera (descuentos por holgura y largo del fondo). 'Marco regulable' = herraje de catálogo para zapateras: sin cajón, solo el frente.">Tipo de riel
+              <select data-tipo-riel>
+                <option value="catalogo" ${sel(cfg.contentRiel || 'catalogo', 'catalogo')}>Catálogo (estándar del proyecto)</option>
+                <option value="telescopica26" ${sel(cfg.contentRiel, 'telescopica26')}>Telescópica balines (−26 mm, fondo = riel)</option>
+                <option value="oculta" ${sel(cfg.contentRiel, 'oculta')}>Oculta bajo cajón (−10 mm, cierre suave)</option>
+                <option value="marco" ${sel(cfg.contentRiel, 'marco')}>Marco aluminio regulable (zapatera, sin cajón)</option>
+              </select>
+            </label>
+            <label class="form-group cn-toggle" style="margin:0;" title="Sistema de montaje del fondo (solo cajones). Apoyado: fondo sobre la base, interno a los laterales. Ranurado: fondo embutido en ranura corrida en cada lateral — se corta más ancho (cantos enterrados) y sube casi a la cara superior del lateral">
+              <input type="checkbox" data-fondo-ranurado ${prefFondoRanurado ? 'checked' : ''} />
+              <span class="cn-toggle__text">
+                <span class="cn-toggle__label">Fondo ranurado</span>
+                <span class="cn-toggle__desc">Ranura corrida: más rigidez.</span>
+              </span>
+            </label>
+            <label class="form-group" style="margin:0;" title="Cajones por fila: 2 divide el ancho del vano en dos frentes (modulos anchos)">N por fila
+              <select data-n-por-fila>
+                <option value="1" ${prefNPorFila === 1 ? 'selected' : ''}>1</option>
+                <option value="2" ${prefNPorFila === 2 ? 'selected' : ''}>2</option>
+              </select>
+            </label>
+            <label class="form-group" style="margin:0;" title="Luz perimetral del frente por lado respecto del vano interior (spec gola: 3 mm)">Luz frente (mm)
+              <input type="number" data-luz-frente value="${Number(cfg.drawerFrontLuz ?? 1)}" min="0.5" max="5" step="0.5" />
+            </label>
+            <label class="form-group" style="margin:0;" title="Espesor del frente decorativo (puede diferir del cuerpo: frente 18 con cuerpo 15 es lo mas comun)">Esp. frente
+              <select data-espesor-frente>
+                <option value="15" selected>15 mm</option>
+                <option value="18">18 mm</option>
+                <option value="25">25 mm</option>
+              </select>
+            </label>
+            <label class="form-group" style="margin:0;" title="Color del frente decorativo de cajones/zapateras">Frente
+              <input type="color" data-color-frente value="#8b5a2b" />
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="cn-pref-group">
+          <legend>Zapatera</legend>
+          <div class="cn-pref-group__fields">
+            <label class="form-group" style="margin:0;" title="Tipo de zapatera por calzado. Botas = frente completo (sin cara ni gaps)">Tipo zapatera
+              <select data-tipo-zapatera>
+                ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoZapatera || SHOE_RACK_TYPES[0].id, t.id)}>${t.label}</option>`).join('')}
+                <option value="personalizado" ${sel(cfg.contentTipoZapatera, 'personalizado')}>Personalizada (usar vano libre: ${prefVano} mm)</option>
+              </select>
+            </label>
+            <label class="form-group" style="margin:0;" title="Modo de construcción del frente de la zapatera. Frente normal (default): el frente mide 30 mm más que la bandeja (alto zapatera + 30) y NO cubre el vano — el aire superior queda abierto para el calzado; la bandeja va de borde uniforme (cara = laterales = fondo = división al alto zapatera). Frente extendido: el frente completa el vano hasta arriba (vano − 1, holgura mínima). Personalizado: alturas independientes (frente, laterales, fondo y división)">Modo zapatera
+              <select data-modo-zapatera data-modo-default="${prefModoZapatera}">
+                <option value="normal" ${sel(prefModoZapatera, 'normal')}>Frente normal</option>
+                <option value="extendido" ${sel(prefModoZapatera, 'extendido')}>Frente extendido</option>
+                <option value="personalizado" ${sel(prefModoZapatera, 'personalizado')}>Personalizado</option>
+              </select>
+            </label>
+            <label class="form-group cn-toggle" style="margin:0;" title="Frente decorativo de la zapatera (sin tirador: se jala del borde). Desmarcado = bandeja a la vista: la cara queda como frente visible y de agarre (el tipo 'bandeja a la vista' lo desmarca por defecto)">
+              <input type="checkbox" data-con-frente-zapatera ${prefConFrenteZapatera ? 'checked' : ''} />
+              <span class="cn-toggle__text"><span class="cn-toggle__label">Frente zapatera</span></span>
+            </label>
+            <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División
+              <input type="checkbox" data-division ${prefDivision ? 'checked' : ''} />
+            </label>
+            <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del frente decorativo (vacío = alto zapatera + 30 en 'Frente normal', vano − 1 en 'Frente extendido')">Alto frente (mm)
+              <input type="number" data-alto-frente-zapatera value="${numPref(cfg.contentAltoFrenteZapatera)}" placeholder="según modo" min="50" step="5" />
+            </label>
+            <label class="form-group" style="margin:0;${zapAltoVisible ? '' : 'display:none;'}" data-zapatera-campo="alto" title="Altura de la zapatera (cara/bandeja): en 'Frente normal' la bandeja va de borde uniforme a este alto y el frente mide alto + 30 mm (vacío = 100 mm, alto de riel); en 'Personalizado' es el alto de los laterales">Alto zapatera (mm)
+              <input type="number" data-alto-lateral-zapatera value="${numPref(cfg.contentAltoLateralZapatera) || RAIL_SIDE_HEIGHT}" min="40" step="5" />
+            </label>
+            <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del borde trasero / fondo de la bandeja (vacío = laterales)">Alto fondo (mm)
+              <input type="number" data-alto-fondo-zapatera value="${numPref(cfg.contentAltoFondoZapatera)}" placeholder="= laterales" min="20" step="5" />
+            </label>
+            <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura de la división transversal (vacío = laterales)">Alto división (mm)
+              <input type="number" data-alto-division-zapatera value="${numPref(cfg.contentAltoDivisionZapatera)}" placeholder="= laterales" min="20" step="5" />
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="cn-pref-group">
+          <legend>Módulo</legend>
+          <div class="cn-pref-group__fields">
+            <div class="cn-pref-group__scheme">
+              ${renderModuleScheme(moduleId, allPieces, piezas, schemeMenuFor === String(moduleId))}
+            </div>
+          </div>
+        </fieldset>
       </div>
-      ${renderEditForm(moduleId, piezas)}
+      <div class="cn-constructor__module-main">
+        ${renderContentList(moduleId, allPieces)}
+        ${golaPreviewHere ? renderGolaPreviewPanel(golaPreview) : ''}
+        ${golaOn && golaUnidades >= 2 ? renderGolaPanel(golaCfg) : ''}
+        ${renderEditForm(moduleId, piezas)}
+      </div>
     </div>
   `;
 }
@@ -1368,7 +1710,7 @@ function renderGolaPanel(cfg = {}) {
       <label class="form-group" style="margin:0;" title="Fijación de los perfiles (preferencia de texto persistida)">Fijación
         <input type="text" data-gola-cfg="golaFijacion" value="${escapeHtml(cfg.golaFijacion || '')}" placeholder="Tornillos 3.5×16…" />
       </label>
-      <small>Canales de melamina (C entre cajones, L bajo la repisa); la caja superior se rebaja para pasar bajo la L. Parámetros editables abajo.</small>
+      <small>Canales tipo C de melamina SOLO entre cajones: fondo interno + 2 alas (3 piezas); sobre el último frente queda el gap habitual. Los frentes crecen +30 mm: el labio cuelga sobre el canal (frente = cara + 60) y forma el agarre; los dedos entran por el gap visible (entrada configurable). Parámetros editables abajo.</small>
     </div>
   `;
 }
@@ -1391,7 +1733,7 @@ function renderGolaPreviewPanel(preview) {
   return `
     <div class="cn-constructor__edit-form cn-gola-preview" data-gola-preview>
       <p class="cn-gola-preview__titulo"><strong>Vista previa — sistema gola</strong></p>
-      <p class="cn-gola-preview__resumen">Se crearán ${plan.tiras} canal(es) tipo C entre cajones (fondo + 2 pestañas de melamina) — gap de ${plan.gapGola} mm (3 + ${plan.cuerpoPerfil ?? 50} + 3), agarre de ${plan.agarre} mm. Sobre el último frente queda el gap habitual (sin canal L). Los frentes quedarán:</p>
+      <p class="cn-gola-preview__resumen">Se crearán ${plan.tiras} canal(es) tipo C entre cajones (fondo + 2 alas de melamina) — gap visible de ${plan.gapGola} mm (la entrada de dedos: la gola tapa el espacio detrás de los frentes), agarre de ${plan.agarre} mm. Canales solo entre cajones. Los frentes crecen +30 mm: el labio cuelga sobre el canal. Sobre el último frente queda el gap habitual (sin canal L). Los frentes quedarán:</p>
       <ul class="cn-gola-preview__frentes">${frentes}</ul>
       ${(warnings || []).length ? `
       <div class="cn-constructor__warnings cn-gola-preview__warnings">
@@ -1568,8 +1910,10 @@ function avisosObra(pieces, state = {}) {
   return out;
 }
 
-// Panel de avisos del validador: re-parsea el mueble en silencio y muestra
-// los warnings (luz de repisas, cobertura de frentes) de forma persistente.
+// Panel de avisos del validador (spec "Validación de diseño" del prototipo):
+// lista de ítems con icono por nivel (warn ámbar / ok menta) en lugar de un
+// bloque plano. Re-parsea el mueble en silencio y muestra los warnings (luz
+// de repisas, cobertura de frentes) de forma persistente.
 function renderWarningsPanel(pieces, state = {}) {
   if (!pieces.length) return '';
   let warnings = [];
@@ -1581,14 +1925,35 @@ function renderWarningsPanel(pieces, state = {}) {
   }
   warnings = [...warnings, ...avisosObra(pieces, state)];
   if (!warnings.length) {
-    return '<p class="cn-constructor__warnings cn-constructor__warnings--ok">✓ Sin avisos de diseño</p>';
+    return `
+      <div class="cn-constructor__warnings cn-constructor__warnings--ok" role="status">
+        <div class="cn-warnings__head">
+          <span class="t-label">Validación de diseño</span>
+        </div>
+        <ul class="cn-warnings__list">
+          <li class="cn-warnings__item cn-warnings__item--ok">
+            <span class="cn-warnings__icon" aria-hidden="true">✓</span>
+            <span>Sin avisos de diseño. Todo listo para despiece.</span>
+          </li>
+        </ul>
+      </div>`;
   }
   const mostrados = warnings.slice(0, 4);
-  const extra = warnings.length > 4 ? `<li>… y ${warnings.length - 4} aviso(s) más</li>` : '';
+  const extra = warnings.length > 4
+    ? `<li class="cn-warnings__item cn-warnings__item--warn"><span class="cn-warnings__icon" aria-hidden="true">⚠</span><span>… y ${warnings.length - 4} aviso(s) más</span></li>` : '';
   return `
     <div class="cn-constructor__warnings" role="status">
-      <strong>⚠ ${warnings.length} aviso(s) de diseño:</strong>
-      <ul>${mostrados.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}${extra}</ul>
+      <div class="cn-warnings__head">
+        <span class="t-label">Validación de diseño</span>
+        <span class="cn-warnings__count">${warnings.length}</span>
+      </div>
+      <ul class="cn-warnings__list">
+        ${mostrados.map((w) => `
+          <li class="cn-warnings__item cn-warnings__item--warn">
+            <span class="cn-warnings__icon" aria-hidden="true">⚠</span>
+            <span>${escapeHtml(w)}</span>
+          </li>`).join('')}${extra}
+      </ul>
     </div>
   `;
 }

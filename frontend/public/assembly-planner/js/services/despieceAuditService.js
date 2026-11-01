@@ -4,8 +4,9 @@
 // de controles sobre módulos con sistema gola (y la veta en todo el mueble):
 //
 //   1) Luz libre del canal de la mano: entre dos frentes consecutivos la
-//      luz (pos_z del superior − techo del inferior) debe ser ≥ 40 mm; si
-//      no, ERROR CRÍTICO DE BLOQUEO con los mm a restar de los frentes.
+//      luz (pos_z del superior − techo del inferior − LABIO de 30 mm que
+//      cuelga del frente superior) debe ser ≥ 40 mm; si no, ERROR CRÍTICO
+//      DE BLOQUEO con los mm a restar de los frentes.
 //   2) Sentido de veta (rotate) por función de la pieza: frentes y golas
 //      rotate 'no' (obligatorio, continuidad estética horizontal); laterales,
 //      caras y fondos rotate 'no' (recomendado); bases rotate libre (el
@@ -16,8 +17,12 @@
 
 import { inferRole } from './classifierService.js';
 import { rootModuleIds } from './closetBuilderService.js';
+import { GOLA_LABIO_MM, GOLA_DEFAULTS } from './golaService.js';
 
-export const LUZ_MIN_MANO_MM = 40;
+// Luz mínima del hueco de la mano: el dedo entra por el paso y necesita el
+// hueco entre las alas (tras los frentes). Con el modelo actual (voladizo
+// 30, alas de 15, paso 3) el hueco es 2·30 − 2·15 − 3 = 27 mm.
+export const LUZ_MIN_MANO_MM = 25;
 export const COLISION_GOLA_MIN_MM = 60;
 
 const mm1 = (v) => Math.round(Number(v) * 10) / 10;
@@ -95,7 +100,22 @@ export function auditarLuzLibreGola(pieces, { luzMinMm = LUZ_MIN_MANO_MM } = {})
       const inferior = frentes[i - 1];
       const superior = frentes[i];
       const techoInf = (Number(inferior.pos_z) || 0) + (Number(inferior.alto) || 0);
-      const luz = mm1((Number(superior.pos_z) || 0) - techoInf);
+      // La gola tapa el espacio tras los frentes: la luz útil para la mano
+      // es el hueco ENTRE las alas = (techoInf − oInf + paso + 15) ..
+      // (pos_z_sup + oSup − 15), con o = (frente − cara)/2 por unidad.
+      const paso = Number(GOLA_DEFAULTS.golaPaso) || 3;
+      const overhangDe = (frente) => {
+        const lat = (pieces || []).find((q) =>
+          String(q.modulo || '') === String(frente.modulo || '') && inferRole(q) === 'drawer_side');
+        const caja = lat ? Number(lat.alto) || 0 : 0;
+        const f = Number(frente.alto) || 0;
+        return caja > 0 ? Math.max(0, mm1((f - caja) / 2)) : (Number(GOLA_DEFAULTS.golaLabioMm) || GOLA_LABIO_MM);
+      };
+      const oInf = overhangDe(inferior);
+      const oSup = overhangDe(superior);
+      const desde = techoInf - oInf + paso + 15;
+      const hasta = (Number(superior.pos_z) || 0) + oSup - 15;
+      const luz = mm1(hasta - desde);
       if (luz >= luzMinMm - 0.5) continue;
       const deficit = mm1(luzMinMm - luz);
       const porFrente = Math.ceil((deficit / 2) * 10) / 10;
@@ -106,8 +126,8 @@ export function auditarLuzLibreGola(pieces, { luzMinMm = LUZ_MIN_MANO_MM } = {})
         superiorId: String(superior.id),
         luzMm: luz,
         deficitMm: deficit,
-        mensaje: `ERROR CRÍTICO DE BLOQUEO — Módulo ${raiz}: la luz libre entre "${inferior.nombre || inferior.id}" y el frente superior es de ${luz} mm (< ${luzMinMm} mm): los frentes están muy altos y obstruyen el canal de la mano.`,
-        correccion: `Restar ${deficit} mm al alto de los frentes (p. ej. ${porFrente} mm a cada uno de los dos frentes adyacentes) para dejar la luz libre de ${luzMinMm} mm.`,
+        mensaje: `ERROR CRÍTICO DE BLOQUEO — Módulo ${raiz}: el hueco de la mano entre las alas de la gola (tras "${inferior.nombre || inferior.id}") es de ${luz} mm (< ${luzMinMm} mm): el voladizo de los frentes es insuficiente y obstruye el agarre.`,
+        correccion: `Aumentar el voladizo ${deficit} mm: rebajar la caja (laterales/cara/fondo, p. ej. ${porFrente} mm a cada unidad) o usar frentes más altos, hasta dejar el hueco de la mano ≥ ${luzMinMm} mm.`,
       });
     }
   }

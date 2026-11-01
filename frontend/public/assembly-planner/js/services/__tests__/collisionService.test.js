@@ -192,7 +192,9 @@ describe('obstáculos fijos (tiras gola)', () => {
     // Corrupción: el canal del gap superior baja al vano (z) del cajón 1.
     fondo.pos_z = frente1.pos_z + 40;
     const { pairs } = paresAlAbrir(pieces, { aperturaGlobal: 0.5 });
-    const hit = pairs.find((p) => p.aId === 'm1gola-c1-pestana-inf' || p.bId === 'm1gola-c1-pestana-inf');
+    // El fondo es la pieza desplazada (alas y pestañas llevan su propio
+    // pos_z): la caja extraída barre su volumen y debe reportarse.
+    const hit = pairs.find((p) => p.aId === 'm1gola-c1-fondo' || p.bId === 'm1gola-c1-fondo');
     assert.ok(hit, `se esperaba colisión con la tira desplazada: ${JSON.stringify(pairs.map((p) => [p.aId, p.bId]))}`);
     assert.equal(hit.contraObstaculoFijo, true, 'el par se marca como obstáculo fijo');
   });

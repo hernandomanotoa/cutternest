@@ -258,19 +258,27 @@ export const GOLA_PERFIL_TALLER = {
   fuente: 'taller-medido',
   editable: true,
   golaPerfilHeight: 50,      // cuerpo del perfil C/L de aluminio (mm)
-  golaPaso: 3,               // paso entre frente y canal, arriba y abajo del perfil (mm)
+  golaPaso: 3,               // holgura del ala frente a la cara de cada cajón (mm)
+  golaEntradaMm: 20,         // gap visible entre frentes = entrada de dedos (mm, configurable):
+                             // la gola tapa el espacio detrás de los frentes y el dedo entra por este hueco
+  golaLabioMm: 30,           // labio: crecimiento del frente al aplicar gola (mm, configurable).
+                             // frente = cara + 2·E + labio (voladizo centrado); el dedo engancha el labio
   golaFingerClearance: 20,   // EN DESUSO (canal L eliminado): se acepta por
                             // retrocompatibilidad pero no cambia nada
   // (golaStripDepth se eliminó: el canal de melamina C/L no usa tira profunda;
   // las configs persistidas con esa clave se ignoran)
-  golaStripSetback: 10,      // retranqueo del canal detrás del plano de frentes; profundidad del hueco de agarre (mm)
+  golaStripSetback: 60,      // retranqueo del FONDO del canal desde la espalda de los frentes
+                             // (mm): fondo INTERNO, detrás de las caras de los cajones.
+                             // Las alas horizontales cubren este retranqueo
+                             // (largo = setback) y las pestañas verticales van
+                             // ocultas detrás de los frentes.
   golaHolguraLateral: 0,     // por lado respecto al ancho interior (0 = a lo ancho del vano)
   golaTornillosPorPerfil: 2, // tornillos de fijación por lado del fondo de canal
   golaSoporteTraseroDesde: 900, // luz del canal (ancho interior) a partir de la cual el fondo lleva soporte trasero (mm)
   golaMaxOverhang: 120,      // EN DESUSO (canal L eliminado): se acepta por retrocompatibilidad
-  golaMaxRebajaCaja: 40,     // máx. rebaja de la caja (laterales/cara/fondo) por cajón cuando el
-                             // vano no alcanza por poco: libera espacio para el canal sin tocar
-                             // la repisa (mm). Por encima, applyGola falla con el error de vano.
+  golaMaxRebajaCaja: 40,     // EN DESUSO (rebaja de cajas eliminada con la regla "frente =
+                             // caja + 30, sin reducir"): se acepta por retrocompatibilidad;
+                             // applyGola nunca rebaja cajas ni reduce frentes.
   golaMinAperturaUtil: 20,   // mín. abertura útil de agarre (hueco libre real para los dedos, mm)
   golaFijacion: 'Tornillos 3.5×16 + soporte trasero — según taller, verificar con catálogo',
 };

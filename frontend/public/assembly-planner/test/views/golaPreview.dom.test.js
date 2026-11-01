@@ -73,8 +73,11 @@ test('C2: activar el checkbox muestra la vista previa con el plan (sin mutar el 
   assert.match(panel.textContent, /Se crearán 2 canal\(es\) tipo C entre cajones/, 'anuncia los canales C entre cajones');
   assert.match(panel.textContent, /2 canal\(es\) tipo C/, 'N−1 canales C para 3 cajones');
   assert.match(panel.textContent, /Sobre el último frente queda el gap habitual \(sin canal L\)/, 'sin canal L sobre el último frente');
-  assert.match(panel.textContent, /agarre de 20 mm/, 'muestra el agarre del cfg');
-  assert.match(panel.textContent, /→ \d+ mm/, 'muestra las alturas nuevas de frentes');
+  assert.match(panel.textContent, /agarre de 44 mm/, 'muestra el agarre (hueco entre alas)');
+  // Regla B2: los frentes de cajón crecen +30 (labio) — aparecen con "→" —
+  // y el aire sobrante se anuncia.
+  assert.match(panel.textContent, /→ 277 mm/, 'los cajones crecen +30 (labio)');
+  assert.match(panel.textContent, /libres sobre el último frente/, 'anuncia el aire libre sobre la pila');
 
   // UX: cada fila lleva el id del frente (desambigua homónimos) y los avisos
   // van agrupados en un único bloque con lista, no en párrafos sueltos.
@@ -144,8 +147,8 @@ test('C2: previewGola (app.js) es un dry-run puro: devuelve plan y no muta el st
   assert.ok(pv.ok, pv.errors?.join('; '));
   assert.equal(pv.plan.unidades, 3);
   assert.equal(pv.plan.tiras, 2);
-  assert.equal(pv.plan.agarre, 20);
-  assert.equal(pv.plan.gapGola, 56); // 3 + 50 + 3
+  assert.equal(pv.plan.agarre, 44); // 20 + 2·30 − 2·15 − 2·3
+  assert.equal(pv.plan.gapGola, 20); // gap visible = entrada de dedos
   assert.equal(pv.plan.frentes.length, 3);
   for (const f of pv.plan.frentes) {
     assert.equal(typeof f.antes, 'number');
@@ -164,12 +167,17 @@ test('C2: previewGola (app.js) es un dry-run puro: devuelve plan y no muta el st
 test('C2: frente fijo (zapatera) se lista como "sin cambios" y con su id', () => {
   const { view, container } = mountView();
   assert.ok(addModuleFromBuilder(MOD).ok);
-  assert.ok(addContentToModule('1', 'drawer', { altoVano: 250 }).ok);
-  assert.ok(addContentToModule('1', 'drawer', { altoVano: 250 }).ok);
-  // Zapatera CON frente y vano 180: fijoEnGola → el gola no la reescala.
-  // (Con vano 250 la activación falla: la extensión del frente L supera el
-  // máximo de 120 mm.)
+  // Cajones de vano 180 (frente 177): con vano 250 el tramo de cajones no
+  // cabe debajo de la zapatera fija (su posición no varía) y la activación
+  // falla con el consejo correspondiente.
+  assert.ok(addContentToModule('1', 'drawer', { altoVano: 180 }).ok);
+  assert.ok(addContentToModule('1', 'drawer', { altoVano: 180 }).ok);
+  // Zapatera CON frente y vano 180: fijoEnGola → posición y medida intactas.
   assert.ok(addContentToModule('1', 'shoeRack', { altoVano: 180, conFrente: true }).ok);
+  // La zapatera queda fija: se le da espacio real encima de los cajones
+  // (igual que haría el usuario ante el consejo "mueva esa zapatera").
+  const zap = getStore().get().pieces.find((p2) => p2.id === 'm1zapatera3-frente');
+  zap.pos_z = 700;
 
   clickGolaCheckbox(container);
 
@@ -178,8 +186,10 @@ test('C2: frente fijo (zapatera) se lista como "sin cambios" y con su id', () =>
   const fijos = panel.querySelectorAll('.cn-gola-preview__sin-cambio');
   assert.ok(fijos.length >= 1, 'el frente fijo de la zapatera se marca como sin cambios');
   assert.match(fijos[0].textContent, /sin cambios/);
-  // Los cajones sí reescalan: aparecen con "→".
-  assert.match(panel.textContent, /→ \d+ mm/);
+  // Spec: la zapatera (fija en su tipo) queda SIN CAMBIOS (posición y
+  // medida); los cajones crecen +30 (labio) y aparecen con "→".
+  assert.ok(fijos.length === 1, 'solo la zapatera queda sin cambios');
+  assert.match(panel.textContent, /→ 207 mm/, 'los cajones crecen +30 (labio)');
   view.destroy();
 });
 
