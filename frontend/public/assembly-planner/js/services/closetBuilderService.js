@@ -612,11 +612,13 @@ export function addShoeTray(moduleId, index, {
     // donde se jala; con frente queda detrás de él. En el modo 'normal' la
     // bandeja es de borde uniforme: la cara al alto configurado (como los
     // lados). En la bandeja a la vista (ladosIguales sin frente) la cara va
-    // al alto del rim, como los lados; en el resto, cara alta = frente − 2·E
-    // (tope mínimo 20 mm).
+    // al alto del rim, como los lados. En personalizado SIN frente, el
+    // input 'altoFrente' define el alto de la cara (bandeja a la vista con
+    // alturas propias; vacío = cara alta = frente − 2·E, tope mínimo 20 mm).
     const altoCara = bandejaUniformeNormal
       ? altoLado
-      : ladosIguales && !llevaFrente ? altoLado : cajaCap;
+      : ladosIguales && !llevaFrente ? altoLado
+        : (!llevaFrente && altoFrente != null ? Math.min(altoFrente, cajaCap) : cajaCap);
     pieces.push(piece(`m${moduleId}zapatera${index}-cara`, stampTipoTag(`Cara zapatera extraible${num} M${moduleId}`, tipoId), interior2, altoCara, { rol: 'drawer_part', color: cl, espesor: E, modulo: sub }));
   }
   if (division) {

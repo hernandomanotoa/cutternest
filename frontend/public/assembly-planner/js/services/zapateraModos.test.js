@@ -123,9 +123,16 @@ describe('zapatera: modos de construcción del frente', () => {
     assert.equal(porId(r, 'm1zapatera1-lateral-izq').alto, 90);
     assert.equal(porId(r, 'm1zapatera1-fondo').alto, 70);
     assert.equal(porId(r, 'm1zapatera1-division').alto, 60);
-    // Sin frente la cara es la cara alta de la bandeja (frente − 2·E con el
-    // frente de referencia del vano: 197 − 30 = 167).
-    assert.equal(porId(r, 'm1zapatera1-cara').alto, 167, 'cara alta de la bandeja sin frente');
+    // Sin frente, 'altoFrente' define el alto de la CARA (bandeja a la
+    // vista con alturas propias): 150 (≤ cajaCap 167). Vacío ⇒ cara alta
+    // (frente − 2·E con el frente de referencia del vano: 197 − 30 = 167).
+    assert.equal(porId(r, 'm1zapatera1-cara').alto, 150, 'altoFrente sin frente = alto de la cara');
+    const r2 = addShoeTray('1', 1, {
+      ...BASE, modoFrente: 'personalizado', conFrente: false,
+      altoLateral: 90, altoFondo: 70, altoDivision: 60,
+    });
+    assert.ok(r2.ok, r2.errors?.join('; '));
+    assert.equal(porId(r2, 'm1zapatera1-cara').alto, 167, 'sin altoFrente: cara alta de la bandeja');
   });
 
   it('cambiar de modo no deja piezas obsoletas (sets de ids desde cero)', () => {

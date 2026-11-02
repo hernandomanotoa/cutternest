@@ -55,8 +55,7 @@ import { createTour, hasSeenTour } from '../components/tour/driver.js';
 import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { isGolaEnabled, drawerUnits, getGolaCfg, esUnidadFijaGola } from '../services/golaService.js';
-import { DRAWER_TYPES, SHOE_RACK_TYPES, RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
-import { listCustomTypes, saveCustomType, deleteCustomType, slugCustomType } from '../services/customTypesService.js';
+import { RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
   computeLiftCheck,
@@ -308,128 +307,6 @@ export function createConstructorView(store) {
     if (container) render();
   }
 
-  // Tipos personalizados del taller (customTypesService): se guardan en
-  // localStorage propio y se inyectan en los catálogos en vivo, así que al
-  // refrescar la vista los selectores de tipo ya los listan.
-  function saveCustomTypeFromPanel() {
-    const root = container;
-    const val = (sel) => root.querySelector(`[data-ct="${sel}"]`);
-    const label = val('label')?.value.trim() || '';
-    if (!label) {
-      toast('Ponle un nombre al tipo (ej. "Zapatera baja 140")', { type: 'error' });
-      return;
-    }
-    const kind = val('kind')?.value === 'drawer' ? 'drawer' : 'shoeRack';
-    const def = {
-      id: slugCustomType(label),
-      kind,
-      label,
-      altoVano: Number(val('vano')?.value) || 0,
-      conFrenteDefault: val('frente')?.checked !== false,
-      fijoEnGola: val('fijogola')?.checked !== false,
-      ladosIguales: val('lados')?.checked === true,
-      // Método del fondo del cajón (contrato del tipo; un custom puede fijar
-      // 'ranurado' como default de sus cajones).
-      fondoMetodo: val('fondoranurado')?.checked === true ? 'ranurado' : 'apoyado',
-      // rim solo aplica con lados iguales; si no, se ignora (la validación
-      // del servicio lo descarta).
-      rim: val('lados')?.checked === true ? Number(val('rim')?.value) || 120 : null,
-    };
-    const r = saveCustomType(def);
-    if (!r.ok) {
-      toast(r.errors.join(' · '), { type: 'error' });
-      return;
-    }
-    const input = val('label');
-    if (input) input.value = '';
-    toast(`Tipo "${r.type.label}" guardado: ya está en el selector de ${kind === 'drawer' ? 'cajón' : 'zapatera'}`, { type: 'success' });
-    refresh();
-  }
-
-// Riel izquierdo del Constructor (spec LeftRail): lista compacta de módulos
-// raíz con numeración, dimensiones y conteo de contenido. Clic = bajar a la
-// tarjeta del módulo y resaltarla; "Añadir" baja al formulario de nuevo
-// módulo. Sin lógica de negocio: solo navegación dentro de la vista.
-function renderModuleRail(groups, pieces, selectedModuleId = null) {
-  return `
-    <section class="cn-rail__section">
-      <div class="cn-rail__head">
-        <h3 class="t-label">Módulos</h3>
-        <button class="btn btn--secondary btn--sm" data-action="rail-add-module">+ Añadir</button>
-      </div>
-      ${groups.length === 0
-        ? '<p class="cn-rail__empty">Sin módulos todavía.</p>'
-        : `<ul class="cn-rail__list">
-            ${groups.map((g, i) => {
-              const mods = pieces.filter((p) => String(p.modulo) === String(g.id));
-              const tapa = mods.find((p) => String(p.id).endsWith('-tapa'));
-              const lat = mods.find((p) => String(p.id).endsWith('-lateral-izq'));
-              const dims = tapa && lat ? `${tapa.ancho} × ${lat.ancho} × ${tapa.alto}` : ''; // despiece: alto del módulo en la 1ª medida
-              const count = contentItemsForModule(g.id, pieces).length;
-              const activo = String(g.id) === String(selectedModuleId);
-              return `
-              <li>
-                <button class="cn-rail__module${activo ? ' cn-rail__module--active' : ''}" data-action="rail-focus-module" data-module="${escapeHtml(g.id)}"
-                  title="Ir a ${escapeHtml(g.label)}" aria-current="${activo ? 'true' : 'false'}">
-                  <span class="cn-rail__num">${String(i + 1).padStart(2, '0')}</span>
-                  <span class="cn-rail__name">
-                    <span class="cn-rail__label">${escapeHtml(g.label)}</span>
-                    ${dims ? `<span class="cn-rail__dims">${dims}</span>` : ''}
-                  </span>
-                  ${count ? `<span class="cn-rail__count">${count}</span>` : ''}
-                </button>
-              </li>`;
-            }).join('')}
-          </ul>`}
-    </section>`;
-}
-
-  function renderCustomTypesPanel() {
-    const customs = listCustomTypes();
-    const filas = customs.map((t) => `
-      <tr>
-        <td>${escapeHtml(t.label)}</td>
-        <td>${t.kind === 'drawer' ? 'Cajón' : 'Zapatera'}</td>
-        <td>${t.altoVano} mm</td>
-        <td>${t.kind === 'shoeRack' && t.ladosIguales ? `lados iguales · rim ${t.rim}` : (t.conFrenteDefault ? 'con frente' : 'sin frente')}${t.kind === 'drawer' && t.fondoMetodo === 'ranurado' ? ' · fondo ranurado' : ''}</td>
-        <td class="cn-constructor__actions">
-          <button class="btn btn--danger btn--sm" data-action="delete-custom-type" data-id="${escapeHtml(t.id)}" title="Eliminar tipo">✕</button>
-        </td>
-      </tr>`).join('');
-    return `
-      <details class="cn-constructor__obra">
-        <summary>Tipos personalizados del taller (${customs.length})</summary>
-        <div class="cn-constructor__grid">
-          <label class="form-group">Nombre del tipo
-            <input type="text" data-ct="label" placeholder="Zapatera baja 140" maxlength="40" />
-          </label>
-          <label class="form-group">Contenido
-            <select data-ct="kind">
-              <option value="shoeRack">Zapatera</option>
-              <option value="drawer">Cajón</option>
-            </select>
-          </label>
-          <label class="form-group">Vano (mm)
-            <input type="number" data-ct="vano" value="160" min="50" max="900" step="10" />
-          </label>
-        </div>
-        <div class="cn-constructor__grid" title="Solo zapateras: los cajones siempre llevan frente y reescalan en gola">
-          <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="frente" checked /> Frente por defecto</label>
-          <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="fijogola" checked /> Fijo en gola</label>
-          <label class="form-group cn-constructor__check"><input type="checkbox" data-ct="lados" /> Lados iguales
-            <input type="number" data-ct="rim" value="120" min="40" max="300" style="width:5em" /> mm</label>
-          <label class="form-group cn-constructor__check" title="Solo cajones: el fondo va embutido en ranura corrida en cada lateral (más ancho y más alto que el fondo apoyado)"><input type="checkbox" data-ct="fondoranurado" /> Fondo ranurado</label>
-        </div>
-        <div class="cn-constructor__content-btns">
-          <button class="btn btn--primary btn--sm" data-action="save-custom-type">Guardar tipo</button>
-        </div>
-        ${customs.length ? `
-        <table class="cn-table">
-          <thead><tr><th>Nombre</th><th>Contenido</th><th>Vano</th><th>Esquema</th><th></th></tr></thead>
-          <tbody>${filas}</tbody>
-        </table>` : '<p class="empty-state">Sin tipos personalizados. Creá el tuyo y aparecerá en el selector de tipo del módulo.</p>'}
-      </details>`;
-  }
 
   async function refreshCloud() {
     if (cloudLoading) return;
@@ -545,32 +422,6 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
     if (e.target.matches('[data-modo-zapatera]')) {
       toggleCamposZapatera(e.target.closest('[data-module-scoped]'), e.target.value);
       return;
-    }
-    // Tipo de cajón/zapatera: llena el vano con la altura ergonómica del
-    // tipo elegido (los tipos del catálogo). 'personalizado' deja el valor.
-    if (e.target.matches('[data-tipo-drawer], [data-tipo-zapatera]')) {
-      const catalog = e.target.matches('[data-tipo-drawer]') ? DRAWER_TYPES : SHOE_RACK_TYPES;
-      const tipo = catalog.find((t) => t.id === e.target.value);
-      if (tipo) {
-        const scoped = e.target.closest('[data-module-scoped]');
-        const vano = scoped?.querySelector('[data-alto-vano]');
-        if (vano) vano.value = String(tipo.altoVano);
-        // El tipo elige el ALTO del vano y, en zapateras, si va con frente:
-        // el tipo 'bandeja a la vista' va sin frente para verse (la cara alta
-        // queda de frente visible/de agarre). El MODO del frente (normal /
-        // extendido / personalizado) es elección del usuario: no lo toca el
-        // tipo.
-        if (e.target.matches('[data-tipo-zapatera]')) {
-          const cf = scoped?.querySelector('[data-con-frente-zapatera]');
-          if (cf) cf.checked = tipo.conFrenteDefault !== false;
-        }
-        // El método del fondo (ranurado) lo fija por defecto el tipo de
-        // cajón; el usuario puede cambiarlo a mano antes de agregar.
-        if (e.target.matches('[data-tipo-drawer]')) {
-          const fondoRanurado = scoped?.querySelector('[data-fondo-ranurado]');
-          if (fondoRanurado) fondoRanurado.checked = tipo.fondoMetodo === 'ranurado';
-        }
-      }
     }
     // Nombre del mueble: persiste y alimenta el nombre sugerido de versiones.
     if (e.target.matches('[data-furniture-name]')) {
@@ -726,15 +577,9 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       const moduleId = btn.dataset.module;
       const kind = btn.dataset.kind;
       const scoped = `[data-module-scoped="${CSS.escape(moduleId)}"]`;
-      const altoVanoInput = Number(container.querySelector(`${scoped} [data-alto-vano]`)?.value) || 0;
-      // Tipo ergonomico (contentTypes.js): cajon por prenda, zapatera por
-      // calzado. 'personalizado' => se toma el vano libre del input.
-      const tipo = kind === 'shoeRack'
-        ? container.querySelector(`${scoped} [data-tipo-zapatera]`)?.value
-        : container.querySelector(`${scoped} [data-tipo-drawer]`)?.value;
-      // Con tipo del catálogo, el tipo manda sobre el input (altoVano=0 =>
-      // addContentToModule usa tipo.altoVano).
-      const altoVano = tipo && tipo !== 'personalizado' ? 0 : altoVanoInput;
+      // Sin tipos de catálogo (eliminados del UI): la altura del vano es la
+      // única entrada (Vano mm). Vacío => el servicio cae a su default.
+      const altoVano = Number(container.querySelector(`${scoped} [data-alto-vano]`)?.value) || 0;
       const tipoCorredera = container.querySelector(`${scoped} [data-mecanismo]`)?.value || 'corredera';
       const colorFrente = container.querySelector(`${scoped} [data-color-frente]`)?.value || '#8B5A2B';
       const separacion = Number(container.querySelector(`${scoped} [data-separacion]`)?.value) || 0;
@@ -775,7 +620,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       // Persistir las preferencias para los siguientes módulos (sesión).
       saveUserConfig({
         drawerFrontLuz: luzFrente,
-        ...(altoVanoInput > 0 ? { contentVano: altoVanoInput } : {}),
+        ...(altoVano > 0 ? { contentVano: altoVano } : {}),
         contentNPorFila: nPorFila,
         contentDivision: division ? 1 : 0,
         contentFrenteZapatera: conFrente ? 1 : 0,
@@ -785,12 +630,17 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
         contentAltoFondoZapatera: altoFondoZ ?? '',
         contentAltoDivisionZapatera: altoDivisionZ ?? '',
         contentFondoRanurado: fondoRanurado ? 1 : 0,
-        contentTipoCajon: container.querySelector(`${scoped} [data-tipo-drawer]`)?.value || '',
-        contentTipoZapatera: container.querySelector(`${scoped} [data-tipo-zapatera]`)?.value || '',
         contentRiel: riel,
       });
       store.set({ userConfig: loadUserConfig() });
-      const r = addContentToModule(moduleId, kind, { altoVano, tipo: tipo === 'personalizado' ? null : tipo, tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente, division, conFrente, modoFrente: modoZapatera, altoFrente: altoFrenteZ, altoLateral: altoLateralZ, altoFondo: altoFondoZ, altoDivision: altoDivisionZ, riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado' });
+      const r = addContentToModule(moduleId, kind, {
+        altoVano,
+        tipo: null, // los tipos de catálogo se eliminaron del UI (vano libre)
+        tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente,
+        division, conFrente, modoFrente: modoZapatera, altoFrente: altoFrenteZ,
+        altoLateral: altoLateralZ, altoFondo: altoFondoZ, altoDivision: altoDivisionZ,
+        riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado',
+      });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
@@ -946,14 +796,6 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       void btn;
     } else if (action === 'save-version') {
       saveVersionFromInput();
-    } else if (action === 'save-custom-type') {
-      saveCustomTypeFromPanel();
-    } else if (action === 'delete-custom-type') {
-      confirmable(btn, '¿Eliminar el tipo? Las piezas ya creadas con él quedan como personalizadas.', () => {
-        const r = deleteCustomType(btn.dataset.id);
-        if (r.ok) { toast('Tipo personalizado eliminado', { type: 'info' }); refresh(); }
-        else toast(r.errors.join('; '), { type: 'error' });
-      });
     } else if (action === 'save-cloud') {
       saveVersionFromInput(true, btn);
     } else if (action === 'refresh-cloud') {
@@ -1139,9 +981,6 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
       <aside class="cn-rail" style="position:relative;">
         <button class="cn-rail-toggle" data-action="rail-toggle" title="${railCollapsed ? 'Mostrar panel de módulos' : 'Contraer panel de módulos'}" aria-label="${railCollapsed ? 'Mostrar panel de módulos' : 'Contraer panel de módulos'}">${railCollapsed ? '⇥' : '⇤'}</button>
         ${renderModuleRail(groups, pieces, selectedModuleId)}
-        <section class="cn-rail__section">
-          ${renderCustomTypesPanel()}
-        </section>
         <section class="cn-rail__section">
           <div class="cn-rail__head">
             <h3 class="t-label">Zócalo y obra</h3>
@@ -1623,12 +1462,11 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
   const zapPersoVisible = prefModoZapatera === 'personalizado';
   const zapAltoVisible = zapPersoVisible || prefModoZapatera === 'normal';
   const numPref = (v) => (Number(v) > 0 ? Number(v) : '');
-  // Método del fondo del cajón (persistido; si no hay pref, el default lo
-  // fija el tipo de cajón seleccionado en la tarjeta).
-  const tipoDrawerSel = DRAWER_TYPES.find((t) => t.id === (cfg.contentTipoCajon || DRAWER_TYPES[0].id));
+  // Método del fondo del cajón (persistido; default apoyado — el checkbox
+  // 'Fondo ranurado' es elección del usuario por sesión).
   const prefFondoRanurado = cfg.contentFondoRanurado != null
     ? Number(cfg.contentFondoRanurado) !== 0
-    : tipoDrawerSel?.fondoMetodo === 'ranurado';
+    : false;
   const sel = (actual, value) => (actual === value ? 'selected' : '');
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
@@ -1744,16 +1582,10 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
         <fieldset class="cn-pref-group">
           <legend>Cajón</legend>
           <div class="cn-pref-group__fields">
-            <label class="form-group" style="margin:0;" title="Tipo de cajón por prenda (alturas ergonómicas del catálogo)">Tipo cajón
-              <select data-tipo-drawer>
-                ${DRAWER_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoCajon || DRAWER_TYPES[0].id, t.id)}>${t.label} · ${t.altoVano} mm</option>`).join('')}
-                <option value="personalizado" ${sel(cfg.contentTipoCajon, 'personalizado')}>Personalizado (usar vano libre: ${prefVano} mm)</option>
-              </select>
-            </label>
-            <div class="form-group" style="margin:0;">Mecanismo
+            <div class="form-group" style="margin:0;" title="Mecanismo de apertura — SOLO cajones (la zapatera siempre es corredera; el volquete no aplica)">Mecanismo
               ${segmentedControl('Mecanismo de apertura', 'data-mecanismo', TIPOS_CAJON, TIPOS_CAJON[0].value)}
             </div>
-            <label class="form-group" style="margin:0;" title="El tipo de riel DEFINE las medidas de la caja del cajón/zapatera (descuentos por holgura y largo del fondo). 'Marco regulable' = herraje de catálogo para zapateras: sin cajón, solo el frente.">Tipo de riel
+            <label class="form-group" style="margin:0;" title="El riel DEFINE las medidas de la caja del cajón/zapatera (descuentos por holgura y largo del fondo). 'Marco regulable' = herraje de catálogo para zapateras: sin cajón, solo el frente.">Riel / herraje
               <select data-tipo-riel>
                 <option value="catalogo" ${sel(cfg.contentRiel || 'catalogo', 'catalogo')}>Catálogo (estándar del proyecto)</option>
                 <option value="telescopica26" ${sel(cfg.contentRiel, 'telescopica26')}>Telescópica balines (−26 mm, fondo = riel)</option>
@@ -1792,13 +1624,7 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
         <fieldset class="cn-pref-group">
           <legend>Zapatera</legend>
           <div class="cn-pref-group__fields">
-            <label class="form-group" style="margin:0;" title="Tipo de zapatera por calzado. Botas = frente completo (sin cara ni gaps)">Tipo zapatera
-              <select data-tipo-zapatera>
-                ${SHOE_RACK_TYPES.map((t) => `<option value="${t.id}" ${sel(cfg.contentTipoZapatera || SHOE_RACK_TYPES[0].id, t.id)}>${t.label}</option>`).join('')}
-                <option value="personalizado" ${sel(cfg.contentTipoZapatera, 'personalizado')}>Personalizada (usar vano libre: ${prefVano} mm)</option>
-              </select>
-            </label>
-            <label class="form-group" style="margin:0;" title="Modo de construcción del frente de la zapatera. Frente normal (default): el frente mide 30 mm más que la bandeja (alto zapatera + 30) y NO cubre el vano — el aire superior queda abierto para el calzado; la bandeja va de borde uniforme (cara = laterales = fondo = división al alto zapatera). Frente extendido: el frente completa el vano hasta arriba (vano − 1, holgura mínima). Personalizado: alturas independientes (frente, laterales, fondo y división)">Modo zapatera
+            <label class="form-group" style="margin:0;" title="Modo de construcción del frente de la zapatera. Frente normal (default): el frente mide 30 mm más que la bandeja (alto zapatera + 30) y NO cubre el vano — el aire superior queda abierto para el calzado; la bandeja va de borde uniforme (cara = laterales = fondo = división al alto zapatera). Frente extendido (= botas): el frente completa el vano hasta arriba (vano − 1, holgura mínima). Personalizado: alturas independientes (frente, laterales, fondo y división). Bandeja a la vista = desmarcar 'Frente zapatera' (la cara queda de frente visible)">Modo zapatera
               <select data-modo-zapatera data-modo-default="${prefModoZapatera}">
                 <option value="normal" ${sel(prefModoZapatera, 'normal')}>Frente normal</option>
                 <option value="extendido" ${sel(prefModoZapatera, 'extendido')}>Frente extendido</option>
@@ -1812,7 +1638,7 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
             <label class="form-group" style="margin:0;" title="División central (por defecto): apoyo paralelo al fondo a media profundidad para la fila delantera de zapatos; la fila trasera se apoya en el fondo">División
               <input type="checkbox" data-division ${prefDivision ? 'checked' : ''} />
             </label>
-            <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del frente decorativo (vacío = alto zapatera + 30 en 'Frente normal', vano − 1 en 'Frente extendido')">Alto frente (mm)
+            <label class="form-group" style="margin:0;${zapPersoVisible ? '' : 'display:none;'}" data-zapatera-campo="personalizado" title="Altura del frente decorativo (vacío = alto zapatera + 30 en 'Frente normal', vano − 1 en 'Frente extendido'). Con 'Frente zapatera' desmarcado define el alto de la CARA (bandeja a la vista; vacío = cara alta = vano − 3 − 2·E)">Alto frente / cara (mm)
               <input type="number" data-alto-frente-zapatera value="${numPref(cfg.contentAltoFrenteZapatera)}" placeholder="según modo" min="50" step="5" />
             </label>
             <label class="form-group" style="margin:0;${zapAltoVisible ? '' : 'display:none;'}" data-zapatera-campo="alto" title="Altura de la zapatera (cara/bandeja): en 'Frente normal' la bandeja va de borde uniforme a este alto y el frente mide alto + 30 mm (vacío = 100 mm, alto de riel); en 'Personalizado' es el alto de los laterales">Alto zapatera (mm)
@@ -1899,6 +1725,44 @@ function renderGolaPreviewPanel(preview) {
 
 // Formulario oculto de edicion de dimensiones del casco (M3). Solo casco:
 // el contenido agregado se conserva; el usuario lo reajusta si quiere.
+// Riel izquierdo del Constructor (spec LeftRail): lista compacta de módulos
+// raíz con numeración, dimensiones y conteo de contenido. Clic = bajar a la
+// tarjeta del módulo y resaltarla; "Añadir" baja al formulario de nuevo
+// módulo. Sin lógica de negocio: solo navegación dentro de la vista.
+function renderModuleRail(groups, pieces, selectedModuleId = null) {
+  return `
+    <section class="cn-rail__section">
+      <div class="cn-rail__head">
+        <h3 class="t-label">Módulos</h3>
+        <button class="btn btn--secondary btn--sm" data-action="rail-add-module">+ Añadir</button>
+      </div>
+      ${groups.length === 0
+        ? '<p class="cn-rail__empty">Sin módulos todavía.</p>'
+        : `<ul class="cn-rail__list">
+            ${groups.map((g, i) => {
+              const mods = pieces.filter((p) => String(p.modulo) === String(g.id));
+              const tapa = mods.find((p) => String(p.id).endsWith('-tapa'));
+              const lat = mods.find((p) => String(p.id).endsWith('-lateral-izq'));
+              const dims = tapa && lat ? `${tapa.ancho} × ${lat.ancho} × ${tapa.alto}` : ''; // despiece: alto del módulo en la 1ª medida
+              const count = contentItemsForModule(g.id, pieces).length;
+              const activo = String(g.id) === String(selectedModuleId);
+              return `
+              <li>
+                <button class="cn-rail__module${activo ? ' cn-rail__module--active' : ''}" data-action="rail-focus-module" data-module="${escapeHtml(g.id)}"
+                  title="Ir a ${escapeHtml(g.label)}" aria-current="${activo ? 'true' : 'false'}">
+                  <span class="cn-rail__num">${String(i + 1).padStart(2, '0')}</span>
+                  <span class="cn-rail__name">
+                    <span class="cn-rail__label">${escapeHtml(g.label)}</span>
+                    ${dims ? `<span class="cn-rail__dims">${dims}</span>` : ''}
+                  </span>
+                  ${count ? `<span class="cn-rail__count">${count}</span>` : ''}
+                </button>
+              </li>`;
+            }).join('')}
+          </ul>`}
+    </section>`;
+}
+
 function renderEditForm(moduleId, piezas) {
   const tapa = piezas.find((p) => p.id.endsWith('-tapa'));
   const lateral = piezas.find((p) => p.id.endsWith('-lateral-izq'));

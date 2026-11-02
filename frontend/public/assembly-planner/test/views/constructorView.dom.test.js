@@ -29,13 +29,6 @@ function mountView() {
 }
 
 
-// Elige 'Personalizado' en el selector de tipo para que el vano libre del
-// input mande (por defecto el tipo del catálogo tiene prioridad).
-function usarVanoPersonalizado(container, moduleId = '1') {
-  const sel = container.querySelector(`[data-module-scoped="${moduleId}"] [data-tipo-drawer]`);
-  sel.value = 'personalizado';
-}
-
 function click(container, selector) {
   const el = container.querySelector(selector);
   assert.ok(el, `no existe ${selector}`);
@@ -80,8 +73,7 @@ test('agregar cajón a un módulo con zócalo: dims derivadas de la tapa, no de 
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
 
-  usarVanoPersonalizado(container);
-  const select = container.querySelector('[data-module-scoped="1"] [data-alto-vano]');
+    const select = container.querySelector('[data-module-scoped="1"] [data-alto-vano]');
   select.value = '280';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
 
@@ -208,8 +200,7 @@ test('editar dimensiones reajusta casco Y contenido interior al nuevo vano', () 
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
   // Fijar el vano explicitamente (happy-dom no aplica el atributo selected).
-  usarVanoPersonalizado(container);
-  container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '200';
+    container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '200';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   click(container, '[data-action="add-content"][data-kind="shelf"]');
   const totalAntes = store.get().pieces.length;
@@ -305,12 +296,7 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
   const scoped = '[data-module-scoped="1"]';
-  // Elegir el tipo botas (frente completo 450) y una estándar para comparar.
-  const sel = container.querySelector(`${scoped} [data-tipo-zapatera]`);
-  sel.value = 'tenis';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
-  // Modo default 'normal': frente = vano − 3 (el tipo botas fuerza su
-  // frente completo igual).
+  // Vano libre 200 (default del input) en modo normal: frente corto.
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
 
   const z1frente = store.get().pieces.find((p) => p.id === 'm1zapatera1-frente');
@@ -319,9 +305,12 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   const z1lat = store.get().pieces.find((p) => p.id === 'm1zapatera1-lateral-izq');
   assert.equal(z1lat.alto, 100, 'lateral = alto de bandeja (uniforme)');
 
-  const sel2 = container.querySelector(`${scoped} [data-tipo-zapatera]`);
-  sel2.value = 'botas';
-  sel2.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Segunda zapatera: vano 450 + modo 'extendido' (≡ tipo botas: frente
+  // completo, sin cara).
+  container.querySelector(`${scoped} [data-alto-vano]`).value = '450';
+  const modoExt = container.querySelector(`${scoped} [data-modo-zapatera]`);
+  modoExt.value = 'extendido';
+  modoExt.dispatchEvent(new window.Event('change', { bubbles: true }));
   click(container, '[data-action="add-content"][data-kind="shoeRack"]');
 
   const z2frente = store.get().pieces.find((p) => p.id === 'm1zapatera2-frente');
@@ -337,18 +326,16 @@ test('tipo de zapatera "botas": frente completo sin cara ni gap de apilado', () 
   view.destroy();
 });
 
-test('tipo de cajón del catálogo: delgado 130 / estándar 200 / profundo 280', () => {
+test('vano libre: delgado 130 / estándar 200 / profundo 280 (ex-tipos del catálogo)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
   const scoped = '[data-module-scoped="1"]';
-  for (const [tipo, esperado] of [['delgado', 127], ['estandar', 197], ['profundo', 277]]) {
-    const sel = container.querySelector(`${scoped} [data-tipo-drawer]`);
-    sel.value = tipo;
-    sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  for (const [vano, esperado] of [[130, 127], [200, 197], [280, 277]]) {
+    container.querySelector(`${scoped} [data-alto-vano]`).value = String(vano);
     click(container, '[data-action="add-content"][data-kind="drawer"]');
-    const idx = { delgado: 1, estandar: 2, profundo: 3 }[tipo];
+    const idx = { 130: 1, 200: 2, 280: 3 }[vano];
     const frente = store.get().pieces.find((p) => p.id === `m1cajon${idx}-frente`);
-    assert.equal(frente.alto, esperado, `tipo ${tipo}: frente ${esperado}`);
+    assert.equal(frente.alto, esperado, `vano ${vano}: frente ${esperado}`);
   }
   view.destroy();
 });
@@ -570,8 +557,7 @@ test('panel de avisos: sin avisos muestra OK, con repisa al aire muestra warning
 test('vano de cajón libre: acepta valor arbitrario (ej. 250)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
-  usarVanoPersonalizado(container);
-  container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '250';
+    container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '250';
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   const frente = store.get().pieces.find((p) => p.id === 'm1cajon1-frente');
   assert.equal(frente.alto, 247); // 250 - 3
@@ -1163,7 +1149,6 @@ test('Preferencias de contenido persistidas: se reutilizan en el siguiente módu
     el.dispatchEvent(new window.Event('change', { bubbles: true }));
   };
   setSel('[data-tipo-riel]', 'oculta');
-  setSel('[data-tipo-drawer]', 'personalizado'); // el tipo manda sobre el vano; usar vano libre
   const vano = container.querySelector(`${scoped} [data-alto-vano]`);
   vano.value = '250';
   container.querySelector(`${scoped} [data-division]`).checked = false;
@@ -1213,8 +1198,8 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin c
   // tapa el espacio detrás de los frentes).
   container.querySelector('[data-cfg="alto"]').value = '913.5';
   click(container, '[data-action="add-module"]'); // 850×600, cuerpo #C19A6B
-  const tipoSel = container.querySelector('[data-module-scoped="1"] [data-tipo-drawer]');
-  tipoSel.value = 'estandar';
+  // Vano 200 fijado a mano (≡ ex-tipo 'estandar').
+  container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '200';
   for (let i = 0; i < 3; i++) click(container, '[data-action="add-content"][data-kind="drawer"]');
   // Medidas originales (pre-gola) para el round-trip.
   const pre = store.get().pieces;

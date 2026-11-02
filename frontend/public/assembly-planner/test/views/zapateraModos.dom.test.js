@@ -84,10 +84,7 @@ test("en 'normal' solo se ve el alto de la zapatera; en 'extendido' ninguno; en 
 
 test("el alto de la zapatera (modo normal) llega a las piezas: bandeja uniforme, frente = alto + 30", () => {
   const { container } = armarModuloYVista();
-  // Tipo personalizado + vano 200: medidas deterministas.
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'personalizado';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Vano 200 fijado a mano: medidas deterministas.
   container.querySelector('[data-alto-vano]').value = '200';
   container.querySelector('[data-alto-lateral-zapatera]').value = '80';
   container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').click();
@@ -209,10 +206,7 @@ test('prefs legacy se mapean: modo viejo con frente → normal; sin frente → p
 
 test("sin frente (checkbox desmarcado) la bandeja va sin frente ni tirador; con 'extendido' el frente cubre el vano", () => {
   const { container } = armarModuloYVista();
-  // Tipo personalizado + vano 200: medidas deterministas.
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'personalizado';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Vano 200 fijado a mano: medidas deterministas.
   container.querySelector('[data-alto-vano]').value = '200';
   // Personalizado + sin frente: bandeja abierta (cara alta de agarre).
   const modo = container.querySelector('[data-modo-zapatera]');
@@ -226,7 +220,8 @@ test("sin frente (checkbox desmarcado) la bandeja va sin frente ni tirador; con 
   assert.ok(!zap.some((p) => p.id.endsWith('-tirador')), 'sin tirador');
   assert.equal(Number(zap.find((p) => p.id.endsWith('-cara')).alto), 167, 'cara alta = vano 200 − 3 − 2·15');
 
-  // Extendido (con frente): el frente completa el vano (vano − 1).
+  // Extendido (con frente): frente completo ≡ tipo 'botas' — el frente
+  // cierra el vano (vano − 3) SIN cara: es el cierre estructural.
   const modo2 = container.querySelector('[data-modo-zapatera]');
   modo2.value = 'extendido';
   modo2.dispatchEvent(new window.Event('change', { bubbles: true }));
@@ -234,5 +229,6 @@ test("sin frente (checkbox desmarcado) la bandeja va sin frente ni tirador; con 
   container.querySelector('[data-action="add-content"][data-kind="shoeRack"]').click();
   zap = getStore().get().pieces.filter((p) => String(p.id).includes('zapatera'));
   const frente = zap.find((p) => p.id === 'm1zapatera2-frente');
-  assert.equal(Number(frente.alto), 199, 'frente extendido = vano − 1');
+  assert.equal(Number(frente.alto), 197, 'frente extendido = vano − 3 (≡ botas)');
+  assert.ok(!zap.some((p) => p.id === 'm1zapatera2-cara'), 'frente completo: SIN cara');
 });

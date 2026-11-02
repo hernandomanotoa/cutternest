@@ -57,7 +57,7 @@ test('diseño: secciones usan elemento <section> y aside de cabecera', () => {
   view.destroy();
 });
 
-test('diseño: riel izquierdo con módulos, tipos, zócalo y versiones', () => {
+test('diseño: riel izquierdo con módulos, zócalo y versiones', () => {
   const { view, container } = mountView();
   const rail = container.querySelector(':scope .cn-rail');
   assert.ok(rail, 'existe el riel izquierdo');
@@ -65,7 +65,6 @@ test('diseño: riel izquierdo con módulos, tipos, zócalo y versiones', () => {
   assert.deepEqual(labels, ['Módulos', 'Zócalo y obra', 'Versiones guardadas']);
   assert.ok(rail.querySelector('[data-action="rail-add-module"]'), 'botón Añadir del riel');
   assert.match(rail.textContent, /Sin módulos todavía/, 'empty-state del riel con store vacío');
-  assert.ok(rail.querySelector('[data-ct="label"]'), 'tipos personalizados viven en el riel');
   assert.ok(rail.querySelector('[data-plinth-resumen]'), 'resumen del zócalo en el riel');
   assert.ok(rail.querySelector('[data-obra="tipo"]'), 'tipo de zócalo en el riel');
   assert.ok(rail.querySelector('[data-version-name]'), 'formulario de versiones en el riel');
@@ -289,10 +288,7 @@ test('diseño: error de gola con fixes aplicables — «Subir la repisa» ajusta
   container.querySelector('[data-action="add-module"]').click();
   for (let i = 0; i < 3; i++) {
     const scoped = '[data-module-scoped="1"]';
-    // Tipo 'personalizado' para que mande el vano libre (el tipo del
-    // catálogo tiene prioridad sobre el input).
-    const tipo = container.querySelector(`${scoped} [data-tipo-drawer]`);
-    tipo.value = 'personalizado';
+    // Vano libre fijado a mano (los tipos de catálogo se eliminaron del UI).
     container.querySelector(`${scoped} [data-alto-vano]`).value = '250';
     container.querySelector('[data-action="add-content"][data-kind="drawer"]').click();
   }

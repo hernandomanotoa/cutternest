@@ -202,13 +202,4 @@ describe('fondoMetodo (método de montaje del fondo del cajón)', () => {
     assert.equal(fondoMetodoDeTipo('nope'), 'apoyado', 'id desconocido');
   });
 
-  it('fondoMetodoDeTipo resuelve un custom ranurado instalado en el catálogo en vivo', async () => {
-    const { saveCustomType, deleteCustomType } = await import('../services/customTypesService.js');
-    saveCustomType({ id: 'cus-ranurado-t', label: 'X', kind: 'drawer', altoVano: 200, fondoMetodo: 'ranurado' });
-    try {
-      assert.equal(fondoMetodoDeTipo('cus-ranurado-t'), 'ranurado');
-    } finally {
-      deleteCustomType('cus-ranurado-t');
-    }
-  });
 });

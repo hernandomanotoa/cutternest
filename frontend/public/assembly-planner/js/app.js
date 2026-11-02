@@ -51,8 +51,7 @@ import {
   MARCO_PIECE_RE,
   PLINTH_DRAWER_FRONT_LIFT_MM,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, vanoDesdeCara, fondoMetodoDeTipo } from './core/contentTypes.js';
-import { installCustomTypes } from './services/customTypesService.js';
+import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, vanoDesdeCara, fondoMetodoDeTipo, vanoTagId } from './core/contentTypes.js';
 import {
   createModule,
   addZocalo,
@@ -103,11 +102,6 @@ const viewFactories = {
 };
 
 let currentViewInstance = null;
-
-// Tipos personalizados del taller (customTypesService): se inyectan en los
-// catálogos en vivo antes de que cualquier vista los consuma. Idempotente;
-// sin localStorage (tests) es un no-op.
-installCustomTypes();
 
 export function getAppStore() {
   return getStore();
@@ -687,7 +681,11 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         anchoModulo, profundidadModulo: profModulo,
         altoVano,
         espesorModulo: espesor,
-        frenteCompleto: tipo ? !!tipo.frenteCompleto : !!opts.frenteCompleto,
+        // Frente completo: el tipo 'botas' lo traía; sin tipo lo expresa el
+        // modo 'extendido' (frente = vano − 3, sin cara: el frente es el
+        // cierre estructural de la bandeja, apilado flush).
+        frenteCompleto: tipo ? !!tipo.frenteCompleto
+          : (opts.modoFrente === 'extendido' || !!opts.frenteCompleto),
         conFrente: !!opts.conFrente,
         // Modo del frente (modos del Constructor): whitelist; sin modo
         // válido cae al default del servicio (hereda de conFrente).
@@ -700,9 +698,15 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         altoDivision: Number(opts.altoDivision) > 0 ? Number(opts.altoDivision) : null,
         altoFrente: Number(opts.altoFrente) > 0 ? Number(opts.altoFrente) : null,
         altoLateral: Number(opts.altoLateral) >= 40 ? Number(opts.altoLateral) : undefined,
+        // Bandeja a la vista sin tipo: se expresa como modo 'personalizado'
+        // con las 4 alturas iguales (el rim era un contrato del tipo, hoy
+        // eliminado del UI). Bandeja abierta simple: sin frente en cualquier
+        // modo — la cara queda alta (frente visible/de agarre).
         ladosIguales: tipo ? !!tipo.ladosIguales : !!opts.ladosIguales,
         rim: tipo && tipo.rim ? tipo.rim : BANDEJA_RIM_HEIGHT,
-        tipoId: tipo ? tipo.id : null,
+        // Sin tipo de catálogo, el tag lleva el VANO ('[v200]'): la reserva
+        // del apilado y el gola lo leen del nombre y sobreviven al CSV.
+        tipoId: tipo ? tipo.id : vanoTagId(altoVano),
         espesorFrente: [15, 18, 25].includes(Number(opts.espesorFrente)) ? Number(opts.espesorFrente) : 15,
         colorFrente: opts.colorFrente || '#8B5A2B',
         colorLateral: opts.colorLateral || '#D9C2A3',
@@ -724,6 +728,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         colorLateral: opts.colorLateral || '#D9C2A3',
         riel: ['catalogo', 'telescopica26', 'oculta'].includes(opts.riel) ? opts.riel : 'catalogo',
         frenteLuz: Number(opts.frenteLuz) || 1,
+        // Los cajones van SIN tag: su frente = vano − 3 y reescalan en gola.
         tipoId: tipo ? tipo.id : null,
         // Método del fondo: el override de la tarjeta gana; si no, el del
         // tipo (addDrawer cae a 'apoyado' sin contrato).
@@ -1790,7 +1795,9 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     // fondo/división no se recuperan (se re-derivan del lateral), igual que
     // el vano sin tag.
     const ladosIguales = esZapatera && !frente && !!cara && !!lateral
-      && (tipoUnidad ? !!tipoUnidad.ladosIguales
+      && (tipoUnidad?.ladosIguales != null ? !!tipoUnidad.ladosIguales
+        // Sin el dato en el contrato (tag de vano sintético, tipos sin el
+        // campo): detección data-driven — cara al MISMO alto que el lateral.
         : Number(cara.alto) === Number(lateral.alto));
     // El índice de la unidad se deriva del id viejo (m1zapatera2-frente → 2):
     // antes se regeneraba SIEMPRE con índice 1 y todos los nombres quedaban

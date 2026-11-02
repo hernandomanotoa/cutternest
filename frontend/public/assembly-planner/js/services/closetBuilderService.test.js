@@ -583,47 +583,7 @@ describe('addDrawer: método del fondo (fondoMetodo)', () => {
     assert.equal(fondo.alto, lateral.alto - 12);
   });
 
-  it('el contrato del tipo fija el método (tipoId con fondoMetodo ranurado) y el re-parseo es limpio', async () => {
-    const { saveCustomType, deleteCustomType } = await import('./customTypesService.js');
-    const saved = saveCustomType({
-      id: 'cus-test-ranurado', kind: 'drawer', label: 'Cajón ranurado test',
-      altoVano: 200, fondoMetodo: 'ranurado',
-    });
-    assert.ok(saved.ok, saved.errors?.join('; '));
-    try {
-      const r = addDrawer('1', 1, { ...BASE_OPTS, tipoId: 'cus-test-ranurado' });
-      assert.ok(r.ok, r.errors?.join('; '));
-      const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
-      const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
-      assert.equal(fondo.ancho, cara.ancho + 12, 'el tipo impone fondo ranurado');
-      const { result } = reparseWithCasco(r.pieces);
-      assert.equal(result.ok, true, result.errors?.join('; '));
-      assert.equal(
-        result.warnings.filter((w) => w.includes('fondo cajón') || w.includes('descuento de riel')).length,
-        0,
-        `warnings inesperados: ${result.warnings.join(' | ')}`
-      );
-    } finally {
-      deleteCustomType('cus-test-ranurado');
-    }
-  });
 
-  it('fondoMetodo explícito gana sobre el del tipo', async () => {
-    const { saveCustomType, deleteCustomType } = await import('./customTypesService.js');
-    saveCustomType({
-      id: 'cus-test-ranurado2', kind: 'drawer', label: 'Cajón ranurado test 2',
-      altoVano: 200, fondoMetodo: 'ranurado',
-    });
-    try {
-      const r = addDrawer('1', 1, { ...BASE_OPTS, tipoId: 'cus-test-ranurado2', fondoMetodo: 'apoyado' });
-      assert.ok(r.ok, r.errors?.join('; '));
-      const fondo = r.pieces.find((p) => p.id.endsWith('-fondo'));
-      const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
-      assert.equal(fondo.ancho, cara.ancho, 'el override apoyado gana sobre el tipo ranurado');
-    } finally {
-      deleteCustomType('cus-test-ranurado2');
-    }
-  });
 
   it('rechaza fondoMetodo inválido sin lanzar', () => {
     const r = addDrawer('1', 1, { ...BASE_OPTS, fondoMetodo: 'flotante' });

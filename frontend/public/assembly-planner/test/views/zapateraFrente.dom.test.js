@@ -54,11 +54,7 @@ test("por defecto la zapatera va CON frente normal (bandeja 100 + frente 130, si
   const modo = container.querySelector('[data-modo-zapatera]');
   assert.ok(modo, 'existe el selector de modo de zapatera');
   assert.equal(modo.value, 'normal', 'por defecto modo frente normal');
-  // Tipo personalizado + vano 200: medidas deterministas (sin tipo el vano
-  // lo fija el catálogo).
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'personalizado';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Vano 200 fijado a mano: medidas deterministas.
   container.querySelector('[data-alto-vano]').value = '200';
 
   agregarZapatera(container);
@@ -77,10 +73,7 @@ test("por defecto la zapatera va CON frente normal (bandeja 100 + frente 130, si
 
 test("sin 'Frente zapatera' la bandeja va abierta: sin frente ni tirador (cara alta de agarre)", () => {
   const { container } = armarModuloYVista();
-  // Tipo personalizado + vano 200: medidas deterministas.
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'personalizado';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Vano 200 fijado a mano: medidas deterministas.
   container.querySelector('[data-alto-vano]').value = '200';
   container.querySelector('[data-con-frente-zapatera]').checked = false;
   agregarZapatera(container);
@@ -151,11 +144,9 @@ test('el contador del botón "+ Zapatera (N)" cuenta cada unidad (con o sin fren
 
 test('la bandeja abierta reserva el vano completo del tipo en el apilado', () => {
   const { container } = armarModuloYVista();
-  // Tipo tenis: vano 200. La bandeja abierta (sin frente) debe reservar esos
-  // 200 mm de zona aunque su cara mida 167.
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'tenis';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Vano 200 fijado a mano (≡ ex-tipo tenis). La bandeja abierta (sin
+  // frente) debe reservar esos 200 mm de zona aunque su cara mida 167.
+  container.querySelector('[data-alto-vano]').value = '200';
   // Bandeja abierta: se desmarca el frente (la cara alta es el frente visible).
   container.querySelector('[data-con-frente-zapatera]').checked = false;
 
@@ -171,13 +162,11 @@ test('la bandeja abierta reserva el vano completo del tipo en el apilado', () =>
   assert.ok(Number(repisa.pos_z) > z(2), 'la repisa posterior queda sobre la zona de la bandeja');
 });
 
-test("modo 'normal' con tipo tacones: frente = bandeja + 30 (130) y la unidad reserva SU vano", () => {
+test("modo 'normal' con vano 220 (≡ ex-tipo tacones): frente = bandeja + 30 (130) y la unidad reserva SU vano", () => {
   const { container } = armarModuloYVista();
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'tacones';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  container.querySelector('[data-alto-vano]').value = '220';
   const modo = container.querySelector('[data-modo-zapatera]');
-  assert.equal(modo.value, 'normal', 'el tipo no toca el modo: queda el default normal');
+  assert.equal(modo.value, 'normal', 'modo default normal');
 
   agregarZapatera(container);
   agregarZapatera(container);
@@ -197,9 +186,15 @@ test("modo 'normal' con tipo tacones: frente = bandeja + 30 (130) y la unidad re
 
 test('tipo "bandeja a la vista": todos los lados al mismo alto, sin frente', () => {
   const { container } = armarModuloYVista();
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'bandeja';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // ≡ ex-tipo 'bandeja a la vista': sin frente + modo personalizado con las
+  // 4 alturas al rim (120): todos los lados quedan al mismo alto.
+  container.querySelector('[data-con-frente-zapatera]').checked = false;
+  const modo = container.querySelector('[data-modo-zapatera]');
+  modo.value = 'personalizado';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
+  for (const sel of ['[data-alto-frente-zapatera]', '[data-alto-lateral-zapatera]', '[data-alto-fondo-zapatera]', '[data-alto-division-zapatera]']) {
+    container.querySelector(sel).value = '120';
+  }
   agregarZapatera(container);
 
   const zap = piezasZapatera();
@@ -214,9 +209,13 @@ test('tipo "bandeja a la vista": todos los lados al mismo alto, sin frente', () 
 
 test('editar dimensiones preserva la bandeja a la vista (rim y lados iguales)', () => {
   const { container } = armarModuloYVista();
-  const sel = container.querySelector('[data-tipo-zapatera]');
-  sel.value = 'bandeja';
-  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  container.querySelector('[data-con-frente-zapatera]').checked = false;
+  const modo = container.querySelector('[data-modo-zapatera]');
+  modo.value = 'personalizado';
+  modo.dispatchEvent(new window.Event('change', { bubbles: true }));
+  for (const sel of ['[data-alto-frente-zapatera]', '[data-alto-lateral-zapatera]', '[data-alto-fondo-zapatera]', '[data-alto-division-zapatera]']) {
+    container.querySelector(sel).value = '120';
+  }
   agregarZapatera(container);
 
   // Editar el ancho del módulo: el tray se regenera y el contrato (tag

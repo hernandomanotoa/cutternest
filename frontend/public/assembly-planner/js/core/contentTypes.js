@@ -172,10 +172,39 @@ export const SHOE_RACK_TYPES = [
   },
 ];
 
-// Resuelve un tipo por id en cualquiera de los dos catálogos.
+// Tag de vano genérico: sin tipos de catálogo en el UI, el Constructor
+// estampa el vano de la zapatera en su nombre ('[v200]') para que la
+// RESERVA de vano del apilado (y el gola) sobreviva al CSV — mismo
+// mecanismo que el tag [tipo] legacy, con un contrato sintético derivado
+// del propio número. Los cajones no lo necesitan (su frente = vano − 3 y
+// reescalan).
+export function vanoTagId(altoVano) {
+  return `v${Math.round(Number(altoVano) || 0)}`;
+}
+
+const VANO_TAG_RE = /^v(\d{2,3})$/;
+
+// Resuelve un tipo por id en cualquiera de los dos catálogos. Fallback de
+// zapateras: un tag de vano 'vN' resuelve a un contrato sintético (unidad
+// fija en gola, con frente por defecto) con ese altoVano.
 export function getContentType(kind, typeId) {
   const catalog = kind === 'shoeRack' ? SHOE_RACK_TYPES : DRAWER_TYPES;
-  return catalog.find((t) => t.id === typeId) || null;
+  const found = catalog.find((t) => t.id === typeId);
+  if (found) return found;
+  if (kind === 'shoeRack') {
+    const m = VANO_TAG_RE.exec(String(typeId || ''));
+    if (m) {
+      return {
+        id: String(typeId),
+        altoVano: Number(m[1]),
+        frenteCompleto: false,
+        conFrenteDefault: true,
+        fijoEnGola: true,
+        cajaDelta: 30,
+      };
+    }
+  }
+  return null;
 }
 
 // Método de montaje del fondo declarado por un tipo de cajón (contrato por
