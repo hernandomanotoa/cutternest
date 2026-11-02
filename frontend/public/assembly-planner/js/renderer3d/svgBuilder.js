@@ -15,6 +15,7 @@ import {
   createMetalGradient,
   getFillForFace,
 } from './materials.js';
+import { crearRegistroPatronesVeta, direccionVetaRender } from '../utils/grainPattern.js';
 import { escapeHtml } from '../utils/helpers.js';
 import { COLORS, RENDERER3D_THEME, HIGHLIGHT_COLORS } from '../core/config.js';
 
@@ -156,6 +157,7 @@ export function buildSVG(pieces, camera, options = {}) {
   }
 
   const svgParts = [];
+  const patronesVeta = crearRegistroPatronesVeta();
 
   // Líneas de ruta del explode (ensamblado -> despiezado), debajo de las caras.
   if (explodeLines.length) {
@@ -239,6 +241,17 @@ export function buildSVG(pieces, camera, options = {}) {
       'data-d': Number(piece.d).toFixed(1),
       'data-h': Number(piece.h).toFixed(1),
     }));
+    // Veta procedural (overlay): vetas finas del color de la pieza, en su
+    // dirección de veta (costados verticales; frentes/repisas horizontales).
+    // Conserva el sombreado de la cara (el patrón no lleva rect de base).
+    if (piece.color && piece.role !== 'hanger_rail' && piece.role !== 'glass' && piece.role !== 'mirror') {
+      svgParts.push(voidTag('polygon', {
+        points: pointsStr,
+        fill: patronesVeta.collect(piece.color, direccionVetaRender(piece), { soloVetas: true }),
+        'fill-opacity': '0.55',
+        'pointer-events': 'none',
+      }));
+    }
 
     // Cantos visibles solo en cara frontal
     if (face.name === 'front' && piece.cantos?.length) {
@@ -280,6 +293,7 @@ export function buildSVG(pieces, camera, options = {}) {
   });
 
   const defsContent = [
+    patronesVeta.defs(),
     metalGradients.join('\n    '),
     cutFaces.length
       ? wrap('pattern', {

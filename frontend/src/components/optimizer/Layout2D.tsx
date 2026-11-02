@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { BoardResult, Placement } from '../../types'
 import { useSelectionStore } from '../../stores/selectionStore'
+import { defsPatronesVeta, patronVetaId, type DireccionVeta } from '../../utils/grainPatternSvg'
 
 interface Layout2DProps {
   board: BoardResult
@@ -14,6 +15,10 @@ function utilizationTone(value: number): 'success' | 'warning' | 'danger' {
   if (value >= 85) return 'success'
   if (value >= 70) return 'warning'
   return 'danger'
+}
+
+function direccionVeta(p: Placement): DireccionVeta {
+  return p.veta === 'vertical' ? 'vertical' : 'horizontal'
 }
 
 function strokeColor(tone: string): string {
@@ -39,6 +44,18 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
 
   const selectedPlacement = selectedPieceCode ? pieces.get(selectedPieceCode) ?? null : null
 
+  // Veta procedural: defs por cada (color, dirección) único del tablero.
+  // Dirección = sentido de veta del backend (rotate=false ⇒ paralela al
+  // ancho del tablero). Misma semilla en todas → veta coherente entre piezas.
+  const defsVeta = useMemo(() => {
+    const direccionVeta = (p: Placement): DireccionVeta =>
+      p.veta === 'vertical' ? 'vertical' : 'horizontal'
+    const pares = [...new Map(
+      board.placements.map((p) => [`${p.color.toLowerCase()}|${direccionVeta(p)}`, [p.color, direccionVeta(p)] as const]),
+    ).values()]
+    return defsPatronesVeta(pares)
+  }, [board.placements])
+
   return (
     <div className='relative w-full rounded-xl border border-border bg-card p-2'>
       <div className='mb-2 flex items-center justify-between text-sm'>
@@ -62,12 +79,7 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
         className='h-auto w-full cursor-crosshair rounded-lg border border-border bg-muted/30'
         onClick={() => setSelectedPieceCode(null)}
       >
-        <defs>
-          <pattern id='woodGrain' width={20 * SCALE} height={20 * SCALE} patternUnits='userSpaceOnUse'>
-            <rect width={20 * SCALE} height={20 * SCALE} fill='hsl(var(--muted) / 0.3)' />
-            <path d={`M0,${10 * SCALE} Q${10 * SCALE},0 ${20 * SCALE},${10 * SCALE}`} stroke='hsl(var(--border))' strokeWidth={0.3 * SCALE} fill='none' />
-          </pattern>
-        </defs>
+        <defs dangerouslySetInnerHTML={{ __html: defsVeta }} />
 
         <rect
           x={0}
@@ -132,19 +144,10 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
                 width={w}
                 height={h}
                 rx={0.4}
-                fill={p.color}
+                fill={`url(#${patronVetaId(p.color, direccionVeta(p))})`}
                 stroke={stroke}
                 strokeWidth={strokeWidth}
                 style={{ transition: 'all 150ms ease' }}
-              />
-              <rect
-                x={x}
-                y={y}
-                width={w}
-                height={h}
-                fill='url(#woodGrain)'
-                opacity={0.15}
-                pointerEvents='none'
               />
               <g
                 transform={isVertical ? `rotate(90, ${cx}, ${cy})` : undefined}

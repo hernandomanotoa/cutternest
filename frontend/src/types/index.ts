@@ -49,6 +49,8 @@ export interface Placement {
   color: string;
   espesor: number;
   rotado: boolean;
+  /** Sentido de veta sobre el tablero: 'horizontal' | 'vertical' | 'libre'. */
+  veta?: string;
 }
 
 export interface BoardResult {
