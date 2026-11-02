@@ -62,7 +62,7 @@ test('con mueble + gola muestra la sección Planos acotados con frontal y seccio
   // el detalle de fijación.
   assert.ok(seccion.querySelector('.plano-seccion[data-canal="m1gola-c1"]'), 'sección del canal C1');
   assert.ok(!seccion.querySelector('.plano-seccion[data-canal^="m1gola-l"]'), 'sin sección del canal L');
-  assert.match(seccion.innerHTML, /Abertura útil 44 mm/);
+  assert.match(seccion.innerHTML, /Abertura útil 54 mm/);
   assert.match(seccion.innerHTML, /Fijación:/);
   assert.match(seccion.textContent, /3\.5×16/);
   // SVGs inline dibujados (alzado + sección C).

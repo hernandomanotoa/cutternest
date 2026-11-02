@@ -386,6 +386,43 @@ test('vano libre: delgado 130 / estándar 200 / profundo 280 (ex-tipos del catá
   view.destroy();
 });
 
+test('Modo gola global: aplica a todos los módulos elegibles, hereda y se retira con el toggle', () => {
+  const { store, view, container } = mountView();
+  // Dos módulos con 2 cajones cada uno (vano default 200 → frentes 227 con labio).
+  setInput(container, '[data-cfg="cantidad"]', '2');
+  click(container, '[data-action="add-module"]');
+  for (const mod of ['1', '2']) {
+    for (let i = 0; i < 2; i++) {
+      click(container, `[data-module-scoped="${mod}"] [data-action="add-content"][data-kind="drawer"]`);
+    }
+  }
+  assert.ok(!store.get().pieces.some((p) => /gola-c/.test(String(p.id))), 'sin gola antes de activar');
+
+  // Activar el modo gola (toggle en Datos generales).
+  const toggle = () => container.querySelector('[data-cfg="gola-modo"]');
+  toggle().checked = true;
+  toggle().dispatchEvent(new window.Event('change', { bubbles: true }));
+
+  const piezas = () => store.get().pieces;
+  assert.ok(piezas().some((p) => p.id === 'm1gola-c1-fondo'), 'canal en módulo 1');
+  assert.ok(piezas().some((p) => p.id === 'm2gola-c1-fondo'), 'canal en módulo 2');
+  assert.ok(piezas().every((p) => !String(p.id).endsWith('-tirador')), 'sin tiradores en ningún módulo');
+  assert.equal(toggle().checked, true, 'el toggle persiste encendido (re-render)');
+
+  // Herencia: un módulo nuevo recibe el gola al alcanzar 2 cajones.
+  click(container, '[data-action="add-module"]'); // M3
+  click(container, '[data-module-scoped="3"] [data-action="add-content"][data-kind="drawer"]');
+  assert.ok(!piezas().some((p) => String(p.id).startsWith('m3gola')), 'con 1 cajón aún no hay canal');
+  click(container, '[data-module-scoped="3"] [data-action="add-content"][data-kind="drawer"]');
+  assert.ok(piezas().some((p) => p.id === 'm3gola-c1-fondo'), 'el 2.º cajón hereda el gola solo');
+
+  // Desactivar: se retira de todos los módulos.
+  toggle().checked = false;
+  toggle().dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.ok(piezas().every((p) => !/gola-c/.test(String(p.id))), 'sin canales tras desactivar');
+  view.destroy();
+});
+
 test('doble barra crea 2 barras ancladas con pos_z', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
@@ -1281,10 +1318,10 @@ test('Canto PVC configurable: reflejado en la lista de herrajes', () => {
 test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin canal L + round-trip', () => {
   const { store, view, container } = mountView();
   // Vano exacto del taller: tipo "estandar" (vano 200 → frente 197 → 227
-  // con labio +30), zócalo 150 (frentes desde z=175) y alto 913.5 → H útil =
-  // 3×227 + 2×20 (entrada de dedos) + 2.5: ni sobra ni falta aire (la gola
-  // tapa el espacio detrás de los frentes).
-  container.querySelector('[data-cfg="alto"]').value = '913.5';
+  // con labio +30), zócalo 150 (frentes desde z=175) y alto 933.5 → H útil =
+  // 3×227 + 2×30 (entrada de dedos, default taller) + 2.5: ni sobra ni falta
+  // aire (la gola tapa el espacio detrás de los frentes).
+  container.querySelector('[data-cfg="alto"]').value = '933.5';
   click(container, '[data-action="add-module"]'); // 850×600, cuerpo #C19A6B
   // Vano 200 fijado a mano (≡ ex-tipo 'estandar').
   container.querySelector('[data-module-scoped="1"] [data-alto-vano]').value = '200';
@@ -1311,14 +1348,14 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin c
   const fondo1 = pieza('m1gola-c1-fondo');
   assert.ok(fondo1, 'existe m1gola-c1-fondo');
   assert.equal(fondo1.ancho, 820, 'fondo a lo ancho del interior (850−2×15)');
-  assert.equal(fondo1.alto, 74, 'cuerpo = entrada + 2·labio − 2·paso');
+  assert.equal(fondo1.alto, 84, 'cuerpo = entrada 30 + 2·labio − 2·paso');
   assert.equal(fondo1.pos_z, Math.round((techo1 - 30 + PASO) * 10) / 10, 'fondo detrás: techo del cajón 1 − labio + paso');
   const alaSup1 = pieza('m1gola-c1-ala-sup');
   const alaInf1 = pieza('m1gola-c1-ala-inf');
   assert.equal(alaSup1.ancho, 820);
   assert.equal(alaSup1.alto, SETBACK + 13, 'largo del ala = retranqueo + fondo (traslape) − 2 mm');
   assert.equal(alaInf1.pos_z, fondo1.pos_z, 'ala inf: tras el frente inferior, casi topando su cara');
-  assert.equal(alaSup1.pos_z, Math.round((techo1 + 20 + 30 - 15 - PASO) * 10) / 10, 'ala sup: tras el frente superior, casi topando su cara');
+  assert.equal(alaSup1.pos_z, Math.round((techo1 + 30 + 30 - 15 - PASO) * 10) / 10, 'ala sup: techo + entrada 30 + labio − ala − paso, casi topando su cara');
   // C de 3 piezas: SIN pestañas (fondo + 2 alas).
   assert.ok(!pieces.some((p) => /-pestana-/.test(String(p.id))), 'sin pestañas: canal C de 3 piezas');
   assert.equal(fondo1.color.toLowerCase(), '#c19a6b', 'mismo material que el módulo');

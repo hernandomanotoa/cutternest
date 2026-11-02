@@ -259,8 +259,9 @@ export const GOLA_PERFIL_TALLER = {
   editable: true,
   golaPerfilHeight: 50,      // cuerpo del perfil C/L de aluminio (mm)
   golaPaso: 3,               // holgura del ala frente a la cara de cada cajón (mm)
-  golaEntradaMm: 20,         // gap visible entre frentes = entrada de dedos (mm, configurable):
-                             // la gola tapa el espacio detrás de los frentes y el dedo entra por este hueco
+  golaEntradaMm: 30,         // gap visible entre frentes = entrada de dedos (mm, configurable;
+                             // default 30 = medida de taller): la gola tapa el espacio detrás de
+                             // los frentes y el dedo entra por este hueco
   golaLabioMm: 30,           // labio: crecimiento del frente al aplicar gola (mm, configurable).
                              // frente = cara + 2·E + labio (voladizo centrado); el dedo engancha el labio
   golaFingerClearance: 20,   // EN DESUSO (canal L eliminado): se acepta por
@@ -370,6 +371,8 @@ export const VERTICAL_POSITIONS = {
   // 'taller-medido'); verificar contra catálogo antes de producción.
   // golaFijacion (STRING_PREF en userConfigService) acompaña estos valores.
   ...GOLA_PERFIL_TALLER_NUM,
+  golaModoGlobal: 0,         // 1 = 'Modo gola': el sistema se aplica a todos los
+                             // módulos con ≥2 cajones y los módulos nuevos lo heredan
 };
 
 // Separación estándar entre módulos en la vista multi-módulo (mm). Vive en

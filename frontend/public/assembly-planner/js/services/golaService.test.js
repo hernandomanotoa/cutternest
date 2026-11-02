@@ -207,11 +207,11 @@ describe('applyGola — último frente (gap habitual, sin canal L)', () => {
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
     const frentes = frentesOrdenados(r.pieces);
-    // Pila: 25 + 3·227 + 2·20 = 746 → techo 746; el aire libre vive sobre
+    // Pila: 25 + 3·227 + 2·30 = 766 → techo 766; el aire libre vive sobre
     // el último frente.
     const ultimo = frentes[frentes.length - 1];
-    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - 746) <= 1,
-      `techo de la pila ${ultimo.pos_z + ultimo.alto} = 746 (aire libre hasta la repisa)`);
+    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - 766) <= 1,
+      `techo de la pila ${ultimo.pos_z + ultimo.alto} = 766 (aire libre hasta la repisa)`);
     assert.ok(r.warnings.some((w) => w.includes('libres sobre el último frente')),
       `aviso de aire libre: ${r.warnings.join(' | ')}`);
     // La caja no cambia: el lateral del cajón sigue en 167 mm.
@@ -228,9 +228,9 @@ describe('applyGola — último frente (gap habitual, sin canal L)', () => {
     const frentes = frentesOrdenados(r.pieces);
     const ultimo = frentes[frentes.length - 1];
     const techoInterior = 600 - ESP;
-    // Pila: 25 + 227 + 20 + 227 = 499 < 585 − 2.5: aire libre arriba.
-    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - 499) <= 1,
-      `techo de la pila ${ultimo.pos_z + ultimo.alto} = 499`);
+    // Pila: 25 + 227 + 30 + 227 = 509 < 585 − 2.5: aire libre arriba.
+    assert.ok(Math.abs(ultimo.pos_z + ultimo.alto - 509) <= 1,
+      `techo de la pila ${ultimo.pos_z + ultimo.alto} = 509`);
     assert.ok(ultimo.pos_z + ultimo.alto < techoInterior - DRAWER_FRONT_GAP,
       'aire libre entre la pila y el techo interior');
   });
@@ -632,7 +632,7 @@ describe('golaReport — sección del manual', () => {
 });
 
 describe('abertura útil de agarre', () => {
-  it('canal C: 50 mm exterior / 20 mm útiles / 10 mm de entrada con defaults', () => {
+  it('canal C: exterior = entrada + 2·labio y abertura útil con defaults (entrada 30)', () => {
     const ab = aberturaCanalGola('C', getGolaCfg({}));
     assert.deepEqual(ab, {
       tipo: 'C',
@@ -640,7 +640,7 @@ describe('abertura útil de agarre', () => {
       aberturaUtilMm: GOLA_DEFAULTS.golaEntradaMm + 2 * GOLA_LABIO_MM - 2 * GOLA_PESTANA_ALTO_MM - 2 * GOLA_DEFAULTS.golaPaso,
       profundidadEntradaMm: GOLA_LABIO_MM,
     });
-    assert.equal(ab.aberturaUtilMm, 44);
+    assert.equal(ab.aberturaUtilMm, 54);
   });
 
   it('canal L: abertura útil = golaFingerClearance (20 mm) — API en desuso (nadie la llama con L)', () => {
@@ -654,9 +654,9 @@ describe('abertura útil de agarre', () => {
     const pieces = buildModule(3, { repisaZ: 900 });
     const r = applyGola(pieces, '1', {});
     assert.ok(r.ok, r.errors?.join('; '));
-    const v = validateGola(r.pieces, '1', { golaMinAperturaUtil: 45 });
+    const v = validateGola(r.pieces, '1', { golaMinAperturaUtil: 55 });
     assert.ok(
-      v.warnings.some((w) => /abertura útil de agarre del canal C \(44 mm\).*mínimo ergonómico configurado \(45 mm\)/.test(w)),
+      v.warnings.some((w) => /abertura útil de agarre del canal C \(54 mm\).*mínimo ergonómico configurado \(55 mm\)/.test(w)),
       `warning de canal C presente: ${v.warnings.join(' | ')}`,
     );
     assert.ok(
@@ -686,8 +686,8 @@ describe('abertura útil de agarre', () => {
     assert.equal(fondos.length, 1, 'N−1 = 1 fondo de canal C');
     for (const f of fondos) {
       assert.ok(f.abertura, `fila ${f.id} con abertura`);
-      assert.equal(f.abertura.aberturaUtilMm, 44);
-      assert.equal(f.abertura.alturaExteriorMm, 80);
+      assert.equal(f.abertura.aberturaUtilMm, 54);
+      assert.equal(f.abertura.alturaExteriorMm, 90);
       assert.equal(f.abertura.profundidadEntradaMm, 30);
     }
     assert.ok(rows.filter((x) => !x.id.endsWith('-fondo')).every((x) => x.abertura === null),
@@ -778,7 +778,7 @@ describe('applyGola — mix zapateras CON frente + cajones (frente + 30 labio)',
     // Cajones: +30 de labio y apilados desde el techo de la zapatera 2.
     assert.equal(Number(pieza('m1cajon3-frente').alto), 227, 'cajón 3: 197 + 30');
     assert.equal(Number(pieza('m1cajon3-frente').pos_z), 465, 'cajón 3: 245 + 130 + 90 (vano de la zapatera)');
-    assert.equal(Number(pieza('m1cajon4-frente').pos_z), 712, 'cajón 4: 465 + 227 + 20 (entrada, canal C)');
+    assert.equal(Number(pieza('m1cajon4-frente').pos_z), 722, 'cajón 4: 465 + 227 + 30 (entrada, canal C)');
     // El clearance del calzado queda por encima del mínimo de tacones.
     const { warnings } = validateShoeClearance(r.pieces, {});
     assert.deepEqual(warnings, [], 'sin avisos de altura libre: 130 + 90 − 15 = 205 ≥ 180');
@@ -818,13 +818,13 @@ describe('applyGola — mix zapateras CON frente + cajones (frente + 30 labio)',
   });
 
   it('span insuficiente: sigue rechazando con "el vano no alcanza"', () => {
-    // Módulo corto (460) con la repisa justo sobre los cajones: span 402.5,
-    // disponible 346.5 < 394 (2 cajones × (167+30)) → rechazo.
+    // Módulo corto (460) con la repisa justo sobre los cajones: span 403,
+    // disponible 343 < 424.5 (2 cajones × (197+30) − entrada) → rechazo.
     const pieces = buildModule(2, { alto: 460, repisaZ: 430 });
     const r = applyGola(pieces, '1', {});
     assert.equal(r.ok, false);
     assert.match(r.errors[0], /el vano no alcanza/);
-    assert.match(r.errors[0], /faltan 71\.5 mm/);
+    assert.match(r.errors[0], /faltan 81\.5 mm/);
   });
 
   it('con tag manda el CONTRATO aunque el nombre no diga "zapatera"', () => {

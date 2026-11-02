@@ -767,9 +767,95 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   const basePieces = piecesMutadas || state.pieces;
   let allPieces = [...basePieces, ...result.pieces];
   allPieces = renombrarRepisas(allPieces, moduleId);
+  // Herencia del modo gola: con el modo activo, el módulo que alcanza ≥2
+  // unidades móviles recibe el sistema en la misma acción (mismo undo).
+  const avisos = [];
+  if (
+    Number(state.userConfig?.golaModoGlobal) === 1
+    && (kind === 'drawer' || kind === 'shoeRack')
+    && !isGolaEnabled(allPieces, moduleId)
+  ) {
+    const moviles = drawerUnits(allPieces, moduleId).filter((u) => !esUnidadFijaGola(u)).length;
+    if (moviles >= 2) {
+      const gola = reapplyGolaPieces(moduleId, allPieces, getGolaCfgForModule(moduleId));
+      if (gola.ok) {
+        allPieces = gola.pieces;
+        const metas = loadGolaMetas();
+        metas[moduleId] = gola.meta;
+        saveGolaMetas(metas);
+        avisos.push(...(gola.warnings || []));
+      } else {
+        // No alcanza el vano: se reporta y el módulo queda con sus fixes
+        // aplicables en la tarjeta (error de activación manual).
+        avisos.push(...(gola.errors || []));
+      }
+    }
+  }
   store.set({ pieces: allPieces, dependencies: sugerirDependencias(allPieces) });
   recalculateAll();
-  return { ok: true, warnings: validatePiecesQuiet(allPieces) };
+  return { ok: true, warnings: [...avisos, ...validatePiecesQuiet(allPieces)] };
+}
+
+// Módulos con ≥2 unidades móviles (cajones que reescalan) y sin gola activo:
+// candidatos al modo gola global.
+function modulosElegiblesGola(pieces) {
+  const elegibles = [];
+  for (const root of rootModuleIds(pieces || [])) {
+    if (isGolaEnabled(pieces, root)) continue;
+    const moviles = drawerUnits(pieces, root).filter((u) => !esUnidadFijaGola(u)).length;
+    if (moviles >= 2) elegibles.push(root);
+  }
+  return elegibles;
+}
+
+// Modo gola global (toggle en Datos generales): al activar, aplica el
+// sistema a todos los módulos elegibles de una vez (un solo undo; los que
+// no alcanzan el vano quedan con su error y fixes en la tarjeta). Al
+// desactivar, lo retira de todos los módulos que lo tienen. La preferencia
+// persiste en userConfig y los módulos nuevos la heredan (addContentToModule).
+export function setGolaModoGlobal(on) {
+  const store = getStore();
+  const state = store.get();
+  saveUserConfig({ golaModoGlobal: on ? 1 : 0 });
+  store.set({ userConfig: loadUserConfig() });
+
+  if (!on) {
+    const conGola = [...rootModuleIds(state.pieces)].filter((r) => isGolaEnabled(state.pieces, r));
+    if (!conGola.length) return { ok: true, removed: [] };
+    snapshotUndo('Desactivar modo gola');
+    const metas = loadGolaMetas();
+    let pieces = state.pieces;
+    for (const modId of conGola) {
+      const r = removeGola(pieces, modId, getGolaCfgForModule(modId), metas[modId]);
+      if (r.ok) { pieces = r.pieces; delete metas[modId]; }
+    }
+    saveGolaMetas(metas);
+    store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+    recalculateAll();
+    return { ok: true, removed: conGola };
+  }
+
+  const candidatos = modulosElegiblesGola(state.pieces);
+  if (!candidatos.length) return { ok: true, applied: [], fallos: [] };
+  snapshotUndo('Activar modo gola');
+  const metas = loadGolaMetas();
+  let pieces = state.pieces;
+  const applied = [];
+  const fallos = [];
+  for (const modId of candidatos) {
+    const r = reapplyGolaPieces(modId, pieces, getGolaCfgForModule(modId));
+    if (r.ok) {
+      pieces = r.pieces;
+      metas[modId] = r.meta;
+      applied.push(modId);
+    } else {
+      fallos.push({ modulo: modId, errors: r.errors || [], fixes: r.fixes || [] });
+    }
+  }
+  saveGolaMetas(metas);
+  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+  recalculateAll();
+  return { ok: true, applied, fallos };
 }
 
 // Cursor acumulativo de insercion por modulo: recorre las piezas ya ancladas

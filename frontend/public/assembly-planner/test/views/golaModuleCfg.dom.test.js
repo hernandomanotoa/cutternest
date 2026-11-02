@@ -87,8 +87,8 @@ test('panel de la tarjeta: cambiar golaStripSetback re-aplica SOLO ese módulo y
   activarGola(container, 2);
 
   let pieces = getStore().get().pieces;
-  assert.equal(tira(pieces, 1).alto, 74, 'tira m1 con cuerpo default (entrada + 2·labio − 2·paso)');
-  assert.equal(tira(pieces, 2).alto, 74, 'tira m2 con cuerpo default');
+  assert.equal(tira(pieces, 1).alto, 84, 'tira m1 con cuerpo default (entrada 30 + 2·labio − 2·paso)');
+  assert.equal(tira(pieces, 2).alto, 84, 'tira m2 con cuerpo default');
   assert.equal(alaLargo(pieces, 1), 73, 'ala m1 con retranqueo default (60+13)');
   assert.equal(alaLargo(pieces, 2), 73, 'ala m2 con retranqueo default');
 

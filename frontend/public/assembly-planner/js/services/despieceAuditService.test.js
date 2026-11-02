@@ -56,7 +56,7 @@ describe('auditarLuzLibreGola — canal de la mano (mínimo 40 mm)', () => {
   });
 
   it('voladizo insuficiente (caja alta, luz < 25): ERROR CRÍTICO con el déficit exacto', () => {
-    // Frente 227 con caja 200 → voladizo 13.5 → luz = 20 + 27 − 3 − 30 = 14 mm.
+    // Frente 227 con caja 200 → voladizo 13.5 → luz = 30 + 27 − 3 − 30 = 24 mm.
     const pieces = buildModuleConGola(2);
     for (const p of pieces) {
       if (/m1cajon\d+-(lateral-izq|lateral-der|cara|fondo)$/.test(String(p.id))) p.alto = 200;
@@ -64,8 +64,8 @@ describe('auditarLuzLibreGola — canal de la mano (mínimo 40 mm)', () => {
     const filas = auditarLuzLibreGola(pieces);
     assert.equal(filas.length, 1, 'un par de frentes para el único canal');
     for (const f of filas) {
-      assert.equal(f.luzMm, 14);
-      assert.equal(f.deficitMm, LUZ_MIN_MANO_MM - 14);
+      assert.equal(f.luzMm, 24);
+      assert.equal(f.deficitMm, LUZ_MIN_MANO_MM - 24);
       assert.match(f.mensaje, /ERROR CRÍTICO DE BLOQUEO/);
       assert.match(f.mensaje, /obstruye el agarre/);
       assert.match(f.correccion, /Rebajar la caja|voladizo/i);

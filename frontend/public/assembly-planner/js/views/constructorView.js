@@ -50,6 +50,7 @@ import {
   restoreAutosave,
   discardAutosave,
   hasAutosave,
+  setGolaModoGlobal,
 } from '../app.js';
 import { createTour, hasSeenTour } from '../components/tour/driver.js';
 import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
@@ -442,6 +443,7 @@ export function createConstructorView(store) {
       'altura-zocalo': 'alturaZocalo',
       cantidad: 'cantidadModulos',
       zocalo: 'conZocalo',
+      'gola-modo': 'golaModoGlobal',
     };
     if (e.target.matches('[data-cfg]')) {
       const cfgKey = CFG_KEY[e.target.dataset.cfg];
@@ -454,6 +456,22 @@ export function createConstructorView(store) {
           store.set({ userConfig: loadUserConfig() });
         }
       }
+    }
+    // Modo gola global: al activar aplica el sistema a todos los módulos
+    // elegibles (resumen); al desactivar lo retira de todos.
+    if (e.target.matches('[data-cfg="gola-modo"]')) {
+      const r = setGolaModoGlobal(e.target.checked);
+      if (e.target.checked) {
+        const partes = [`gola aplicada a ${(r.applied || []).length} módulo(s)`];
+        for (const f of r.fallos || []) {
+          partes.push(`M${f.modulo}: ${f.errors.join(' ')}`);
+        }
+        toast(partes.join(' · '), { type: (r.fallos || []).length ? 'error' : 'success', durationMs: 9000 });
+      } else {
+        toast(`Modo gola desactivado${(r.removed || []).length ? ` (retirado de ${r.removed.length} módulo(s))` : ''}`, { type: 'info' });
+      }
+      refresh();
+      return;
     }
     // Ancho total + reparto: calcula el ancho por modulo y lo precarga.
     if (e.target.matches('[data-cfg="ancho-total"], [data-cfg="reparto"]')) {
@@ -1129,6 +1147,13 @@ export function createConstructorView(store) {
                 <select data-obra="canto">
                   ${[0.8, 1, 2].map((e) => `<option value="${e}" ${Number(state.userConfig?.cantoEspesor ?? 0.8) === e ? 'selected' : ''}>${e} mm</option>`).join('')}
                 </select>
+              </label>
+              <label class="form-group cn-toggle" title="Modo gola: aplica el sistema de apertura sin tiradores a TODOS los módulos con ≥2 cajones de una vez. Los módulos nuevos lo heredan al alcanzar 2 cajones. Desactívalo para retirarlo de todos.">
+                <input type="checkbox" data-cfg="gola-modo" ${Number(state.userConfig?.golaModoGlobal) === 1 ? 'checked' : ''} />
+                <span class="cn-toggle__text">
+                  <span class="cn-toggle__label">Modo gola</span>
+                  <span class="cn-toggle__desc">Sin tiradores en todos los módulos con cajones; los nuevos lo heredan.</span>
+                </span>
               </label>
             </div>
           </div>

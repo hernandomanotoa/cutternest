@@ -48,7 +48,7 @@ function buildPieces() {
   assert.ok(s.ok);
   s.pieces[0].pos_z = ultimoTecho + 300;
   pieces.push(...s.pieces);
-  const gola = applyGola(pieces, '1', {});
+  const gola = applyGola(pieces, '1', { golaEntradaMm: 20 });
   assert.ok(gola.ok, gola.errors?.join(' | '));
   return gola.pieces;
 }

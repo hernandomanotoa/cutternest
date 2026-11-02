@@ -73,7 +73,7 @@ test('C2: activar el checkbox muestra la vista previa con el plan (sin mutar el 
   assert.match(panel.textContent, /Se crearán 2 canal\(es\) tipo C entre cajones/, 'anuncia los canales C entre cajones');
   assert.match(panel.textContent, /2 canal\(es\) tipo C/, 'N−1 canales C para 3 cajones');
   assert.match(panel.textContent, /Sobre el último frente queda el gap habitual \(sin canal L\)/, 'sin canal L sobre el último frente');
-  assert.match(panel.textContent, /agarre de 44 mm/, 'muestra el agarre (hueco entre alas)');
+  assert.match(panel.textContent, /agarre de 54 mm/, 'muestra el agarre (hueco entre alas)');
   // Regla B2: los frentes de cajón crecen +30 (labio) — aparecen con "→" —
   // y el aire sobrante se anuncia.
   assert.match(panel.textContent, /→ 277 mm/, 'los cajones crecen +30 (labio)');
@@ -147,8 +147,8 @@ test('C2: previewGola (app.js) es un dry-run puro: devuelve plan y no muta el st
   assert.ok(pv.ok, pv.errors?.join('; '));
   assert.equal(pv.plan.unidades, 3);
   assert.equal(pv.plan.tiras, 2);
-  assert.equal(pv.plan.agarre, 44); // 20 + 2·30 − 2·15 − 2·3
-  assert.equal(pv.plan.gapGola, 20); // gap visible = entrada de dedos
+  assert.equal(pv.plan.agarre, 54); // 30 + 2·30 − 2·15 − 2·3
+  assert.equal(pv.plan.gapGola, 30); // gap visible = entrada de dedos (default taller)
   assert.equal(pv.plan.frentes.length, 3);
   for (const f of pv.plan.frentes) {
     assert.equal(typeof f.antes, 'number');

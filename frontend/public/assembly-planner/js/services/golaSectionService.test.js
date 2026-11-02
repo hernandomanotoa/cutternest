@@ -45,13 +45,13 @@ function buildPieces() {
   assert.ok(s.ok);
   s.pieces[0].pos_z = ultimoTecho + 300;
   pieces.push(...s.pieces);
-  const gola = applyGola(pieces, '1', {});
+  const gola = applyGola(pieces, '1', { golaEntradaMm: 20 });
   assert.ok(gola.ok, gola.errors?.join(' | '));
   return gola.pieces;
 }
 
 describe('buildGolaSections: canal C entre frentes', () => {
-  const secciones = buildGolaSections(buildPieces(), {});
+  const secciones = buildGolaSections(buildPieces(), { golaEntradaMm: 20 });
   const canalC = secciones.find((s) => s.tipo === 'C');
 
   it('genera solo el canal C (N−1) por módulo; sin canal L', () => {
