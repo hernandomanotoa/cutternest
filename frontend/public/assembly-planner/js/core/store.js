@@ -48,7 +48,11 @@ const DEFAULT_STATE = {
 };
 
 export function createStore(initialState = {}) {
-  let state = Object.freeze({ ...DEFAULT_STATE, ...initialState });
+  // userConfig se lee POR INSTANCIA: DEFAULT_STATE se congeló al importar el
+  // módulo y heredarlo tal cual dejaba cada store nueva con la config del
+  // arranque (los cambios posteriores de localStorage no se veían hasta un
+  // store.set explícito).
+  let state = Object.freeze({ ...DEFAULT_STATE, userConfig: loadUserConfig(), ...initialState });
   const listeners = new Map();
 
   function emit(eventName, payload) {

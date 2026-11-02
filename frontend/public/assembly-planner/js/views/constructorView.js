@@ -428,6 +428,33 @@ export function createConstructorView(store) {
       setFurnitureName(e.target.value.trim());
       refresh();
     }
+    // Datos generales del mueble: cada campo persiste en userConfig al
+    // editarlo (espejo del patrón data-obra). Los valores se re-aplican al
+    // re-render; los steppers disparan change y persisten igual.
+    const CFG_KEY = {
+      espesor: 'espesorTablero',
+      color: 'colorCuerpo',
+      'ancho-total': 'anchoTotal',
+      reparto: 'repartoModulos',
+      ancho: 'anchoModulo',
+      alto: 'altoModulo',
+      prof: 'profModulo',
+      'altura-zocalo': 'alturaZocalo',
+      cantidad: 'cantidadModulos',
+      zocalo: 'conZocalo',
+    };
+    if (e.target.matches('[data-cfg]')) {
+      const cfgKey = CFG_KEY[e.target.dataset.cfg];
+      if (cfgKey) {
+        const value = e.target.type === 'checkbox'
+          ? (e.target.checked ? 1 : 0)
+          : e.target.dataset.cfg === 'color' ? e.target.value : Number(e.target.value);
+        if (e.target.dataset.cfg === 'color' || Number.isFinite(value)) {
+          saveUserConfig({ [cfgKey]: value });
+          store.set({ userConfig: loadUserConfig() });
+        }
+      }
+    }
     // Ancho total + reparto: calcula el ancho por modulo y lo precarga.
     if (e.target.matches('[data-cfg="ancho-total"], [data-cfg="reparto"]')) {
       const root = container;
@@ -1093,10 +1120,10 @@ export function createConstructorView(store) {
                   { value: '15', label: '15 mm' },
                   { value: '18', label: '18 mm' },
                   { value: '25', label: '25 mm' },
-                ], '15')}
+                ], String(Number(state.userConfig?.espesorTablero) || 15))}
               </div>
               <label class="form-group">Color cuerpo
-                <input type="color" data-cfg="color" value="#c19a6b" />
+                <input type="color" data-cfg="color" value="${escapeHtml(state.userConfig?.colorCuerpo || '#c19a6b')}" />
               </label>
               <label class="form-group" title="Espesor del canto PVC para la lista de herrajes (no cambia las medidas de corte)">Canto PVC
                 <select data-obra="canto">
@@ -1114,28 +1141,28 @@ export function createConstructorView(store) {
             </h4>
             <div class="cn-constructor__grid">
               <label class="form-group">Ancho total (mm)
-                <input type="number" data-cfg="ancho-total" placeholder="3400" min="100" step="10" />
+                <input type="number" data-cfg="ancho-total" value="${Number(state.userConfig?.anchoTotal) || ''}" placeholder="3400" min="100" step="10" />
               </label>
               <label class="form-group">Repartir en
-                <input type="number" data-cfg="reparto" value="4" min="1" max="12" />
+                <input type="number" data-cfg="reparto" value="${Number(state.userConfig?.repartoModulos) || 4}" min="1" max="12" />
               </label>
               <label class="form-group">Ancho (mm)
-                <span class="cn-field-num"><input type="number" data-cfg="ancho" value="850" min="100" step="10" />${numSteppers()}</span>
+                <span class="cn-field-num"><input type="number" data-cfg="ancho" value="${Number(state.userConfig?.anchoModulo) || 850}" min="100" step="10" />${numSteppers()}</span>
               </label>
               <label class="form-group">Alto (mm)
-                <span class="cn-field-num"><input type="number" data-cfg="alto" value="2400" min="100" step="10" />${numSteppers()}</span>
+                <span class="cn-field-num"><input type="number" data-cfg="alto" value="${Number(state.userConfig?.altoModulo) || 2400}" min="100" step="10" />${numSteppers()}</span>
               </label>
               <label class="form-group">Profundidad (mm)
-                <span class="cn-field-num"><input type="number" data-cfg="prof" value="600" min="100" step="10" />${numSteppers()}</span>
+                <span class="cn-field-num"><input type="number" data-cfg="prof" value="${Number(state.userConfig?.profModulo) || 600}" min="100" step="10" />${numSteppers()}</span>
               </label>
               <label class="form-group">Zócalo (mm)
-                <input type="number" data-cfg="altura-zocalo" value="150" min="50" max="300" step="10" />
+                <input type="number" data-cfg="altura-zocalo" value="${Number(state.userConfig?.alturaZocalo) || 150}" min="50" max="300" step="10" />
               </label>
               <label class="form-group">Cantidad
-                <input type="number" data-cfg="cantidad" value="1" min="1" max="12" />
+                <input type="number" data-cfg="cantidad" value="${Number(state.userConfig?.cantidadModulos) || 1}" min="1" max="12" />
               </label>
               <label class="form-group cn-toggle" title="La base queda apoyada sobre el zócalo">
-                <input type="checkbox" data-cfg="zocalo" checked />
+                <input type="checkbox" data-cfg="zocalo" ${state.userConfig?.conZocalo === 0 ? '' : 'checked'} />
                 <span class="cn-toggle__text">
                   <span class="cn-toggle__label">Con zócalo</span>
                   <span class="cn-toggle__desc">La base queda apoyada sobre el zócalo.</span>

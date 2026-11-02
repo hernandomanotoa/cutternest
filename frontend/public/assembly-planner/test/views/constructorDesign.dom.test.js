@@ -92,11 +92,15 @@ test('diseño: controles segmentados mantienen el select real (mismo contrato)',
 
 test('diseño: steppers ajustan el input y disparan change', () => {
   const { view, container } = mountView();
-  const wrap = container.querySelector('[data-cfg="ancho"]').closest('.cn-field-num');
-  wrap.querySelector('[data-step="1"]').click();
+  // Re-query fresco tras cada click: el change persiste en userConfig y el
+  // constructor re-renderiza (mismo contrato que los campos data-obra).
+  const step = (n) => container
+    .querySelector('[data-cfg="ancho"]').closest('.cn-field-num')
+    .querySelector(`[data-step="${n}"]`).click();
+  step(1);
   assert.equal(container.querySelector('[data-cfg="ancho"]').value, '860', 'stepper + sube un step (10)');
-  wrap.querySelector('[data-step="-1"]').click();
-  wrap.querySelector('[data-step="-1"]').click();
+  step(-1);
+  step(-1);
   assert.equal(container.querySelector('[data-cfg="ancho"]').value, '840', 'stepper − baja un step');
   view.destroy();
 });

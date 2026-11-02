@@ -87,6 +87,51 @@ test('agregar cajón a un módulo con zócalo: dims derivadas de la tapa, no de 
   view.destroy();
 });
 
+test('Datos generales del mueble: todos los campos persisten y se re-aplican al re-render', () => {
+  const primera = mountView();
+  const set = (sel, value) => {
+    const el = primera.container.querySelector(sel);
+    assert.ok(el, `existe ${sel}`);
+    el.value = value;
+    el.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  set('[data-cfg="ancho-total"]', '3400');
+  set('[data-cfg="reparto"]', '3');
+  set('[data-cfg="ancho"]', '900');
+  set('[data-cfg="alto"]', '2100');
+  set('[data-cfg="prof"]', '550');
+  set('[data-cfg="altura-zocalo"]', '120');
+  set('[data-cfg="cantidad"]', '2');
+  set('[data-cfg="espesor"]', '18');
+  set('[data-cfg="color"]', '#123456');
+  const zocalo = primera.container.querySelector('[data-cfg="zocalo"]');
+  zocalo.checked = false;
+  zocalo.dispatchEvent(new window.Event('change', { bubbles: true }));
+  primera.view.destroy();
+
+  // Re-montar la vista: los valores editados deben seguir ahí.
+  const segunda = mountView();
+  const val = (sel) => segunda.container.querySelector(sel)?.value;
+  assert.equal(val('[data-cfg="ancho-total"]'), '3400', 'ancho total persiste');
+  assert.equal(val('[data-cfg="reparto"]'), '3', 'reparto persiste');
+  assert.equal(val('[data-cfg="ancho"]'), '900', 'ancho persiste');
+  assert.equal(val('[data-cfg="alto"]'), '2100', 'alto persiste');
+  assert.equal(val('[data-cfg="prof"]'), '550', 'profundidad persiste');
+  assert.equal(val('[data-cfg="altura-zocalo"]'), '120', 'zócalo persiste');
+  assert.equal(val('[data-cfg="cantidad"]'), '2', 'cantidad persiste');
+  assert.equal(val('[data-cfg="espesor"]'), '18', 'espesor persiste');
+  assert.equal(val('[data-cfg="color"]'), '#123456', 'color persiste');
+  assert.equal(segunda.container.querySelector('[data-cfg="zocalo"]').checked, false, 'con zócalo persiste');
+
+  // Y el alta usa los valores persistidos.
+  segunda.container.querySelector('[data-action="add-module"]').click();
+  const tapa = segunda.store.get().pieces.find((p) => p.id === 'm1-tapa');
+  assert.equal(tapa.ancho, 900, 'el módulo nuevo nace con el ancho persistido');
+  assert.equal(tapa.espesor, 18, 'y con el espesor persistido');
+  assert.ok(!segunda.store.get().pieces.some((p) => p.id === 'm1-zocalo'), 'sin zócalo: no se genera');
+  segunda.view.destroy();
+});
+
 test('agregar N módulos: cantidad 3 crea M1, M2 y M3', () => {
   const { store, view, container } = mountView();
   setInput(container, '[data-cfg="cantidad"]', '3');

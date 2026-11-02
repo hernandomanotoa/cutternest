@@ -341,6 +341,17 @@ export const VERTICAL_POSITIONS = {
   viewModuleGap: 0,          // gap entre módulos en 'Vista completa'; 0 = pegados (default), 20 = separados
 
   // ── Preferencias de contenido del Constructor (persistidas) ────
+  // ── Datos generales del mueble (persistidos; 'Datos generales' del Constructor) ──
+  anchoTotal: 0,             // ancho total para reparto automático; 0 = vacío
+  repartoModulos: 4,         // en cuántos módulos repartir el ancho total
+  anchoModulo: 850,          // dimensiones del alta de módulo
+  altoModulo: 2400,
+  profModulo: 600,
+  alturaZocalo: 150,         // alto del zócalo simple del alta
+  cantidadModulos: 1,        // módulos a crear por alta
+  conZocalo: 1,              // 1 = la base queda apoyada sobre el zócalo
+  espesorTablero: 15,        // espesor del alta (15|18|25)
+  contentFondoRanurado: 0,   // 1 = fondo ranurado por defecto en cajones nuevos
   contentVano: 200,          // alto de vano por defecto al agregar cajón/zapatera
   contentNPorFila: 1,        // cajones/zapateras por fila (1|2)
   contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
