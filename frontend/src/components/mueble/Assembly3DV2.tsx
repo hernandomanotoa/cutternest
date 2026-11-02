@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ElementRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { CameraControls, Edges, Grid, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { AssemblyConnector, AssemblyPiece3D, AssemblyPieceState, Point3D, Transform3D } from '../../types'
 import { PieceLabel } from './PieceLabel'
 import { getModuleColor } from './moduleColor'
+import { getAcabado, liberarMaterial, materialMaderaParaPieza } from '../../utils/texturasMadera'
 
 export { getModuleColor }
 
@@ -25,6 +26,8 @@ interface Assembly3DV2Props {
   showLabels?: boolean
   levels?: string[][]
   pieceStates?: Record<string, 'active' | 'placed' | 'future'>
+  /** Acabado melamina procedural (id de ACABADOS); null = colores planos. */
+  acabado?: string | null
   className?: string
   onSelectPiece?: (code: string | null) => void
   onTransformChange?: (id: string, transform: Transform3D) => void
@@ -113,6 +116,7 @@ interface PieceMeshProps {
   snapTarget?: Transform3D
   showLabels?: boolean
   pieceState?: 'active' | 'placed' | 'future'
+  acabado?: string | null
   onSelect: () => void
   onTransformEnd: (id: string, transform: Transform3D) => void
 }
@@ -130,6 +134,7 @@ function PieceMesh({
   snapTarget,
   showLabels,
   pieceState,
+  acabado,
   onSelect,
   onTransformEnd,
 }: PieceMeshProps) {
@@ -137,6 +142,20 @@ function PieceMesh({
   const fillColor = piece.modulo ? getModuleColor(piece.modulo) : piece.color
   const meshRef = useRef<THREE.Mesh>(null)
   const [hovered, setHovered] = useState(false)
+  const gl = useThree((state) => state.gl)
+
+  // Textura procedural de melamina: veta según el tipo de pieza, repeat con
+  // escala real (600 mm/tile) y misma semilla para todos los acabados. Al
+  // cambiar de acabado se libera textura + material (cleanup del memo).
+  const materialMadera = useMemo(() => {
+    if (!acabado || !getAcabado(acabado)) return null
+    return materialMaderaParaPieza(
+      gl,
+      { nombre: piece.nombre, id: piece.id, ancho: dims.ancho, alto: dims.alto },
+      acabado,
+    )
+  }, [acabado, gl, piece.nombre, piece.id, dims.ancho, dims.alto])
+  useEffect(() => () => liberarMaterial(materialMadera), [materialMadera])
 
   const labelVisible = selected || hovered || (showLabels ?? false)
 
@@ -263,15 +282,19 @@ function PieceMesh({
       receiveShadow
     >
       <boxGeometry args={[dims.ancho * SCALE, dims.alto * SCALE, dims.profundidad * SCALE]} />
-      <meshStandardMaterial
-        color={fillColor}
-        transparent
-        opacity={opacity}
-        roughness={0.6}
-        metalness={0.1}
-        emissive={emissiveColor}
-        emissiveIntensity={emissiveIntensity}
-      />
+      {materialMadera ? (
+        <primitive object={materialMadera} attach='material' />
+      ) : (
+        <meshStandardMaterial
+          color={fillColor}
+          transparent
+          opacity={opacity}
+          roughness={0.6}
+          metalness={0.1}
+          emissive={emissiveColor}
+          emissiveIntensity={emissiveIntensity}
+        />
+      )}
       <Edges threshold={5} color='#1f2937' lineWidth={1} />
       <PieceLabel piece={piece} visible={labelVisible} />
     </mesh>
@@ -436,6 +459,7 @@ function Scene({
   showLabels,
   levels,
   pieceStates,
+  acabado,
   onSelectPiece,
   onTransformEnd,
 }: Required<Pick<
@@ -456,6 +480,7 @@ function Scene({
   | 'pieceStates'
   | 'onSelectPiece'
   | 'onTransformEnd'
+  | 'acabado'
 >> & {
   expectedPieces?: AssemblyPieceState[]
   selectedCode?: string | null
@@ -578,6 +603,7 @@ function Scene({
           snapTarget={expectedByCode.get(p.id)}
           showLabels={showLabels}
           pieceState={pieceStateById.get(p.id)}
+          acabado={acabado}
           onSelect={() => onSelectPiece(p.id)}
           onTransformEnd={onTransformEnd}
         />
@@ -606,6 +632,7 @@ export function Assembly3DV2({
   showLabels = false,
   levels = [],
   pieceStates = {},
+  acabado = null,
   className = 'w-full h-full',
   onSelectPiece,
   onTransformChange,
@@ -625,6 +652,7 @@ export function Assembly3DV2({
         style={{ background: 'hsl(var(--background))' }}
       >
         <Scene
+          acabado={acabado}
           pieces={pieces}
           expectedPieces={expectedPieces}
           connectors={connectors}

@@ -105,6 +105,7 @@ El Assembly Planner se organiza por capas con responsabilidades definidas. Cuand
 - **No hardcodear colores**: usa la paleta de Tailwind (`bg-primary`, `text-slate-800`, etc.) o variables CSS en `frontend/src/index.css`. No escribas valores hexadecimales o RGB directamente en componentes o estilos ad hoc.
 - Componentes de React con hooks en orden estándar; `useAuth` para leer/actualizar sesión.
 - Utilidades de Three.js y SVG residen en `frontend/src/utils/`.
+- `frontend/src/utils/texturasMadera.ts`: texturas procedurales de melamina con veta para el 3D (Canvas 2D + Three.js, sin imágenes externas). `ACABADOS` (7 acabados: agregar = editar solo esa constante), `mulberry32`/`generarParametrosVeta` (semilla fija → textura repetible), `crearTexturaMadera` (bandas/vetas/poros orientables), `MM_POR_TILE = 600` (repeat = tamaño real/600), `direccionVetaPieza` (costados/puertas vertical; repisas/frentes/fondos horizontal), `materialMadera`/`materialMaderaParaPieza`/`aplicarAcabado` y `liberarMaterial` (dispose de textura+material al cambiar de acabado). Selector en `AcabadoSelector.tsx`; `Assembly3DV2` acepta la prop `acabado` (null = colores planos por módulo).
 
 ### Tests
 
