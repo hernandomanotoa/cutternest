@@ -9,6 +9,7 @@ import { createStore, setStore } from '../../js/core/store.js';
 import { createConstructorView } from '../../js/views/constructorView.js';
 import { createContainer, resetDocument } from './setup.mjs';
 import { countVersions, deleteAllVersions } from '../../js/services/projectVersionsService.js';
+import { rootModuleIds } from '../../js/services/closetBuilderService.js';
 import { plinthTotalWidth } from '../../js/services/plinthFrameService.js';
 import { GOLA_DEFAULTS } from '../../js/services/golaService.js';
 
@@ -690,6 +691,48 @@ test('reordenar modulos (◀ ▶) sigue funcionando tras los cambios', () => {
   const mods = [...new Set(store.get().pieces.filter((p) => /^\d+$/.test(String(p.modulo))).map((p) => String(p.modulo)))].sort();
   assert.deepEqual(mods, ['1', '2'], 'siguen dos modulos');
   assert.ok(store.get().pieces.some((p) => p.id === 'm1-tapa'), 'ids renumerados coherentes');
+  view.destroy();
+});
+
+test('mover módulo al principio y al final (⇤ ⇥) reenumera 1..N', () => {
+  const { store, view, container } = mountView();
+  setInput(container, '[data-cfg="cantidad"]', '3');
+  click(container, '[data-action="add-module"]');
+  // Marcador: un cajón en el M3 (ids m3cajon1-*, submódulo '31').
+  click(container, '[data-module-scoped="3"] [data-action="add-content"][data-kind="drawer"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm3cajon1-frente'), 'fixture: cajón en M3');
+
+  // ⇤ M3 al principio: orden [3,1,2] → el ex-M3 es ahora M1.
+  click(container, '[data-action="move-module"][data-module="3"][data-dir="inicio"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1cajon1-frente'), 'el marcador viajó a M1');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm3-tapa'), 'el ex-M1 quedó como M3');
+  assert.deepEqual([...rootModuleIds(store.get().pieces)].sort(), ['1', '2', '3'], 'numeración compacta 1..N');
+
+  // ⇥ M1 (el ex-M3) al final: orden [2,3,1] → vuelve a ser M3.
+  click(container, '[data-action="move-module"][data-module="1"][data-dir="fin"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm3cajon1-frente'), 'el marcador volvió a M3');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm1-tapa'), 'M1 ocupado por el ex-M2');
+  view.destroy();
+});
+
+test('eliminar un módulo intermedio compacta la numeración (M3 pasa a M2)', () => {
+  const { store, view, container } = mountView();
+  setInput(container, '[data-cfg="cantidad"]', '3');
+  click(container, '[data-action="add-module"]');
+  click(container, '[data-module-scoped="3"] [data-action="add-content"][data-kind="drawer"]');
+  assert.ok(store.get().pieces.some((p) => p.id === 'm3cajon1-frente'), 'fixture: cajón en M3');
+
+  // Eliminar M2 (con confirmación): el hueco se cierra y M3 pasa a ser M2.
+  const btnBorrar = container.querySelector('[data-action="remove-module"][data-module="2"]');
+  btnBorrar.click(); // arma la confirmación
+  btnBorrar.dataset.confirm = '1';
+  btnBorrar.click();
+  const piezas = store.get().pieces;
+  assert.ok(!piezas.some((p) => String(p.modulo) === '3'), 'no queda ninguna pieza del módulo 3');
+  assert.ok(piezas.some((p) => p.id === 'm2-tapa'), 'el ex-M3 es ahora M2');
+  assert.ok(piezas.some((p) => p.id === 'm2cajon1-frente' && String(p.modulo) === '21'),
+    'submódulo renumerado (31 → 21)');
+  assert.deepEqual([...rootModuleIds(piezas)].sort(), ['1', '2'], 'numeración compacta 1..2');
   view.destroy();
 });
 

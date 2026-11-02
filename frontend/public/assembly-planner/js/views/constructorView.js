@@ -1530,8 +1530,10 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
         <span class="cn-module-actions">
           <button class="btn btn--icon btn--sm" data-action="focus-module" data-module="${escapeHtml(moduleId)}" title="Ver este módulo en la vista isométrica" aria-label="Ver módulo en isométrica">👁</button>
           <button class="btn btn--icon btn--sm" data-action="edit-module" data-module="${escapeHtml(moduleId)}" title="Editar dimensiones del casco" aria-label="Editar dimensiones del casco">✎</button>
+          <button class="btn btn--icon btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="inicio" title="Mover al principio" aria-label="Mover módulo al principio">⇤</button>
           <button class="btn btn--icon btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="izq" title="Mover a la izquierda" aria-label="Mover módulo a la izquierda">◀</button>
           <button class="btn btn--icon btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="der" title="Mover a la derecha" aria-label="Mover módulo a la derecha">▶</button>
+          <button class="btn btn--icon btn--sm" data-action="move-module" data-module="${escapeHtml(moduleId)}" data-dir="fin" title="Mover al final" aria-label="Mover módulo al final">⇥</button>
           <button class="btn btn--icon btn--sm" data-action="recolor-module" data-module="${escapeHtml(moduleId)}" title="Recolorear con el color Cuerpo del grupo Módulo" aria-label="Recolorear módulo">🎨</button>
           <button class="btn btn--icon btn--sm" data-action="duplicate-module" data-module="${escapeHtml(moduleId)}" title="Duplicar módulo" aria-label="Duplicar módulo">⿻</button>
           <button class="btn btn--icon btn--sm btn--danger" data-action="remove-module" data-module="${escapeHtml(moduleId)}" title="Eliminar módulo" aria-label="Eliminar módulo">🗑</button>

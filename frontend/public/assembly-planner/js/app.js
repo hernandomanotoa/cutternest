@@ -1447,39 +1447,70 @@ export function removeContentPiece(refId) {
 // numerico anterior, 'der' con el siguiente. Renumerar ids es invasivo
 // (cambia ids/submodulos de piezas y dependencias), asi que se implementa
 // como intercambio de numeros de modulo entre los dos afectados.
+// Reenumera las raíces a 1..N en el orden dado, renombrando piezas, metas
+// gola y configs por módulo. Pasa por prefijos temporales ('t0', 't1'…)
+// porque los ids numéricos son ambiguos ('11' es raíz 11 y submódulo de 1).
+// Devuelve las piezas renumeradas; las claves de metas/configs quedan bajo
+// el número nuevo (las de ids que desaparecen se pierden: llamar antes de
+// compactar). Usado por moveModule (intercambio y salto a extremos) y por
+// removeModule (compactación tras eliminar).
+function renumerarRaices(pieces, ordenIds) {
+  const metas = loadGolaMetas();
+  const cfgs = loadGolaModuleCfgs();
+  const migrarClaves = (oldId, newId) => {
+    if (Object.prototype.hasOwnProperty.call(metas, oldId)) {
+      metas[newId] = renombrarClavesMetaGola(metas[oldId], oldId, newId);
+      delete metas[oldId];
+    }
+    if (Object.prototype.hasOwnProperty.call(cfgs, oldId)) {
+      cfgs[newId] = cfgs[oldId];
+      delete cfgs[oldId];
+    }
+  };
+  const temps = ordenIds.map((id, i) => [String(id), `t${i}`]);
+  let out = pieces;
+  for (const [oldId, tmp] of temps) {
+    out = renameModulePrefix(out, oldId, tmp);
+    migrarClaves(oldId, tmp);
+  }
+  for (let i = 0; i < temps.length; i += 1) {
+    out = renameModulePrefix(out, temps[i][1], String(i + 1));
+    migrarClaves(temps[i][1], String(i + 1));
+  }
+  saveGolaMetas(metas);
+  saveGolaModuleCfgs(cfgs);
+  return out;
+}
+
 export function moveModule(moduleId, direction) {
   snapshotUndo("Reordenar modulo");
   const store = getStore();
   const state = store.get();
   const roots = [...rootModuleIds(state.pieces)].sort((a, b) => Number(a) - Number(b));
-  const idx = roots.indexOf(String(moduleId));
-  const swapWith = direction === 'izq' ? idx - 1 : idx + 1;
-  if (idx === -1 || swapWith < 0 || swapWith >= roots.length) {
-    return { ok: false, errors: ['No hay modulo con que intercambiar'] };
+  const id = String(moduleId);
+  const idx = roots.indexOf(id);
+  if (idx === -1) return { ok: false, errors: [`El módulo ${id} no existe`] };
+  let orden;
+  if (direction === 'izq' || direction === 'der') {
+    const swapWith = direction === 'izq' ? idx - 1 : idx + 1;
+    if (swapWith < 0 || swapWith >= roots.length) {
+      return { ok: false, errors: ['No hay modulo con que intercambiar'] };
+    }
+    orden = [...roots];
+    [orden[idx], orden[swapWith]] = [orden[swapWith], orden[idx]];
+  } else if (direction === 'inicio' || direction === 'fin') {
+    const target = direction === 'inicio' ? 0 : roots.length - 1;
+    if (idx === target) return { ok: false, errors: ['El módulo ya está en el extremo'] };
+    orden = roots.filter((r) => r !== id);
+    if (direction === 'inicio') orden.unshift(id);
+    else orden.push(id);
+  } else {
+    return { ok: false, errors: [`Dirección no soportada: ${direction}`] };
   }
-  const a = roots[idx];
-  const b = roots[swapWith];
-  // Renombrar a→tmp, b→a, tmp→b con un prefijo temporal no numerico.
-  let pieces = renameModulePrefix(state.pieces, a, `x${a}`);
-  pieces = renameModulePrefix(pieces, b, a);
-  pieces = renameModulePrefix(pieces, `x${a}`, b);
-  // Los metas gola (round-trip de frentes/cajas) viajan con su módulo: sin
-  // esto el meta quedaba bajo la clave del vecino y el round-trip se perdía.
-  // Las claves internas (ids de piezas) se renombran con el mismo prefijo.
-  const golaMetas = loadGolaMetas();
-  if (
-    Object.prototype.hasOwnProperty.call(golaMetas, a)
-    || Object.prototype.hasOwnProperty.call(golaMetas, b)
-  ) {
-    const metaA = golaMetas[a] ? renombrarClavesMetaGola(golaMetas[a], a, b) : undefined;
-    const metaB = golaMetas[b] ? renombrarClavesMetaGola(golaMetas[b], b, a) : undefined;
-    if (metaB) golaMetas[a] = metaB; else delete golaMetas[a];
-    if (metaA) golaMetas[b] = metaA; else delete golaMetas[b];
-    saveGolaMetas(golaMetas);
-  }
+  const pieces = renumerarRaices(state.pieces, orden);
   store.set({ pieces, dependencies: sugerirDependencias(pieces) });
   recalculateAll();
-  return { ok: true, moduleId: b };
+  return { ok: true, moduleId: String(orden.indexOf(id) + 1) };
 }
 
 // Renombra las claves de ids de un meta gola (origHeights/origTops) cuando su
@@ -1992,7 +2023,14 @@ export function removeModule(moduleId) {
     delete golaCfgs[id];
     saveGolaModuleCfgs(golaCfgs);
   }
-  store.set({ pieces, dependencies: sugerirDependencias(pieces) });
+
+  // Renumeración compacta: los módulos quedan numerados 1..N en orden (el
+  // hueco del eliminado se cierra). Misma acción de undo que el borrado.
+  const rootsAfter = [...rootModuleIds(pieces)].sort((a, b) => Number(a) - Number(b));
+  const piecesFinales = rootsAfter.every((r, idx) => r === String(idx + 1))
+    ? pieces
+    : renumerarRaices(pieces, rootsAfter);
+  store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
   recalculateAll();
   return { ok: true };
 }
