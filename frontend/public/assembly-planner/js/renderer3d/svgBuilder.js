@@ -75,6 +75,7 @@ export function buildSVG(pieces, camera, options = {}) {
     moduleSize = { w: 0, d: 0, h: 0 },
     assemblyStep = null,
     collisionIds = null,
+    mostrarVeta = true,
   } = options;
 
   const sectionCoord = section
@@ -242,12 +243,18 @@ export function buildSVG(pieces, camera, options = {}) {
       'data-h': Number(piece.h).toFixed(1),
     }));
     // Veta procedural (overlay): vetas finas del color de la pieza, en su
-    // dirección de veta (costados verticales; frentes/repisas horizontales).
+    // dirección de veta REAL — no a los ejes de pantalla: el ángulo sale de
+    // proyectar el eje de la pieza (Z si su veta es vertical, X si es
+    // horizontal), así la veta sigue a la pieza en las caras isométricas.
     // Conserva el sombreado de la cara (el patrón no lleva rect de base).
-    if (piece.color && piece.role !== 'hanger_rail' && piece.role !== 'glass' && piece.role !== 'mirror') {
+    if (mostrarVeta && piece.color && piece.role !== 'hanger_rail' && piece.role !== 'glass' && piece.role !== 'mirror') {
+      const eje = direccionVetaRender(piece) === 'vertical' ? { x: 0, y: 0, z: 40 } : { x: 40, y: 0, z: 0 };
+      const o = projectVertexCentered({ x: piece.cx, y: piece.cy, z: piece.cz }, moduleCenter, camera);
+      const t2 = projectVertexCentered({ x: piece.cx + eje.x, y: piece.cy + eje.y, z: piece.cz + eje.z }, moduleCenter, camera);
+      const angulo = Math.round(Math.atan2(t2.y - o.y, t2.x - o.x) * 180 / Math.PI);
       svgParts.push(voidTag('polygon', {
         points: pointsStr,
-        fill: patronesVeta.collect(piece.color, direccionVetaRender(piece), { soloVetas: true }),
+        fill: patronesVeta.collect(piece.color, angulo, { soloVetas: true }),
         'fill-opacity': '0.55',
         'pointer-events': 'none',
       }));

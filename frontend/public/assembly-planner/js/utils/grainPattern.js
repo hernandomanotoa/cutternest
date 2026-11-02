@@ -53,8 +53,8 @@ const N_VETAS = 9;
  * Id determinista del patrón de veta para (color, direccion). Mismo par →
  * mismo id (la caché de defs reutiliza el patrón entre piezas).
  */
-export function patronVetaId(color, direccion, soloVetas = false) {
-  return `gv-${hashId(`${String(color).toLowerCase()}|${direccion}|${soloVetas ? 'sv' : 'c'}`)}`;
+export function patronVetaId(color, angulo = 0, soloVetas = false) {
+  return `gv-${hashId(`${String(color).toLowerCase()}|${Math.round(angulo)}|${soloVetas ? 'sv' : 'c'}`)}`;
 }
 
 /**
@@ -62,8 +62,9 @@ export function patronVetaId(color, direccion, soloVetas = false) {
  * onduladas (sinusoide poligonal) en el color oscurecido. Dirección
  * 'vertical' rota el tile 90° (la veta corre a lo largo de Y).
  */
-export function patronVetaDef(color, direccion, semilla = SEMILLA_VETA, opts = {}) {
-  const id = patronVetaId(color, direccion, !!opts.soloVetas);
+export function patronVetaDef(color, angulo = 0, opts = {}) {
+  const semilla = opts.semilla ?? SEMILLA_VETA;
+  const id = patronVetaId(color, angulo, !!opts.soloVetas);
   const rng = mulberry32(semilla);
   const veta = oscurecerHex(color, 0.38);
   const boost = opts.soloVetas ? 1.5 : 1;
@@ -84,7 +85,9 @@ export function patronVetaDef(color, direccion, semilla = SEMILLA_VETA, opts = {
     }
     partes.push(`<path d="${d}" fill="none" stroke="${veta}" stroke-width="${grosor}" opacity="${opacidad}"/>`);
   }
-  const transform = direccion === 'vertical' ? ` patternTransform="rotate(90)"` : '';
+  // La veta corre a lo largo de +x en el patrón base; el rotate la alinea
+  // con el ángulo REAL de la pieza en pantalla (la veta sigue a la pieza).
+  const transform = angulo ? ` patternTransform="rotate(${Math.round(angulo)})"` : '';
   const base = opts.soloVetas ? '' : `<rect width="${TILE}" height="${TILE}" fill="${color}"/>`;
   return `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${TILE}" height="${TILE}"${transform}>` +
     `${base}${partes.join('')}</pattern>`;
@@ -107,10 +110,10 @@ export function direccionVetaRender(piece) {
 export function crearRegistroPatronesVeta() {
   const usados = new Map();
   return {
-    collect(color, direccion, opts) {
-      const clave = `${String(color).toLowerCase()}|${direccion}|${opts?.soloVetas ? 'sv' : 'c'}`;
-      if (!usados.has(clave)) usados.set(clave, patronVetaDef(color, direccion, SEMILLA_VETA, opts));
-      return `url(#${patronVetaId(color, direccion)})}`;
+    collect(color, angulo = 0, opts) {
+      const clave = `${String(color).toLowerCase()}|${Math.round(angulo)}|${opts?.soloVetas ? 'sv' : 'c'}`;
+      if (!usados.has(clave)) usados.set(clave, patronVetaDef(color, angulo, opts));
+      return `url(#${patronVetaId(color, angulo, !!opts?.soloVetas)})`;
     },
     defs() {
       if (!usados.size) return '';

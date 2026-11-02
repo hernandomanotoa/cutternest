@@ -240,6 +240,10 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-xray" style="cursor:pointer;">
               <span>X-ray</span>
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Veta de la melamina procedural: sigue la dirección real de cada pieza (costados verticales, frentes/repisas horizontales)">
+              <input type="checkbox" id="r3d-veta" ${Number(state.userConfig?.renderVeta) !== 0 ? 'checked' : ''} style="cursor:pointer;">
+              <span>Veta</span>
+            </label>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Separar los módulos en Vista completa (gap ${MODULE_GAP_MM} mm); por defecto pegados">
               <input type="checkbox" id="r3d-module-gap" ${Number(state.userConfig?.viewModuleGap) > 0 ? 'checked' : ''} style="cursor:pointer;">
@@ -342,6 +346,7 @@ export function createRenderer3DView(store) {
       width: 900,
       height: 600,
       globalOpacity: 0.85,
+      mostrarVeta: Number(state.userConfig?.renderVeta) !== 0,
       moduleGapMode,
       verticalPositionOverrides: state.userConfig,
       onPieceSelect: (id) => {
@@ -440,6 +445,11 @@ export function createRenderer3DView(store) {
     }
 container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer.setShowDimensions(e.target.checked));
     container.querySelector('#r3d-xray')?.addEventListener('change', (e) => renderer.setXrayMode(e.target.checked));
+    container.querySelector('#r3d-veta')?.addEventListener('change', (e) => {
+      renderer.setMostrarVeta(e.target.checked);
+      saveUserConfig({ renderVeta: e.target.checked ? 1 : 0 });
+      store.set({ userConfig: loadUserConfig() });
+    });
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));
     container.querySelector('#r3d-opacity')?.addEventListener('input', (e) => renderer.setGlobalOpacity(Number(e.target.value)));
     container.querySelector('#r3d-explode')?.addEventListener('input', (e) => renderer.setExplodeFactor(Number(e.target.value)));

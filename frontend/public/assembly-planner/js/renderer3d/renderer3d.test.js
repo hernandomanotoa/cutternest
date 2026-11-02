@@ -738,3 +738,26 @@ describe('renderer3d — bounding box y lerp de apertura', () => {
     assert.equal(end.overrides.p2, 0.2);
   });
 });
+
+describe('veta procedural en el SVG (A + B)', () => {
+  const camara = { rotX: -0.6, rotY: 0.7, scale: 0.25, offsetX: 300, offsetY: 300, perspDistance: 2000 };
+  const modulo = { x: 0, y: 0, z: 0 };
+  const piezas = [
+    { id: 'm1-lat', nombre: 'Lateral izquierdo M1', role: 'side_panel', x: 0, y: 0, z: 0, w: 15, h: 2400, d: 600, cx: 7.5, cy: 300, cz: 1200, color: '#C19A6B', espesor: 15, cantidad: 1, rotate: false, modulo: '1' },
+    { id: 'm1-rep', nombre: 'Repisa 1 M1', role: 'shelf', x: 15, y: 0, z: 800, w: 800, h: 15, d: 570, cx: 415, cy: 285, cz: 807.5, color: '#D9C2A3', espesor: 15, cantidad: 1, rotate: false, modulo: '1' },
+  ];
+
+  it('por defecto dibuja la veta rotada al ángulo real de cada pieza', () => {
+    const svg = buildSVG(piezas, camara, { width: 900, height: 600, moduleCenter: modulo });
+    assert.ok(svg.includes('url(#gv-'), 'overlay de veta presente');
+    assert.ok(/patternTransform="rotate\(-?\d+\)"/.test(svg), 'la veta rota al ángulo de la pieza (no a los ejes de pantalla)');
+    const defs = svg.slice(svg.indexOf('<defs>'), svg.indexOf('</defs>'));
+    assert.ok((defs.match(/<pattern /g) || []).length >= 2, 'un patrón por pieza/dirección');
+  });
+
+  it("mostrarVeta=false omite el overlay y los defs de veta", () => {
+    const svg = buildSVG(piezas, camara, { width: 900, height: 600, moduleCenter: modulo, mostrarVeta: false });
+    assert.ok(!svg.includes('url(#gv-'), 'sin overlay de veta');
+    assert.ok(!svg.includes('gv-'), 'sin defs de veta');
+  });
+});

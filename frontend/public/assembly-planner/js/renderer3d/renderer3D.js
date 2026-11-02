@@ -23,6 +23,7 @@ export class Renderer3D {
 
     this.globalOpacity = options.globalOpacity ?? 0.85;
     this.xrayMode = options.xrayMode ?? false;
+    this.mostrarVeta = options.mostrarVeta ?? true;
     this.explodeFactor = options.explodeFactor ?? 0;
     this.targetExplodeFactor = this.explodeFactor;
     this.animationFrameId = null;
@@ -448,6 +449,11 @@ export class Renderer3D {
     this.needsRender = true;
   }
 
+  setMostrarVeta(value) {
+    this.mostrarVeta = !!value;
+    this.render();
+  }
+
   setExplodeFactor(value) {
     if (this.targetExplodeFactor === value) return;
     this.targetExplodeFactor = value;
@@ -533,6 +539,7 @@ export class Renderer3D {
       moduleSize: { w: this.moduleW, d: this.moduleD, h: this.moduleH },
       assemblyStep: this.assemblyStep,
       collisionIds: this.collisionIds,
+      mostrarVeta: this.mostrarVeta,
     });
 
     // No tocar el DOM si el SVG generado es idéntico al actual. Reescribir

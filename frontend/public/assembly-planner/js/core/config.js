@@ -340,6 +340,7 @@ export const VERTICAL_POSITIONS = {
 
   // ── Vista (mm) ────────────────────────────────────────────────
   viewModuleGap: 0,          // gap entre módulos en 'Vista completa'; 0 = pegados (default), 20 = separados
+  renderVeta: 1,             // 1 = veta procedural en la vista 3D (toggle 'Veta'); 0 = colores planos
 
   // ── Preferencias de contenido del Constructor (persistidas) ────
   // ── Datos generales del mueble (persistidos; 'Datos generales' del Constructor) ──
