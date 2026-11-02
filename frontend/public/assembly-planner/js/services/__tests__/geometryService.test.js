@@ -64,9 +64,15 @@ describe('getPieceDims', () => {
 
   it('proyección por rol: las piezas ocultas se leen tal cual aunque rotate=si', () => {
     // rotate ya no intercambia dims: solo indica libertad de rotación en el
-    // optimizador. Las ocultas (back_panel) se dibujan con sus dims.
-    const p = piece('Fondo', 100, 500, 18, 'si');
-    assert.deepEqual(getPieceDims(p, 'back_panel', 18, 'cabinet'), { w: 100, h: 500 });
+    // optimizador. Las ocultas (trasera de cajón) se dibujan con sus dims.
+    const p = piece('Fondo cajon', 100, 500, 18, 'si');
+    assert.deepEqual(getPieceDims(p, 'drawer_back', 18, 'cabinet'), { w: 100, h: 500 });
+  });
+
+  it('proyección por rol: el fondo del módulo (veta vertical) lee la 1ª medida como alto', () => {
+    // Despiece: ancho(almacenado) = alto del mueble, alto(almacenado) = ancho.
+    const p = piece('Fondo modulo', 2270, 820, 15, 'no');
+    assert.deepEqual(getPieceDims(p, 'back_panel', 15, 'cabinet'), { w: 820, h: 2270 });
   });
 
   it('los drawer internos se leen en orientación de mueble (ocultos, sin swap)', () => {
@@ -77,8 +83,9 @@ describe('getPieceDims', () => {
 
 describe('getModuleDimensions', () => {
   it('derives dims from back panel for cabinet', () => {
+    // Despiece: el fondo guarda ancho = alto del mueble (600), alto = ancho (800).
     const pieces = [
-      piece('Fondo', 800, 600, 15, 'no', { id: 'F' }),
+      piece('Fondo', 600, 800, 15, 'no', { id: 'F' }),
       piece('Base', 800, 100, 15, 'no', { id: 'B' }),
     ];
     assert.deepEqual(getModuleDimensions(pieces, 15, 'cabinet'), { width: 800, height: 600, depth: 100, thickness: 15 });
@@ -102,22 +109,23 @@ describe('getModuleDimensions', () => {
 
 describe('classifyBackPanelMount', () => {
   it('detects external back (full module box)', () => {
-    const back = piece('Fondo', 865, 2400, 18, 'no');
+    // Despiece: ancho(almacenado) = alto del mueble, alto(almacenado) = ancho.
+    const back = piece('Fondo', 2400, 865, 18, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'external');
   });
 
   it('detects internal back (inset by thickness on each side)', () => {
-    const back = piece('Fondo', 829, 2364, 18, 'no');
+    const back = piece('Fondo', 2364, 829, 18, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'internal');
   });
 
   it('returns custom for arbitrary dimensions', () => {
-    const back = piece('Fondo', 800, 2000, 18, 'no');
+    const back = piece('Fondo', 2000, 800, 18, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'custom');
   });
 
   it('uses default thickness 15 when not provided', () => {
-    const back = piece('Fondo', 835, 2370, 15, 'no');
+    const back = piece('Fondo', 2370, 835, 15, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400), 'internal');
   });
 });

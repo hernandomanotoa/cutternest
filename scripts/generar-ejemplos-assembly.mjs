@@ -32,7 +32,7 @@ const examples = [];
   lines.push('# --- Estructura global ---');
   lines.push(...zocaloCajon('cocina', 2400, 560, 100, '#C19A6B'));
   lines.push(line('glb-tapa-trabajo', 'Tapa de trabajo corrida', 2440, 40, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior cocina', 2440, 600, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior cocina', 600, 2440, '#F2F2F2', 'estructura'));
   lines.push(line('glb-cantonera-izq', 'Cantonera izquierda', 60, 60, 1, 'no', '#9CA3AF', 15, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-cantonera-der', 'Cantonera derecha', 60, 60, 1, 'no', '#9CA3AF', 15, 'T,B,L,R', 'estructura'));
 
@@ -163,7 +163,7 @@ const examples = [];
   lines.push('# --- Estructura global ---');
   lines.push(...zocaloCajon('corrido armario', 1600, 550, 100, '#C19A6B'));
   lines.push(line('glb-corona', 'Corona armario', 1600, 100, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior armario', 1600, 2300, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior armario', 2300, 1600, '#F2F2F2', 'estructura'));
   lines.push(line('glb-puerta-izq', 'Puerta corrediza izquierda', 780, 2250, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-puerta-der', 'Puerta corrediza derecha', 780, 2250, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 'estructura'));
 
@@ -297,7 +297,7 @@ const examples = [];
   lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
   lines.push(...zocaloCajon('closet', 1800, 550, 150, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida closet', 1800, 550, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior closet', 1800, 2100, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior closet', 2100, 1800, '#F2F2F2', 'estructura'));
 
   // Modulo de cuerpo 900×2100×550 (altura TOTAL incluye zocalo de 150).
   const cuerpoCloset = (mod, colorCuerpo, colorFrente) => [
@@ -507,7 +507,7 @@ function cajonOculto(parent, index, opts) {
   lines.push('# --- Estructura global ---');
   lines.push(...zocaloCajon('estanteria oficina', 1200, 350, 100, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa estanteria oficina', 1200, 40, 1, 'si', '#C19A6B', 30, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior estanteria oficina', 1200, 1900, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior estanteria oficina', 1900, 1200, '#F2F2F2', 'estructura'));
 
   lines.push('# --- Modulo 1: casco con 5 repisas y divisor ---');
   lines.push(...cascoZocaloCajon(1, 1, 1200, 2000, 350, '#C19A6B'));
@@ -542,7 +542,7 @@ function cajonOculto(parent, index, opts) {
   lines.push(line('m1-tablero', 'Tablero buro flotante', 600, 350, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
   lines.push(line('m1-lateral-izq', 'Lateral izquierdo M1', 420, 350, 1, 'no', '#C19A6B', 15, 'T,B,L', 1));
   lines.push(line('m1-lateral-der', 'Lateral derecho M1', 420, 350, 1, 'no', '#C19A6B', 15, 'T,B,R', 1));
-  lines.push(fondo('m1-fondo', 'Fondo buro flotante', 600, 420, '#F2F2F2', 1));
+  lines.push(fondo('m1-fondo', 'Fondo buro flotante', 390, 570, '#F2F2F2', 1));
   lines.push(line('m1-travesano-inferior', 'Travesano inferior buro flotante', 570, 80, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
   // Vano util: 420 − 15 (tablero) − 80 (travesano) = 325 → altoVano 320
   lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 350, altoVano: 320, nPorFila: 2, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'izquierdo' }));
@@ -589,7 +589,7 @@ function cajonOculto(parent, index, opts) {
   lines.push(line('m2-tapa', 'Tapa alzada M2', 1200, 300, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 2));
   lines.push(line('m2-montante-izq', 'Montante alzada izquierdo M2', 900, 300, 1, 'no', '#C19A6B', 15, 'T,B,L', 2));
   lines.push(line('m2-montante-der', 'Montante alzada derecho M2', 900, 300, 1, 'no', '#C19A6B', 15, 'T,B,R', 2));
-  lines.push(fondo('m2-respaldo', 'Respaldo alzada M2', 1200, 900, '#F2F2F2', 2));
+  lines.push(fondo('m2-respaldo', 'Respaldo alzada M2', 885, 1170, '#F2F2F2', 2));
   lines.push(line('m2-puerta-espejo-izq', 'Puerta espejo izquierda M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
   lines.push(line('m2-puerta-espejo-der', 'Puerta espejo derecha M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
   lines.push(line('m2-espejo-izq', 'Espejo izquierdo alzada M2', 500, 790, 1, 'no', '#E8F4F8', 4, '', 2));

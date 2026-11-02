@@ -179,7 +179,7 @@ export function baseTapaLateralesFondo(mod, parent, ancho, alto, prof, colorCuer
     line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'no', colorCuerpo, 15, 'T,B,L,R', mod),
     line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, alto, prof, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
     line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, alto, prof, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
-    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho - 2 * E, alto - 2 * E, '#F2F2F2', mod)
+    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, alto - 2 * E, ancho - 2 * E, '#F2F2F2', mod)
   ];
 }
 
@@ -216,6 +216,6 @@ export function cascoZocaloCajon(mod, parent, ancho, altoTotal, prof, colorCuerp
     line(`m${mod}-tapa`, `Tapa modulo M${parent}`, ancho, prof, 1, 'no', colorCuerpo, 15, 'T,B,L,R', mod),
     line(`m${mod}-lateral-izq`, `Lateral izquierdo M${parent}`, altoTotal, prof, 1, 'no', colorCuerpo, 15, 'T,B,L', mod),
     line(`m${mod}-lateral-der`, `Lateral derecho M${parent}`, altoTotal, prof, 1, 'no', colorCuerpo, 15, 'T,B,R', mod),
-    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, ancho - 2 * E, altoTotal - 2 * E, '#F2F2F2', mod),
+    fondo(`m${mod}-fondo`, `Fondo modulo M${parent}`, altoTotal - 2 * E, ancho - 2 * E, '#F2F2F2', mod),
   ];
 }

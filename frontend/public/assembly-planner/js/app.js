@@ -659,7 +659,8 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       piecesMutadas = state.pieces.map((p) => {
         if (p.id === base.id) return { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - espesor };
         if (p.id === `m${moduleId}-fondo` && altoModulo) {
-          return { ...p, alto: Math.max(100, altoModulo - altoZocalo - 2 * espesor) };
+          // Despiece: el alto del mueble va en la 1ª medida (la del lateral).
+          return { ...p, ancho: Math.max(100, altoModulo - altoZocalo - 2 * espesor) };
         }
         return p;
       });
@@ -1520,7 +1521,7 @@ export function removeContentPiece(refId) {
     if (altoMod) {
       const e = Number(pieces.find((p) => p.id === `m${zocaloMod}-fondo`)?.espesor) || 15;
       pieces = pieces.map((p) => (
-        p.id === `m${zocaloMod}-fondo` ? { ...p, alto: Math.max(100, altoMod - 2 * e) } : p
+        p.id === `m${zocaloMod}-fondo` ? { ...p, ancho: Math.max(100, altoMod - 2 * e) } : p
       ));
     }
   }
@@ -1711,7 +1712,7 @@ export function applyStructuralPlinth(opts = {}) {
     if (!altoMod) return p;
     const e = Number(p.espesor) || 15;
     if (mm[2] === 'fondo') {
-      return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+      return { ...p, ancho: Math.max(100, altoMod - altoZocalo - 2 * e) }; // despiece: alto del mueble en 1ª medida
     }
     // Base externa (ancho ≈ tapa): pasa a interna, apoyada sobre el marco.
     const tapaW = anchoTapa.get(mm[1]) || 0;
@@ -1835,7 +1836,8 @@ export function removeStructuralPlinth() {
     const e = Number(p.espesor) || 15;
     // El frente simple restaurado vuelve a ocupar la zona del zócalo
     // (mismo Z): el fondo mantiene el descuento y sigue apoyado en la base.
-    return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+    // Despiece: el alto del mueble va en la 1ª medida.
+    return { ...p, ancho: Math.max(100, altoMod - altoZocalo - 2 * e) };
   });
   store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
   recalculateAll();
@@ -2012,7 +2014,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
     tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
     'lateral-izq': [`m${moduleId}-lateral-izq`, dims.alto, dims.prof], // despiece: ancho = alto del mueble
     'lateral-der': [`m${moduleId}-lateral-der`, dims.alto, dims.prof],
-    fondo: [`m${moduleId}-fondo`, anchoUtil, Math.max(100, dims.alto - zDescuento - 2 * espesor)],
+    fondo: [`m${moduleId}-fondo`, Math.max(100, dims.alto - zDescuento - 2 * espesor), anchoUtil], // despiece: alto en la 1ª medida
   };
 
   // 3. Aplicar: casco + contenido interior adaptado.

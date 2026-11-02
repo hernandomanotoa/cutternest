@@ -70,7 +70,9 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
   }
 
   if (role === 'back_panel') {
-    return { w, h: sAlto };
+    // Despiece (veta vertical como los laterales): ancho(almacenado) = alto
+    // del mueble, alto(almacenado) = ancho interior.
+    return { w: sAlto, h: sAncho };
   }
 
   if (role === 'door' || role === 'drawer_face') {
@@ -155,13 +157,17 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
       }
     }
     if (role === 'back_panel') {
+      // Despiece (veta vertical como los laterales): ancho(almacenado) =
+      // alto del mueble, alto(almacenado) = ancho. La medida exterior del
+      // ancho del módulo vive en la SEGUNDA dimensión almacenada.
       const mount = classifyBackPanelMount(piece, rawW, rawH, inferredThickness);
       if (mount === 'internal') {
         return {
-          w: piece.ancho + 2 * inferredThickness,
-          h: piece.alto + 2 * inferredThickness,
+          w: piece.alto + 2 * inferredThickness,
+          h: piece.ancho + 2 * inferredThickness,
         };
       }
+      return { w: piece.alto, h: piece.ancho };
     }
     return { w: piece.ancho, h: piece.alto };
   }
@@ -198,7 +204,9 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
       ? Math.max(
           ...roles
             .filter((p) => verticalRoles.has(p.role))
-            .map((p) => Number(p.alto) || 0)
+            // Proyección por rol: las piezas de vista vertical guardan el
+            // alto del mueble en la PRIMERA medida (despiece).
+            .map((p) => (dims.get(p.id)?.h ?? Number(p.alto) ?? 0))
             .concat([0])
         )
       : 0;

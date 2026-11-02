@@ -167,9 +167,10 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
     // orientación de mueble con cutOrientationService.proyectaMueble.
     piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,L', modulo }),
     piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
-    // Fondo del casco: pieza oculta → rotate libre (tabla). Sus dims se
-    // quedan en orientación de mueble (las ocultas no tienen swap).
-    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', color: '#F2F2F2', espesor: E, modulo }),
+    // Fondo del casco: MISMA veta que los laterales (vertical) → pieza de
+    // vista en ORIENTACIÓN DE CORTE: ancho = alto del mueble (− zócalo),
+    // alto = ancho interior (lado de la veta primero, como los laterales).
+    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, fondoH, ancho - 2 * E, { rol: 'back_panel', color: '#F2F2F2', espesor: E, modulo }),
   ];
   return { ok: true, pieces, interiorWidth: ancho - 2 * E, interiorDepth: prof - 2 * E };
 }

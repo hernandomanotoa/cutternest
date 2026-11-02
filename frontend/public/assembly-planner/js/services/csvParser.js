@@ -189,19 +189,23 @@ function validateDimensions(pieces, warnings) {
         warnings.push(`Módulo ${modId}: base (${base.alto} mm) y tapa (${top.alto} mm) tienen profundidades diferentes.`);
       }
     }
-    // Fondo: validar según tipo de montaje (externo / interno / custom)
+    // Fondo: validar según tipo de montaje (externo / interno / custom).
+    // El fondo es despiece (veta vertical): su ancho del mueble vive en la
+    // SEGUNDA medida almacenada y su alto del mueble en la PRIMERA.
     if (back && base && laterals.length) {
       const mount = classifyBackPanelMount(back, moduleBox.width, moduleBox.height, sideThickness);
       const tol = 2;
+      const backW = Number(back.alto) || 0;   // ancho del mueble (2ª medida)
+      const backH = Number(back.ancho) || 0;  // alto del mueble (1ª medida)
       if (mount === 'external') {
-        if (Math.abs(back.ancho - moduleBox.width) > tol || Math.abs(back.alto - moduleBox.height) > tol) {
-          warnings.push(`Módulo ${modId}: fondo externo (${back.ancho}×${back.alto} mm) no coincide con caja ${moduleBox.width}×${moduleBox.height} mm.`);
+        if (Math.abs(backW - moduleBox.width) > tol || Math.abs(backH - moduleBox.height) > tol) {
+          warnings.push(`Módulo ${modId}: fondo externo (${backH}×${backW} mm) no coincide con caja ${moduleBox.width}×${moduleBox.height} mm.`);
         }
       } else if (mount === 'internal') {
         const expectedW = Math.max(0, moduleBox.width - 2 * sideThickness);
         const expectedH = Math.max(0, moduleBox.height - 2 * sideThickness);
-        if (Math.abs(back.ancho - expectedW) > tol || Math.abs(back.alto - expectedH) > tol) {
-          warnings.push(`Módulo ${modId}: fondo interno (${back.ancho}×${back.alto} mm) no coincide con medida esperada ${expectedW}×${expectedH} mm.`);
+        if (Math.abs(backW - expectedW) > tol || Math.abs(backH - expectedH) > tol) {
+          warnings.push(`Módulo ${modId}: fondo interno (${backH}×${backW} mm) no coincide con medida esperada ${expectedW}×${expectedH} mm.`);
         }
       }
       // custom: no se validan medidas (es intencionalmente distinto)

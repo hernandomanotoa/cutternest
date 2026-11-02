@@ -25,8 +25,8 @@ test('vista horizontal: frentes/puertas/repisas/tapas/golas con rotate bloqueado
   }
 });
 
-test('vista vertical: costados y divisores con rotate bloqueado y veta en el alto (swap en corte)', () => {
-  for (const rol of ['side_panel', 'divider']) {
+test('vista vertical: costados, divisores y FONDO de módulo con rotate bloqueado y veta en el alto (swap en corte)', () => {
+  for (const rol of ['side_panel', 'divider', 'back_panel']) {
     const c = clasificacionVeta(rol);
     assert.equal(c.clase, CLASE_VETA.VISTA_VERTICAL);
     assert.equal(c.rotate, false, `${rol}: rotate 'no' (veta bloqueada)`);
@@ -36,7 +36,7 @@ test('vista vertical: costados y divisores con rotate bloqueado y veta en el alt
 });
 
 test('ocultas: rotación libre para ahorrar material', () => {
-  for (const rol of ['drawer_bottom', 'drawer_side', 'drawer_back', 'drawer_part', 'bottom_panel', 'back_panel', 'plinth_side', 'plinth_divider', 'brace', 'hanger_rail', 'leg']) {
+  for (const rol of ['drawer_bottom', 'drawer_side', 'drawer_back', 'drawer_part', 'bottom_panel', 'plinth_side', 'plinth_divider', 'brace', 'hanger_rail', 'leg']) {
     const c = clasificacionVeta(rol);
     assert.ok(c, `rol ${rol} clasificado`);
     assert.equal(c.clase, CLASE_VETA.OCULTA);
@@ -49,7 +49,7 @@ test('ocultas: rotación libre para ahorrar material', () => {
 test('rolesVetaLibre lista exactamente las piezas ocultas', () => {
   const libres = rolesVetaLibre();
   assert.ok(libres.includes('drawer_side'));
-  assert.ok(libres.includes('back_panel'));
+  assert.ok(!libres.includes('back_panel'), 'el fondo es de vista (veta vertical)');
   assert.ok(!libres.includes('drawer_face'));
   assert.ok(!libres.includes('side_panel'));
   for (const rol of libres) {

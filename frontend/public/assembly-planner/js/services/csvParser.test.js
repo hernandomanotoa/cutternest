@@ -14,7 +14,7 @@ const MODULE_CSV = [
   'lat-2,Lateral derecho,700,500,1,no,#FFFFFF,18,"T,B,L,R",m1,',
   'base-1,Base,600,500,1,no,#FFFFFF,18,"T,B",m1,',
   'tapa-1,Tapa,600,500,1,no,#FFFFFF,18,"T,B",m1,',
-  'fondo-1,Fondo trasero,564,664,1,no,#FFFFFF,15,,m1,',
+  'fondo-1,Fondo trasero,664,564,1,no,#FFFFFF,15,,m1,',
 ];
 
 const pandeoWarnings = (result) =>

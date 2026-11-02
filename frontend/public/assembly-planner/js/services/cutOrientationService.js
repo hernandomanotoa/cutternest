@@ -48,6 +48,8 @@ export const VETA_POR_ROL = {
   // ── Vista vertical: veta a lo largo del alto, rotate bloqueado ──
   side_panel: { clase: CLASE_VETA.VISTA_VERTICAL, rotate: false, ladoVeta: 'alto' },
   divider: { clase: CLASE_VETA.VISTA_VERTICAL, rotate: false, ladoVeta: 'alto' },
+  // Fondo del módulo: MISMA veta que los laterales (vertical, spec taller).
+  back_panel: { clase: CLASE_VETA.VISTA_VERTICAL, rotate: false, ladoVeta: 'alto', cantos: '' },
 
   // ── Ocultas / estructurales: rotación libre (ahorro de material) ──
   drawer_bottom: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
@@ -55,7 +57,6 @@ export const VETA_POR_ROL = {
   drawer_back: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
   drawer_part: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
   bottom_panel: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
-  back_panel: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
   plinth_side: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
   plinth_divider: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
   brace: { clase: CLASE_VETA.OCULTA, rotate: true, ladoVeta: null, cantos: '' },
@@ -126,6 +127,15 @@ export function proyectaMueble(rol, ancho, alto) {
 export function migraPiezasACorte(pieces) {
   const resultado = [];
   const migradas = [];
+  // Altura de cada módulo en corte = ANCHO almacenado de sus laterales.
+  // Clave para decidir la orientación de fondos legacy sin ambigüedad
+  // (un módulo bajo y ancho tiene el fondo de corte con alto > ancho).
+  const altoModuloPorLateral = new Map();
+  for (const p of pieces || []) {
+    if (inferRole(p) !== 'side_panel') continue;
+    const mod = String(p.modulo || '');
+    altoModuloPorLateral.set(mod, Math.max(altoModuloPorLateral.get(mod) || 0, Number(p.ancho) || 0));
+  }
   for (const p of pieces || []) {
     const rol = inferRole(p);
     if (!swapEnCorte(rol)) {
@@ -134,11 +144,30 @@ export function migraPiezasACorte(pieces) {
     }
     const ancho = Number(p.ancho) || 0;
     const alto = Number(p.alto) || 0;
-    if (ancho >= alto) {
-      resultado.push(p); // ya en orientación de corte
+    // Las piezas de VISTA (veta obligatoria) quedan con rotate bloqueado:
+    // los fondos legacy venían 'si' (libres, era oculto) y la regla nueva
+    // los exige 'no'.
+    const rotateBloqueado = clasificacionVeta(rol)?.clase === CLASE_VETA.VISTA_VERTICAL;
+    // Orientación del fondo legacy, decidida por la ALTURA del módulo (el
+    // ancho almacenado de sus laterales): el lado de la veta mide esa
+    // altura — en mueble es la 2ª medida (alto), en corte la 1ª (ancho).
+    // Ambigua sin laterales (p. ej. CSV suelto): alto > ancho.
+    const altoModulo = altoModuloPorLateral.get(String(p.modulo || '')) || 0;
+    let esMueble = null;
+    if (rol === 'back_panel' && altoModulo > 0) {
+      // Fondo EMBUTIDO: el lado de la veta mide altoDelMódulo − 2·E (E =
+      // espesor de la propia pieza). Externo (a caja completa): ±0.
+      const e = Number(p.espesor) || 15;
+      if (Math.abs(alto - (altoModulo - 2 * e)) <= 3 || Math.abs(alto - altoModulo) <= 3) esMueble = true;
+      else if (Math.abs(ancho - (altoModulo - 2 * e)) <= 3 || Math.abs(ancho - altoModulo) <= 3) esMueble = false;
+    }
+    if (esMueble === null) esMueble = alto > ancho;
+    if (!esMueble) {
+      // Ya en orientación de corte: solo normaliza el rotate de las vistas.
+      resultado.push(rotateBloqueado && p.rotate ? { ...p, rotate: false } : p);
       continue;
     }
-    resultado.push({ ...p, ancho: alto, alto: ancho });
+    resultado.push({ ...p, ancho: alto, alto: ancho, ...(rotateBloqueado ? { rotate: false } : {}) });
     migradas.push({ id: String(p.id), nombre: String(p.nombre || p.id), rol, ancho: alto, alto: ancho });
   }
   return { pieces: resultado, migradas };
