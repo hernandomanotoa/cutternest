@@ -20,17 +20,15 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
   const h = sAlto;
   const espesor = Number(piece.espesor) || thickness || 15;
 
-  // Vista vertical: costados y divisores se proyectan desde las dims de corte.
   if (role === 'side_panel') {
-    // Costado: ancho(almacenado) = alto del mueble, alto(almacenado) = prof.
-    return { w: espesor, h: sAncho };
+    // Costado: panel visto de canto (espesor × alto del mueble).
+    return { w: espesor, h: sAlto };
   }
   if (role === 'divider') {
-    // Divisor vertical (convención del Constructor): ancho(almacenado) =
-    // alto útil del vano. Divisor horizontal (CSV legacy): se reconoce por
-    // no ser una pieza alta y delgada y se dibuja como entrepaño.
-    const isVertical = sAncho > sAlto * 1.5;
-    if (isVertical) return { w: espesor, h: sAncho };
+    // Divisor vertical: se ve como un lateral (espesor × altura). Divisor
+    // horizontal (legacy): se dibuja como entrepaño delgado.
+    const isVertical = sAlto > sAncho * 1.5;
+    if (isVertical) return { w: espesor, h: sAlto };
     return { w: sAncho, h: useVisualThickness(sAlto, espesor) };
   }
 
@@ -70,9 +68,7 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
   }
 
   if (role === 'back_panel') {
-    // Despiece (veta vertical como los laterales): ancho(almacenado) = alto
-    // del mueble, alto(almacenado) = ancho interior.
-    return { w: sAlto, h: sAncho };
+    return { w: sAncho, h: sAlto };
   }
 
   if (role === 'door' || role === 'drawer_face') {
@@ -120,13 +116,12 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
     0,
     ...[...tops, ...bottoms, ...seats, ...backs].map((d) => d.w)
   );
-  // La profundidad real del módulo viene de los laterales (alto almacenado
-  // = profundidad; el ancho almacenado es el alto del mueble por ser
-  // despiece) y de base/tapa/asiento (alto = profundidad). El fondo usa
+  // La profundidad real del módulo viene de los laterales (ancho =
+  // profundidad) y de base/tapa/asiento (alto = profundidad). El fondo usa
   // alto = altura.
   const rawD = Math.max(
     0,
-    ...sideRoles.map((p) => Number(p.alto) || 0),
+    ...sideRoles.map((p) => Number(p.ancho) || 0),
     ...topRoles.map((p) => Number(p.alto) || 0),
     ...bottomRoles.map((p) => Number(p.alto) || 0),
     ...seatRoles.map((p) => Number(p.alto) || 0)
@@ -157,17 +152,13 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
       }
     }
     if (role === 'back_panel') {
-      // Despiece (veta vertical como los laterales): ancho(almacenado) =
-      // alto del mueble, alto(almacenado) = ancho. La medida exterior del
-      // ancho del módulo vive en la SEGUNDA dimensión almacenada.
       const mount = classifyBackPanelMount(piece, rawW, rawH, inferredThickness);
       if (mount === 'internal') {
         return {
-          w: piece.alto + 2 * inferredThickness,
-          h: piece.ancho + 2 * inferredThickness,
+          w: piece.ancho + 2 * inferredThickness,
+          h: piece.alto + 2 * inferredThickness,
         };
       }
-      return { w: piece.alto, h: piece.ancho };
     }
     return { w: piece.ancho, h: piece.alto };
   }
@@ -204,9 +195,7 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
       ? Math.max(
           ...roles
             .filter((p) => verticalRoles.has(p.role))
-            // Proyección por rol: las piezas de vista vertical guardan el
-            // alto del mueble en la PRIMERA medida (despiece).
-            .map((p) => (dims.get(p.id)?.h ?? Number(p.alto) ?? 0))
+            .map((p) => Number(p.alto) || 0)
             .concat([0])
         )
       : 0;

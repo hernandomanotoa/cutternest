@@ -82,6 +82,8 @@ def test_pieza_bloqueada_nunca_rota():
     # 3 paneles 800x1200: sin rotar caben 2 por tablero (1600x1200 en
     # 2430x1210); rotados (1200x800) caberían 2 de otra forma. Con
     # rotate=False deben quedar todos sin girar aunque empeore el nesting.
+    # Orientación de mueble: laterales 800 (prof) × 1200 (alto). La veta
+    # sigue el lado largo (1200) y queda paralela al ancho del tablero.
     bloqueadas = [
         {"id": f"lat-{i}", "nombre": f"Lateral {i}", "ancho": 800, "alto": 1200,
          "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18}
@@ -94,8 +96,11 @@ def test_pieza_bloqueada_nunca_rota():
     placements = _placements_of(result)
     assert len(placements) == 3
     for p in placements:
-        assert p["rotado"] is False, f"pieza bloqueada rotada: {p}"
-        assert (p["w"], p["h"]) == (800, 1200)
+        # rotate=False = veta bloqueada: la huella es FIJA (lado largo
+        # paralelo al eje de veta). Puede "rotarse" respecto a las dims de
+        # entrada (orientación de mueble) para lograrlo — es lo esperado.
+        assert (p["w"], p["h"]) == (1200, 800)
+        assert p["rotado"] is True  # 800x1200 de mueble → 1200x800 en tabla
         assert p["veta"] == "horizontal"
 
     # Las mismas piezas libres se empaquetan igual (el packer rota solo si
@@ -115,15 +120,17 @@ def test_pieza_bloqueada_nunca_rota():
     assert (girada["w"], girada["h"]) == (1300, 1100)
     assert all(p["veta"] == "libre" for p in placements_libres)
 
-    # El equivalente bloqueado (mismas dims, rotate=False) no puede girar:
-    # como su huella no cabe, se rechaza con PIECE_TOO_LARGE.
+    # El equivalente bloqueado (mismas dims, rotate=False) con eje_veta
+    # 'alto': su lado largo (1300) debe quedar paralelo al lado CORTO del
+    # tablero → huella 1100x1300, que no cabe (1300 > 1210 útiles) →
+    # PIECE_TOO_LARGE (no puede girar para salvarse: la veta es sagrada).
     from fastapi import HTTPException
     try:
         optimizer_service.optimize_cuts(
             board_width_mm=2440, board_height_mm=1220,
             pieces=[{"id": "fija", "nombre": "Pieza Fija", "ancho": 1100, "alto": 1300,
                      "cantidad": 1, "rotate": False, "color": "#123456", "espesor": 18}],
-            kerf_mm=0, margin_mm=5,
+            kerf_mm=0, margin_mm=5, eje_veta="alto",
         )
     except HTTPException as exc:
         assert exc.status_code == 400
@@ -134,9 +141,11 @@ def test_pieza_bloqueada_nunca_rota():
 
 def test_eje_veta_alto_preorienta_piezas_bloqueadas():
     """Con eje_veta='alto' la veta bloqueada corre a lo largo del lado alto
-    del tablero: la huella de corte se invierte y el placement lo reporta."""
-    # Pieza con veta en su primera medida (1250x1200): con eje 'ancho' cabe
-    # tal cual; con eje 'alto' su huella es 1200x1250 y 1250 > 1210 útiles.
+    del tablero: el lado largo de la pieza se alinea con ese eje y el
+    placement lo reporta."""
+    # Pieza de mueble 1250 (ancho) × 1200 (alto): la veta sigue su lado
+    # largo (1250). Con eje 'ancho' la huella es (1250, 1200) y cabe; con
+    # eje 'alto' es (1200, 1250) y 1250 > 1210 útiles → rechazo.
     pieza = [{"id": "p1", "nombre": "Panel", "ancho": 1250, "alto": 1200,
               "cantidad": 1, "rotate": False, "color": "#123456", "espesor": 18}]
     result = optimizer_service.optimize_cuts(
@@ -159,14 +168,15 @@ def test_eje_veta_alto_preorienta_piezas_bloqueadas():
     else:
         raise AssertionError("con eje_veta='alto' la pieza 1250x1200 no debe caber")
 
-    # La misma pieza ingresada con la veta en 1200 (1200x1250) sí cabe con
-    # eje 'alto': huella 1250x1200, veta reportada 'vertical'.
-    pieza_v = [dict(pieza[0], ancho=1200, alto=1250)]
+    # Pieza de vista vertical (puerta 600 × 1100): la veta sigue el lado
+    # largo (1100). Con eje 'alto' la huella es (600, 1100) → cabe (1100 ≤
+    # 1210 útiles de alto), veta 'vertical', sin girar respecto a sus dims.
+    pieza_v = [dict(pieza[0], id="puerta", nombre="Puerta", ancho=600, alto=1100)]
     result_v = optimizer_service.optimize_cuts(
         board_width_mm=2440, board_height_mm=1220,
         pieces=pieza_v, kerf_mm=0, margin_mm=5, eje_veta="alto",
     )
     pv = _placements_of(result_v)[0]
-    assert (pv["w"], pv["h"]) == (1250, 1200)
+    assert (pv["w"], pv["h"]) == (600, 1100)
     assert pv["veta"] == "vertical"
-    assert pv["rotado"] is True  # girada respecto a sus dims de entrada
+    assert pv["rotado"] is False  # su lado largo ya era el alto

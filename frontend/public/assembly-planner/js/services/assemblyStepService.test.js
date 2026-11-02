@@ -261,14 +261,12 @@ describe('assemblyStepService/fondo estructural (REGLA 1)', () => {
     pos_z: '',
   });
 
-  // Convención de corte: laterales ancho = alto del mueble; fondo de casco
-  // (veta vertical) ancho = alto del mueble, alto = ancho.
   const carcass = (fondoW, fondoH) => [
     mkDim('c-base', 'Base módulo', 800, 550),
-    mkDim('c-lat-izq', 'Lateral izquierdo', 2300, 550),
-    mkDim('c-lat-der', 'Lateral derecho', 2300, 550),
+    mkDim('c-lat-izq', 'Lateral izquierdo', 550, 2300),
+    mkDim('c-lat-der', 'Lateral derecho', 550, 2300),
     mkDim('c-tapa', 'Tapa módulo', 800, 550),
-    mkDim('c-fondo', 'Fondo módulo', fondoH, fondoW),
+    mkDim('c-fondo', 'Fondo módulo', fondoW, fondoH),
     mkDim('c-repisa', 'Repisa inferior', 770, 520),
     mkDim('c-divisor', 'Divisor inferior', 520, 400),
     mkDim('c-puerta', 'Puerta módulo', 400, 800),
@@ -307,9 +305,9 @@ describe('assemblyStepService/fondo estructural (REGLA 1)', () => {
     const mod = [
       mkDim('r-base', 'Base módulo 1', 650, 585),
       mkDim('r-tapa', 'Tapa módulo 1', 680, 600),
-      mkDim('r-lat-izq', 'Lateral izquierdo 1', 2000, 600),
-      mkDim('r-lat-der', 'Lateral derecho 1', 2000, 600),
-      mkDim('r-fondo', 'Fondo módulo 1', 2000, 650),
+      mkDim('r-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('r-lat-der', 'Lateral derecho 1', 600, 2000),
+      mkDim('r-fondo', 'Fondo módulo 1', 650, 2000),
       mkDim('r-repisa', 'Repisa inferior 1', 650, 585),
     ];
     const { steps } = buildAssemblySequence(mod);
@@ -366,8 +364,8 @@ describe('assemblyStepService/base interna vs externa', () => {
     const mod = [
       mkDim('i-zocalo', 'Zócalo módulo 1', 680, 100),
       mkDim('i-base', 'Base módulo 1', 650, 585, 'si'),
-      mkDim('i-lat-izq', 'Lateral izquierdo 1', 2000, 600),
-      mkDim('i-lat-der', 'Lateral derecho 1', 2000, 600),
+      mkDim('i-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('i-lat-der', 'Lateral derecho 1', 600, 2000),
       mkDim('i-tapa', 'Tapa módulo 1', 680, 600, 'si'),
     ];
     const { steps } = buildAssemblySequence(mod);
@@ -380,10 +378,10 @@ describe('assemblyStepService/base interna vs externa', () => {
   it('módulo completo (caso usuario): base embutida → tapa → fondo → repisas', () => {
     const mod = [
       mkDim('p-base', 'Base módulo 1', 650, 585),
-      mkDim('p-lat-izq', 'Lateral izquierdo 1', 2000, 600),
-      mkDim('p-lat-der', 'Lateral derecho 1', 2000, 600),
+      mkDim('p-lat-izq', 'Lateral izquierdo 1', 600, 2000),
+      mkDim('p-lat-der', 'Lateral derecho 1', 600, 2000),
       mkDim('p-tapa', 'Tapa módulo 1', 680, 600),
-      mkDim('p-fondo', 'Fondo módulo 1', 2000, 650),
+      mkDim('p-fondo', 'Fondo módulo 1', 650, 2000),
       mkDim('p-repisa', 'Repisa corrida', 650, 585),
     ];
     const { steps } = buildAssemblySequence(mod);

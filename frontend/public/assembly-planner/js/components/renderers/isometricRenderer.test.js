@@ -27,9 +27,9 @@ const DOOR_FILL = '#FFFFFF';
 const basePieces = [
   { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
   { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
-  { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 2300, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-  { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 2300, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-  { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 2300, alto: 800, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+  { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 800, alto: 2300, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
 ];
 
 describe('IsometricRenderer hanger rail', () => {
@@ -340,11 +340,10 @@ describe('IsometricRenderer back panel mounting', () => {
   });
 
   it('renders internal back panel inset by thickness', () => {
-    // Despiece: ancho(almacenado) = alto del mueble, alto(almacenado) = ancho.
     const internalBack = {
       ...basePieces.find((p) => p.id === 'm1-fondo'),
-      ancho: 2270,
-      alto: 770,
+      ancho: 770,
+      alto: 2270,
     };
     const pieces = [
       ...basePieces.filter((p) => p.id !== 'm1-fondo'),
@@ -366,8 +365,8 @@ describe('IsometricRenderer back panel mounting', () => {
     // por eje: x=thickness, z=0.
     const corridoBack = {
       ...basePieces.find((p) => p.id === 'm1-fondo'),
-      ancho: 2300,
-      alto: 770,
+      ancho: 770,
+      alto: 2300,
     };
     const pieces = [
       ...basePieces.filter((p) => p.id !== 'm1-fondo'),
@@ -388,9 +387,9 @@ describe('IsometricRenderer top/bottom mounting', () => {
   const internalBasePieces = (plinthHeight = 100) => [
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 770, alto: 520, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
     { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 2300, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 2300, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 2300, alto: 800, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 800, alto: 2300, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
   ];
 
   it('renders internal bottom panel inset and raised to global plinth height', () => {
@@ -548,16 +547,16 @@ describe('IsometricRenderer vertical divider', () => {
     { id: 'm3-zocalo', nombre: 'Zócalo módulo 3', ancho: 800, alto: 100, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     { id: 'm3-base', nombre: 'Base módulo 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     { id: 'm3-tapa', nombre: 'Tapa módulo 3', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
-    { id: 'm3-lateral-izq', nombre: 'Lateral izquierdo 3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L', modulo: '3' },
-    { id: 'm3-lateral-der', nombre: 'Lateral derecho 3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,R', modulo: '3' },
-    { id: 'm3-fondo', nombre: 'Fondo módulo 3', ancho: 2370, alto: 770, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, cantos: '', modulo: '3' },
+    { id: 'm3-lateral-izq', nombre: 'Lateral izquierdo 3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L', modulo: '3' },
+    { id: 'm3-lateral-der', nombre: 'Lateral derecho 3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,R', modulo: '3' },
+    { id: 'm3-fondo', nombre: 'Fondo módulo 3', ancho: 770, alto: 2370, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, cantos: '', modulo: '3' },
     { id: 'm3-repisa-sup', nombre: 'Repisa superior 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
   ];
 
   it('places vertical divider centered, on base and below top shelf', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
@@ -574,7 +573,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('clips shelves to bays created by the divider', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-1', nombre: 'Estante regulable 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
@@ -590,7 +589,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('spans a shelf wide enough to cover the full interior across all bays', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-repisa-corrida', nombre: 'Repisa superior corrida 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
@@ -604,7 +603,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('places side-named shelves only in their corresponding bay', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     ];
@@ -621,7 +620,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('applies per-piece offset and top inset to vertical divider', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {
       verticalPositionOverrides: {
@@ -639,7 +638,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('stacks middle shelves independently per side', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-2', nombre: 'Estante regulable izquierdo 2 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
@@ -657,7 +656,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('respects the piece alto and ancho for the vertical divider', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 1200, alto: 377, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 377, alto: 1200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildModuleGeometries(pieces, 800, 550, 2400, 15, 'cabinet');
@@ -669,7 +668,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('paints left shelves, divider, then right shelves in SVG order', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-2', nombre: 'Estante regulable izquierdo 2 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-zapatero-der-1', nombre: 'Zapatero inclinado derecho 1 3', ancho: 377.5, alto: 300, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
@@ -696,7 +695,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('paints bottom spanning shelf before side shelves and divider when it acts as the raised base', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-repisa-inf', nombre: 'Repisa inferior M3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-der-1', nombre: 'Estante regulable derecho 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
@@ -718,7 +717,7 @@ describe('IsometricRenderer vertical divider', () => {
   it('uses the lower spanning shelf as the base for side shelves and divider', () => {
     const pieces = [
       ...closetM3Base,
-      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 2400, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
+      { id: 'm3-division-vertical', nombre: 'Division vertical M3', ancho: 550, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-repisa-inf', nombre: 'Repisa inferior M3', ancho: 770, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-estante-izq-1', nombre: 'Estante regulable izquierdo 1 3', ancho: 377.5, alto: 520, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
       { id: 'm3-zapatero-der-1', nombre: 'Zapatero inclinado derecho 1 3', ancho: 377.5, alto: 300, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, cantos: 'T,B,L,R', modulo: '3' },
@@ -742,8 +741,8 @@ describe('IsometricRenderer apertura interactiva', () => {
   const cabinetBase = [
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
     { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 1000, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 1000, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
   ];
   const drawerPieces = [
     ...cabinetBase,
@@ -895,8 +894,8 @@ describe('IsometricRenderer tiradores de puerta', () => {
   const cabinetBase = [
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
     { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 1000, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 1000, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
   ];
   const hingeDoorWithHandle = [
     ...cabinetBase,
@@ -979,8 +978,8 @@ describe('IsometricRenderer volquete (apertura pivotante)', () => {
   const cabinetBase = [
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
     { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 1000, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 1000, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
   ];
   const volquetePieces = [
     ...cabinetBase,
@@ -1037,14 +1036,14 @@ describe('IsometricRenderer zócalo-cajón global (modelo sin base global)', () 
   // y un módulo 900×2100×550 con base interna apoyada sobre el zócalo.
   const drawerPlinthPieces = [
     { id: 'glb-zocalo', nombre: 'Zocalo corrido closet', ancho: 1800, alto: 150, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
-    { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo closet', ancho: 550, alto: 150, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
-    { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho closet', ancho: 550, alto: 150, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+    { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo closet', ancho: 150, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+    { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho closet', ancho: 150, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
     { id: 'glb-tapa', nombre: 'Tapa corrida closet', ancho: 1800, alto: 550, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 18, modulo: 'estructura' },
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 870, alto: 520, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
     { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 900, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 2100, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 2100, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 2100, alto: 900, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 2100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 2100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 900, alto: 2100, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
   ];
 
   it('dibuja el zócalo como cajón visible: laterales 0..zocaloHeight a profundidad completa y frente al ras', () => {
@@ -1099,7 +1098,7 @@ describe('IsometricRenderer zócalo-cajón global (modelo sin base global)', () 
       { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 600, alto: 560, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
       { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 560, alto: 700, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
       { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 560, alto: 700, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
-      { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 700, alto: 600, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+      { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 600, alto: 700, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const { geometries } = renderer.computeGeometries('1', skatePieces);
@@ -1210,8 +1209,8 @@ describe('IsometricRenderer zócalo: retraso y catálogo legacy', () => {
   it('el zócalo clásico de catálogo (sin ids del marco) conserva su layout', () => {
     const catalogo = [
       { id: 'glb-zocalo', nombre: 'Zocalo global', ancho: 800, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
-      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
-      { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho', ancho: 564, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 100, alto: 564, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-der', nombre: 'Lateral zocalo derecho', ancho: 100, alto: 564, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 18, modulo: 'estructura' },
     ];
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildGlobalGeometries(catalogo, 800, 600, 2300, 18, true, 90);
@@ -1309,7 +1308,7 @@ describe('IsometricRenderer gap de módulos configurable y marco opaco', () => {
     // Legacy catálogo: sin bandas → translúcido.
     const catalogo = [
       { id: 'glb-zocalo', nombre: 'Zocalo global', ancho: 1700, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
-      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 570, alto: 100, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
+      { id: 'glb-zocalo-lateral-izq', nombre: 'Lateral zocalo izquierdo', ancho: 100, alto: 570, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: 'estructura' },
     ];
     const { geometries: geoms2 } = r.computeGeometries('all', [...mods2(), ...catalogo]);
     assert.equal(geoms2.find((g) => g.id === 'glb-zocalo-lateral-izq').opacity, 0.4);

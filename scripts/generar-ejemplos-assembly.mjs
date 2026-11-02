@@ -32,7 +32,7 @@ const examples = [];
   lines.push('# --- Estructura global ---');
   lines.push(...zocaloCajon('cocina', 2400, 560, 100, '#C19A6B'));
   lines.push(line('glb-tapa-trabajo', 'Tapa de trabajo corrida', 2440, 40, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior cocina', 600, 2440, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior cocina', 2440, 600, '#F2F2F2', 'estructura'));
   lines.push(line('glb-cantonera-izq', 'Cantonera izquierda', 60, 60, 1, 'no', '#9CA3AF', 15, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-cantonera-der', 'Cantonera derecha', 60, 60, 1, 'no', '#9CA3AF', 15, 'T,B,L,R', 'estructura'));
 
@@ -148,7 +148,7 @@ const examples = [];
 
   lines.push('# --- Modulo 3: repisa superior ---');
   lines.push(...cascoZocaloCajon(3, 3, 1600, 400, 250, '#C19A6B'));
-  lines.push(line('m3-montante-central', 'Montante central M3', 400, 250, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
+  lines.push(line('m3-montante-central', 'Montante central M3', 250, 400, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 3));
   lines.push(line('m3-travesano', 'Travesano trasero M3', 1540, 60, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-superior', 'Repisa superior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
   lines.push(line('m3-repisa-inferior', 'Repisa inferior M3', 1540, 200, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 3));
@@ -163,7 +163,7 @@ const examples = [];
   lines.push('# --- Estructura global ---');
   lines.push(...zocaloCajon('corrido armario', 1600, 550, 100, '#C19A6B'));
   lines.push(line('glb-corona', 'Corona armario', 1600, 100, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior armario', 2300, 1600, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior armario', 1600, 2300, '#F2F2F2', 'estructura'));
   lines.push(line('glb-puerta-izq', 'Puerta corrediza izquierda', 780, 2250, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-puerta-der', 'Puerta corrediza derecha', 780, 2250, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 'estructura'));
 
@@ -195,7 +195,7 @@ const examples = [];
   const lines = [];
   lines.push(header('Ejemplo de bufetero / aparador', 'Módulo bajo y ancho 1600×900×450 (rango alacena) con 2 puertas y 1 repisa interna.'));
   lines.push(...baseTapaLateralesFondo(1, 1, 1600, 900, 450, '#C19A6B'));
-  lines.push(line('m1-divisor-central', 'Divisor central M1', 870, 420, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-divisor-central', 'Divisor central M1', 420, 870, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
   lines.push(line('m1-repisa', 'Repisa interna', 1540, 420, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
   lines.push(line('m1-puerta-izq', 'Puerta izquierda', 765, 830, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 1));
   lines.push(line('m1-puerta-der', 'Puerta derecha', 765, 830, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 1));
@@ -209,8 +209,8 @@ const examples = [];
   const lines = [];
   lines.push(header('Ejemplo de zapatero con compartimentos', '2 divisores verticales crean 3 compartimentos con 3 niveles.'));
   lines.push(...baseTapaLateralesFondo(1, 1, 900, 1200, 350, '#8B5A2B'));
-  lines.push(line('m1-divisor-izq', 'Divisor zapatero izq', 1170, 15, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', 1));
-  lines.push(line('m1-divisor-der', 'Divisor zapatero der', 1170, 15, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-divisor-izq', 'Divisor zapatero izq', 15, 1170, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-divisor-der', 'Divisor zapatero der', 15, 1170, 1, 'no', '#D9C2A3', 15, 'T,B,L,R', 1));
   lines.push(line('m1-bandeja-superior', 'Bandeja zapatero superior', 870, 15, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   lines.push(line('m1-bandeja-media', 'Bandeja zapatero media', 870, 15, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
   lines.push(line('m1-bandeja-inferior', 'Bandeja zapatero inferior', 870, 15, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 1));
@@ -297,7 +297,7 @@ const examples = [];
   lines.push('# --- Estructura global: zocalo-cajon (sin base global) ---');
   lines.push(...zocaloCajon('closet', 1800, 550, 150, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa corrida closet', 1800, 550, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior closet', 2100, 1800, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior closet', 1800, 2100, '#F2F2F2', 'estructura'));
 
   // Modulo de cuerpo 900×2100×550 (altura TOTAL incluye zocalo de 150).
   const cuerpoCloset = (mod, colorCuerpo, colorFrente) => [
@@ -353,7 +353,7 @@ const examples = [];
 
   lines.push('# --- Modulo 2: repisas con divisor central ---');
   lines.push(...cascoZocaloCajon(2, 2, 1200, 600, 450, '#C19A6B'));
-  lines.push(line('m2-divisor-central', 'Divisor central M2', 405, 15, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 2));
+  lines.push(line('m2-divisor-central', 'Divisor central M2', 15, 405, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 2));
   lines.push(line('m2-repisa-inf-izq', 'Repisa inferior izquierda M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
   lines.push(line('m2-repisa-inf-der', 'Repisa inferior derecha M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
   lines.push(line('m2-estante-izq', 'Estante izquierdo M2', 570, 405, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 2));
@@ -472,7 +472,7 @@ function cajonOculto(parent, index, opts) {
   lines.push(header('Ejemplo de estacion de trabajo', 'Escritorio largo 2400×700 con divisor acustico, canaleta de cables y cajonera interior de 2 cajones.'));
   lines.push('# --- Estructura global ---');
   lines.push(line('glb-tablero', 'Tablero estacion trabajo', 2400, 700, 1, 'si', '#D9C2A3', 30, 'T,B,L,R', 'estructura'));
-  lines.push(line('glb-divisor', 'Divisor acustico estacion trabajo', 500, 350, 1, 'no', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
+  lines.push(line('glb-divisor', 'Divisor acustico estacion trabajo', 350, 500, 1, 'no', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-canaleta', 'Canaleta cables estacion trabajo', 1200, 80, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-pata', 'Pata metalica estacion trabajo', 60, 700, 2, 'no', '#A0A0A0', 5, '', 'estructura'));
 
@@ -507,11 +507,11 @@ function cajonOculto(parent, index, opts) {
   lines.push('# --- Estructura global ---');
   lines.push(...zocaloCajon('estanteria oficina', 1200, 350, 100, '#C19A6B'));
   lines.push(line('glb-tapa', 'Tapa estanteria oficina', 1200, 40, 1, 'si', '#C19A6B', 30, 'T,B,L,R', 'estructura'));
-  lines.push(fondo('glb-trasera', 'Panel posterior estanteria oficina', 1900, 1200, '#F2F2F2', 'estructura'));
+  lines.push(fondo('glb-trasera', 'Panel posterior estanteria oficina', 1200, 1900, '#F2F2F2', 'estructura'));
 
   lines.push('# --- Modulo 1: casco con 5 repisas y divisor ---');
   lines.push(...cascoZocaloCajon(1, 1, 1200, 2000, 350, '#C19A6B'));
-  lines.push(line('m1-divisor-vertical', 'Divisor vertical estanteria oficina', 1970, 320, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
+  lines.push(line('m1-divisor-vertical', 'Divisor vertical estanteria oficina', 320, 1970, 1, 'no', '#C19A6B', 15, 'T,B,L,R', 1));
   for (let i = 1; i <= 5; i++) {
     lines.push(line(`m1-repisa-${i}`, `Repisa ${i} estanteria oficina`, 1140, 250, 1, 'si', '#D9C2A3', 15, 'T,B,L,R', 1));
   }
@@ -542,7 +542,7 @@ function cajonOculto(parent, index, opts) {
   lines.push(line('m1-tablero', 'Tablero buro flotante', 600, 350, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
   lines.push(line('m1-lateral-izq', 'Lateral izquierdo M1', 420, 350, 1, 'no', '#C19A6B', 15, 'T,B,L', 1));
   lines.push(line('m1-lateral-der', 'Lateral derecho M1', 420, 350, 1, 'no', '#C19A6B', 15, 'T,B,R', 1));
-  lines.push(fondo('m1-fondo', 'Fondo buro flotante', 390, 570, '#F2F2F2', 1));
+  lines.push(fondo('m1-fondo', 'Fondo buro flotante', 570, 390, '#F2F2F2', 1));
   lines.push(line('m1-travesano-inferior', 'Travesano inferior buro flotante', 570, 80, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 1));
   // Vano util: 420 − 15 (tablero) − 80 (travesano) = 325 → altoVano 320
   lines.push(...cajon(1, 1, { anchoModulo: 600, profundidadModulo: 350, altoVano: 320, nPorFila: 2, colorFrente: '#8B5A2B', colorLateral: '#D9C2A3', suffix: 'izquierdo' }));
@@ -587,9 +587,9 @@ function cajonOculto(parent, index, opts) {
 
   lines.push('# --- Modulo 2: alzada de espejo (montantes + respaldo, no es casco rectangular) ---');
   lines.push(line('m2-tapa', 'Tapa alzada M2', 1200, 300, 1, 'si', '#C19A6B', 15, 'T,B,L,R', 2));
-  lines.push(line('m2-montante-izq', 'Montante alzada izquierdo M2', 900, 300, 1, 'no', '#C19A6B', 15, 'T,B,L', 2));
-  lines.push(line('m2-montante-der', 'Montante alzada derecho M2', 900, 300, 1, 'no', '#C19A6B', 15, 'T,B,R', 2));
-  lines.push(fondo('m2-respaldo', 'Respaldo alzada M2', 885, 1170, '#F2F2F2', 2));
+  lines.push(line('m2-montante-izq', 'Montante alzada izquierdo M2', 300, 900, 1, 'no', '#C19A6B', 15, 'T,B,L', 2));
+  lines.push(line('m2-montante-der', 'Montante alzada derecho M2', 300, 900, 1, 'no', '#C19A6B', 15, 'T,B,R', 2));
+  lines.push(fondo('m2-respaldo', 'Respaldo alzada M2', 1170, 885, '#F2F2F2', 2));
   lines.push(line('m2-puerta-espejo-izq', 'Puerta espejo izquierda M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
   lines.push(line('m2-puerta-espejo-der', 'Puerta espejo derecha M2', 570, 860, 1, 'no', '#FFFFFF', 18, 'T,B,L,R', 2));
   lines.push(line('m2-espejo-izq', 'Espejo izquierdo alzada M2', 500, 790, 1, 'no', '#E8F4F8', 4, '', 2));
@@ -651,8 +651,8 @@ function cajonOculto(parent, index, opts) {
   lines.push(header('Ejemplo de base de cama con cajones', 'Base de cama matrimonial 1500×1900×350 de melamina 18 mm (mueble que soporta carga): estructura global con cabecero 1500×600, 2 montantes de cabecero, tablero frontal 1500×300, tarima de somier 1500×1850 y 10 láminas de somier transversales de 130×25×8 mm con separación 60 mm, y dos cajoneras largas de 400×350×1850 con 2 cajones de 6 piezas cada una. Herrajes: 4 pares de correderas telescópicas, 8 esquineros metálicos de unión, soporte central de tarima y zapatas niveladoras.'));
   lines.push('# --- Estructura global: cabecero, montantes, tablero frontal, tarima y láminas ---');
   lines.push(line('glb-cabecero', 'Cabecero cama', 1500, 600, 1, 'no', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
-  lines.push(line('glb-montante-izq', 'Montante cabecero izquierdo', 600, 350, 1, 'no', '#C19A6B', 18, 'T,B,L', 'estructura'));
-  lines.push(line('glb-montante-der', 'Montante cabecero derecho', 600, 350, 1, 'no', '#C19A6B', 18, 'T,B,R', 'estructura'));
+  lines.push(line('glb-montante-izq', 'Montante cabecero izquierdo', 350, 600, 1, 'no', '#C19A6B', 18, 'T,B,L', 'estructura'));
+  lines.push(line('glb-montante-der', 'Montante cabecero derecho', 350, 600, 1, 'no', '#C19A6B', 18, 'T,B,R', 'estructura'));
   lines.push(line('glb-frontal', 'Tablero frontal cama', 1500, 300, 1, 'si', '#C19A6B', 18, 'T,B,L,R', 'estructura'));
   lines.push(line('glb-tarima', 'Tarima somier', 1500, 1850, 1, 'si', '#D9C2A3', 18, 'T,B,L,R', 'estructura'));
   for (let i = 1; i <= 10; i++) {

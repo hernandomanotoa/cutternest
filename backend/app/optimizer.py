@@ -43,20 +43,27 @@ def _expanded_rects(
     """Expande cantidades y devuelve tuplas con la huella de corte orientada.
 
     Cada tupla es (w, h, ow, oh, rid, rot, original):
-      - ow/oh: dimensiones reales de la pieza (ancho/alto del CSV).
+      - ow/oh: dimensiones de la pieza en orientación de mueble (ancho/alto
+        del CSV).
       - w/h: huella sobre el tablero. Las piezas con rotate=False (veta
-        bloqueada) se pre-orientan para que su lado de veta —la primera
-        medida, convención del taller— quede paralelo al eje de veta del
-        tablero: con eje_veta='ancho' van como vienen; con 'alto' se
-        invierten. rotate=True va siempre con la huella original (el
-        optimizador decide, la veta es libre).
+        bloqueada) siguen la regla del taller "la veta corre por el lado
+        más largo": su lado largo queda PARALELO al eje de veta del
+        tablero — con eje_veta='ancho' la huella es (largo, corto); con
+        'alto' es (corto, largo). rotate=True va siempre con la huella
+        original (el optimizador decide, la veta es libre).
     """
     rects = []
     for p in pieces:
         ow = float(p["ancho"])
         oh = float(p["alto"])
         rot = bool(p.get("rotate", True))
-        w, h = (ow, oh) if rot or eje_veta == "ancho" else (oh, ow)
+        if rot:
+            w, h = ow, oh
+        else:
+            # Regla del taller: la veta sigue el lado más largo; ese lado
+            # queda paralelo al eje de veta del tablero.
+            largo, corto = (ow, oh) if ow >= oh else (oh, ow)
+            w, h = (largo, corto) if eje_veta == "ancho" else (corto, largo)
         qty = int(p.get("cantidad", 1))
         for i in range(qty):
             rects.append((w, h, ow, oh, f"{p['id']}__{i}", rot, p))

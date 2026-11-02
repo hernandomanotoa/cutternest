@@ -312,7 +312,7 @@ describe('renderer3d/renderer3D — fitCamera al resize (perspDistance)', () => 
   });
 
   const closetPieces = [
-    { id: 'p1', nombre: 'Lateral', ancho: 2000, alto: 600, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
+    { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
     { id: 'p2', nombre: 'Estante', ancho: 570, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: '', modulo: '1', pos_z: '500' },
   ];
 
@@ -378,7 +378,7 @@ describe('renderer3d/renderer3D — BOM API', () => {
   });
 
   const samplePieces = [
-    { id: 'p1', nombre: 'Lateral', ancho: 2000, alto: 600, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B', modulo: '1', pos_z: '' },
+    { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: 'T,B', modulo: '1', pos_z: '' },
     { id: 'p2', nombre: 'Estante', ancho: 570, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,L', modulo: '1', pos_z: '500' },
   ];
 
@@ -515,7 +515,7 @@ describe('renderer3d/renderer3D — setSection', () => {
     };
     const r = new Renderer3D(cont, { width: 900, height: 600 });
     r.load('1', [
-      { id: 'p1', nombre: 'Lateral', ancho: 2000, alto: 600, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
+      { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
     ]);
     r.setSection('z', 0.5);
     assert.equal(r.section.axis, 'z');
@@ -617,7 +617,7 @@ describe('renderer3d — modo ensamblaje paso a paso', () => {
     };
     const r = new Renderer3D(cont, { width: 900, height: 600 });
     r.load('1', [
-      { id: 'p1', nombre: 'Lateral', ancho: 2000, alto: 600, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
+      { id: 'p1', nombre: 'Lateral', ancho: 600, alto: 2000, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, cantos: '', modulo: '1', pos_z: '' },
       { id: 'p2', nombre: 'Estante', ancho: 570, alto: 500, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: '', modulo: '1', pos_z: '500' },
     ]);
     r.setAssemblyLevels({ p1: 1, p2: 2 });

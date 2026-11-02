@@ -5,7 +5,7 @@
 // muestra vetas coherentes sin configuración. Lógica pura (strings SVG);
 // testeable con node --test.
 
-import { swapEnCorte } from '../services/cutOrientationService.js';
+import { esVistaVertical } from '../services/cutOrientationService.js';
 import { inferRole } from '../services/classifierService.js';
 
 // Generador pseudoaleatorio con semilla (mulberry32): mismas entradas →
@@ -96,7 +96,7 @@ export function patronVetaDef(color, direccion, semilla = SEMILLA_VETA, opts = {
  * vertical (costados, divisores) → 'vertical'; el resto → 'horizontal'.
  */
 export function direccionVetaRender(piece) {
-  return swapEnCorte(inferRole(piece)) ? 'vertical' : 'horizontal';
+  return esVistaVertical(inferRole(piece)) ? 'vertical' : 'horizontal';
 }
 
 /**

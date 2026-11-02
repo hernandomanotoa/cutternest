@@ -167,9 +167,9 @@ describe('inferRole - zapatera-cajón', () => {
 });
 
 describe('isDividerVertical', () => {
-  it('detects tall dividers as vertical (despiece: ancho = alto del vano)', () => {
-    assert.equal(isDividerVertical(piece('Division vertical', { ancho: 2400, alto: 15 })), true);
-    assert.equal(isDividerVertical(piece('Divisor', { ancho: 1800, alto: 18 })), true);
+  it('detects tall dividers as vertical (orientación de mueble)', () => {
+    assert.equal(isDividerVertical(piece('Division vertical', { ancho: 15, alto: 2400 })), true);
+    assert.equal(isDividerVertical(piece('Divisor', { ancho: 18, alto: 1800 })), true);
   });
 
   it('detects wide-and-not-thin dividers as horizontal', () => {
@@ -177,8 +177,8 @@ describe('isDividerVertical', () => {
     assert.equal(isDividerVertical(piece('Divisor', { ancho: 600, alto: 400 })), false);
   });
 
-  it('rotate no longer affects orientation (despiece por rol)', () => {
-    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 2400, alto: 15, rotate: 'si' }), true);
-    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 15, alto: 2400, rotate: 'no' }), false);
+  it('rotate no afecta la orientación (la derivan las dimensiones)', () => {
+    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 15, alto: 2400, rotate: 'si' }), true);
+    assert.equal(isDividerVertical({ nombre: 'Divisor', ancho: 15, alto: 2400, rotate: 'no' }), true);
   });
 });

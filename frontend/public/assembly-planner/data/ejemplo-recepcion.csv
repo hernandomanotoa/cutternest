@@ -8,9 +8,9 @@ glb-tapa,Tapa mostrador,2400,700,1,si,#D9C2A3,30,"T,B,L,R",estructura
 # --- Modulo 1: cajonera interior ---
 m1-base,Base modulo M1,600,600,1,si,#C19A6B,15,"T,B,L,R",1
 m1-tapa,Tapa modulo M1,600,600,1,no,#C19A6B,15,"T,B,L,R",1
-m1-lateral-izq,Lateral izquierdo M1,1000,600,1,no,#C19A6B,15,"T,B,L",1
-m1-lateral-der,Lateral derecho M1,1000,600,1,no,#C19A6B,15,"T,B,R",1
-m1-fondo,Fondo modulo M1,970,570,1,no,#F2F2F2,15,"",1
+m1-lateral-izq,Lateral izquierdo M1,600,1000,1,no,#C19A6B,15,"T,B,L",1
+m1-lateral-der,Lateral derecho M1,600,1000,1,no,#C19A6B,15,"T,B,R",1
+m1-fondo,Fondo modulo M1,570,970,1,no,#F2F2F2,15,"",1
 m1-repisa,Repisa recepcion,540,400,1,si,#D9C2A3,15,"T,B,L,R",1
 m11-cajon-frente,Frente cajon M1,568,297,1,no,#8B5A2B,15,"T,B,L,R",11
 m11-cajon-lateral-izq,Lateral cajon M1,545,267,1,si,#D9C2A3,15,"T,B,L",11

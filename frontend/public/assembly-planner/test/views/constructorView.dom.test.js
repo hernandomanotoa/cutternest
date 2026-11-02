@@ -859,9 +859,8 @@ test('Lote B: divisor vertical span completo, cajones 2 por fila y espesor de fr
   click(container, '[data-action="add-content"][data-kind="divider"]');
   const div = store.get().pieces.find((p) => p.id === 'm1-divisor-1');
   assert.ok(div, 'divisor creado');
-  // Despiece: el span del vano vive en la primera medida (lado de la veta).
-  assert.equal(div.ancho, 2235, 'span completo del vano util');
-  assert.equal(div.alto, 15, 'espesor del panel en la segunda medida');
+  assert.equal(div.alto, 2235, 'span completo del vano util');
+  assert.equal(div.ancho, 15, 'espesor del panel');
   assert.equal(div.pos_z, 165, 'anclado al piso del vano (zocalo+base)');
   assert.match(div.nombre, /Divisor 1 M1/);
   // B2: cajon 2 por fila (frente mitad de ancho)
@@ -1099,19 +1098,19 @@ test('Altura fija del mueble: el fondo descuenta el zócalo y se apoya sobre la 
   click(container, '[data-action="add-module"]'); // alto 2400, zócalo simple 150
   // Casco con zócalo simple: fondo descuenta 150.
   const fondoSimple = store.get().pieces.find((p) => p.id === 'm1-fondo');
-  assert.equal(fondoSimple.ancho, 2400 - 150 - 2 * 15, 'fondo = alto − zócalo simple − 2e (1ª medida)');
+  assert.equal(fondoSimple.alto, 2400 - 150 - 2 * 15, 'fondo = alto − zócalo simple − 2e');
   // Al aplicar el marco (Z=100), el fondo se reajusta al Z del marco.
   click(container, '[data-action="apply-plinth"]');
   const fondoMarco = store.get().pieces.find((p) => p.id === 'm1-fondo');
-  assert.equal(fondoMarco.ancho, 2400 - 100 - 2 * 15, 'fondo reajustado al Z del marco (1ª medida)');
+  assert.equal(fondoMarco.alto, 2400 - 100 - 2 * 15, 'fondo reajustado al Z del marco');
   // Altura total del mueble: inalterada (2400) — el zócalo ocupa su zona.
   const lateral = store.get().pieces.find((p) => p.id === 'm1-lateral-izq');
-  assert.equal(lateral.ancho, 2400, 'el alto del módulo es el total (fijo), en la 1ª medida');
-  assert.equal(lateral.alto, 600, 'la profundidad queda en la 2ª medida');
+  assert.equal(lateral.alto, 2400, 'el alto del módulo es el total (fijo)');
+  assert.equal(lateral.ancho, 600, 'el ancho del lateral es la profundidad');
   // Quitar el marco: frente simple restaurado (Z=100) y fondo consistente.
   click(container, '[data-action="remove-plinth"]');
   const fondoRestaurado = store.get().pieces.find((p) => p.id === 'm1-fondo');
-  assert.equal(fondoRestaurado.ancho, 2400 - 100 - 2 * 15, 'fondo consistente con el frente restaurado (1ª medida)');
+  assert.equal(fondoRestaurado.alto, 2400 - 100 - 2 * 15, 'fondo consistente con el frente restaurado');
   view.destroy();
 });
 
@@ -1137,31 +1136,31 @@ test('Zócalo simple agregado a posteriori: el fondo se recalcula y al quitarlo 
   const chk = container.querySelector('[data-cfg="zocalo"]');
   chk.checked = false;
   click(container, '[data-action="add-module"]');
-  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 2400 - 2 * 15, 'fondo completo inicial');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 2 * 15, 'fondo completo inicial');
   assert.equal(store.get().pieces.find((p) => p.id === 'm1-base').ancho, 850, 'base externa inicial');
   // Agregar "+ Zócalo" (150): base a interna y fondo con descuento.
   click(container, '[data-action="add-content"][data-kind="zocalo"]');
   assert.ok(store.get().pieces.some((p) => p.id === 'm1-zocalo'), 'frente simple agregado');
   assert.equal(store.get().pieces.find((p) => p.id === 'm1-base').ancho, 850 - 2 * 15, 'base interna');
-  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 2400 - 150 - 2 * 15, 'fondo descuenta el zócalo');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 150 - 2 * 15, 'fondo descuenta el zócalo');
   // Quitar el zócalo (doble click: el primero arma la confirmación): el
   // fondo vuelve a su alto completo.
   click(container, '[data-action="remove-content"][data-ref="m1-zocalo"]');
   click(container, '[data-action="remove-content"][data-ref="m1-zocalo"]');
   assert.equal(store.get().pieces.some((p) => p.id === 'm1-zocalo'), false, 'zócalo quitado');
-  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 2400 - 2 * 15, 'fondo restaurado');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 2 * 15, 'fondo restaurado');
   view.destroy();
 });
 
 test('Editar dimensiones mantiene el descuento del fondo según el zócalo vigente', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]'); // con zócalo simple 150
-  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 2400 - 150 - 2 * 15);
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 150 - 2 * 15);
   // Redimensionar (mismo alto): el fondo mantiene el descuento del zócalo.
   container.querySelector('[data-module-scoped="1"] [data-edit-ancho]').value = '900';
   click(container, '[data-action="apply-edit-module"][data-module="1"]');
-  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 2400 - 150 - 2 * 15, 'descuento preservado');
-  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 900 - 2 * 15, 'el ANCHO del mueble vive en la 2ª medida del fondo');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').alto, 2400 - 150 - 2 * 15, 'descuento preservado');
+  assert.equal(store.get().pieces.find((p) => p.id === 'm1-fondo').ancho, 900 - 2 * 15, 'fondo renACE al nuevo ancho');
   view.destroy();
 });
 
@@ -1371,7 +1370,7 @@ test('Gola e2e: canales de melamina exactos (850×600, 3 cajones de 197) + sin c
   const frente3 = pieza('m1cajon3-frente');
   assert.equal(lat3.alto, lat3Original, 'caja 3 sin rebaja (sin canal L)');
   const tapa = pieza('m1-tapa');
-  const altoCasco = pieza('m1-lateral-izq').ancho; // despiece: alto del módulo en la 1ª medida
+  const altoCasco = pieza('m1-lateral-izq').alto; // despiece: alto del módulo en la 1ª medida
   const techoUtil = altoCasco - tapa.espesor;
   const esperado = techoUtil - 2.5; // drawerFrontGap (default)
   assert.ok(Math.abs(frente3.pos_z + frente3.alto - esperado) <= 1.5, `frente 3 a 2.5 mm del techo útil (techo ${frente3.pos_z + frente3.alto} vs ${esperado})`);

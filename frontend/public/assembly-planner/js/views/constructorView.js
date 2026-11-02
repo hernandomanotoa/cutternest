@@ -1392,7 +1392,7 @@ function renderModuleScheme(moduleId, allPieces, piezas, menuOpen = false) {
   const lateral = piezas.find((p) => String(p.id).endsWith('-lateral-izq'));
   if (!tapa || !lateral) return '';
   const ancho = Number(tapa.ancho) || 0;
-  const alto = Number(lateral.ancho) || 0; // despiece
+  const alto = Number(lateral.alto) || 0;
   if (!ancho || !alto) return '';
   const zocalo = piezas.find((p) => p.id === `m${moduleId}-zocalo`);
   const items = contentItemsForModule(moduleId, allPieces).filter((i) => i.kind !== 'zocalo');
@@ -1797,7 +1797,7 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
               const mods = pieces.filter((p) => String(p.modulo) === String(g.id));
               const tapa = mods.find((p) => String(p.id).endsWith('-tapa'));
               const lat = mods.find((p) => String(p.id).endsWith('-lateral-izq'));
-              const dims = tapa && lat ? `${tapa.ancho} × ${lat.ancho} × ${tapa.alto}` : ''; // despiece: alto del módulo en la 1ª medida
+              const dims = tapa && lat ? `${tapa.ancho} × ${lat.alto} × ${tapa.alto}` : '';
               const count = contentItemsForModule(g.id, pieces).length;
               const activo = String(g.id) === String(selectedModuleId);
               return `
@@ -1827,7 +1827,7 @@ function renderEditForm(moduleId, piezas) {
         <input type="number" data-edit-ancho value="${Number(tapa.ancho)}" min="100" step="10" />
       </label>
       <label class="form-group" style="margin:0;">Alto
-        <input type="number" data-edit-alto value="${Number(lateral.ancho)}" min="100" step="10" />
+        <input type="number" data-edit-alto value="${Number(lateral.alto)}" min="100" step="10" />
       </label>
       <label class="form-group" style="margin:0;">Prof.
         <input type="number" data-edit-prof value="${Number(tapa.alto)}" min="100" step="10" />

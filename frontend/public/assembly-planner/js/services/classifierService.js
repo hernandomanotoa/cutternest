@@ -131,15 +131,14 @@ export function isShoeRack(piece) {
 }
 
 /**
- * Detecta si un divisor es de tipo vertical (como un lateral). El CSV es
- * despiece: el divisor vertical guarda ancho = alto útil del vano y
- * alto = espesor, así que basta comparar las medidas almacenadas.
+ * Detecta si un divisor es de tipo vertical (como un lateral): su alto
+ * supera con creces a su ancho (orientación de mueble).
  */
 export function isDividerVertical(piece) {
   if (inferRole(piece) !== 'divider') return false;
   const w = Number(piece.ancho) || 0;
   const h = Number(piece.alto) || 0;
-  return w > h * 1.5;
+  return h > w * 1.5;
 }
 
 export function detectFamily(pieces, moduleId = null) {

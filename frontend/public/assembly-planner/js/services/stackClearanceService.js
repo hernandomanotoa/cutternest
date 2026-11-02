@@ -59,12 +59,11 @@ export function validateStackClearance(pieces) {
 
     const sidePanels = modPieces.filter((p) => inferRole(p) === 'side_panel');
     const sideThickness = sidePanels.length ? Number(sidePanels[0].espesor) || 15 : Number(base.espesor) || 15;
-    // Altura del casco: los costados mandan. El CSV es despiece: el
-    // side_panel guarda ancho = alto del mueble (lado de la veta). (Antes se
-    // leían 'laterales' por nombre con heurística rotate; mezclaba los
-    // laterales internos de cajón y falseaba el vano.)
+    // Altura del casco: los costados mandan (ancho = profundidad,
+    // alto = alto del mueble). Por rol puro: sin mezclar los laterales
+    // internos de cajón.
     const sideH = sidePanels.length
-      ? Math.max(...sidePanels.map((p) => Number(p.ancho) || 0))
+      ? Math.max(...sidePanels.map((p) => Number(p.alto) || 0))
       : 0;
     const boxH = sideH || getModuleDimensions(modPieces, sideThickness, 'cabinet').height;
 

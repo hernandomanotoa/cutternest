@@ -49,16 +49,14 @@ describe('getPieceDims', () => {
     assert.deepEqual(getPieceDims(p, 'shelf', 18, 'shelving'), { w: 500, h: 100 });
   });
 
-  it('computes side panel seen from edge (despiece: ancho = alto del mueble)', () => {
-    // Orientación de corte: ancho = alto del mueble (lado de la veta),
-    // alto = profundidad.
-    const p = piece('Lateral', 2400, 600, 18);
+  it('computes side panel seen from edge (orientación de mueble)', () => {
+    // Lateral 600 (profundidad) × 2400 (alto): se ve de canto.
+    const p = piece('Lateral', 600, 2400, 18);
     assert.deepEqual(getPieceDims(p, 'side_panel', 18, 'cabinet'), { w: 18, h: 2400 });
   });
 
-  it('computes vertical divider dims as thickness x height (despiece)', () => {
-    // Despiece: ancho = alto útil del vano, alto = espesor.
-    const p = piece('Division vertical', 2400, 15, 15);
+  it('computes vertical divider dims as thickness x height', () => {
+    const p = piece('Division vertical', 15, 2400, 15);
     assert.deepEqual(getPieceDims(p, 'divider', 15, 'cabinet'), { w: 15, h: 2400 });
   });
 
@@ -69,9 +67,8 @@ describe('getPieceDims', () => {
     assert.deepEqual(getPieceDims(p, 'drawer_back', 18, 'cabinet'), { w: 100, h: 500 });
   });
 
-  it('proyección por rol: el fondo del módulo (veta vertical) lee la 1ª medida como alto', () => {
-    // Despiece: ancho(almacenado) = alto del mueble, alto(almacenado) = ancho.
-    const p = piece('Fondo modulo', 2270, 820, 15, 'no');
+  it('el fondo del módulo se lee en orientación de mueble (ancho × alto)', () => {
+    const p = piece('Fondo modulo', 820, 2270, 15, 'no');
     assert.deepEqual(getPieceDims(p, 'back_panel', 15, 'cabinet'), { w: 820, h: 2270 });
   });
 
@@ -83,9 +80,8 @@ describe('getPieceDims', () => {
 
 describe('getModuleDimensions', () => {
   it('derives dims from back panel for cabinet', () => {
-    // Despiece: el fondo guarda ancho = alto del mueble (600), alto = ancho (800).
     const pieces = [
-      piece('Fondo', 600, 800, 15, 'no', { id: 'F' }),
+      piece('Fondo', 800, 600, 15, 'no', { id: 'F' }),
       piece('Base', 800, 100, 15, 'no', { id: 'B' }),
     ];
     assert.deepEqual(getModuleDimensions(pieces, 15, 'cabinet'), { width: 800, height: 600, depth: 100, thickness: 15 });
@@ -109,23 +105,22 @@ describe('getModuleDimensions', () => {
 
 describe('classifyBackPanelMount', () => {
   it('detects external back (full module box)', () => {
-    // Despiece: ancho(almacenado) = alto del mueble, alto(almacenado) = ancho.
-    const back = piece('Fondo', 2400, 865, 18, 'no');
+    const back = piece('Fondo', 865, 2400, 18, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'external');
   });
 
   it('detects internal back (inset by thickness on each side)', () => {
-    const back = piece('Fondo', 2364, 829, 18, 'no');
+    const back = piece('Fondo', 829, 2364, 18, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'internal');
   });
 
   it('returns custom for arbitrary dimensions', () => {
-    const back = piece('Fondo', 2000, 800, 18, 'no');
+    const back = piece('Fondo', 800, 2000, 18, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400, 18), 'custom');
   });
 
   it('uses default thickness 15 when not provided', () => {
-    const back = piece('Fondo', 2370, 835, 15, 'no');
+    const back = piece('Fondo', 835, 2370, 15, 'no');
     assert.equal(classifyBackPanelMount(back, 865, 2400), 'internal');
   });
 });

@@ -602,7 +602,7 @@ function moduleDims(modPieces, moduleId) {
     : baseEsInterna || !tapa ? Number(base.ancho) + 2 * espesor : Number(base.ancho);
   const profModulo = tapa ? Number(tapa.alto)
     : Number(base.alto) + (baseEsInterna ? 2 * espesor : 0);
-  return { anchoModulo, profModulo, altoModulo: lateral ? Number(lateral.ancho) : null, espesor, colorCuerpo: (base || tapa).color || '#C19A6B' };
+  return { anchoModulo, profModulo, altoModulo: lateral ? Number(lateral.alto) : null, espesor, colorCuerpo: (base || tapa).color || '#C19A6B' };
 }
 
 // Agrega contenido a un modulo existente. kind: shelf|rail|doubleRail|
@@ -655,12 +655,11 @@ export function addContentToModule(moduleId, kind, opts = {}) {
     const lateral = modPieces.find((p) => p.id === `m${moduleId}-lateral-izq`);
     if (result.ok && !tieneZocalo && base && tapa && lateral
       && Number(base.ancho) >= Number(tapa.ancho)) {
-      const altoModulo = Number(lateral.ancho) || 0; // despiece: alto del módulo en la primera medida
+      const altoModulo = Number(lateral.alto) || 0;
       piecesMutadas = state.pieces.map((p) => {
         if (p.id === base.id) return { ...p, ancho: anchoModulo - 2 * espesor, alto: profModulo - espesor };
         if (p.id === `m${moduleId}-fondo` && altoModulo) {
-          // Despiece: el alto del mueble va en la 1ª medida (la del lateral).
-          return { ...p, ancho: Math.max(100, altoModulo - altoZocalo - 2 * espesor) };
+          return { ...p, alto: Math.max(100, altoModulo - altoZocalo - 2 * espesor) };
         }
         return p;
       });
@@ -738,7 +737,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
     }
   } else if (kind === 'divider') {
     // Divisor vertical: span completo del vano util (zocalo -> tapa).
-    const altoModulo = Number(modPieces.find((p) => p.id.endsWith('lateral-izq'))?.ancho) || 0; // despiece
+    const altoModulo = Number(modPieces.find((p) => p.id.endsWith('lateral-izq'))?.alto) || 0;
     const altoZocalo = state.pieces.find((p) => p.id === `m${moduleId}-zocalo`)?.alto || 0;
     result = addDivider(moduleId, {
       altoUtil: altoModulo - altoZocalo - espesor,
@@ -1007,7 +1006,7 @@ export function updateContentPosZ(refId, posZ) {
   const pieza = state.pieces.find((p) => p.id === ref);
   if (!pieza) return { ok: false, errors: ['Pieza no encontrada'] };
   const modulo = rootDePieza(state.pieces, pieza);
-  const altoModulo = Number(state.pieces.find((p) => p.id === `m${modulo}-lateral-izq`)?.ancho) || null; // despiece
+  const altoModulo = Number(state.pieces.find((p) => p.id === `m${modulo}-lateral-izq`)?.alto) || null;
   if (altoModulo != null && objetivo + (Number(pieza.alto) || 15) > altoModulo) {
     return { ok: false, errors: [`Altura ${objetivo} mm fuera del modulo (${altoModulo} mm util)`] };
   }
@@ -1103,7 +1102,7 @@ function cursorInsercion(pieces, moduleId, stackGap, drawerFrontGap) {
 function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { stackGap, drawerFrontGap, separacion = 0, insetTapa = 0, hangerRailHeight = 1700, altoVano = 0 }) {
   // Geometria vertical del modulo: cara inferior de la tapa (techo del vano
   // util) y cara superior de la base (piso).
-  const altoModulo = Number(piecesActuales.find((p) => p.id === `m${moduleId}-lateral-izq`)?.ancho) || 0; // despiece
+  const altoModulo = Number(piecesActuales.find((p) => p.id === `m${moduleId}-lateral-izq`)?.alto) || 0;
   const zocalo = piecesActuales.find((p) => p.id === `m${moduleId}-zocalo`);
   const tapa = piecesActuales.find((p) => p.id === `m${moduleId}-tapa`);
   const techo = altoModulo - (zocalo ? Number(zocalo.alto) || 0 : 0) - (Number(tapa?.espesor) || 15);
@@ -1517,11 +1516,11 @@ export function removeContentPiece(refId) {
   // Sin zócalo simple el fondo vuelve a su alto completo (alto − 2e).
   if (zocaloMod) {
     const lateral = pieces.find((p) => p.id === `m${zocaloMod}-lateral-izq`);
-    const altoMod = Number(lateral?.ancho) || 0; // despiece
+    const altoMod = Number(lateral?.alto) || 0;
     if (altoMod) {
       const e = Number(pieces.find((p) => p.id === `m${zocaloMod}-fondo`)?.espesor) || 15;
       pieces = pieces.map((p) => (
-        p.id === `m${zocaloMod}-fondo` ? { ...p, ancho: Math.max(100, altoMod - 2 * e) } : p
+        p.id === `m${zocaloMod}-fondo` ? { ...p, alto: Math.max(100, altoMod - 2 * e) } : p
       ));
     }
   }
@@ -1701,7 +1700,7 @@ export function applyStructuralPlinth(opts = {}) {
   const profLateral = new Map();
   pieces.forEach((p) => {
     const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
-    if (ml) { altoLateral.set(ml[1], Number(p.ancho) || 0); profLateral.set(ml[1], Number(p.alto) || 0); } // despiece
+    if (ml) { altoLateral.set(ml[1], Number(p.alto) || 0); profLateral.set(ml[1], Number(p.ancho) || 0); }
     const mt = String(p.id).match(/^m(\d+)-tapa$/);
     if (mt) anchoTapa.set(mt[1], Number(p.ancho) || 0);
   });
@@ -1712,7 +1711,7 @@ export function applyStructuralPlinth(opts = {}) {
     if (!altoMod) return p;
     const e = Number(p.espesor) || 15;
     if (mm[2] === 'fondo') {
-      return { ...p, ancho: Math.max(100, altoMod - altoZocalo - 2 * e) }; // despiece: alto del mueble en 1ª medida
+      return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
     }
     // Base externa (ancho ≈ tapa): pasa a interna, apoyada sobre el marco.
     const tapaW = anchoTapa.get(mm[1]) || 0;
@@ -1824,7 +1823,7 @@ export function removeStructuralPlinth() {
   const altoLateral = new Map();
   pieces.forEach((p) => {
     const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
-    if (ml) altoLateral.set(ml[1], Number(p.ancho) || 0); // despiece
+    if (ml) altoLateral.set(ml[1], Number(p.alto) || 0);
   });
   const piecesFinales = pieces.map((p) => {
     const rev = revertirPorId.get(String(p.id));
@@ -1836,8 +1835,7 @@ export function removeStructuralPlinth() {
     const e = Number(p.espesor) || 15;
     // El frente simple restaurado vuelve a ocupar la zona del zócalo
     // (mismo Z): el fondo mantiene el descuento y sigue apoyado en la base.
-    // Despiece: el alto del mueble va en la 1ª medida.
-    return { ...p, ancho: Math.max(100, altoMod - altoZocalo - 2 * e) };
+    return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
   });
   store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
   recalculateAll();
@@ -2012,9 +2010,9 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   const cascoIds = {
     base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? dims.prof - espesor : dims.prof],
     tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
-    'lateral-izq': [`m${moduleId}-lateral-izq`, dims.alto, dims.prof], // despiece: ancho = alto del mueble
-    'lateral-der': [`m${moduleId}-lateral-der`, dims.alto, dims.prof],
-    fondo: [`m${moduleId}-fondo`, Math.max(100, dims.alto - zDescuento - 2 * espesor), anchoUtil], // despiece: alto en la 1ª medida
+    'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
+    'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],
+    fondo: [`m${moduleId}-fondo`, anchoUtil, Math.max(100, dims.alto - zDescuento - 2 * espesor)],
   };
 
   // 3. Aplicar: casco + contenido interior adaptado.

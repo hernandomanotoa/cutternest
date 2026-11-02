@@ -48,12 +48,12 @@ class M:
         self.add('glb-zocalo-lateral-der', f'Lateral zocalo derecho {nombre}', p, alto, 1, 'no', C_BODY, TH_BODY, 'T,B,R', 'estructura')
     def laterales(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
-        self.add(f'{mod}-lateral-izq', f'Lateral izquierdo {n}', self.h, self.d, 1, 'no', C_BODY, TH_BODY, 'T,B,L', mod)
-        self.add(f'{mod}-lateral-der', f'Lateral derecho {n}', self.h, self.d, 1, 'no', C_BODY, TH_BODY, 'T,B,R', mod)
+        self.add(f'{mod}-lateral-izq', f'Lateral izquierdo {n}', self.d, self.h, 1, 'no', C_BODY, TH_BODY, 'T,B,L', mod)
+        self.add(f'{mod}-lateral-der', f'Lateral derecho {n}', self.d, self.h, 1, 'no', C_BODY, TH_BODY, 'T,B,R', mod)
     def fondo(self, mod, suffix=''):
         n = self.name if not suffix else f'{self.name} {suffix}'
         # Fondo de casco INTERNO (embutido): luz interior (w−2t × h−2t).
-        self.add(f'{mod}-fondo', f'Fondo {n}', self.h - 2 * TH_BODY, self.w - 2 * TH_BODY, 1, 'no', C_FONDO, TH_BODY, '', mod)
+        self.add(f'{mod}-fondo', f'Fondo {n}', self.w - 2 * TH_BODY, self.h - 2 * TH_BODY, 1, 'no', C_FONDO, TH_BODY, '', mod)
     def box(self, mod, suffix=''):
         self.base_top(mod, suffix)
         self.laterales(mod, suffix)
@@ -140,7 +140,7 @@ write('Aparador', 'Aparador tipo buffet para salón o comedor: cajonera, puertas
 m = M('estanteria', 900, 300, 1800)
 m.zocalo_cajon('estanteria', 80)
 m.add('glb-tapa', 'Tapa estanteria', 900, 40, 1, 'no', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
-m.add('glb-trasera', 'Panel posterior estanteria', 1800, 900, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
+m.add('glb-trasera', 'Panel posterior estanteria', 900, 1800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 for i in range(1, 5):
     m.add(f'm1-repisa-{i}', f'Repisa {i} estanteria', 840, 250, 1, 'no', C_FRONT, TH_DOOR, 'T,B', 'm1')
@@ -152,7 +152,7 @@ write('Estantería', 'Estantería alta abierta para salón o estudio con 4 repis
 m = M('vitrina', 800, 400, 2000)
 m.zocalo_cajon('vitrina', 100)
 m.add('glb-tapa', 'Tapa vitrina', 800, 40, 1, 'no', C_BODY, TH_TOP, 'T,B,L,R', 'estructura')
-m.add('glb-trasera', 'Panel posterior vitrina', 2000, 800, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
+m.add('glb-trasera', 'Panel posterior vitrina', 800, 2000, 1, 'no', C_FONDO, TH_BODY, '', 'estructura')
 m.box('m1')
 m.add('m1-puerta', 'Puerta superior vitrina', 360, 900, 1, 'no', C_DOOR, TH_DOOR, 'T,B,L,R', 'm1')
 m.add('m1-vidrio', 'Cristal puerta vitrina', 300, 700, 1, 'no', C_CRIS, 4, '', 'm1')

@@ -56,8 +56,7 @@ function cascoDims(pieces, moduleId) {
   if (!tapa && !lateral) return null;
   const espesor = Number((tapa || lateral).espesor) || DEFAULT_THICKNESS;
   const ancho = tapa ? Number(tapa.ancho) || 0 : 0;
-  // Despiece: el lateral guarda ancho = alto del mueble (lado de la veta).
-  const alto = lateral ? Number(lateral.ancho) || 0 : 0;
+  const alto = lateral ? Number(lateral.alto) || 0 : 0;
   if (!ancho || !alto) return null;
   return { ancho, alto, espesor, anchoInterior: ancho - 2 * espesor };
 }

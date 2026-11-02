@@ -3,7 +3,7 @@
 import { isHexColor, normalizeColor } from '../utils/helpers.js';
 import { normalizeName, nameIncludes } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
-import { migraPiezasACorte } from './cutOrientationService.js';
+import { migraPiezasAMueble } from './cutOrientationService.js';
 import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
 import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight, drawerBackMaxHeight } from './railService.js';
 import { tipoTagDe, fondoMetodoDeTipo } from '../core/contentTypes.js';
@@ -64,17 +64,17 @@ export function parseCSV(text) {
     }
   }
 
-  // Migración a orientación de corte (veta): los laterales/divisores de CSV
-  // legacy venían en orientación de mueble (ancho=prof, alto=alto); el
-  // despiece exige la veta en la primera medida. Versiones locales y
-  // autoguardado se persisten como CSV, con lo que este punto único cubre
-  // los diseños guardados.
-  const migracion = migraPiezasACorte(pieces);
+  // Migración a orientación de mueble congruente: los CSV de la era
+  // "orientación de corte" (laterales/fondos/divisores con la primera
+  // medida = lado de la veta, p. ej. lateral 2400×600) se invierten de
+  // vuelta (lateral 600×2400). Versiones locales y autoguardado se
+  // persisten como CSV: este punto único cubre los diseños guardados.
+  const migracion = migraPiezasAMueble(pieces);
   if (migracion.migradas.length) {
     pieces.length = 0;
     pieces.push(...migracion.pieces);
     warnings.push(...migracion.migradas.map((m) =>
-      `"${m.nombre}": CSV en orientación de mueble; migrado a orientación de corte (ancho=${m.ancho} mm, alto=${m.alto} mm) — la veta queda en la primera medida.`));
+      `"${m.nombre}": CSV de la era de corte; migrado a orientación de mueble (ancho=${m.ancho} mm, alto=${m.alto} mm).`));
   }
 
   // Detecciones globales
@@ -190,22 +190,20 @@ function validateDimensions(pieces, warnings) {
       }
     }
     // Fondo: validar según tipo de montaje (externo / interno / custom).
-    // El fondo es despiece (veta vertical): su ancho del mueble vive en la
-    // SEGUNDA medida almacenada y su alto del mueble en la PRIMERA.
     if (back && base && laterals.length) {
       const mount = classifyBackPanelMount(back, moduleBox.width, moduleBox.height, sideThickness);
       const tol = 2;
-      const backW = Number(back.alto) || 0;   // ancho del mueble (2ª medida)
-      const backH = Number(back.ancho) || 0;  // alto del mueble (1ª medida)
+      const backW = Number(back.ancho) || 0;
+      const backH = Number(back.alto) || 0;
       if (mount === 'external') {
         if (Math.abs(backW - moduleBox.width) > tol || Math.abs(backH - moduleBox.height) > tol) {
-          warnings.push(`Módulo ${modId}: fondo externo (${backH}×${backW} mm) no coincide con caja ${moduleBox.width}×${moduleBox.height} mm.`);
+          warnings.push(`Módulo ${modId}: fondo externo (${backW}×${backH} mm) no coincide con caja ${moduleBox.width}×${moduleBox.height} mm.`);
         }
       } else if (mount === 'internal') {
         const expectedW = Math.max(0, moduleBox.width - 2 * sideThickness);
         const expectedH = Math.max(0, moduleBox.height - 2 * sideThickness);
         if (Math.abs(backW - expectedW) > tol || Math.abs(backH - expectedH) > tol) {
-          warnings.push(`Módulo ${modId}: fondo interno (${backH}×${backW} mm) no coincide con medida esperada ${expectedW}×${expectedH} mm.`);
+          warnings.push(`Módulo ${modId}: fondo interno (${backW}×${backH} mm) no coincide con medida esperada ${expectedW}×${expectedH} mm.`);
         }
       }
       // custom: no se validan medidas (es intencionalmente distinto)

@@ -103,10 +103,9 @@ export function moduleEspesor(pieces, moduleId) {
 // csvParser.js lo normaliza a boolean); 'si'/true → true, resto → false.
 // El rotate DEFAULT sale de la tabla maestra de veta (cutOrientationService)
 // cuando el caller pasa `rol` y no `rotate` explícito: piezas de vista con
-// veta bloqueada ('no') y ocultas libres ('si'). El CSV es DESPIECE: las
-// piezas de vista vertical (side_panel, divider) se emiten con
-// ancho = alto del mueble (lado de la veta); los consumidores de geometría
-// proyectan a orientación de mueble con cutOrientationService.proyectaMueble.
+// veta bloqueada ('no') y ocultas libres ('si'). El CSV es ORIENTACIÓN DE
+// MUEBLE: ancho/alto = como está la pieza en el módulo; la veta la deriva
+// la tabla por rol (regla del taller: la veta sigue el lado más largo).
 function piece(id, nombre, ancho, alto, opts = {}) {
   const rotate = opts.rotate !== undefined
     ? opts.rotate === true || opts.rotate === 'si'
@@ -162,15 +161,11 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
   const pieces = [
     piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rol: 'bottom_panel', color, espesor: E, modulo }),
     piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rol: 'top_panel', color, espesor: E, modulo }),
-    // Laterales en ORIENTACIÓN DE CORTE (veta vertical): ancho = alto del
-    // mueble, alto = profundidad. Los consumidores de geometría proyectan a
-    // orientación de mueble con cutOrientationService.proyectaMueble.
-    piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,L', modulo }),
-    piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, alto, prof, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
-    // Fondo del casco: MISMA veta que los laterales (vertical) → pieza de
-    // vista en ORIENTACIÓN DE CORTE: ancho = alto del mueble (− zócalo),
-    // alto = ancho interior (lado de la veta primero, como los laterales).
-    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, fondoH, ancho - 2 * E, { rol: 'back_panel', color: '#F2F2F2', espesor: E, modulo }),
+    // Orientación de mueble (congruente con el taller): ancho/alto = como
+    // está la pieza en el módulo. La veta la deriva la tabla por rol.
+    piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,L', modulo }),
+    piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
+    piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', color: '#F2F2F2', espesor: E, modulo }),
   ];
   return { ok: true, pieces, interiorWidth: ancho - 2 * E, interiorDepth: prof - 2 * E };
 }
@@ -648,11 +643,9 @@ export function addShoeTray(moduleId, index, {
 }
 
 
-// Divisor vertical entre bahias (convencion del catalogo): pieza de vista
-// vertical, emitida en ORIENTACIÓN DE CORTE — ancho = alto útil del vano
-// (lado de la veta), alto = espesor. El renderer lo proyecta a mueble con
-// cutOrientationService.proyectaMueble y lo dibuja como panel vertical
-// entre repisas.
+// Divisor vertical entre bahias (orientación de mueble congruente):
+// ancho = espesor del panel, alto = alto útil del vano. El renderer lo
+// dibuja como panel vertical entre repisas.
 export function addDivider(moduleId, { altoUtil, espesor = 15, color = '#C19A6B', index = 1 } = {}) {
   const errors = [];
   validateDimension(altoUtil, 'altoUtil', errors, { min: 100 });
@@ -661,7 +654,7 @@ export function addDivider(moduleId, { altoUtil, espesor = 15, color = '#C19A6B'
   return {
     ok: true,
     pieces: [
-      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, altoUtil, espesor, { rol: 'divider', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
+      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, espesor, altoUtil, { rol: 'divider', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
     ],
   };
 }

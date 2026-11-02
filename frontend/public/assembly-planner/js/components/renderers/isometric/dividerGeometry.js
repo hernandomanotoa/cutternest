@@ -56,9 +56,12 @@ export function buildDividerGeometries(renderer, dividers, moduleW, moduleD, mod
     const availableH = Math.max(0, dividerTopLimit - z);
     const requestedH = dims.h || availableH;
     const h = Math.min(requestedH, availableH);
-    // Profundidad del divisor: la segunda medida del despiece (el espesor
-    // del panel vertical). Default: profundidad interior del módulo.
-    const d = Math.min(Number(div.alto) || interiorDepth, interiorDepth);
+    // Profundidad del divisor: la pieza no la almacena (es espesor × alto
+    // en orientación de mueble) → profundidad interior. Los CSV legacy que
+    // guardaban ancho = profundidad (ancho claramente mayor que un espesor)
+    // siguen respetándose.
+    const dStored = Number(div.ancho) || 0;
+    const d = dStored > t * 3 ? Math.min(dStored, interiorDepth) : interiorDepth;
     geometries.push({
       x, y: depthOffset, z, w: divW, d, h,
       color: div.color, role: 'divider', name: div.nombre, id: div.id,

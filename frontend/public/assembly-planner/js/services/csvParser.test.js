@@ -10,11 +10,11 @@ const HEADER = 'id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 // warnings de estructura que ensucien las aserciones de pandeo.
 const MODULE_CSV = [
   HEADER,
-  'lat-1,Lateral izquierdo,700,500,1,no,#FFFFFF,18,"T,B,L,R",m1,',
-  'lat-2,Lateral derecho,700,500,1,no,#FFFFFF,18,"T,B,L,R",m1,',
+'lat-1,Lateral izquierdo,500,700,1,no,#FFFFFF,18,"T,B,L,R",m1,',
+'lat-2,Lateral derecho,500,700,1,no,#FFFFFF,18,"T,B,L,R",m1,',
   'base-1,Base,600,500,1,no,#FFFFFF,18,"T,B",m1,',
   'tapa-1,Tapa,600,500,1,no,#FFFFFF,18,"T,B",m1,',
-  'fondo-1,Fondo trasero,664,564,1,no,#FFFFFF,15,,m1,',
+'fondo-1,Fondo trasero,564,664,1,no,#FFFFFF,15,,m1,',
 ];
 
 const pandeoWarnings = (result) =>
@@ -73,10 +73,10 @@ describe('parseCSV - fondo de caja según riel (cajones, no zapateras)', () => {
   const zapatera = (sub, fondoAlto) => [
     `${sub}-frente,Frente zapatera extraible ${sub},464,197,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
     `${sub}-cara,Cara zapatera extraible ${sub},434,167,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
-    `${sub}-lat,Lateral zapatera ${sub},350,100,1,no,#FFFFFF,15,"T,B,L",m${sub},`,
-    `${sub}-lat2,Lateral zapatera der ${sub},350,100,1,no,#FFFFFF,15,"T,B,R",m${sub},`,
+    `${sub}-lat,Lateral zapatera extraible ${sub},350,100,1,no,#FFFFFF,15,"T,B,L",m${sub},`,
+    `${sub}-lat2,Lateral zapatera extraible der ${sub},350,100,1,no,#FFFFFF,15,"T,B,R",m${sub},`,
     `${sub}-base,Base zapatera ${sub},434,350,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
-    `${sub}-fondo,Fondo zapatera ${sub},434,${fondoAlto},1,no,#FFFFFF,15,,m${sub},`,
+    `${sub}-fondo,Fondo zapatera extraible ${sub},434,${fondoAlto},1,no,#FFFFFF,15,,m${sub},`,
   ];
   const cajon = (sub, fondoAlto) => [
     `${sub}-frente,Frente cajon ${sub},464,197,1,no,#FFFFFF,15,"T,B,L,R",m${sub},`,
@@ -253,7 +253,7 @@ describe('parseCSV - pandeo', () => {
   it('con soporte/divisor en el módulo baja el riesgo de una repisa crítica a medio', () => {
     const csv = [
       ...MODULE_CSV,
-      'div-1,Divisor central,500,300,1,no,#FFFFFF,18,"T,B,L,R",m1,',
+'div-1,Divisor central,300,500,1,no,#FFFFFF,18,"T,B,L,R",m1,',
       'rep-1,Repisa X,900,500,1,no,#FFFFFF,15,"T,B",m1,',
     ].join('\n');
     const result = parseCSV(csv);
@@ -441,8 +441,8 @@ describe('parseCSV - zócalo-cajón global (modelo sin base global)', () => {
   // (450 = profundidad) no debe contaminar la comparación frente vs Σ módulos.
   const baseCSV = (frenteAncho) => [
     HEADER,
-    'glb-zocalo-lateral-izq,Lateral zocalo izquierdo,450,150,1,no,#FFFFFF,15,"T,B,L",estructura,',
-    'glb-zocalo-lateral-der,Lateral zocalo derecho,450,150,1,no,#FFFFFF,15,"T,B,R",estructura,',
+'glb-zocalo-lateral-izq,Lateral zocalo izquierdo,150,450,1,no,#FFFFFF,15,"T,B,L",estructura,',
+'glb-zocalo-lateral-der,Lateral zocalo derecho,150,450,1,no,#FFFFFF,15,"T,B,R",estructura,',
     `glb-zocalo,Zocalo corrido,${frenteAncho},150,1,si,#FFFFFF,15,"T,B,L,R",estructura,`,
     'm1-lat-izq,Lateral izquierdo M1,450,700,1,no,#FFFFFF,15,"T,B,L",1,',
     'm1-lat-der,Lateral derecho M1,450,700,1,no,#FFFFFF,15,"T,B,R",1,',
@@ -522,9 +522,9 @@ describe('parseCSV - zócalo único a marco', () => {
       ...MODULE_CSV,
       'glb-zocalo-frente,Zocalo marco frente,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
       'glb-zocalo-trasero,Zocalo marco trasero,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-costado-izq,Lateral zocalo izquierdo,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-costado-der,Lateral zocalo derecho,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-divpar-1,Division zocalo paralela frente M1,564,100,1,si,#C19A6B,18,"T,B,L,R",estructura,0',
+'glb-zocalo-costado-izq,Lateral zocalo izquierdo,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+'glb-zocalo-costado-der,Lateral zocalo derecho,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+'glb-zocalo-divpar-1,Division zocalo paralela frente M1,100,564,1,si,#C19A6B,18,"T,B,L,R",estructura,0',
     ].join('\n');
     const result = parseCSV(csv);
     assert.equal(result.ok, true, `errores: ${result.errors.join(' | ')}`);
@@ -546,8 +546,8 @@ describe('parseCSV - zócalo con empalme (tramos a/b)', () => {
       'glb-zocalo-frente-b,Zocalo marco tramo B frente,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
       'glb-zocalo-trasero-a,Zocalo marco tramo A trasero,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
       'glb-zocalo-trasero-b,Zocalo marco tramo B trasero,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-costado-izq,Lateral zocalo izquierdo,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-costado-der,Lateral zocalo derecho,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+'glb-zocalo-costado-izq,Lateral zocalo izquierdo,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+'glb-zocalo-costado-der,Lateral zocalo derecho,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
     ].join('\n');
     const result = parseCSV(csv);
     assert.equal(result.ok, true, `errores: ${result.errors.join(' | ')}`);

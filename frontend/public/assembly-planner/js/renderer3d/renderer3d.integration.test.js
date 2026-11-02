@@ -65,9 +65,9 @@ function createContainer() {
 const basePieces = [
   { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
   { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
-  { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 2300, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L', modulo: '1' },
-  { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 2300, alto: 550, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,R', modulo: '1' },
-  { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 2300, alto: 800, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+  { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,L', modulo: '1' },
+  { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 2300, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, cantos: 'T,B,R', modulo: '1' },
+  { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 800, alto: 2300, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
   { id: 'm1-estante', nombre: 'Estante M1', ancho: 770, alto: 520, cantidad: 1, rotate: 'si', color: '#DDA0DD', espesor: 15, cantos: 'T,B,L,R', modulo: '1' },
 ];
 

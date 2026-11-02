@@ -11,9 +11,9 @@ glb-espejo,Espejo tocador,1000,600,1,no,#E8F4F8,4,"",estructura
 # --- Modulo 1: tocador con 3 cajones ---
 m1-base,Base modulo M1,1170,450,1,si,#C19A6B,15,"",1
 m1-tapa,Tapa modulo M1,1200,480,1,no,#C19A6B,15,"T,B,L,R",1
-m1-lateral-izq,Lateral izquierdo M1,900,480,1,no,#C19A6B,15,"T,B,L",1
-m1-lateral-der,Lateral derecho M1,900,480,1,no,#C19A6B,15,"T,B,R",1
-m1-fondo,Fondo modulo M1,870,1170,1,no,#F2F2F2,15,"",1
+m1-lateral-izq,Lateral izquierdo M1,480,900,1,no,#C19A6B,15,"T,B,L",1
+m1-lateral-der,Lateral derecho M1,480,900,1,no,#C19A6B,15,"T,B,R",1
+m1-fondo,Fondo modulo M1,1170,870,1,no,#F2F2F2,15,"",1
 m11-cajon-frente,Frente cajon superior M1,1168,197,1,no,#8B5A2B,15,"T,B,L,R",11
 m11-cajon-lateral-izq,Lateral cajon superior M1,425,167,1,si,#D9C2A3,15,"T,B,L",11
 m11-cajon-lateral-der,Lateral cajon superior M1,425,167,1,si,#D9C2A3,15,"T,B,R",11

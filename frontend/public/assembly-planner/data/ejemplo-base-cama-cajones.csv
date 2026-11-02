@@ -4,8 +4,8 @@
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo
 # --- Estructura global: cabecero, montantes, tablero frontal, tarima y láminas ---
 glb-cabecero,Cabecero cama,1500,600,1,no,#C19A6B,18,"T,B,L,R",estructura
-glb-montante-izq,Montante cabecero izquierdo,600,350,1,no,#C19A6B,18,"T,B,L",estructura
-glb-montante-der,Montante cabecero derecho,600,350,1,no,#C19A6B,18,"T,B,R",estructura
+glb-montante-izq,Montante cabecero izquierdo,350,600,1,no,#C19A6B,18,"T,B,L",estructura
+glb-montante-der,Montante cabecero derecho,350,600,1,no,#C19A6B,18,"T,B,R",estructura
 glb-frontal,Tablero frontal cama,1500,300,1,si,#C19A6B,18,"T,B,L,R",estructura
 glb-tarima,Tarima somier,1500,1850,1,si,#D9C2A3,18,"T,B,L,R",estructura
 glb-lamina-1,Lamina somier 1,130,25,1,no,#D9C2A3,8,"",estructura
