@@ -5,7 +5,14 @@ import * as THREE from 'three'
 import type { AssemblyConnector, AssemblyPiece3D, AssemblyPieceState, Point3D, Transform3D } from '../../types'
 import { PieceLabel } from './PieceLabel'
 import { getModuleColor } from './moduleColor'
-import { getAcabado, liberarMaterial, materialMaderaParaPieza } from '../../utils/texturasMadera'
+import {
+  calcularTablaContinua,
+  getAcabado,
+  liberarMaterial,
+  materialMaderaParaPieza,
+  materialMetal,
+  tipoMetalPieza,
+} from '../../utils/texturasMadera'
 
 export { getModuleColor }
 
@@ -117,6 +124,7 @@ interface PieceMeshProps {
   showLabels?: boolean
   pieceState?: 'active' | 'placed' | 'future'
   acabado?: string | null
+  tabla?: { offsetY: number; repeatY: number } | null
   onSelect: () => void
   onTransformEnd: (id: string, transform: Transform3D) => void
 }
@@ -135,6 +143,7 @@ function PieceMesh({
   showLabels,
   pieceState,
   acabado,
+  tabla,
   onSelect,
   onTransformEnd,
 }: PieceMeshProps) {
@@ -149,12 +158,19 @@ function PieceMesh({
   // cambiar de acabado se libera textura + material (cleanup del memo).
   const materialMadera = useMemo(() => {
     if (!acabado || !getAcabado(acabado)) return null
+    // Reglas del spec: barra → cromo, perfil gola → aluminio (sin veta);
+    // cajas de cajón/zapatera siempre en Blanco Liso (interiores); frentes
+    // del mismo módulo comparten textura (tabla continua a través del gola).
+    const metal = tipoMetalPieza(piece)
+    if (metal) return materialMetal(metal)
     return materialMaderaParaPieza(
       gl,
       { nombre: piece.nombre, id: piece.id, ancho: dims.ancho, alto: dims.alto },
       acabado,
+      undefined,
+      tabla ?? null,
     )
-  }, [acabado, gl, piece.nombre, piece.id, dims.ancho, dims.alto])
+  }, [acabado, gl, piece.nombre, piece.id, dims.ancho, dims.alto, tabla])
   useEffect(() => () => liberarMaterial(materialMadera), [materialMadera])
 
   const labelVisible = selected || hovered || (showLabels ?? false)
@@ -574,6 +590,10 @@ function Scene({
     return map
   }, [pieceStates])
 
+  // Tabla continua: los frentes de cada módulo comparten textura (la veta
+  // cruza el canal gola). Se calcula una vez por lista de piezas.
+  const tablaContinua = useMemo(() => calcularTablaContinua(pieces), [pieces])
+
   return (
     <>
       <CameraDirector camera={camera} center={center} defaultDistance={cameraDistance} resetKey={cameraResetKey} />
@@ -604,6 +624,7 @@ function Scene({
           showLabels={showLabels}
           pieceState={pieceStateById.get(p.id)}
           acabado={acabado}
+          tabla={tablaContinua.get(p.id) ?? null}
           onSelect={() => onSelectPiece(p.id)}
           onTransformEnd={onTransformEnd}
         />

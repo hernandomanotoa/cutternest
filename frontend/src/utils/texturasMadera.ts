@@ -156,13 +156,95 @@ export function generarParametrosVeta(
   return { bandas, vetas, poros };
 }
 
-// ── Dirección de veta por tipo de pieza ───────────────────────────────────
-// Costados/laterales/puertas → vertical; repisas, fondos, zócalo, tapas y
-// frentes de cajón/zapatera → horizontal (a lo ancho).
+// ── Dirección de veta por tipo de pieza (spec: la veta sigue la dimensión
+// más larga) ──────────────────────────────────────────────────────────────
+// VERTICAL (de arriba hacia abajo): costados/laterales del módulo, divisiones
+//   y montantes, puertas y FONDO TRASERO del módulo (misma veta que los
+//   laterales). HORIZONTAL (a lo ancho): frentes, frente interior y trasera
+//   de la caja, fondos de cajón, bases, repisas, tapa, zócalo y laterales de
+//   la caja (a lo largo de la profundidad).
 export function direccionVetaPieza(pieza: { nombre?: string; id?: string }): DireccionVeta {
   const texto = `${pieza.nombre ?? ''} ${pieza.id ?? ''}`.toLowerCase();
-  if (/(lateral|costado|montante|puerta)/.test(texto)) return 'vertical';
+  const esCaja = /(caj\w*n|zapatera)/.test(texto);
+  if (esCaja) return 'horizontal'; // todo lo de la caja: a lo ancho / profundidad
+  if (/(costado|lateral|montante|divisor|division|puerta)/.test(texto)) return 'vertical';
+  if (/(fondo|trasera|posterior|respaldo)/.test(texto)) return 'vertical'; // fondo del módulo
   return 'horizontal';
+}
+
+// ── Piezas metálicas (sin veta) ───────────────────────────────────────────
+export type TipoMetal = 'cromo' | 'aluminioGola';
+
+export const METAL_CROMO = { nombre: 'Cromo', color: '#c0c4c8', metalness: 0.9, roughness: 0.25 };
+export const METAL_ALUMINIO_GOLA = { nombre: 'Aluminio Gola', color: '#9a9da2', metalness: 0.8, roughness: 0.4 };
+
+/** Barra de colgado → cromo; perfil gola → aluminio. */
+export function tipoMetalPieza(pieza: { nombre?: string; id?: string }): TipoMetal | null {
+  const texto = `${pieza.nombre ?? ''} ${pieza.id ?? ''}`.toLowerCase();
+  if (/gola/.test(texto)) return 'aluminioGola';
+  if (/(barra|colgador)/.test(texto)) return 'cromo';
+  return null;
+}
+
+/** Material metálico (barra / perfil gola): sin textura de veta. */
+export function materialMetal(tipo: TipoMetal): THREE.MeshStandardMaterial {
+  const def = tipo === 'cromo' ? METAL_CROMO : METAL_ALUMINIO_GOLA;
+  return new THREE.MeshStandardMaterial({
+    color: def.color,
+    metalness: def.metalness,
+    roughness: def.roughness,
+  });
+}
+
+// ── Interiores en blanco (carpintería real) ───────────────────────────────
+// Las cajas de cajones y zapateras (laterales, cara/frente interior, trasera,
+// fondo y base) van SIEMPRE en "Blanco Liso", sea cual sea el acabado
+// exterior. Solo los frentes visibles llevan el acabado seleccionado.
+export function esInteriorCaja(pieza: { nombre?: string; id?: string }): boolean {
+  const texto = `${pieza.nombre ?? ''} ${pieza.id ?? ''}`.toLowerCase();
+  if (!/(caj\w*n|zapatera)/.test(texto)) return false;
+  if (/frente/.test(texto)) return false; // el frente decorativo SÍ lleva acabado
+  return /(lateral|cara|fondo|base|trasera|division|divisor)/.test(texto);
+}
+
+// ── Efecto "tabla continua" en frentes del mismo módulo ───────────────────
+// Los frentes de cajón/zapatera de un módulo comparten UNA textura: la veta
+// continúa cruzando el canal gola. repeat/offset calculados con las
+// posiciones reales (1 tile = 600 mm).
+export interface EntradaTablaContinua {
+  offsetY: number;
+  repeatY: number;
+}
+
+export function calcularTablaContinua<T extends {
+  id: string;
+  nombre?: string;
+  ancho: number;
+  alto: number;
+  modulo?: string | null;
+  posicion?: { x: number; y: number; z: number } | null;
+}>(piezas: T[]): Map<string, EntradaTablaContinua> {
+  const grupos = new Map<string, T[]>();
+  for (const p of piezas) {
+    if (!/frente/.test(`${p.nombre ?? ''} ${p.id ?? ''}`.toLowerCase())) continue;
+    if (!p.posicion || !Number.isFinite(p.posicion.y)) continue;
+    const mod = String(p.modulo ?? '');
+    if (!grupos.has(mod)) grupos.set(mod, []);
+    grupos.get(mod)!.push(p);
+  }
+  const mapa = new Map<string, EntradaTablaContinua>();
+  for (const grupo of grupos.values()) {
+    if (grupo.length < 2) continue; // continuidad solo con 2+ frentes
+    const ordenados = [...grupo].sort((a, b) => a.posicion!.y - b.posicion!.y);
+    const baseY = ordenados[0].posicion!.y;
+    const techo = Math.max(...ordenados.map((p) => p.posicion!.y + (Number(p.alto) || 0)));
+    const spanMm = Math.max(techo - baseY, 1);
+    const repeatY = spanMm / MM_POR_TILE;
+    for (const p of ordenados) {
+      mapa.set(p.id, { offsetY: (p.posicion!.y - baseY) / MM_POR_TILE, repeatY });
+    }
+  }
+  return mapa;
 }
 
 // ── Dibujo en canvas ──────────────────────────────────────────────────────
@@ -270,6 +352,14 @@ export interface MaterialMadera extends THREE.MeshStandardMaterial {
  * Canvas → MeshStandardMaterial: RepeatWrapping, SRGB, anisotropy máxima del
  * renderer, roughness del acabado y metalness 0.
  */
+export interface OpcionesMaterial {
+  /** repeat/offset explícitos (efecto tabla continua entre frentes) */
+  repeatX?: number;
+  repeatY?: number;
+  offsetX?: number;
+  offsetY?: number;
+}
+
 export function materialMadera(
   renderer: THREE.WebGLRenderer,
   acabadoNombre: string,
@@ -277,13 +367,15 @@ export function materialMadera(
   repetirX: number,
   repetirY: number,
   semilla: number = SEMILLA_DEFAULT,
+  opciones: OpcionesMaterial = {},
 ): MaterialMadera {
   const acabado = getAcabado(acabadoNombre);
   const canvas = crearTexturaMadera({ acabado: acabadoNombre, direccion, semilla });
   const textura = new THREE.CanvasTexture(canvas);
   textura.wrapS = THREE.RepeatWrapping;
   textura.wrapT = THREE.RepeatWrapping;
-  textura.repeat.set(repetirX, repetirY);
+  textura.repeat.set(opciones.repeatX ?? repetirX, opciones.repeatY ?? repetirY);
+  textura.offset.set(opciones.offsetX ?? 0, opciones.offsetY ?? 0);
   textura.colorSpace = THREE.SRGBColorSpace;
   textura.anisotropy = renderer.capabilities.getMaxAnisotropy();
   const material = new THREE.MeshStandardMaterial({
@@ -295,16 +387,28 @@ export function materialMadera(
   return material;
 }
 
-/** Material + dirección para una pieza con medidas reales (mm). */
+/**
+ * Material para una pieza con medidas reales (mm). Reglas del spec:
+ * - interiores de caja (laterales/cara/trasera/fondo/base de cajón y
+ *   zapatera) → SIEMPRE 'Blanco Liso', con el acabado exterior elegido solo
+ *   en frentes y casco;
+ * - dirección de veta por tipo de pieza (direccionVetaPieza);
+ * - frentes del mismo módulo comparten textura (tabla continua): offset y
+ *   repeat del grupo, para que la veta cruce el canal gola.
+ */
 export function materialMaderaParaPieza(
   renderer: THREE.WebGLRenderer,
   pieza: { nombre?: string; id?: string; ancho: number; alto: number },
   acabadoNombre: string,
   semilla: number = SEMILLA_DEFAULT,
+  tabla?: EntradaTablaContinua | null,
 ): MaterialMadera {
+  const acabadoEfectivo = esInteriorCaja(pieza) ? 'blanco' : acabadoNombre;
   const direccion = direccionVetaPieza(pieza);
   const repeat = calcularRepeat(pieza.ancho, pieza.alto);
-  return materialMadera(renderer, acabadoNombre, direccion, repeat.x, repeat.y, semilla);
+  return materialMadera(renderer, acabadoEfectivo, direccion, repeat.x, repeat.y, semilla, tabla
+    ? { repeatY: tabla.repeatY, offsetY: tabla.offsetY }
+    : {});
 }
 
 /** Libera la textura y el material (fuga de memoria GPU al cambiar acabado). */
@@ -325,11 +429,40 @@ export function liberarMaterial(material: THREE.Material | null | undefined): vo
 export function aplicarAcabado(
   grupo: THREE.Object3D,
   nombreAcabado: string,
+  nombreInterior: string = 'blanco',
   renderer?: THREE.WebGLRenderer,
   semilla: number = SEMILLA_DEFAULT,
 ): number {
   if (!getAcabado(nombreAcabado)) return 0;
-  const anisotropyFallback = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
+  const anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
+  const gl = renderer ?? ({ capabilities: { getMaxAnisotropy: () => anisotropy } } as THREE.WebGLRenderer);
+
+  // Tabla continua: agrupar las mallas-frente por módulo (userData.modulo
+  // o prefijo del nombre) para compartir repeat/offset de la veta.
+  interface FrenteRef { mesh: THREE.Mesh; y: number; alto: number }
+  const frentesPorModulo = new Map<string, FrenteRef[]>();
+  grupo.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const ficha = (mesh.userData ?? {}) as { tipoPieza?: string; modulo?: string; nombre?: string };
+    const nombre = ficha.nombre ?? mesh.name ?? '';
+    if (!/frente/.test(String(nombre).toLowerCase())) return;
+    const mod = String(ficha.modulo ?? (nombre.match(/M(\d+)/)?.[1] ?? ''));
+    if (!frentesPorModulo.has(mod)) frentesPorModulo.set(mod, []);
+    frentesPorModulo.get(mod)!.push({ mesh, y: mesh.position.y, alto: mesh.scale.y * ((mesh.geometry as THREE.BoxGeometry)?.parameters?.height ?? 0) });
+  });
+  const tablaPorMesh = new Map<THREE.Mesh, EntradaTablaContinua>();
+  for (const grupoF of frentesPorModulo.values()) {
+    if (grupoF.length < 2) continue;
+    const ordenados = [...grupoF].sort((a, b) => a.y - b.y);
+    const baseY = ordenados[0].y;
+    const techo = Math.max(...ordenados.map((f) => f.y + f.alto));
+    const repeatY = Math.max(techo - baseY, 1) / MM_POR_TILE;
+    for (const f of ordenados) {
+      tablaPorMesh.set(f.mesh, { offsetY: (f.y - baseY) / MM_POR_TILE, repeatY });
+    }
+  }
+
   let count = 0;
   grupo.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
@@ -337,16 +470,20 @@ export function aplicarAcabado(
     const geo = mesh.geometry as THREE.BoxGeometry;
     if (!geo?.parameters) return;
     const { width, height } = geo.parameters;
+    const ficha = (mesh.userData ?? {}) as { tipoPieza?: string; modulo?: string; nombre?: string };
+    const pieza = { nombre: ficha.nombre ?? mesh.name, id: mesh.name, ancho: width, alto: height };
     const anterior = mesh.material as THREE.Material | THREE.Material[];
-    const material = materialMadera(
-      renderer ?? ({ capabilities: { getMaxAnisotropy: () => anisotropyFallback } } as THREE.WebGLRenderer),
-      nombreAcabado,
-      direccionVetaPieza({ nombre: mesh.name, id: mesh.name }),
-      calcularRepeat(width, height).x,
-      calcularRepeat(width, height).y,
-      semilla,
-    );
-    if (Array.isArray(anterior)) anterior.forEach((m) => liberarMaterial(m));
+
+    let material: THREE.Material;
+    const metal = tipoMetalPieza(pieza);
+    if (metal) {
+      material = materialMetal(metal);
+    } else {
+      const acabadoEfectivo = esInteriorCaja(pieza) ? nombreInterior : nombreAcabado;
+      const tabla = /frente/.test(String(pieza.nombre).toLowerCase()) ? tablaPorMesh.get(mesh) ?? null : null;
+      material = materialMaderaParaPieza(gl, pieza, acabadoEfectivo, semilla, tabla);
+    }
+    if (Array.isArray(anterior)) anterior.forEach((m2) => liberarMaterial(m2));
     else liberarMaterial(anterior);
     mesh.material = material;
     count += 1;

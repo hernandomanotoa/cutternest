@@ -9,6 +9,11 @@ import {
   hexA,
   generarParametrosVeta,
   direccionVetaPieza,
+  tipoMetalPieza,
+  METAL_CROMO,
+  METAL_ALUMINIO_GOLA,
+  esInteriorCaja,
+  calcularTablaContinua,
   crearTexturaMadera,
   SEMILLA_DEFAULT,
 } from './texturasMadera';
@@ -95,9 +100,8 @@ describe('direccionVetaPieza — veta por tipo de pieza', () => {
     expect(direccionVetaPieza({ nombre: 'Puerta vitrina' })).toBe('vertical');
   });
 
-  it('repisas, fondos, zócalo, tapas y frentes → horizontal', () => {
+  it('repisas, zócalo, tapas y frentes → horizontal (los fondos de MÓDULO son verticales)', () => {
     expect(direccionVetaPieza({ nombre: 'Repisa 1 M1' })).toBe('horizontal');
-    expect(direccionVetaPieza({ nombre: 'Fondo modulo M1' })).toBe('horizontal');
     expect(direccionVetaPieza({ nombre: 'Zocalo marco frente' })).toBe('horizontal');
     expect(direccionVetaPieza({ nombre: 'Tapa modulo M1' })).toBe('horizontal');
     expect(direccionVetaPieza({ nombre: 'Frente cajon 1 M1' })).toBe('horizontal');
@@ -162,5 +166,87 @@ describe('crearTexturaMadera — canvas offscreen', () => {
   it('acabado desconocido devuelve canvas en blanco sin lanzar', () => {
     const canvas = crearTexturaMadera({ acabado: 'no-existe' });
     expect(canvas.width).toBe(512);
+  });
+});
+
+describe('direccionVetaPieza — reglas del spec (sección 3)', () => {
+  it('VERTICAL: costados del módulo, divisiones, puertas y FONDO TRASERO', () => {
+    expect(direccionVetaPieza({ nombre: 'Lateral izquierdo M1' })).toBe('vertical');
+    expect(direccionVetaPieza({ nombre: 'Costado derecho' })).toBe('vertical');
+    expect(direccionVetaPieza({ nombre: 'Montante central M3' })).toBe('vertical');
+    expect(direccionVetaPieza({ nombre: 'Divisor 1 M1' })).toBe('vertical');
+    expect(direccionVetaPieza({ nombre: 'Puerta vitrina' })).toBe('vertical');
+    // El fondo del módulo lleva la MISMA veta que los laterales:
+    expect(direccionVetaPieza({ nombre: 'Fondo modulo M1' })).toBe('vertical');
+    expect(direccionVetaPieza({ nombre: 'Fondo trasero' })).toBe('vertical');
+    expect(direccionVetaPieza({ nombre: 'Panel posterior estanteria' })).toBe('vertical');
+  });
+
+  it('HORIZONTAL: frentes, repisas, tapas, zócalo', () => {
+    expect(direccionVetaPieza({ nombre: 'Frente cajon 1 M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Frente zapatera extraible 2 M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Repisa 1 M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Tapa modulo M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Zocalo marco frente' })).toBe('horizontal');
+  });
+
+  it('laterales de caja, caras, traseras y fondos de cajón → horizontal', () => {
+    expect(direccionVetaPieza({ nombre: 'Lateral cajon 1 M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Lateral zapatera extraible 1 izq M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Cara cajon 1 M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Fondo cajon 1 M1' })).toBe('horizontal');
+    expect(direccionVetaPieza({ nombre: 'Base zapatera extraible 1 M1' })).toBe('horizontal');
+  });
+});
+
+describe('metales (sin veta)', () => {
+  it('barra → cromo; perfil gola → aluminio; resto → null', () => {
+    expect(tipoMetalPieza({ nombre: 'Barra colgadora M1' })).toBe('cromo');
+    expect(tipoMetalPieza({ nombre: 'Frente cajon gola' }) ?? tipoMetalPieza({ id: 'm1gola-c1-fondo' })).toBe('aluminioGola');
+    expect(tipoMetalPieza({ nombre: 'Repisa 1 M1' })).toBeNull();
+    expect(METAL_CROMO.metalness).toBe(0.9);
+    expect(METAL_ALUMINIO_GOLA.roughness).toBe(0.4);
+  });
+});
+
+describe('esInteriorCaja — interiores en blanco (spec sección 5)', () => {
+  it('cajas de cajón/zapatera son interiores; los frentes no', () => {
+    for (const nombre of ['Lateral cajon 1 M1', 'Cara cajon 1 M1', 'Fondo cajon 1 M1', 'Base cajon 1 M1',
+      'Lateral zapatera extraible 1 izq M1', 'Fondo zapatera extraible 1 M1', 'Base zapatera extraible 1 M1',
+      'Division zapatera extraible 1 M1']) {
+      expect(esInteriorCaja({ nombre }), nombre).toBe(true);
+    }
+    for (const nombre of ['Frente cajon 1 M1', 'Frente zapatera extraible 1 M1',
+      'Lateral izquierdo M1', 'Fondo modulo M1', 'Repisa 1 M1']) {
+      expect(esInteriorCaja({ nombre }), nombre).toBe(false);
+    }
+  });
+});
+
+describe('calcularTablaContinua — la veta cruza el gola (spec sección 4)', () => {
+  const frente = (id: string, y: number, alto: number, modulo = '1') => ({
+    id, nombre: `Frente cajon ${id} M1`, ancho: 800, alto, modulo, posicion: { x: 0, y, z: 0 },
+  });
+
+  it('2 frentes del mismo módulo comparten repeat y el superior lleva offset', () => {
+    // frente 1: y=175 alto 227 (techo 402); gola 86; frente 2: y=488 alto 227.
+    const mapa = calcularTablaContinua([frente('a', 175, 227), frente('b', 488, 227)]);
+    const span = (488 + 227) - 175; // 540
+    expect(mapa.get('a')).toEqual({ offsetY: 0, repeatY: span / MM_POR_TILE });
+    expect(mapa.get('b')).toEqual({ offsetY: (488 - 175) / MM_POR_TILE, repeatY: span / MM_POR_TILE });
+  });
+
+  it('frentes de distinto módulo no comparten; 1 frente solo no entra', () => {
+    const mapa = calcularTablaContinua([
+      frente('a', 0, 200, '1'),
+      frente('b', 300, 200, '2'),
+      frente('c', 10, 150, '3'),
+    ]);
+    expect(mapa.size).toBe(0);
+  });
+
+  it('sin posición no participa', () => {
+    const p = { id: 'x', nombre: 'Frente cajon x M1', ancho: 800, alto: 200, modulo: '1', posicion: null };
+    expect(calcularTablaContinua([p, frente('a', 0, 200)]).size).toBe(0);
   });
 });
