@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { BoardResult, Placement } from '../../types'
 import { useSelectionStore } from '../../stores/selectionStore'
 import { defsPatronesVeta, patronVetaId, type DireccionVeta } from '../../utils/grainPatternSvg'
+import { etiquetaPieza } from '../../utils/labelFit'
 
 interface Layout2DProps {
   board: BoardResult
@@ -120,8 +121,18 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
           const h = p.h * SCALE
           const cx = x + w / 2
           const cy = y + h / 2
-          const isVertical = h > w
-          const fontSize = Math.max(4, Math.min(w, h) * 0.14)
+          // Etiqueta adaptativa: nombre + medidas si caben; si no, nombre
+          // truncado; si no, id; en piezas angostas y altas va rotada 90°.
+          // Las diminutas no llevan texto (tooltip + barra de selección).
+          const etiqueta = etiquetaPieza({
+            nombre: p.nombre,
+            id: p.id,
+            w,
+            h,
+            maxFont: Math.max(3, Math.min(w, h) * 0.16),
+            minFont: 3,
+          })
+          const etiquetaRotada = etiqueta?.rotada ?? false
 
           return (
             <g
@@ -149,31 +160,26 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
                 strokeWidth={strokeWidth}
                 style={{ transition: 'all 150ms ease' }}
               />
-              <g
-                transform={isVertical ? `rotate(90, ${cx}, ${cy})` : undefined}
-                pointerEvents='none'
-              >
-                <text
-                  x={cx}
-                  y={cy - fontSize * 0.7}
-                  textAnchor='middle'
-                  dominantBaseline='middle'
-                  fontSize={fontSize}
-                  fill='hsl(var(--foreground))'
+              {etiqueta && (
+                <g
+                  transform={etiquetaRotada ? `rotate(90, ${cx}, ${cy})` : undefined}
+                  pointerEvents='none'
                 >
-                  {p.nombre}
-                </text>
-                <text
-                  x={cx}
-                  y={cy + fontSize * 0.7}
-                  textAnchor='middle'
-                  dominantBaseline='middle'
-                  fontSize={fontSize * 0.75}
-                  fill='hsl(var(--muted-foreground))'
-                >
-                  {p.w.toFixed(1)}×{p.h.toFixed(1)} mm
-                </text>
-              </g>
+                  {etiqueta.lineas.map((linea, li) => (
+                    <text
+                      key={li}
+                      x={cx}
+                      y={cy + (li - (etiqueta.lineas.length - 1) / 2) * etiqueta.fontSize * 1.25}
+                      textAnchor='middle'
+                      dominantBaseline='middle'
+                      fontSize={etiqueta.fontSize}
+                      fill={li === 0 ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))'}
+                    >
+                      {linea}
+                    </text>
+                  ))}
+                </g>
+              )}
               {p.rotado && (
                 <g transform={`translate(${x + w - 6}, ${y + 6})`} pointerEvents='none'>
                   <circle r='4' fill='hsl(var(--primary))' />
