@@ -8,18 +8,29 @@ from app.config import get_settings
 settings = get_settings()
 
 
-def _sorted_rects(rects):
-    """Orden de empaquetado: ÁREA descendente (las piezas grandes primero,
-    "lo más que se pueda"), desempate por lado largo y rid. El tipo de pieza
-    no interviene: fragmentar por grupos deja tableros medios vacíos."""
-    return sorted(
-        rects,
-        key=lambda r: (
-            -(r[0] * r[1]),
-            -max(r[0], r[1]),
-            r[4],
-        ),
-    )
+def _clave_orden(criterio: str):
+    """Clave de ordenamiento del lote según el criterio. Todas descendentes
+    (grandes primero) con desempates deterministas por rid."""
+    if criterio == "lado_largo":
+        return lambda r: (-max(r[0], r[1]), -(r[0] * r[1]), r[4])
+    if criterio == "alto":
+        return lambda r: (-r[1], -r[0], r[4])
+    if criterio == "perimetro":
+        return lambda r: (-(r[0] + r[1]), -(r[0] * r[1]), r[4])
+    # 'area' (default)
+    return lambda r: (-(r[0] * r[1]), -max(r[0], r[1]), r[4])
+
+
+# Criterios que prueba el modo 'máximo aprovechamiento': cada orden produce
+# un layout distinto (el orden de entrada decide la estructura guillotina) y
+# el mejor resultado (menos tableros, empate → más área usada) gana.
+_CRITERIOS_ORDEN = ("area", "lado_largo", "alto", "perimetro")
+
+
+def _sorted_rects(rects, criterio: str = "area"):
+    """Orden de empaquetado según el criterio ('area' default: área
+    descendente — las piezas grandes primero, 'lo más que se pueda')."""
+    return sorted(rects, key=_clave_orden(criterio))
 
 
 def _packer_with_best_algorithm(rotation: bool = True):
@@ -275,6 +286,7 @@ def _pack_guillotine_phase(
     kerf_mm: float,
     margin_mm: float,
     phase: str,
+    criterio: str = "area",
 ) -> Dict[str, Dict[str, Any]]:
     """Empaqueta con cortes COMPLETOS recursivos (guillotina de máquina).
 
@@ -300,7 +312,7 @@ def _pack_guillotine_phase(
       del mejor encaje; las bloqueadas (veta) van con su huella fija.
     """
     items = []
-    for w, h, ow, oh, rid, rot, original in _sorted_rects(rects):
+    for w, h, ow, oh, rid, rot, original in _sorted_rects(rects, criterio):
         items.append({
             "w": w + kerf_mm, "h": h + kerf_mm,  # huella de corte (con sierra)
             "ow": ow, "oh": oh, "rid": rid, "rot": rot, "original": original,
@@ -415,6 +427,33 @@ def _pack_guillotine_phase(
     return out
 
 
+def _pack_guillotine_multi(
+    rects: List[Tuple[float, float, float, float, str, bool, Dict[str, Any]]],
+    offcut_boards: List[Dict[str, Any]],
+    usable_w: float,
+    usable_h: float,
+    kerf_mm: float,
+    margin_mm: float,
+) -> Dict[str, Dict[str, Any]]:
+    """MODO MÁXIMO APROVECHAMIENTO: empaqueta el lote con varios criterios de
+    orden (área / lado largo / alto / perímetro) y devuelve el mejor resultado
+    — menos tableros; a igual número, más área usada. El orden de entrada
+    decide la estructura guillotina, así que distintos órdenes pueden diferir
+    en uno o más tableros. Costo: un empaquetado por criterio (rápido)."""
+    mejor = None  # (clave, resultado)
+    for crit in _CRITERIOS_ORDEN:
+        r = _pack_guillotine_phase(
+            rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+            phase=f"g_{crit}", criterio=crit,
+        )
+        tableros = len(r)
+        usada = sum(p["w"] * p["h"] for b in r.values() for p in b["placements"])
+        clave = (tableros, -round(usada, 3))
+        if mejor is None or clave < mejor[0]:
+            mejor = (clave, r)
+    return mejor[1]
+
+
 def optimize_cuts(
     board_width_mm: float,
     board_height_mm: float,
@@ -424,6 +463,7 @@ def optimize_cuts(
     margin_mm: float = None,
     eje_veta: str = "ancho",
     modo: str = "guillotina",
+    max_aprovechamiento: bool = False,
 ) -> Dict[str, Any]:
     """
     Optimiza el corte de piezas en tableros. Las dimensiones están en mm.
@@ -442,11 +482,15 @@ def optimize_cuts(
     lineales completos, sin interrupciones). Lo que sobrevive al corte sigue
     siendo un rectángulo cortable con cortes completos; una pieza más baja
     que su vecina no interrumpe: la franja sobre ella recibe sus propios
-    cortes completos. Piezas ordenadas por área descendente y mejor encaje
-    global (best short-side fit, tablero más antiguo en empate) para no dejar
-    tableros medios vacíos. modo='nesting': nesting 2D libre (rectpack
+    cortes completos. Piezas ordenadas por área descendente; cada una va al
+    tablero más antiguo con cabida y dentro de él al rectángulo libre de
+    menor sobrante (best short-side fit) para no dejar tableros medios
+    vacíos. modo='nesting': nesting 2D libre (rectpack
     MaxRects), mejor aprovechamiento teórico pero con cortes en T que la
-    sierra no puede hacer de una pasada.
+    sierra no puede hacer de una pasada. max_aprovechamiento=True (solo
+    guillotina): prueba varios órdenes de empaquetado (área / lado largo /
+    alto / perímetro) y devuelve el que usa menos tableros (a igual número,
+    más área usada).
     """
     offcuts = offcuts or []
     kerf_mm = kerf_mm if kerf_mm is not None else settings.kerf_mm
@@ -484,10 +528,15 @@ def optimize_cuts(
         # las bloqueadas van con su huella de veta; los sobrantes se ofrecen
         # a todo el lote (el mejor encaje gana), no repartidos por fases.
         if rects:
-            bins.update(_pack_guillotine_phase(
-                rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
-                phase="g",
-            ))
+            if max_aprovechamiento:
+                bins.update(_pack_guillotine_multi(
+                    rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+                ))
+            else:
+                bins.update(_pack_guillotine_phase(
+                    rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+                    phase="g",
+                ))
     else:
         free_rects = [r for r in rects if r[5]]
         locked_rects = [r for r in rects if not r[5]]

@@ -95,6 +95,7 @@ interface PersistedConfig {
   materialType?: string
   useOffcuts?: boolean
   modoCorte?: 'guillotina' | 'nesting'
+  maxAprovechamiento?: boolean
 }
 
 function loadConfig(): PersistedConfig {
@@ -160,6 +161,7 @@ export function OptimizerPage() {
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(config.useOffcuts ?? false)
   const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting'>(config.modoCorte ?? 'guillotina')
+  const [maxAprovechamiento, setMaxAprovechamiento] = useState(config.maxAprovechamiento ?? false)
   const [sortMode, setSortMode] = useState<SortMode>('tamano')
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
@@ -202,8 +204,8 @@ export function OptimizerPage() {
   }, [])
 
   useEffect(() => {
-    saveConfig({ tablero, materialType, useOffcuts, modoCorte })
-  }, [tablero, materialType, useOffcuts, modoCorte])
+    saveConfig({ tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento })
+  }, [tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento])
 
   useEffect(() => {
     saveTemplate(piezas)
@@ -465,6 +467,7 @@ export function OptimizerPage() {
         use_offcuts: useOffcuts,
         material_type: materialType,
         modo_corte: modoCorte,
+        max_aprovechamiento: maxAprovechamiento,
       })
       const data = response.data as { tableros: BoardResult[]; total_tableros: number }
       setResult(data.tableros)
@@ -757,6 +760,20 @@ export function OptimizerPage() {
                   recibe sus propios cortes completos. Nesting: mejor aprovechamiento, con cortes en T.
                 </p>
               </div>
+
+              <label className='flex items-center gap-2 text-sm text-foreground'>
+                <input
+                  type='checkbox'
+                  checked={maxAprovechamiento}
+                  onChange={(e) => setMaxAprovechamiento(e.target.checked)}
+                  className='h-4 w-4 rounded border-border text-primary focus:ring-ring'
+                />
+                Máximo aprovechamiento
+              </label>
+              <p className='-mt-1 text-xs text-muted-foreground'>
+                Solo con guillotina: prueba varios órdenes de empaquetado y se queda con el que
+                usa menos tableros (empaqueta 4 veces; un poco más lento).
+              </p>
 
               <label className='flex items-center gap-2 text-sm text-foreground'>
                 <input

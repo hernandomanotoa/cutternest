@@ -98,6 +98,9 @@ class OptimizeRequest(BaseModel):
     # 'guillotina' (default) = cortes lineales a lo largo del tablero (sierra
     # real); 'nesting' = nesting 2D libre (rectpack, mejor aprovechamiento).
     modo_corte: Optional[str] = Field("guillotina", max_length=16)
+    # Solo guillotina: probar varios órdenes de empaquetado y quedarse con el
+    # que usa menos tableros.
+    max_aprovechamiento: bool = False
 
 
 class PiecesUpdateRequest(BaseModel):

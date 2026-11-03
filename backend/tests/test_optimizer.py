@@ -431,3 +431,35 @@ def test_lote_real_closet_5_modulos_tablero_2100x2440():
     )
     promedio = sum(b["utilizacion"] for b in result["tableros"]) / result["total_tableros"]
     assert promedio >= 81, f"utilización promedio {promedio:.2f}% por debajo del 81%"
+
+
+def test_max_aprovechamiento_menos_tableros():
+    """Máximo aprovechamiento (guillotina): prueba varios órdenes de
+    empaquetado y devuelve el de menos tableros. En el lote real (2100×2440,
+    kerf 4, margen 10, veta alto) el orden por área da 10 tableros y el mejor
+    orden da 9 (piso teórico): ahorra un tablero entero con todos los cortes
+    completos."""
+    import os
+    ruta = os.path.join(os.path.dirname(__file__), "fixtures", "closet-5-modulos.csv")
+    pieces = _cargar_csv(ruta)
+
+    base = optimizer_service.optimize_cuts(
+        board_width_mm=2100, board_height_mm=2440, pieces=pieces,
+        kerf_mm=4, margin_mm=10, eje_veta="alto",
+    )
+    mejor = optimizer_service.optimize_cuts(
+        board_width_mm=2100, board_height_mm=2440, pieces=pieces,
+        kerf_mm=4, margin_mm=10, eje_veta="alto",
+        max_aprovechamiento=True,
+    )
+    assert mejor["total_tableros"] <= base["total_tableros"], (
+        "max_aprovechamiento nunca debe dar más tableros que el orden por área"
+    )
+    assert mejor["total_tableros"] == 9, (
+        f"se esperaban 9 tableros (piso teórico), salieron {mejor['total_tableros']}"
+    )
+    total_unidades = sum(p["cantidad"] for p in pieces)
+    assert sum(len(b["placements"]) for b in mejor["tableros"]) == total_unidades
+    for board in mejor["tableros"]:
+        _assert_no_overlaps(board)
+        _assert_cortes_completos(_rects(board))
