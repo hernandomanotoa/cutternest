@@ -196,9 +196,33 @@ def _assert_no_overlaps(board):
             assert not overlap, f"piezas {i} y {j} se solapan"
 
 
+def _assert_layout_tiras(board, kerf=0.0):
+    """El layout respeta el corte por tiras a lo largo del alto:
+    - piezas con el mismo X comparten ancho (misma tira) y se apilan en Y
+      sin solaparse, desde el borde del tablero;
+    - tiras distintas no se solapan en X (cortes longitudinales completos)."""
+    tiras = {}
+    for p in board["placements"]:
+        clave = round(p["x"], 3)
+        tiras.setdefault(clave, []).append(p)
+    xs_ocupados = []
+    for x, piezas in tiras.items():
+        anchos = {round(p["w"], 3) for p in piezas}
+        assert len(anchos) == 1, f"tira en x={x}: anchos mixtos {anchos} (corte longitudinal interrumpido)"
+        ordenadas = sorted(piezas, key=lambda p: p["y"])
+        # La tira arranca en el borde útil (margen del tablero, ≤6 mm).
+        assert ordenadas[0]["y"] <= 6.0, "la tira debe arrancar en el borde del tablero"
+        for a, b in zip(ordenadas, ordenadas[1:]):
+            assert a["y"] + a["h"] + kerf <= b["y"] + 1e-6, "piezas de una tira se solapan"
+        xs_ocupados.append((x, ordenadas[0]["w"]))
+    xs_ocupados.sort()
+    for (x1, w1), (x2, _w2) in zip(xs_ocupados, xs_ocupados[1:]):
+        assert x1 + w1 + kerf <= x2 + 1e-6, f"tiras en x={x1} y x={x2} se solapan"
+
+
 def test_guillotina_default_sin_solapes():
     """El modo por defecto es guillotina (cortes lineales a lo largo): las
-    piezas quedan dentro del tablero y sin solaparse."""
+    piezas quedan dentro del tablero, sin solaparse y en layout de tiras."""
     pieces = [
         {"id": f"lat-{i}", "nombre": f"Lateral {i}", "ancho": 600, "alto": 2200,
          "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18}
@@ -215,11 +239,12 @@ def test_guillotina_default_sin_solapes():
     assert result["total_tableros"] >= 1
     for board in result["tableros"]:
         _assert_no_overlaps(board)
+        _assert_layout_tiras(board, kerf=3)
 
 
-def test_guillotina_ordena_por_tipo_y_tamaño():
-    """Las piezas estructurales (laterales/fondos) se colocan primero: el
-    primer placement del primer tablero es el lateral más grande."""
+def test_guillotina_ordena_por_area():
+    """Las piezas se empaquetan en orden de área descendente: el primer
+    placement del primer tablero es la pieza de mayor área."""
     pieces = [
         {"id": "tir", "nombre": "Tirador", "ancho": 150, "alto": 30,
          "cantidad": 4, "rotate": True, "color": "#111111", "espesor": 18},
@@ -232,10 +257,43 @@ def test_guillotina_ordena_por_tipo_y_tamaño():
         board_width_mm=2440, board_height_mm=1220,
         pieces=pieces, kerf_mm=3, margin_mm=5,
     )
-    first = result["tableros"][0]["placements"][0]
-    assert first["id"] == "lat", "el lateral (tipo estructural, más grande) va primero"
+    areas = {p["id"]: p["ancho"] * p["alto"] for p in pieces}
+    primer = result["tableros"][0]["placements"][0]
+    assert primer["id"] == max(areas, key=areas.get), "la de mayor área va primero"
     for board in result["tableros"]:
         _assert_no_overlaps(board)
+        _assert_layout_tiras(board, kerf=3)
+
+
+def test_guillotina_rellena_tableros_anteriores():
+    """Una pieza que cabe en una tira abierta de un tablero ANTERIOR va ahí,
+    aunque ya existan tableros más nuevos (nada de tableros medios vacíos)."""
+    pieces = [
+        # 3 paneles 800x1200 (veta → huella 1200 de ancho × 800 de alto): 2
+        # tiras caben en el tablero (2400 ≤ 2440); el tercero abre el
+        # tablero 2. Cada tira queda con 420 de alto libre.
+        {"id": f"a{i}", "nombre": f"Panel {i}", "ancho": 800, "alto": 1200,
+         "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18}
+        for i in range(3)
+    ] + [
+        # 100x1200: huella (1200, 100), mismo ancho de tira; cabe en el alto
+        # libre (420) → debe volver al tablero 1, no al 2.
+        {"id": "b", "nombre": "Panel bajo", "ancho": 100, "alto": 1200,
+         "cantidad": 1, "rotate": False, "color": "#96CEB4", "espesor": 18},
+    ]
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220,
+        pieces=pieces, kerf_mm=0, margin_mm=0,
+    )
+    assert result["total_tableros"] == 2
+    tablero_de_b = next(
+        idx for idx, b in enumerate(result["tableros"])
+        if any(p["id"] == "b" for p in b["placements"])
+    )
+    assert tablero_de_b == 0, "la pieza pequeña debe rellenar el tablero 1"
+    for board in result["tableros"]:
+        _assert_no_overlaps(board)
+        _assert_layout_tiras(board)
 
 
 def test_modo_nesting_sigue_disponible():

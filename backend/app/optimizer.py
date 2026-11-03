@@ -7,41 +7,14 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Clasificación por tipo de pieza (keyword del nombre) para ordenar el
-# empaquetado: piezas estructurales grandes primero, decorativas al final.
-# La ITERACIÓN va de lo más específico a lo más genérico (zócalo antes que
-# frente: "Zocalo marco frente" es zócalo); el rank fija el orden de colocación.
-_TIPO_RANK_KEYWORDS = [
-    (0, ("lateral", "costado", "montante")),
-    (7, ("zócalo", "zocalo", "plinth")),
-    (1, ("fondo", "trasera")),
-    (2, ("tapa",)),
-    (3, ("base",)),
-    (6, ("división", "division")),
-    (4, ("frente", "puerta")),
-    (5, ("repisa", "estante", "entrepaño", "entrepano", "maletero", "amarre", "travesaño", "travesano")),
-    (8, ("pata", "pie ")),
-    (9, ("tirador", "jaladera", "manija")),
-]
-
-
-def _tipo_rank(nombre: str) -> int:
-    n = (nombre or "").lower()
-    for rank, keywords in _TIPO_RANK_KEYWORDS:
-        if any(k in n for k in keywords):
-            return rank
-    return 5  # repisa/estante: default de piezas horizontales
-
 
 def _sorted_rects(rects):
-    """Orden de empaquetado: tipo de pieza y luego tamaño (área y lado largo
-    descendentes). Dentro del tipo, las de veta bloqueada primero (suelen ser
-    los paneles grandes que mejoran la cabida al ir al fondo del tablero)."""
+    """Orden de empaquetado: ÁREA descendente (las piezas grandes primero,
+    "lo más que se pueda"), desempate por lado largo y rid. El tipo de pieza
+    no interviene: fragmentar por grupos deja tableros medios vacíos."""
     return sorted(
         rects,
         key=lambda r: (
-            _tipo_rank(r[6].get("nombre", "")),
-            0 if not r[5] else 1,  # bloqueadas (veta) antes que libres
             -(r[0] * r[1]),
             -max(r[0], r[1]),
             r[4],
@@ -208,42 +181,21 @@ def _pack_phase(
     return bins
 
 
-class _FreeRect:
-    """Rectángulo libre dentro de un tablero en fase de empaquetado."""
+class _Tira:
+    """Tira (banda) de ancho constante que corre todo el alto de un tablero.
 
-    __slots__ = ("x", "y", "w", "h")
+    La máquina corta en la dirección del alto con pasadas completas: el
+    tablero se corteja en tiras longitudinales y dentro de cada tira las
+    piezas se apilan (los cortes transversales también son pasadas completas
+    a lo ancho de la tira). Nada de cortes en T ni interrupciones."""
 
-    def __init__(self, x: float, y: float, w: float, h: float):
-        self.x, self.y, self.w, self.h = x, y, w, h
+    __slots__ = ("board", "x", "width", "used")
 
-
-def _guillotine_split(free: _FreeRect, pw: float, ph: float, kerf: float) -> List[_FreeRect]:
-    """Divide el rectángulo libre tras colocar una pieza de (pw, ph) en su
-    esquina inferior izquierda. Los dos cortes son LINEALES a lo largo: el
-    vertical corre todo el alto de la pieza y el horizontal todo el ancho del
-    rectángulo — cualquier layout producido por esta división se puede cortar
-    con pasadas de sierra de extremo a extremo (guillotina)."""
-    out = []
-    right_w = free.w - pw - kerf
-    if right_w > 0:
-        out.append(_FreeRect(free.x + pw + kerf, free.y, right_w, ph))
-    top_h = free.h - ph - kerf
-    if top_h > 0:
-        out.append(_FreeRect(free.x, free.y + ph + kerf, free.w, top_h))
-    return out
-
-
-def _best_fit_in_bin(free_rects: List[_FreeRect], pw: float, ph: float):
-    """Busca el rectángulo libre donde la pieza (pw, ph) deja menos sobrante
-    en el lado corto (best short-side fit). Devuelve (índice, sobrante) o
-    (None, None) si no cabe en ninguno."""
-    best_idx, best_waste = None, None
-    for i, f in enumerate(free_rects):
-        if pw <= f.w + 1e-9 and ph <= f.h + 1e-9:
-            waste = min(f.w - pw, f.h - ph)
-            if best_waste is None or waste < best_waste - 1e-9:
-                best_idx, best_waste = i, waste
-    return best_idx, best_waste
+    def __init__(self, board: Dict[str, Any], x: float, width: float):
+        self.board = board
+        self.x = x
+        self.width = width
+        self.used = 0.0
 
 
 def _pack_guillotine_phase(
@@ -255,14 +207,23 @@ def _pack_guillotine_phase(
     margin_mm: float,
     phase: str,
 ) -> Dict[str, Dict[str, Any]]:
-    """Empaqueta con cortes guillotina (lineales a lo largo del tablero).
+    """Empaqueta en TIRAS a lo largo del alto (corte lineal real de máquina).
 
-    Misma interfaz que `_pack_phase`: devuelve bins {bid: {width, height,
-    placements}}. Cada pieza se coloca en la esquina inferior izquierda del
-    mejor rectángulo libre (best short-side fit) y el resto se divide en dos
-    rectángulos con cortes de extremo a extremo. Las piezas con rotate=True
-    prueban ambas orientaciones y eligen la de menor sobrante (empate: la no
-    rotada); las bloqueadas (veta) van siempre con su huella.
+    Estructura del layout: cada tablero = tiras de ancho constante a lo largo
+    de todo el alto; cada tira = piezas del MISMO ancho apiladas a lo largo
+    del alto. Solo hay cortes longitudinales completos (entre tiras) y
+    transversales completos (entre piezas de una tira).
+
+    Heurística de aprovechamiento:
+    - Piezas ordenadas por ÁREA descendente (grandes primero).
+    - Cada pieza busca, en orden de preferencia: (A) una tira abierta de su
+      ancho en CUALQUIER tablero con altura restante suficiente — best fit,
+      la que menos altura libre deja, y de empate el tablero más antiguo (así
+      se rellenan tableros anteriores antes de abrir nuevos: nada de tableros
+      medios vacíos); (B) una tira nueva en el tablero más reciente. Si nada
+      cabe, tablero nuevo.
+    - Las piezas libres (rotate=True) prueban ambas orientaciones y eligen la
+      del mejor encaje global; las bloqueadas (veta) van con su huella fija.
     """
     items = []
     for w, h, ow, oh, rid, rot, original in _sorted_rects(rects):
@@ -272,92 +233,107 @@ def _pack_guillotine_phase(
         })
 
     bid_to_offcut_id = {off["bid"]: off.get("id") for off in offcut_boards}
-    bins: List[Dict[str, Any]] = []
+    boards: List[Dict[str, Any]] = []
     for off in offcut_boards:
-        bins.append({
+        boards.append({
             "bid": f"{phase}__{off['bid']}",
             "width": float(off["width"]),
             "height": float(off["height"]),
             "is_new": False,
-            "free": [_FreeRect(0.0, 0.0, float(off["width"]), float(off["height"]))],
+            "used_w": 0.0,
             "placements": [],
         })
 
-    def new_bin() -> Dict[str, Any]:
-        idx = sum(1 for b in bins if b["is_new"])
+    def new_board() -> Dict[str, Any]:
+        idx = sum(1 for b in boards if b["is_new"])
         b = {
             "bid": f"{phase}__nuevo_{idx}",
             "width": usable_w,
             "height": usable_h,
             "is_new": True,
-            "free": [_FreeRect(0.0, 0.0, usable_w, usable_h)],
+            "used_w": 0.0,
             "placements": [],
         }
-        bins.append(b)
+        boards.append(b)
         return b
 
+    strips: List[_Tira] = []
     for item in items:
-        placed = False
         # Orientaciones a probar: la natural primero (empate la favorece).
         orientations = [(item["w"], item["h"])]
         if item["rot"] and abs(item["w"] - item["h"]) > 1e-9:
             orientations.append((item["h"], item["w"]))
-        # Sobrantes primero (en su orden), luego tableros ya abiertos, y al
-        # final uno nuevo. Un sobrante se usa solo si la pieza cabe entera.
-        for bin_ in bins:
-            best = None  # (free_idx, pw, ph, waste)
+
+        best = None  # (costo, kind, strip_idx, pw, ph)
+        for pw, ph in orientations:
+            # (A) tira existente del mismo ancho en cualquier tablero.
+            for si, s in enumerate(strips):
+                if abs(s.width - pw) > 1e-9:
+                    continue
+                altura_libre = s.board["height"] - s.used
+                if ph <= altura_libre + 1e-9:
+                    coste = (0, altura_libre - ph, boards.index(s.board))
+                    if best is None or coste < best[0]:
+                        best = (coste, "tira", si, pw, ph)
+            # (B) tira nueva: en el tablero con MÁS ancho libre (empate: el
+            # más antiguo), para no desperdiciar anchos disponibles.
+            mejor_tablero = None
+            for bi, b in enumerate(boards):
+                ancho_libre = b["width"] - b["used_w"]
+                if pw <= ancho_libre + 1e-9:
+                    if mejor_tablero is None or ancho_libre > mejor_tablero[1] + 1e-9:
+                        mejor_tablero = (bi, ancho_libre)
+            if mejor_tablero is not None:
+                coste = (1, -mejor_tablero[1])
+                if best is None or coste < best[0]:
+                    best = (coste, "nueva", mejor_tablero[0], pw, ph)
+
+        if best is None:
+            # Tablero nuevo + tira nueva. Se elige la PRIMERA orientación que
+            # quepa en un tablero nuevo (la natural tiene prioridad);
+            # _validate_pieces_fit garantiza que al menos una cabe sola.
+            board = new_board()
+            elegida = None
             for pw, ph in orientations:
-                idx, waste = _best_fit_in_bin(bin_["free"], pw, ph)
-                if idx is not None and (best is None or waste < best[3] - 1e-9):
-                    best = (idx, pw, ph, waste)
-            if best is None:
-                continue
-            free_idx, pw, ph, _waste = best
-            free = bin_["free"].pop(free_idx)
-            x, y = free.x, free.y
-            bin_["free"].extend(_guillotine_split(free, pw, ph, kerf_mm))
-            bin_["placements"].append({
-                "rid": item["rid"],
-                "x": x + (margin_mm if bin_["is_new"] else 0),
-                "y": y + (margin_mm if bin_["is_new"] else 0),
-                "w": pw - kerf_mm,
-                "h": ph - kerf_mm,
-            })
-            item["_placed"] = (pw, ph)
-            placed = True
-            break
-        if not placed:
-            # No cabe en nada abierto: tablero nuevo. _validate_pieces_fit
-            # garantiza que al menos una orientación cabe sola; se elige la
-            # primera que quepa (la natural tiene prioridad).
-            bin_ = new_bin()
-            chosen = None
-            for pw, ph in orientations:
-                idx, _waste = _best_fit_in_bin(bin_["free"], pw, ph)
-                if idx is not None:
-                    chosen = (idx, pw, ph)
+                if pw <= board["width"] + 1e-9 and ph <= board["height"] + 1e-9:
+                    elegida = (pw, ph)
                     break
-            free_idx, pw, ph = chosen
-            free = bin_["free"].pop(free_idx)
-            bin_["free"].extend(_guillotine_split(free, pw, ph, kerf_mm))
-            bin_["placements"].append({
-                "rid": item["rid"],
-                "x": free.x + margin_mm,
-                "y": free.y + margin_mm,
-                "w": pw - kerf_mm,
-                "h": ph - kerf_mm,
-            })
-            item["_placed"] = (pw, ph)
+            pw, ph = elegida
+            best = ((2, 0.0), "nueva", len(boards) - 1, pw, ph)
+
+        _coste, kind, target_idx, pw, ph = best
+        if kind == "tira":
+            # target_idx = índice en `strips`
+            s = strips[target_idx]
+            x, y = s.x, s.used
+            s.used += ph
+            board = s.board
+        else:
+            # target_idx = índice en `boards`
+            board = boards[target_idx]
+            s = _Tira(board, board["used_w"], pw)
+            board["used_w"] += pw + kerf_mm
+            strips.append(s)
+            x, y = s.x, 0.0
+            s.used = ph  # la primera pieza de la tira ya ocupa su altura
+        board["placements"].append({
+            "rid": item["rid"],
+            "x": x + (margin_mm if board["is_new"] else 0),
+            "y": y + (margin_mm if board["is_new"] else 0),
+            "w": pw - kerf_mm,
+            "h": ph - kerf_mm,
+        })
+        item["_placed"] = (pw, ph)
 
     out: Dict[str, Dict[str, Any]] = {}
     by_rid = {it["rid"]: it for it in items}
-    for bin_ in bins:
-        if not bin_["placements"]:
+    for board in boards:
+        if not board["placements"]:
             continue
-        bid = bin_["bid"]
-        is_new = bin_["is_new"]
+        bid = board["bid"]
+        is_new = board["is_new"]
         placements = []
-        for pl in bin_["placements"]:
+        for pl in board["placements"]:
             item = by_rid[pl["rid"]]
             original = item["original"]
             pw, ph = item["_placed"]
@@ -376,8 +352,8 @@ def _pack_guillotine_phase(
                 "veta": original.get("__veta__", "libre"),
             })
         out[bid] = {
-            "width": bin_["width"] + (2 * margin_mm if is_new else 0),
-            "height": bin_["height"] + (2 * margin_mm if is_new else 0),
+            "width": board["width"] + (2 * margin_mm if is_new else 0),
+            "height": board["height"] + (2 * margin_mm if is_new else 0),
             "placements": placements,
         }
     return out
@@ -404,11 +380,16 @@ def optimize_cuts(
     ancho, 'alto' = a lo largo del lado alto). Las piezas rotate=True
     pueden rotar libremente.
 
-    modo='guillotina' (default): empaquetado con CORTES LINEALES a lo largo
-    del tablero (cada pasada de sierra va de extremo a extremo), el patrón
-    real de escuadradora/sierra de cinta. modo='nesting': nesting 2D libre
-    (rectpack MaxRects), mejor aprovechamiento pero con cortes en T que la
-    sierra no puede hacer de una pasada.
+    modo='guillotina' (default): empaquetado por TIRAS a lo largo del alto
+    del tablero — la máquina corta en dirección del alto con pasadas
+    completas sin interrupciones: cada tablero se divide en tiras de ancho
+    constante que corren todo el alto y dentro de cada tira las piezas se
+    apilan (cortes transversales completos a lo ancho de la tira). Piezas
+    ordenadas por área descendente; cada una rellena tiras abiertas de su
+    ancho en cualquier tablero (best fit) antes de abrir tira o tablero
+    nuevos. modo='nesting': nesting 2D libre (rectpack MaxRects), mejor
+    aprovechamiento pero con cortes en T que la sierra no puede hacer de una
+    pasada.
     """
     offcuts = offcuts or []
     kerf_mm = kerf_mm if kerf_mm is not None else settings.kerf_mm

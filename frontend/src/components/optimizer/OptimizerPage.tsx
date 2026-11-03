@@ -160,7 +160,7 @@ export function OptimizerPage() {
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(config.useOffcuts ?? false)
   const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting'>(config.modoCorte ?? 'guillotina')
-  const [sortMode, setSortMode] = useState<SortMode>('tipo')
+  const [sortMode, setSortMode] = useState<SortMode>('tamano')
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo'>('piezas')
