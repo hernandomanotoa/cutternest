@@ -974,6 +974,81 @@ describe('IsometricRenderer orden de pintado con rotation', () => {
   });
 });
 
+describe('IsometricRenderer frontGapMode (frentes a ras vs tapajunta)', () => {
+  const cabinetBase = [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 550, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  ];
+  const drawerPieces = [
+    ...cabinetBase,
+    { id: 'm1-cajon-1', nombre: 'Frente cajon 1', ancho: 400, alto: 200, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+  ];
+  // Profundidad del módulo = ancho de los laterales (550).
+  const MODULE_D = 550;
+  const E = 15;
+
+  const frontY = (options) => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, ...options });
+    const { geometries } = renderer.computeGeometries('1', drawerPieces);
+    const face = geometries.find((g) => g.id === 'm1-cajon-1');
+    assert.ok(face, 'frente del cajón presente');
+    return face.y;
+  };
+
+  it('default (sin drawerGap): tapajunta — el frente arranca en el plano frontal del módulo', () => {
+    const y = frontY({});
+    assert.ok(Math.abs(y - MODULE_D) < 1e-9, `y=${y}, esperado ${MODULE_D}`);
+  });
+
+  it('drawerGap 0 explícito (a ras): el frente termina alineado con el frente del módulo', () => {
+    const y = frontY({ drawerGap: 0 });
+    // Frente [D − E, D]: a ras, sin tapajunta. Regresión del `|| 15` que
+    // convertía el 0 explícito en 15.
+    assert.ok(Math.abs(y - (MODULE_D - E)) < 1e-9, `y=${y}, esperado ${MODULE_D - E}`);
+  });
+});
+
+describe('IsometricRenderer extracción con caja real', () => {
+  // Módulo de 600 de profundidad con cajón telescópico26 real: la extracción
+  // debe medirse con la profundidad de la CAJA (laterales, 575), no con la
+  // sintética del fallback (600 − 2·15 − 10 = 560).
+  const module600 = [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 600, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 600, alto: 1000, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1cajon1-frente', nombre: 'Frente [estandar] cajon telescopica 26 1 M1', ancho: 560, alto: 200, cantidad: 1, rotate: 'no', color: '#8B5A2B', espesor: 15, modulo: '1' },
+    { id: 'm1cajon1-lateral-izq', nombre: 'Lateral cajon 1 izq M1', ancho: 575, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' },
+    { id: 'm1cajon1-lateral-der', nombre: 'Lateral cajon 1 der M1', ancho: 575, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' },
+    { id: 'm1cajon1-base', nombre: 'Base cajon 1 M1', ancho: 530, alto: 545, cantidad: 1, rotate: 'si', color: '#D9C2A3', espesor: 15, modulo: '1' },
+    { id: 'm1cajon1-fondo', nombre: 'Fondo cajon 1 M1', ancho: 530, alto: 170, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+    { id: 'm1cajon1-cara', nombre: 'Cara [estandar] cajon 1 M1', ancho: 530, alto: 170, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' },
+  ];
+
+  it('apertura 1 con caja real: Δy = extracción × (profundidad de laterales + 20)', () => {
+    const closed = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const closedGeos = closed.computeGeometries('1', module600).geometries;
+    const open = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, aperturaGlobal: 1 });
+    const openGeos = open.computeGeometries('1', module600).geometries;
+
+    const dyOf = (id) => {
+      const a = openGeos.find((g) => g.id === id);
+      const b = closedGeos.find((g) => g.id === id);
+      assert.ok(a && b, `geometry ${id} en ambos renders`);
+      return a.y - b.y;
+    };
+    // Riel telescópico (extensión total): 1.0 × (575 + 20) = 595. Con la
+    // profundidad sintética (560) habría dado 580 — la caja quedaría corta.
+    const frente = dyOf('m1cajon1-frente');
+    assert.ok(Math.abs(frente - 595) < 1e-9, `Δy frente=${frente}, esperado 595 (prof. real 575)`);
+    // Movimiento rígido: la cara y el fondo de la caja recorren el mismo Δy.
+    assert.ok(Math.abs(dyOf('m1cajon1-cara') - frente) < 1e-9, 'cara comparte Δy del frente');
+    assert.ok(Math.abs(dyOf('m1cajon1-fondo') - frente) < 1e-9, 'fondo comparte Δy del frente');
+  });
+});
+
 describe('IsometricRenderer volquete (apertura pivotante)', () => {
   const cabinetBase = [
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },

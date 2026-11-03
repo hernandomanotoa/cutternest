@@ -24,6 +24,7 @@ export class Renderer3D {
     this.globalOpacity = options.globalOpacity ?? 0.85;
     this.xrayMode = options.xrayMode ?? false;
     this.mostrarVeta = options.mostrarVeta ?? true;
+    this.frontGapMode = options.frontGapMode ?? 'tapajunta';
     this.explodeFactor = options.explodeFactor ?? 0;
     this.targetExplodeFactor = this.explodeFactor;
     this.animationFrameId = null;
@@ -66,7 +67,7 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
-    });
+      drawerGap: this.frontGapMode === 'ras' ? 0 : undefined,    });
 
     this.controls = new OrbitControls(container, {
       ...DEFAULT_CAMERA,
@@ -348,7 +349,7 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
-      aperturaGlobal: this.isoRenderer.aperturaGlobal,
+      drawerGap: this.frontGapMode === 'ras' ? 0 : undefined,      aperturaGlobal: this.isoRenderer.aperturaGlobal,
       aperturas: this.isoRenderer.aperturas,
     });
     this.needsRender = true;
@@ -365,7 +366,7 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
-      aperturaGlobal: this.isoRenderer.aperturaGlobal,
+      drawerGap: this.frontGapMode === 'ras' ? 0 : undefined,      aperturaGlobal: this.isoRenderer.aperturaGlobal,
       aperturas: this.isoRenderer.aperturas,
     });
     this.needsRender = true;
@@ -452,6 +453,13 @@ export class Renderer3D {
   setMostrarVeta(value) {
     this.mostrarVeta = !!value;
     this.render();
+  }
+
+  setFrontGapMode(mode) {
+    const next = mode === 'ras' ? 'ras' : 'tapajunta';
+    if (this.frontGapMode === next) return;
+    this.frontGapMode = next;
+    this.setModuleGapMode(this.moduleGapMode); // reconstruye el isoRenderer
   }
 
   setExplodeFactor(value) {

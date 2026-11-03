@@ -71,7 +71,7 @@ export class IsometricRenderer {
     this.padding = options.padding || 100;
     this.showDimensions = options.showDimensions !== false;
     this.showAxes = options.showAxes === true;
-    this.drawerGap = options.drawerGap || 15;
+    this.drawerGap = options.drawerGap ?? 15;
     this.warnings = [];
     this.doorAngle = options.doorAngle || 0;
     // Apertura interactiva: aperturaGlobal null = sin valor explícito (se

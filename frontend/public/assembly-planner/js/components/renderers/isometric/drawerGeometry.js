@@ -131,9 +131,14 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         rail = (geo) => (rotation ? { ...geo, rotation } : geo);
       } else {
         // Extracción según el tipo de riel: Δy = apertura·extracción·
-        // (profundidad del cajón + 20 mm); con extensión total (1.0) la
-        // caja sale del todo del mueble al abrirse.
-        const railDy = drawerOpen * getRailType(railType).extraction * (drawerDepth + 20);
+        // (profundidad REAL de la caja + 20 mm); con extensión total (1.0)
+        // la caja sale justo del todo del mueble. La profundidad real sale
+        // de los laterales del conjunto (no de la sintética del fallback).
+        const drawerBoxPre = matchDrawerBoxParts(d.face, roles.filter((p) => !consumed.has(p.id)));
+        const profReal = hasRealDrawerBox(drawerBoxPre)
+          ? Math.max(...drawerBoxPre.laterales.map((lat) => Number(lat.ancho) || 0))
+          : drawerDepth;
+        const railDy = drawerOpen * getRailType(railType).extraction * (profReal + 20);
         rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
       }
 

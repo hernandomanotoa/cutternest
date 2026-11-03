@@ -265,6 +265,11 @@ zapatera y ningún frente se toca. El ajuste ocurre solo al aplicar el marco
 la primera vez (una regeneración no duplica el +30) y `removeStructuralPlinth`
 lo revierte. La constante vive en `plinthFrameService.js`.
 
+### Modo de frentes (tapajunta vs a ras) y extracción de la caja
+
+- `frontGapMode` (userConfig, default `tapajunta`): select «Frentes» en la toolbar de la vista 3D. Fija `drawerGap` del `IsometricRenderer`: 15 = tapajunta (el frente cubre la cara frontal del módulo, `[D, D+15]`) y 0 = a ras (termina alineado con los laterales, `[D−E, D]`). El plano de frentes lo consumen `drawerGeometry.js` y `golaGeometry.js` (`yFace = moduleD − E + drawerGap`). Ojo: `IsometricRenderer` lo aplica con `?? 15` — un `||` convierte el 0 explícito en 15 (bug histórico). La vista isométrica lo re-lee en cada `userConfig:changed` (no lo capturen al montar) y el botón de reset lo re-deriva del userConfig en vez de forzar 15.
+- Extracción en la apertura (`railDy`, `drawerGeometry.js`): usa la **profundidad real de la caja** (ancho de sus laterales vía `matchDrawerBoxParts`), no la sintética del fallback (`moduleD − 2E − 10`), para que con extensión total la caja salga justo del mueble. Tests: describe «IsometricRenderer extracción con caja real» en `isometricRenderer.test.js`.
+
 ## 4. Pantalla completa en 3D
 
 Dos piezas cooperan (faltaba cualquiera de las dos):

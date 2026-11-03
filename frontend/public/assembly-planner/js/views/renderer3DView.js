@@ -244,6 +244,13 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-veta" ${Number(state.userConfig?.renderVeta) !== 0 ? 'checked' : ''} style="cursor:pointer;">
               <span>Veta</span>
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Frentes de cajón/zapatera: 'A ras' termina alineado con los laterales del módulo; 'Tapajunta' cubre su cara frontal (un espesor por delante)">
+              <span>Frentes</span>
+              <select id="r3d-front-gap" style="cursor:pointer;background:transparent;border:none;color:inherit;font-size:inherit;">
+                <option value="tapajunta" ${state.userConfig?.frontGapMode !== 'ras' ? 'selected' : ''}>Tapajunta</option>
+                <option value="ras" ${state.userConfig?.frontGapMode === 'ras' ? 'selected' : ''}>A ras</option>
+              </select>
+            </label>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Separar los módulos en Vista completa (gap ${MODULE_GAP_MM} mm); por defecto pegados">
               <input type="checkbox" id="r3d-module-gap" ${Number(state.userConfig?.viewModuleGap) > 0 ? 'checked' : ''} style="cursor:pointer;">
@@ -347,6 +354,7 @@ export function createRenderer3DView(store) {
       height: 600,
       globalOpacity: 0.85,
       mostrarVeta: Number(state.userConfig?.renderVeta) !== 0,
+      frontGapMode: state.userConfig?.frontGapMode === 'ras' ? 'ras' : 'tapajunta',
       moduleGapMode,
       verticalPositionOverrides: state.userConfig,
       onPieceSelect: (id) => {
@@ -448,6 +456,11 @@ container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer
     container.querySelector('#r3d-veta')?.addEventListener('change', (e) => {
       renderer.setMostrarVeta(e.target.checked);
       saveUserConfig({ renderVeta: e.target.checked ? 1 : 0 });
+      store.set({ userConfig: loadUserConfig() });
+    });
+    container.querySelector('#r3d-front-gap')?.addEventListener('change', (e) => {
+      renderer.setFrontGapMode(e.target.value);
+      saveUserConfig({ frontGapMode: e.target.value });
       store.set({ userConfig: loadUserConfig() });
     });
     container.querySelector('#r3d-projection')?.addEventListener('change', (e) => renderer.setProjection(e.target.checked ? 'persp' : 'ortho'));
