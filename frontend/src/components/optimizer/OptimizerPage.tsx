@@ -748,12 +748,13 @@ export function OptimizerPage() {
                   value={modoCorte}
                   onChange={(e) => setModoCorte(e.target.value as 'guillotina' | 'nesting')}
                 >
-                  <option value='guillotina'>Lineal a lo largo (guillotina)</option>
+                  <option value='guillotina'>Corte lineal completo (guillotina)</option>
                   <option value='nesting'>Nesting 2D libre</option>
                 </select>
                 <p className='mt-1 text-xs text-muted-foreground'>
-                  Guillotina: cada pasada de sierra va de extremo a extremo (escuadradora real).
-                  Nesting: mejor aprovechamiento, pero con cortes en T.
+                  Guillotina: cada corte es una pasada completa (a lo largo o ancho) sobre lo que
+                  queda del tablero; las piezas más bajas no interrumpen — la franja sobre ellas
+                  recibe sus propios cortes completos. Nesting: mejor aprovechamiento, con cortes en T.
                 </p>
               </div>
 

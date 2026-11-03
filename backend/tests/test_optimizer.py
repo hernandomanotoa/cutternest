@@ -196,28 +196,37 @@ def _assert_no_overlaps(board):
             assert not overlap, f"piezas {i} y {j} se solapan"
 
 
-def _assert_layout_tiras(board, kerf=0.0):
-    """El layout respeta el corte por tiras a lo largo del alto:
-    - piezas con el mismo X comparten ancho (misma tira) y se apilan en Y
-      sin solaparse, desde el borde del tablero;
-    - tiras distintas no se solapan en X (cortes longitudinales completos)."""
-    tiras = {}
-    for p in board["placements"]:
-        clave = round(p["x"], 3)
-        tiras.setdefault(clave, []).append(p)
-    xs_ocupados = []
-    for x, piezas in tiras.items():
-        anchos = {round(p["w"], 3) for p in piezas}
-        assert len(anchos) == 1, f"tira en x={x}: anchos mixtos {anchos} (corte longitudinal interrumpido)"
-        ordenadas = sorted(piezas, key=lambda p: p["y"])
-        # La tira arranca en el borde útil (margen del tablero, ≤6 mm).
-        assert ordenadas[0]["y"] <= 6.0, "la tira debe arrancar en el borde del tablero"
-        for a, b in zip(ordenadas, ordenadas[1:]):
-            assert a["y"] + a["h"] + kerf <= b["y"] + 1e-6, "piezas de una tira se solapan"
-        xs_ocupados.append((x, ordenadas[0]["w"]))
-    xs_ocupados.sort()
-    for (x1, w1), (x2, _w2) in zip(xs_ocupados, xs_ocupados[1:]):
-        assert x1 + w1 + kerf <= x2 + 1e-6, f"tiras en x={x1} y x={x2} se solapan"
+def _assert_cortes_completos(rects, tol=0.5):
+    """Verifica recursivamente que el layout sea cortable con CORTES
+    COMPLETOS: en cada paso debe existir una línea (vertical u horizontal)
+    que separe las piezas en dos grupos sin cortar ninguna (la sierra hace
+    pasadas completas, sin interrupciones ni cortes en T)."""
+    rects = [tuple(r) for r in rects]
+    if len(rects) <= 1:
+        return
+    corte = None
+    xs = sorted({round(r[0], 3) for r in rects} | {round(r[0] + r[2], 3) for r in rects})
+    for cx in xs:
+        izq = [r for r in rects if r[0] + r[2] <= cx + tol]
+        der = [r for r in rects if r[0] >= cx - tol]
+        if len(izq) + len(der) == len(rects) and izq and der:
+            corte = (izq, der)
+            break
+    if corte is None:
+        ys = sorted({round(r[1], 3) for r in rects} | {round(r[1] + r[3], 3) for r in rects})
+        for cy in ys:
+            abajo = [r for r in rects if r[1] + r[3] <= cy + tol]
+            arriba = [r for r in rects if r[1] >= cy - tol]
+            if len(abajo) + len(arriba) == len(rects) and abajo and arriba:
+                corte = (abajo, arriba)
+                break
+    assert corte, f"layout con cortes en T (no guillotinable): {rects}"
+    _assert_cortes_completos(corte[0], tol)
+    _assert_cortes_completos(corte[1], tol)
+
+
+def _rects(board):
+    return [(p["x"], p["y"], p["w"], p["h"]) for p in board["placements"]]
 
 
 def test_guillotina_default_sin_solapes():
@@ -239,7 +248,7 @@ def test_guillotina_default_sin_solapes():
     assert result["total_tableros"] >= 1
     for board in result["tableros"]:
         _assert_no_overlaps(board)
-        _assert_layout_tiras(board, kerf=3)
+        _assert_cortes_completos(_rects(board))
 
 
 def test_guillotina_ordena_por_area():
@@ -262,23 +271,23 @@ def test_guillotina_ordena_por_area():
     assert primer["id"] == max(areas, key=areas.get), "la de mayor área va primero"
     for board in result["tableros"]:
         _assert_no_overlaps(board)
-        _assert_layout_tiras(board, kerf=3)
+        _assert_cortes_completos(_rects(board))
 
 
 def test_guillotina_rellena_tableros_anteriores():
-    """Una pieza que cabe en una tira abierta de un tablero ANTERIOR va ahí,
+    """Una pieza que cabe en el sobrante de un tablero ANTERIOR va ahí,
     aunque ya existan tableros más nuevos (nada de tableros medios vacíos)."""
     pieces = [
-        # 3 paneles 800x1200 (veta → huella 1200 de ancho × 800 de alto): 2
-        # tiras caben en el tablero (2400 ≤ 2440); el tercero abre el
-        # tablero 2. Cada tira queda con 420 de alto libre.
-        {"id": f"a{i}", "nombre": f"Panel {i}", "ancho": 800, "alto": 1200,
+        # 3 paneles 800x1100 (veta → huella 1100 de ancho × 1100 de alto):
+        # dos caben en el tablero (2200 ≤ 2440) y el tercero abre el
+        # tablero 2. Arriba de cada panel queda una franja de 120 de alto.
+        {"id": f"a{i}", "nombre": f"Panel {i}", "ancho": 800, "alto": 1100,
          "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18}
         for i in range(3)
     ] + [
-        # 100x1200: huella (1200, 100), mismo ancho de tira; cabe en el alto
-        # libre (420) → debe volver al tablero 1, no al 2.
-        {"id": "b", "nombre": "Panel bajo", "ancho": 100, "alto": 1200,
+        # 100x1100: huella (1100, 100) — cabe en la franja de 120 del
+        # tablero 1 → debe volver ahí, no al tablero 2.
+        {"id": "b", "nombre": "Panel bajo", "ancho": 100, "alto": 1100,
          "cantidad": 1, "rotate": False, "color": "#96CEB4", "espesor": 18},
     ]
     result = optimizer_service.optimize_cuts(
@@ -293,7 +302,33 @@ def test_guillotina_rellena_tableros_anteriores():
     assert tablero_de_b == 0, "la pieza pequeña debe rellenar el tablero 1"
     for board in result["tableros"]:
         _assert_no_overlaps(board)
-        _assert_layout_tiras(board)
+        _assert_cortes_completos(_rects(board))
+
+
+def test_guillotina_pieza_mas_baja_no_interrumpe():
+    """Una pieza más baja que su vecina no interrumpe el corte completo: la
+    franja que queda sobre ella es un nuevo rectángulo que recibe sus propios
+    cortes completos (regla del taller)."""
+    pieces = [
+        # A 1000x1200 junto a B 1000x800: sobre B queda una franja de 400 en
+        # la que cabe C 1000x200 con cortes completos (nada de tiras rígidas).
+        {"id": "a", "nombre": "Panel alto", "ancho": 1000, "alto": 1200,
+         "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18},
+        {"id": "b", "nombre": "Panel medio", "ancho": 1000, "alto": 800,
+         "cantidad": 1, "rotate": False, "color": "#96CEB4", "espesor": 18},
+        {"id": "c", "nombre": "Panel chico", "ancho": 1000, "alto": 200,
+         "cantidad": 1, "rotate": False, "color": "#FFEAA7", "espesor": 18},
+    ]
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220,
+        pieces=pieces, kerf_mm=0, margin_mm=0,
+    )
+    assert result["total_tableros"] == 1, "las tres piezas caben en un tablero"
+    placements = result["tableros"][0]["placements"]
+    c = next(p for p in placements if p["id"] == "c")
+    assert c["x"] == 1200 and c["y"] == 800, "C aprovecha la franja sobre B"
+    _assert_no_overlaps(result["tableros"][0])
+    _assert_cortes_completos(_rects(result["tableros"][0]))
 
 
 def test_modo_nesting_sigue_disponible():

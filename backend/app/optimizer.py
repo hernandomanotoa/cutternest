@@ -181,21 +181,90 @@ def _pack_phase(
     return bins
 
 
-class _Tira:
-    """Tira (banda) de ancho constante que corre todo el alto de un tablero.
+class _FreeRect:
+    """Rectángulo libre dentro de un tablero en fase de empaquetado."""
 
-    La máquina corta en la dirección del alto con pasadas completas: el
-    tablero se corteja en tiras longitudinales y dentro de cada tira las
-    piezas se apilan (los cortes transversales también son pasadas completas
-    a lo ancho de la tira). Nada de cortes en T ni interrupciones."""
+    __slots__ = ("x", "y", "w", "h")
 
-    __slots__ = ("board", "x", "width", "used")
+    def __init__(self, x: float, y: float, w: float, h: float):
+        self.x, self.y, self.w, self.h = x, y, w, h
 
-    def __init__(self, board: Dict[str, Any], x: float, width: float):
-        self.board = board
-        self.x = x
-        self.width = width
-        self.used = 0.0
+    def __repr__(self):  # pragma: no cover - ayuda de depuración
+        return f"_FreeRect({self.x}, {self.y}, {self.w}, {self.h})"
+
+
+def _split_guillotina(free: _FreeRect, pw: float, ph: float, kerf: float) -> List[_FreeRect]:
+    """Divide el rectángulo libre tras colocar una pieza (pw, ph) en su
+    esquina inferior izquierda, con dos cortes COMPLETOS: el vertical corre
+    a lo largo del alto de la pieza (todo su alto) y el horizontal a lo ancho
+    del rectángulo completo. Lo que queda tras cada corte sigue siendo un
+    rectángulo cortable con cortes completos, y la franja que queda sobre una
+    pieza más baja que su vecina recibe sus propios cortes completos."""
+    out = []
+    derecha = free.w - pw - kerf
+    if derecha > 0:
+        out.append(_FreeRect(free.x + pw + kerf, free.y, derecha, ph))
+    arriba = free.h - ph - kerf
+    if arriba > 0:
+        out.append(_FreeRect(free.x, free.y + ph + kerf, free.w, arriba))
+    return out
+
+
+def _contiene(a: _FreeRect, b: _FreeRect) -> bool:
+    """¿a contiene a b (con tolerancia)?"""
+    eps = 1e-6
+    return (b.x >= a.x - eps and b.y >= a.y - eps
+            and b.x + b.w <= a.x + a.w + eps
+            and b.y + b.h <= a.y + a.h + eps)
+
+
+def _unir_adyacentes(a: _FreeRect, b: _FreeRect) -> _FreeRect | None:
+    """Une dos rectángulos libres adyacentes con igual alto (en x) o igual
+    ancho (en y); None si no son unibles. Reduce la fragmentación que deja
+    tableros medios vacíos."""
+    eps = 1e-6
+    if abs(a.y - b.y) < eps and abs(a.h - b.h) < eps:
+        if abs(a.x + a.w - b.x) < eps:  # a a la izquierda de b
+            return _FreeRect(a.x, a.y, a.w + b.w, a.h)
+        if abs(b.x + b.w - a.x) < eps:
+            return _FreeRect(b.x, b.y, a.w + b.w, a.h)
+    if abs(a.x - b.x) < eps and abs(a.w - b.w) < eps:
+        if abs(a.y + a.h - b.y) < eps:  # a debajo de b
+            return _FreeRect(a.x, a.y, a.w, a.h + b.h)
+        if abs(b.y + b.h - a.y) < eps:
+            return _FreeRect(a.x, b.y, a.w, a.h + b.h)
+    return None
+
+
+def _normalizar_free(rects: List[_FreeRect]) -> List[_FreeRect]:
+    """Podar rectángulos contenidos en otros y unir adyacentes iguales."""
+    rects = [r for r in rects if r.w > 1e-6 and r.h > 1e-6]
+    cambio = True
+    while cambio:
+        cambio = False
+        for i in range(len(rects)):
+            contenido = False
+            for j in range(len(rects)):
+                if i != j and _contiene(rects[j], rects[i]):
+                    contenido = True
+                    break
+            if contenido:
+                del rects[i]
+                cambio = True
+                break
+        if cambio:
+            continue
+        for i in range(len(rects)):
+            for j in range(i + 1, len(rects)):
+                u = _unir_adyacentes(rects[i], rects[j])
+                if u is not None:
+                    rects[i] = u
+                    del rects[j]
+                    cambio = True
+                    break
+            if cambio:
+                break
+    return rects
 
 
 def _pack_guillotine_phase(
@@ -207,23 +276,28 @@ def _pack_guillotine_phase(
     margin_mm: float,
     phase: str,
 ) -> Dict[str, Dict[str, Any]]:
-    """Empaqueta en TIRAS a lo largo del alto (corte lineal real de máquina).
+    """Empaqueta con cortes COMPLETOS recursivos (guillotina de máquina).
 
-    Estructura del layout: cada tablero = tiras de ancho constante a lo largo
-    de todo el alto; cada tira = piezas del MISMO ancho apiladas a lo largo
-    del alto. Solo hay cortes longitudinales completos (entre tiras) y
-    transversales completos (entre piezas de una tira).
+    Regla del taller: cada corte es una pasada de sierra COMPLETA sobre lo que
+    queda del tablero, en la dirección del alto O del ancho (la máquina hace
+    cortes lineales completos, sin interrupciones). Lo que sobrevive al corte
+    sigue siendo un rectángulo cortable con cortes completos, y las piezas más
+    bajas que una vecina no interrumpen nada: la franja que queda sobre ellas
+    es un nuevo rectángulo que recibe sus propios cortes completos. Nada de
+    cortes en T.
 
     Heurística de aprovechamiento:
     - Piezas ordenadas por ÁREA descendente (grandes primero).
-    - Cada pieza busca, en orden de preferencia: (A) una tira abierta de su
-      ancho en CUALQUIER tablero con altura restante suficiente — best fit,
-      la que menos altura libre deja, y de empate el tablero más antiguo (así
-      se rellenan tableros anteriores antes de abrir nuevos: nada de tableros
-      medios vacíos); (B) una tira nueva en el tablero más reciente. Si nada
-      cabe, tablero nuevo.
+    - Cada pieza elige el tablero MÁS ANTIGUO con cabida (así se
+      rellenan los tableros anteriores antes de tocar los nuevos: nada de
+      tableros medios vacíos); dentro del tablero, el rectángulo libre de
+      menor sobrante de lado corto (best short-side fit). Si ningún tablero
+      abierto la recibe, tablero nuevo.
+    - Tras cada colocación el sobrante se divide con dos cortes completos
+      (derecha + arriba) y los rectángulos libres se podan/unden
+      (contención + adyacencia) para no fragmentar el espacio.
     - Las piezas libres (rotate=True) prueban ambas orientaciones y eligen la
-      del mejor encaje global; las bloqueadas (veta) van con su huella fija.
+      del mejor encaje; las bloqueadas (veta) van con su huella fija.
     """
     items = []
     for w, h, ow, oh, rid, rot, original in _sorted_rects(rects):
@@ -240,7 +314,7 @@ def _pack_guillotine_phase(
             "width": float(off["width"]),
             "height": float(off["height"]),
             "is_new": False,
-            "used_w": 0.0,
+            "free": [_FreeRect(0.0, 0.0, float(off["width"]), float(off["height"]))],
             "placements": [],
         })
 
@@ -251,47 +325,36 @@ def _pack_guillotine_phase(
             "width": usable_w,
             "height": usable_h,
             "is_new": True,
-            "used_w": 0.0,
+            "free": [_FreeRect(0.0, 0.0, usable_w, usable_h)],
             "placements": [],
         }
         boards.append(b)
         return b
 
-    strips: List[_Tira] = []
     for item in items:
         # Orientaciones a probar: la natural primero (empate la favorece).
         orientations = [(item["w"], item["h"])]
         if item["rot"] and abs(item["w"] - item["h"]) > 1e-9:
             orientations.append((item["h"], item["w"]))
 
-        best = None  # (costo, kind, strip_idx, pw, ph)
-        for pw, ph in orientations:
-            # (A) tira existente del mismo ancho en cualquier tablero.
-            for si, s in enumerate(strips):
-                if abs(s.width - pw) > 1e-9:
-                    continue
-                altura_libre = s.board["height"] - s.used
-                if ph <= altura_libre + 1e-9:
-                    coste = (0, altura_libre - ph, boards.index(s.board))
-                    if best is None or coste < best[0]:
-                        best = (coste, "tira", si, pw, ph)
-            # (B) tira nueva: en el tablero con MÁS ancho libre (empate: el
-            # más antiguo), para no desperdiciar anchos disponibles.
-            mejor_tablero = None
-            for bi, b in enumerate(boards):
-                ancho_libre = b["width"] - b["used_w"]
-                if pw <= ancho_libre + 1e-9:
-                    if mejor_tablero is None or ancho_libre > mejor_tablero[1] + 1e-9:
-                        mejor_tablero = (bi, ancho_libre)
-            if mejor_tablero is not None:
-                coste = (1, -mejor_tablero[1])
-                if best is None or coste < best[0]:
-                    best = (coste, "nueva", mejor_tablero[0], pw, ph)
+        # Mejor encaje: PRIORIDAD al tablero más antiguo con cabida (así se
+        # rellenan los tableros anteriores antes de tocar los nuevos: nada de
+        # tableros medios vacíos); dentro del tablero, best short-side fit
+        # (menor sobrante en el lado corto); empate → rectángulo más antiguo
+        # y orientación no rotada (se prueba primero).
+        best = None
+        for bi, board in enumerate(boards):
+            for ri, free in enumerate(board["free"]):
+                for pw, ph in orientations:
+                    if pw <= free.w + 1e-9 and ph <= free.h + 1e-9:
+                        sobrante = min(free.w - pw, free.h - ph)
+                        coste = (bi, round(sobrante, 6), ri)
+                        if best is None or coste < best[0]:
+                            best = (coste, bi, ri, pw, ph)
 
         if best is None:
-            # Tablero nuevo + tira nueva. Se elige la PRIMERA orientación que
-            # quepa en un tablero nuevo (la natural tiene prioridad);
-            # _validate_pieces_fit garantiza que al menos una cabe sola.
+            # Tablero nuevo: primera orientación que quepa sola (la natural
+            # tiene prioridad; _validate_pieces_fit garantiza que existe).
             board = new_board()
             elegida = None
             for pw, ph in orientations:
@@ -299,23 +362,16 @@ def _pack_guillotine_phase(
                     elegida = (pw, ph)
                     break
             pw, ph = elegida
-            best = ((2, 0.0), "nueva", len(boards) - 1, pw, ph)
-
-        _coste, kind, target_idx, pw, ph = best
-        if kind == "tira":
-            # target_idx = índice en `strips`
-            s = strips[target_idx]
-            x, y = s.x, s.used
-            s.used += ph
-            board = s.board
+            bi, ri = len(boards) - 1, 0
         else:
-            # target_idx = índice en `boards`
-            board = boards[target_idx]
-            s = _Tira(board, board["used_w"], pw)
-            board["used_w"] += pw + kerf_mm
-            strips.append(s)
-            x, y = s.x, 0.0
-            s.used = ph  # la primera pieza de la tira ya ocupa su altura
+            _coste, bi, ri, pw, ph = best
+            board = boards[bi]
+
+        free = board["free"].pop(ri)
+        x, y = free.x, free.y
+        board["free"] = _normalizar_free(
+            board["free"] + _split_guillotina(free, pw, ph, kerf_mm)
+        )
         board["placements"].append({
             "rid": item["rid"],
             "x": x + (margin_mm if board["is_new"] else 0),
@@ -380,16 +436,17 @@ def optimize_cuts(
     ancho, 'alto' = a lo largo del lado alto). Las piezas rotate=True
     pueden rotar libremente.
 
-    modo='guillotina' (default): empaquetado por TIRAS a lo largo del alto
-    del tablero — la máquina corta en dirección del alto con pasadas
-    completas sin interrupciones: cada tablero se divide en tiras de ancho
-    constante que corren todo el alto y dentro de cada tira las piezas se
-    apilan (cortes transversales completos a lo ancho de la tira). Piezas
-    ordenadas por área descendente; cada una rellena tiras abiertas de su
-    ancho en cualquier tablero (best fit) antes de abrir tira o tablero
-    nuevos. modo='nesting': nesting 2D libre (rectpack MaxRects), mejor
-    aprovechamiento pero con cortes en T que la sierra no puede hacer de una
-    pasada.
+    modo='guillotina' (default): empaquetado con CORTES COMPLETOS recursivos
+    — cada corte es una pasada de sierra completa sobre lo que queda del
+    tablero, en la dirección del alto o del ancho (la máquina hace cortes
+    lineales completos, sin interrupciones). Lo que sobrevive al corte sigue
+    siendo un rectángulo cortable con cortes completos; una pieza más baja
+    que su vecina no interrumpe: la franja sobre ella recibe sus propios
+    cortes completos. Piezas ordenadas por área descendente y mejor encaje
+    global (best short-side fit, tablero más antiguo en empate) para no dejar
+    tableros medios vacíos. modo='nesting': nesting 2D libre (rectpack
+    MaxRects), mejor aprovechamiento teórico pero con cortes en T que la
+    sierra no puede hacer de una pasada.
     """
     offcuts = offcuts or []
     kerf_mm = kerf_mm if kerf_mm is not None else settings.kerf_mm
