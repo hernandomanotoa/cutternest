@@ -67,7 +67,8 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
-      drawerGap: this.frontGapMode === 'ras' ? 0 : undefined,    });
+      drawerGap: this._drawerGapOption(),
+    });
 
     this.controls = new OrbitControls(container, {
       ...DEFAULT_CAMERA,
@@ -349,7 +350,8 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
-      drawerGap: this.frontGapMode === 'ras' ? 0 : undefined,      aperturaGlobal: this.isoRenderer.aperturaGlobal,
+      drawerGap: this._drawerGapOption(),
+      aperturaGlobal: this.isoRenderer.aperturaGlobal,
       aperturas: this.isoRenderer.aperturas,
     });
     this.needsRender = true;
@@ -366,7 +368,8 @@ export class Renderer3D {
       moduleGapMode: this.moduleGapMode,
       labelMode: 'none',
       verticalPositionOverrides: this.verticalPositionOverrides,
-      drawerGap: this.frontGapMode === 'ras' ? 0 : undefined,      aperturaGlobal: this.isoRenderer.aperturaGlobal,
+      drawerGap: this._drawerGapOption(),
+      aperturaGlobal: this.isoRenderer.aperturaGlobal,
       aperturas: this.isoRenderer.aperturas,
     });
     this.needsRender = true;
@@ -455,8 +458,18 @@ export class Renderer3D {
     this.render();
   }
 
+  // drawerGap a pasar al IsometricRenderer según el modo de frentes:
+  // ras → 0 (a ras de los laterales), interno → 'interno' (retranqueado un
+  // espesor, el frente queda entre los laterales y la gola lo acompaña) y
+  // tapajunta → undefined (default numérico 15 del renderer).
+  _drawerGapOption() {
+    if (this.frontGapMode === 'ras') return 0;
+    if (this.frontGapMode === 'interno') return 'interno';
+    return undefined;
+  }
+
   setFrontGapMode(mode) {
-    const next = mode === 'ras' ? 'ras' : 'tapajunta';
+    const next = ['ras', 'tapajunta', 'interno'].includes(mode) ? mode : 'ras';
     if (this.frontGapMode === next) return;
     this.frontGapMode = next;
     this.setModuleGapMode(this.moduleGapMode); // reconstruye el isoRenderer

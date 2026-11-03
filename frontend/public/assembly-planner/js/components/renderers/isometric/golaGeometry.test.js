@@ -228,6 +228,21 @@ describe('buildGolaGeometries — propiedades del canal (fondo + pestañas + aga
     assert.ok(Math.abs(fondo.y - (yCara - GOLA_DEFAULTS.golaStripSetback - ESP)) <= 0.5);
   });
 
+  it("con drawerGap 'interno' la gola se retranquea un espesor detrás del plano de frentes", () => {
+    const pieces = buildModule(2);
+    const r = applyGola(pieces, '1', {});
+    assert.ok(r.ok, r.errors?.join('; '));
+    const renderer = { drawerGap: 'interno', verticalPositionOverrides: {} };
+    const geos = buildGolaGeometries('1', r.pieces, moduleBox, renderer, {});
+    // yFace = PROF − 2·ESP: frente retranqueado un espesor (interno entre
+    // laterales); el canal y la marca del agarre van detrás de su plano.
+    const yCara = PROF - 2 * ESP - ESP_FRENTE;
+    const grip = geos.find((g) => g.id.endsWith('-fondo-grip'));
+    assert.ok(Math.abs(grip.y - (yCara - 2)) <= 0.5, 'marca del agarre detrás del frente interno');
+    const fondo = geos.find((g) => g.id.endsWith('-fondo'));
+    assert.ok(Math.abs(fondo.y - (yCara - GOLA_DEFAULTS.golaStripSetback - ESP)) <= 0.5);
+  });
+
   it('con renderer null y cfg null usa defaults (drawerGap 15, GOLA_DEFAULTS)', () => {
     const pieces = buildModule(2);
     const r = applyGola(pieces, '1', {});

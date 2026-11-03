@@ -30,7 +30,10 @@ export function createIsometricView(store) {
   }
   let scale = 0.12;
   let explodeFactor = 0;
-  let drawerGap = store.get().userConfig?.frontGapMode === 'tapajunta' ? 15 : 0;
+  // Frentes: 15 = tapajunta (cubre la cara frontal), 0 = a ras, 'interno' =
+  // retranqueado un espesor entre los laterales (la gola lo acompaña).
+  const gapForMode = (mode) => (mode === 'tapajunta' ? 15 : mode === 'interno' ? 'interno' : 0);
+  let drawerGap = gapForMode(store.get().userConfig?.frontGapMode);
   let isoFlip = true;
   let moduleGapMode = 'compact';
   let detachFullscreen = null;
@@ -77,7 +80,7 @@ export function createIsometricView(store) {
     unsubscribeConfig = store.subscribe('userConfig:changed', () => {
       // frontGapMode (frentes a ras/tapajunta) vive en userConfig: se
       // re-lee en cada cambio para no renderizar con el valor de mount.
-      drawerGap = store.get().userConfig?.frontGapMode === 'tapajunta' ? 15 : 0;
+      drawerGap = gapForMode(store.get().userConfig?.frontGapMode);
       render();
     });
     unsubscribeApertura = store.subscribe('apertura:changed', () => {
@@ -201,7 +204,7 @@ export function createIsometricView(store) {
     container.querySelector('#btn-iso-reset')?.addEventListener('click', () => {
       scale = 0.12;
       explodeFactor = 0;
-      drawerGap = store.get().userConfig?.frontGapMode === 'tapajunta' ? 15 : 0;
+      drawerGap = gapForMode(store.get().userConfig?.frontGapMode);
       setAperturaGlobal(0);
       render();
     });

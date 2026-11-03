@@ -25,8 +25,19 @@ import { getRailType, railTypeFor } from '../../../services/railService.js';
 import { normalizeName } from '../../../utils/normalize.js';
 import { aperturaEfectivaGlobal } from './apertures.js';
 
-export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions = [], bottomPanelOffset = 0, topPanelOffset = null) {
-  const geometries = [];
+/**
+ * drawerGap efectivo del renderer en mm. Además del numérico (15 tapajunta,
+ * 0 a ras) acepta 'interno': frente retranqueado UN ESPESOR completo
+ * (yFace = moduleD − 2·E), de modo que queda entre los laterales y la gola
+ * lo acompaña detrás de su plano. Centraliza la conversión para
+ * drawerGeometry y golaGeometry.
+ */
+export function effectiveDrawerGap(drawerGap, thickness = 15) {
+  if (drawerGap === 'interno') return -Math.abs(thickness || 15);
+  return drawerGap ?? 15;
+}
+
+export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH, thickness, family, shelfPositions = [], bottomPanelOffset = 0, topPanelOffset = null) {  const geometries = [];
   const frentes = roles.filter((p) => inferRole(p) === 'drawer_face');
   // Zapatera sin frente (bandeja abierta): la cara del cuerpo hace de frente
   // visible. Una cara solo se promueve cuando su unidad (prefijo) NO tiene
@@ -109,7 +120,7 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
       const w = d.w;
       const x = (moduleW - w) / 2;
       const drawerDepth = Math.max(0, moduleD - 2 * thickness - 10);
-      const yFace = moduleD - thickness + renderer.drawerGap;
+      const yFace = moduleD - thickness + effectiveDrawerGap(renderer.drawerGap, thickness);
       // Apertura del cajón: se toma del frente (override por pieza o global).
       // - Rail (cajón/zapatera): traslación +y con el MISMO Δy para todo el
       //   grupo (movimiento rígido derivado del frente).
@@ -206,7 +217,7 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         const hx = x + w / 2 - 15;
         const hz = currentZ + h / 2 - 10;
         geometries.push(rail({
-          x: hx, y: moduleD + renderer.drawerGap, z: hz, w: 30, d: 10, h: 20,
+          x: hx, y: moduleD + effectiveDrawerGap(renderer.drawerGap, thickness), z: hz, w: 30, d: 10, h: 20,
           color: handle.color || ROLE_COLORS.handle, role: 'handle', name: handle.nombre, id: handle.id,
         }));
       }

@@ -22,6 +22,7 @@
 import { ROLE_COLORS } from '../../../core/config.js';
 import { inferRole } from '../../../services/classifierService.js';
 import { getGolaCfg } from '../../../services/golaService.js';
+import { effectiveDrawerGap } from './drawerGeometry.js';
 
 // Espesor (profundidad Y) de la marca de agarre: una caja fina que solo
 // resalta el hueco en el plano de frentes.
@@ -70,7 +71,7 @@ export function buildGolaGeometries(moduleId, pieces, moduleBox, renderer, cfg =
   // desde ahí y los labios van de la cara posterior del fondo hasta a ras de
   // la cara posterior del frente. Nada queda coplanar con el frente ni se
   // dibuja sobre él.
-  const yFace = moduleD - thickness + (renderer?.drawerGap ?? 15);
+  const yFace = moduleD - thickness + effectiveDrawerGap(renderer?.drawerGap, thickness);
   const frenteRef = (pieces || []).find((p) => inferRole(p) === 'drawer_face' && perteneceAModulo(p, modId));
   const ESP_FRENTE = Number(frenteRef?.espesor) || 15;
   const yCara = yFace - ESP_FRENTE;

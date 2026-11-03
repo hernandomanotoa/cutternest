@@ -1008,6 +1008,13 @@ describe('IsometricRenderer frontGapMode (frentes a ras vs tapajunta)', () => {
     // convertía el 0 explícito en 15.
     assert.ok(Math.abs(y - (MODULE_D - E)) < 1e-9, `y=${y}, esperado ${MODULE_D - E}`);
   });
+
+  it("drawerGap 'interno': el frente queda retranqueado un espesor entre los laterales", () => {
+    const y = frontY({ drawerGap: 'interno' });
+    // Frente [D − 2E, D − E]: interno — desde fuera se ve la cara frontal
+    // de los laterales como marco.
+    assert.ok(Math.abs(y - (MODULE_D - 2 * E)) < 1e-9, `y=${y}, esperado ${MODULE_D - 2 * E}`);
+  });
 });
 
 describe('IsometricRenderer extracción con caja real', () => {

@@ -244,11 +244,12 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-veta" ${Number(state.userConfig?.renderVeta) !== 0 ? 'checked' : ''} style="cursor:pointer;">
               <span>Veta</span>
             </label>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Frentes de cajón/zapatera: 'A ras' termina alineado con los laterales del módulo; 'Tapajunta' cubre su cara frontal (un espesor por delante)">
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Frentes de cajón/zapatera: 'A ras' termina alineado con los laterales del módulo; 'Tapajunta' cubre su cara frontal (un espesor por delante); 'Interno' queda retranqueado un espesor entre los laterales (la gola lo acompaña detrás)">
               <span>Frentes</span>
               <select id="r3d-front-gap" style="cursor:pointer;background:transparent;border:none;color:inherit;font-size:inherit;">
+                <option value="ras" ${state.userConfig?.frontGapMode !== 'tapajunta' && state.userConfig?.frontGapMode !== 'interno' ? 'selected' : ''}>A ras</option>
                 <option value="tapajunta" ${state.userConfig?.frontGapMode === 'tapajunta' ? 'selected' : ''}>Tapajunta</option>
-                <option value="ras" ${state.userConfig?.frontGapMode !== 'tapajunta' ? 'selected' : ''}>A ras</option>
+                <option value="interno" ${state.userConfig?.frontGapMode === 'interno' ? 'selected' : ''}>Interno</option>
               </select>
             </label>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
@@ -354,7 +355,7 @@ export function createRenderer3DView(store) {
       height: 600,
       globalOpacity: 0.85,
       mostrarVeta: Number(state.userConfig?.renderVeta) !== 0,
-      frontGapMode: state.userConfig?.frontGapMode === 'tapajunta' ? 'tapajunta' : 'ras',
+      frontGapMode: ['ras', 'tapajunta', 'interno'].includes(state.userConfig?.frontGapMode) ? state.userConfig.frontGapMode : 'ras',
       moduleGapMode,
       verticalPositionOverrides: state.userConfig,
       onPieceSelect: (id) => {
