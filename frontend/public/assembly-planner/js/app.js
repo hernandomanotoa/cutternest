@@ -609,6 +609,17 @@ function moduleDims(modPieces, moduleId) {
 // zocalo|drawer|shoeRack. opts.altoVano aplica a drawer/shoeRack;
 // opts.tipo 'corredera'|'volquete'; opts.colorFrente para cajones/zapateras;
 // opts.alturaZocalo para zocalo (default 150).
+// Modo de frentes vigente (frontGapMode) y holgura caja→fondo: la caja/bandeja
+// se dimensionan restando el retranqueo del plano de frentes para conservar
+// la holgura con el fondo del módulo con cualquier modo (ras/interno).
+function frenteBoxOpts(userConfig) {
+  const modo = ['ras', 'tapajunta', 'interno'].includes(userConfig?.frontGapMode)
+    ? userConfig.frontGapMode
+    : 'tapajunta';
+  const h = Number(userConfig?.holguraFondoCajon);
+  return { frontGapMode: modo, holguraFondo: Number.isFinite(h) && h >= 0 ? h : null };
+}
+
 export function addContentToModule(moduleId, kind, opts = {}) {
   snapshotUndo("Agregar contenido");
   const store = getStore();
@@ -720,6 +731,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         division: opts.division !== false,
         riel: ['catalogo', 'telescopica26', 'oculta', 'marco'].includes(opts.riel) ? opts.riel : 'catalogo',
         frenteLuz: Number(opts.frenteLuz) || 1,
+        ...frenteBoxOpts(state.userConfig),
       });
     } else {
       result = addDrawer(moduleId, idx, {
@@ -739,6 +751,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         // Método del fondo: el override de la tarjeta gana; si no, el del
         // tipo (addDrawer cae a 'apoyado' sin contrato).
         fondoMetodo: ['apoyado', 'ranurado'].includes(opts.fondoMetodo) ? opts.fondoMetodo : null,
+        ...frenteBoxOpts(state.userConfig),
       });
     }
   } else if (kind === 'divider') {
@@ -1954,6 +1967,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         // El riel se preserva: se infiere del nombre del frente viejo (la cara
         // no lleva el tag del riel; sin frente cae al catálogo).
         riel: frente ? inferRailType(frente) : 'catalogo',
+        ...frenteBoxOpts(getStore().get().userConfig),
       })
       : addDrawer(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
@@ -1977,6 +1991,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
             const caraW = Number(caraVieja?.ancho) || 0;
             return caraW > 0 && Number(fondoViejo?.ancho) > caraW + 1 ? 'ranurado' : 'apoyado';
           })(),
+        ...frenteBoxOpts(getStore().get().userConfig),
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };

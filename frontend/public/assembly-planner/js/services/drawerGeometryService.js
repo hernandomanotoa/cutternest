@@ -119,7 +119,7 @@ export function hasRealDrawerBox(parts) {
  * @returns {Array} [{x,y,z,w,d,h,color,role,name,id}] por pieza real; [] si el
  *   conjunto no alcanza el mínimo (hasRealDrawerBox).
  */
-export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE, fondoMetodo = 'apoyado', grooveDepth = DRAWER_GROOVE_DEPTH }) {
+export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE, fondoMetodo = 'apoyado', grooveDepth = DRAWER_GROOVE_DEPTH, maxDepth = 0 }) {
   if (!hasRealDrawerBox(parts)) return [];
 
   const rail = getRailType(railType);
@@ -135,7 +135,12 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
   const lat = parts.laterales[0];
   const espLat = Number(lat.espesor) || thickness;
   const espBase = parts.base ? (Number(parts.base.espesor) || thickness) : espLat;
-  const profLat = Math.max(0, Number(lat.ancho) || 0) || fallbackDepth;
+  // maxDepth (yFace − espesor del fondo − holgura): la caja nunca dibuja
+  // pasando el fondo del módulo, sea cual sea el modo de frentes. Las piezas
+  // bien generadas ya vienen ajustadas; el clamp cubre datos de otro modo.
+  const profLat = (maxDepth > 0)
+    ? Math.min(Math.max(0, Number(lat.ancho) || 0) || fallbackDepth, maxDepth)
+    : Math.max(0, Number(lat.ancho) || 0) || fallbackDepth;
   const latInset = catalog
     ? Math.max(0, (Number(rail.interiorDeduction) - 2 * espLat) / 2)
     : clear;

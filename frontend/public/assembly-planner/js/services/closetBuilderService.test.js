@@ -127,6 +127,49 @@ describe('addShelf', () => {
     assert.equal(r.conRefuerzo, false);
   });
 
+  describe('profundidad de caja según el modo de frentes (frontGapMode)', () => {
+    const profLat = (r) => Number(r.pieces.find((p) => p.id.endsWith('lateral-izq')).ancho);
+    const BASE = { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'telescopica26' };
+
+    it('tapajunta (default) conserva la regla del riel: 575 mm (600 − E − 10)', () => {
+      const r = addDrawer('1', 1, BASE);
+      assert.ok(r.ok);
+      assert.equal(profLat(r), 575);
+    });
+
+    it("'ras' descuenta un espesor: 560 mm (cara trasera a 10 mm del fondo)", () => {
+      const r = addDrawer('1', 1, { ...BASE, frontGapMode: 'ras' });
+      assert.ok(r.ok);
+      assert.equal(profLat(r), 560);
+      // yFace = 600 − 15; cara trasera = 585 − 560 = 25 = E + holgura 10 ✓
+    });
+
+    it("'interno' descuenta dos espesores: 545 mm", () => {
+      const r = addDrawer('1', 1, { ...BASE, frontGapMode: 'interno' });
+      assert.ok(r.ok);
+      assert.equal(profLat(r), 545);
+    });
+
+    it('holguraFondo personalizada descuenta de la regla del riel', () => {
+      const r = addDrawer('1', 1, { ...BASE, holguraFondo: 25 });
+      assert.ok(r.ok);
+      assert.equal(profLat(r), 600 - 15 - 25);
+    });
+
+    it('la zapatera retrasa la bandeja según el modo', () => {
+      const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, riel: 'telescopica26', frontGapMode: 'ras' });
+      assert.ok(r.ok);
+      const lat = r.pieces.find((p) => p.id.endsWith('lateral-izq'));
+      assert.equal(Number(lat.ancho), 560);
+    });
+
+    it('error claro cuando la profundidad no alcanza con el modo', () => {
+      const r = addDrawer('1', 1, { ...BASE, profundidadModulo: 150, frontGapMode: 'interno' });
+      assert.equal(r.ok, false);
+      assert.match(r.errors[0], /no alcanza|quedaría/i);
+    });
+  });
+
   it('la repisa clasifica como shelf y parsea limpia', () => {
     const r = addShelf('1', { anchoUtil: 820, profReal: 570, index: 2 });
     const { result, pieces } = reparseWithCasco(r.pieces);

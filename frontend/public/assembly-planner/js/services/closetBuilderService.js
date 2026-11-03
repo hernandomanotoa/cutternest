@@ -25,13 +25,13 @@ export const RIEL_RULES = {
   telescopica26: {
     label: 'Telescópica balines (vano − 26 mm; fondo = riel, vano +10 mm)',
     holgura: 13,          // 26 mm total, 13 por lado
-    fondoMm: (prof, E) => prof - E - 10,     // riel nominal; vano con +10
+    fondoMm: (prof, E, holgura = HOLGURA_FONDO_DEFAULT) => prof - E - holgura,
     nota: 'Telescópica (regla −26): fondo = riel nominal; el vano necesita +10 mm de fondo.',
   },
   oculta: {
     label: 'Oculta bajo cajón (exterior = vano − 42 + 2×grosor; fondo = riel − 10)',
     holgura: null,        // se calcula por fórmula con el grosor del lateral
-    fondoMm: (prof, E) => prof - E - 10,     // riel − 10 (marca estándar)
+    fondoMm: (prof, E, holgura = HOLGURA_FONDO_DEFAULT) => prof - E - holgura,
     nota: 'Oculta: exterior = vano − 42 + 2×grosor lateral; rebajo inferior de 12,7 mm y alto máx. = vano − 23 (fijación del herraje).',
   },
   marco: {
@@ -40,6 +40,21 @@ export const RIEL_RULES = {
     nota: 'Herraje de catálogo: marco de aluminio regulable con rieles ocultos propios; NO se fabrica cajón. Verificar el rango del catálogo para el vano.',
   },
 };
+// Holgura recomendada entre la cara trasera de la caja (cajón/zapatera) y el
+// fondo del módulo, en mm. Configurable en userConfig (holguraFondoCajon);
+// el riel 'catalogo' conserva su regla propia (−25). Regla de taller: 10 mm
+// para telescópica/oculta (tolerancias de corte, montaje y ventilación).
+export const HOLGURA_FONDO_DEFAULT = 10;
+
+// Retranqueo del plano de frentes según el modo (frontGapMode): con 'ras' el
+// frente retrocede un espesor y con 'interno' dos; la caja debe ganar ese
+// espacio para no chocar con el fondo del módulo.
+export function retranqueoFrenteMm(modoFrente, espesor) {
+  const E = Math.abs(espesor || 15);
+  if (modoFrente === 'ras') return E;
+  if (modoFrente === 'interno') return 2 * E;
+  return 0;
+}
 const RIEL_DEFAULT = 'catalogo';
 function rielRule(riel, espLat) {
   const key = RIEL_RULES[riel] ? riel : RIEL_DEFAULT;
@@ -327,6 +342,9 @@ export function addDrawer(moduleId, index, {
   tipoId = null, // tag [tipo] en frente/cara: el contrato sobrevive al CSV
   fondoMetodo = null, // 'apoyado' | 'ranurado' | null (null → del tipo)
   grooveDepth = DRAWER_GROOVE_DEPTH,
+  frontGapMode = 'tapajunta', // 'tapajunta'|'ras'|'interno': el retranqueo del
+                              // plano de frentes descuenta de la caja
+  holguraFondo = null, // mm caja→fondo del módulo (null → HOLGURA_FONDO_DEFAULT)
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -350,9 +368,22 @@ export function addDrawer(moduleId, index, {
   const frenteAncho = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
   const frenteAlto = altoVano - 3;
   const volquete = tipo === 'volquete';
-  // El tipo de riel define las medidas de la caja (spec del taller).
+  // El tipo de riel define las medidas de la caja (spec del taller). La
+  // profundidad descuenta además el retranqueo del modo de frentes (ras =
+  // un espesor, interno = dos) para que la cara trasera conserve la holgura
+  // con el fondo del módulo (configurable, default 10 mm).
   const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, E);
-  const profCajon = volquete ? D - 15 : rielRegla.fondoMm(profundidadModulo, E);
+  const hFondo = holguraFondo != null && Number.isFinite(Number(holguraFondo)) && Number(holguraFondo) >= 0
+    ? Number(holguraFondo)
+    : HOLGURA_FONDO_DEFAULT;
+  const retranqueo = retranqueoFrenteMm(frontGapMode, E);
+  const profCajon = (volquete ? D - 15 : rielRegla.fondoMm(profundidadModulo, E, hFondo)) - retranqueo;
+  if (profCajon < 100) {
+    return {
+      ok: false,
+      errors: [`cajon: con frentes "${frontGapMode}" (retranqueo ${retranqueo} mm) la caja quedaría de ${profCajon} mm en un módulo de ${profundidadModulo} mm; use frentes tapajunta o una holgura al fondo menor.`],
+    };
+  }
   const latAlto = volquete
     ? Math.min(frenteAlto - 2 * E, altBandeja)
     : frenteAlto - 2 * E;
@@ -501,6 +532,8 @@ export function addShoeTray(moduleId, index, {
   riel = RIEL_DEFAULT,
   frenteLuz = 1,
   espesorModulo = 15, // espesor REAL del casco (createModule): la bandeja descuenta E
+  frontGapMode = 'tapajunta', // el retranqueo del plano de frentes descuenta de la bandeja
+  holguraFondo = null, // mm bandeja→fondo del módulo (null → HOLGURA_FONDO_DEFAULT)
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -533,7 +566,6 @@ export function addShoeTray(moduleId, index, {
   const D = profundidadModulo - E - E;
   const frenteAncho = W - 2 * frenteLuz;
   const frenteAlto = altoVano - 3;
-  const profBandeja = D - 25; // corredera telescópica
   // Frente: lo lleva salvo que conFrente=false (bandeja abierta: la cara alta
   // queda de frente visible/de agarre). El frente completo de tipo (botas)
   // se fuerza aunque conFrente=false: es el cierre estructural de la bandeja.
@@ -580,7 +612,18 @@ export function addShoeTray(moduleId, index, {
     };
   }
   const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, E);
-  const profBandeja2 = rielRegla.fondoMm(profundidadModulo, E);
+  const hFondoZ = holguraFondo != null && Number.isFinite(Number(holguraFondo)) && Number(holguraFondo) >= 0
+    ? Number(holguraFondo)
+    : HOLGURA_FONDO_DEFAULT;
+  // La bandeja descuenta el retranqueo del modo de frentes (ras/interno) para
+  // conservar la holgura con el fondo del módulo, igual que el cajón.
+  const profBandeja2 = rielRegla.fondoMm(profundidadModulo, E, hFondoZ) - retranqueoFrenteMm(frontGapMode, E);
+  if (profBandeja2 < 100) {
+    return {
+      ok: false,
+      errors: [`zapatera: con frentes "${frontGapMode}" la bandeja quedaría de ${profBandeja2} mm en un módulo de ${profundidadModulo} mm; use frentes tapajunta o una holgura al fondo menor.`],
+    };
+  }
   const interior2 = Math.round(W - 2 * rielHolgura) - 2 * E;
   const rielTagZ = riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
   // Bandeja a la vista (ladosIguales) SIN frente: cara, laterales, fondo y
@@ -771,6 +814,8 @@ export function buildCloset(config) {
             tipoId: item.tipo ?? null,
             espesorModulo: mod.espesor ?? 15,
             colorFrente: mod.colorFrente ?? '#8B5A2B', colorLateral: mod.colorCuerpo ?? '#D9C2A3',
+            frontGapMode: config?.frontGapMode,
+            holguraFondo: config?.holguraFondoCajon ?? null,
           });
         } else {
           result = addDrawer(moduleId, drawerIndex, {
@@ -779,6 +824,8 @@ export function buildCloset(config) {
             vocabulario: item.vocabulario ?? 'cajon',
             espesorModulo: mod.espesor ?? 15,
             colorFrente: mod.colorFrente ?? '#8B5A2B', colorLateral: mod.colorCuerpo ?? '#D9C2A3',
+            frontGapMode: config?.frontGapMode,
+            holguraFondo: config?.holguraFondoCajon ?? null,
           });
         }
       } else if (item.kind === 'rail') {

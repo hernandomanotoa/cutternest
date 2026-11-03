@@ -661,6 +661,8 @@ export function createConstructorView(store) {
       // luz ≥ 600 (default). Ambos persisten como preferencia de contenido.
       const repisaAlFrente = container.querySelector(`${scoped} [data-repisa-al-frente]`)?.checked !== false;
       const refuerzoRepisa = container.querySelector(`${scoped} [data-refuerzo-repisa]`)?.checked !== false;
+      // Holgura caja→fondo del módulo (regla de taller: 10 mm).
+      const holguraFondo = Math.max(0, Number(container.querySelector(`${scoped} [data-holgura-fondo]`)?.value ?? 10) || 0);
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
       // Va DENTRO del mismo saveUserConfig de abajo: saveUserConfig REEMPLAZA
       // el storage completo, un segundo call la borraría (por eso el input
@@ -682,6 +684,7 @@ export function createConstructorView(store) {
         contentRiel: riel,
         contentRefuerzoRepisa: refuerzoRepisa ? 1 : 0,
         repisaAlFrente: repisaAlFrente ? 1 : 0,
+        holguraFondoCajon: holguraFondo,
       });
       store.set({ userConfig: loadUserConfig() });
       const r = addContentToModule(moduleId, kind, {
@@ -1665,6 +1668,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
                 <option value="oculta" ${sel(cfg.contentRiel, 'oculta')}>Oculta bajo cajón (−10 mm, cierre suave)</option>
                 <option value="marco" ${sel(cfg.contentRiel, 'marco')}>Marco aluminio regulable (zapatera, sin cajón)</option>
               </select>
+            </label>
+            <label class="form-group" style="margin:0;" title="Espacio recomendado entre la cara trasera de la caja (cajón/zapatera) y el fondo del módulo. 10 mm = regla de taller (tolerancias de corte, montaje y ventilación); el riel 'Catálogo' conserva su regla propia de 25 mm">Holgura fondo (mm)
+              <input type="number" data-holgura-fondo value="${Number(cfg.holguraFondoCajon ?? 10)}" min="0" max="50" step="1" />
             </label>
             <label class="form-group cn-toggle" style="margin:0;" title="Sistema de montaje del fondo (solo cajones). Apoyado: fondo sobre la base, interno a los laterales. Ranurado: fondo embutido en ranura corrida en cada lateral — se corta más ancho (cantos enterrados) y sube casi a la cara superior del lateral">
               <input type="checkbox" data-fondo-ranurado ${prefFondoRanurado ? 'checked' : ''} />

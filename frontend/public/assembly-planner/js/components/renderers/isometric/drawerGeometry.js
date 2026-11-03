@@ -121,6 +121,22 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
       const x = (moduleW - w) / 2;
       const drawerDepth = Math.max(0, moduleD - 2 * thickness - 10);
       const yFace = moduleD - thickness + effectiveDrawerGap(renderer.drawerGap, thickness);
+      // Fondo del módulo (embutido, [0..E]) + holgura configurada (default 10
+      // mm): la caja no debe pasarlo sea cual sea el modo de frentes. Las
+      // piezas generadas por el Constructor ya traen la profundidad retrasada
+      // (ras/interno); el clamp cubre datos de otro modo (legado tapajunta
+      // visto en ras/interno) y avisa para regenerar.
+      const holguraFondo = Math.max(0, Number(renderer.verticalPositionOverrides?.holguraFondoCajon ?? 10));
+      const profMax = Math.max(0, yFace - thickness - holguraFondo);
+      const clampProf = (prof) => {
+        const p = Math.max(0, Math.min(prof, profMax));
+        if (prof > profMax + 0.5) {
+          renderer.warnings.push(
+            `La caja de "${d.face.nombre}" (${Math.round(prof)} mm) no cabe detrás del frente en el modo actual (hasta el fondo caben ${Math.round(profMax)} mm): se dibuja ajustada. Regenere el contenido (editar módulo) para cortarla a medida.`
+          );
+        }
+        return p;
+      };
       // Apertura del cajón: se toma del frente (override por pieza o global).
       // - Rail (cajón/zapatera): traslación +y con el MISMO Δy para todo el
       //   grupo (movimiento rígido derivado del frente).
@@ -146,9 +162,9 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         // la caja sale justo del todo del mueble. La profundidad real sale
         // de los laterales del conjunto (no de la sintética del fallback).
         const drawerBoxPre = matchDrawerBoxParts(d.face, roles.filter((p) => !consumed.has(p.id)));
-        const profReal = hasRealDrawerBox(drawerBoxPre)
+        const profReal = clampProf(hasRealDrawerBox(drawerBoxPre)
           ? Math.max(...drawerBoxPre.laterales.map((lat) => Number(lat.ancho) || 0))
-          : drawerDepth;
+          : drawerDepth);
         const railDy = drawerOpen * getRailType(railType).extraction * (profReal + 20);
         rail = (geo) => (railDy ? { ...geo, y: geo.y + railDy } : geo);
       }
@@ -173,35 +189,38 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         const boxGeos = buildDrawerBoxGeometries({
           parts: drawerBox, x, yFace, z: currentZ, w, h, thickness, fallbackDepth: drawerDepth, railType,
           fondoMetodo,
+          maxDepth: profMax,
         });
         boxGeos.forEach((g) => consumed.add(g.id));
         boxGeos.forEach((g) => geometries.push(rail(g)));
       } else {
         // Laterales del cajón: holgura del riel por lado (RAIL_TYPES); la
-        // oculta (clear 0) dibuja los laterales al ras del vano.
+        // oculta (clear 0) dibuja los laterales al ras del vano. Profundidad
+        // sintética clampada al espacio real hasta el fondo (modo de frentes).
         const sideH = Math.max(0, h - 2 * thickness);
         const sideColor = d.face.color;
         const clear = getRailType(railType).sideClearance || 0;
+        const synthDepth = clampProf(drawerDepth);
         geometries.push(
           rail({
-            x: x + thickness + clear, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
+            x: x + thickness + clear, y: 0, z: currentZ + thickness, w: thickness, d: synthDepth, h: sideH,
             color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side`, opacity: 0.5,
           }),
           rail({
-            x: x + w - 2 * thickness - clear, y: 0, z: currentZ + thickness, w: thickness, d: drawerDepth, h: sideH,
+            x: x + w - 2 * thickness - clear, y: 0, z: currentZ + thickness, w: thickness, d: synthDepth, h: sideH,
             color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side2`, opacity: 0.5,
           })
         );
 
         // Base del cajón
         geometries.push(rail({
-          x: x + thickness + clear, y: 0, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: drawerDepth, h: thickness,
+          x: x + thickness + clear, y: 0, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: synthDepth, h: thickness,
           color: sideColor, role: 'drawer_bottom', name: 'Base cajón', id: `${d.face.id}-bottom`, opacity: 0.5,
         }));
 
         // Fondo del cajón
         geometries.push(rail({
-          x: x + thickness + clear, y: drawerDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: thickness, h: sideH,
+          x: x + thickness + clear, y: synthDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: thickness, h: sideH,
           color: sideColor, role: 'drawer_back', name: 'Fondo cajón', id: `${d.face.id}-back`, opacity: 0.4,
         }));
       }

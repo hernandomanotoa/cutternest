@@ -1054,6 +1054,21 @@ describe('IsometricRenderer extracción con caja real', () => {
     assert.ok(Math.abs(dyOf('m1cajon1-cara') - frente) < 1e-9, 'cara comparte Δy del frente');
     assert.ok(Math.abs(dyOf('m1cajon1-fondo') - frente) < 1e-9, 'fondo comparte Δy del frente');
   });
+
+  it("con drawerGap 'ras' la caja tapajunta (575) se clampa al espacio disponible (560)", () => {
+    // Datos generados en tapajunta (caja 575) vistos en modo ras: yFace =
+    // 585 → hasta el fondo caben 585 − 15 − 10 = 560; el render acorta la
+    // caja y avisa para regenerar (no dibuja la colisión con el fondo).
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12, drawerGap: 0 });
+    const { geometries } = renderer.computeGeometries('1', module600);
+    const lat = geometries.find((g) => g.id === 'm1cajon1-lateral-izq');
+    assert.ok(lat);
+    assert.equal(lat.d, 560, 'laterales acortados al espacio real');
+    assert.equal(lat.y + lat.d, 585, 'frente de la caja sigue anclado al frente');
+    assert.equal(585 - 560, 25, 'cara trasera a E + holgura (10) del fondo');
+    assert.ok(renderer.warnings.some((w) => w.includes('no cabe detrás del frente')),
+      'avisa que la caja debe regenerarse');
+  });
 });
 
 describe('IsometricRenderer repisa al frente', () => {
