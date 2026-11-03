@@ -190,7 +190,8 @@ export function addZocalo(moduleId, { ancho, alto = 150, espesor = 15, color = '
 // Repisa/entrepaño interior. Luz = anchoUtil; si la luz es >= 600 mm se
 // agrega refuerzo interior de 100 mm (el parser exige soporte intermedio a
 // partir de 600 mm de luz con espesor <= 15, ver validatePiece de csvParser).
-export function addShelf(moduleId, { anchoUtil, profReal, espesor = 15, color = '#D9C2A3', index = 1 }) {
+// `conRefuerzo: false` lo desactiva (opcional; por defecto va según la luz).
+export function addShelf(moduleId, { anchoUtil, profReal, espesor = 15, color = '#D9C2A3', index = 1, conRefuerzo = true }) {
   const errors = [];
   validateDimension(anchoUtil, 'anchoUtil', errors, { min: 50 });
   validateDimension(profReal, 'profReal', errors, { min: 50 });
@@ -200,10 +201,11 @@ export function addShelf(moduleId, { anchoUtil, profReal, espesor = 15, color = 
   const pieces = [
     piece(`m${moduleId}-repisa-${index}`, `Repisa ${index} M${moduleId}`, anchoUtil, profReal, { rol: 'shelf', color: c, espesor, modulo: moduleId }),
   ];
-  if (anchoUtil >= LUZ_PARA_REFUERZO) {
+  const llevaRefuerzo = conRefuerzo !== false && anchoUtil >= LUZ_PARA_REFUERZO;
+  if (llevaRefuerzo) {
     pieces.push(piece(`m${moduleId}-refuerzo-repisa-${index}`, `Refuerzo repisa ${index} M${moduleId}`, anchoUtil, 100, { rol: 'brace', color: c, espesor, modulo: moduleId }));
   }
-  return { ok: true, pieces, conRefuerzo: anchoUtil >= LUZ_PARA_REFUERZO };
+  return { ok: true, pieces, conRefuerzo: llevaRefuerzo };
 }
 
 // Barra colgadora (riel). index numera la barra dentro del modulo.
@@ -742,7 +744,16 @@ export function buildCloset(config) {
         result = addZocalo(moduleId, { ancho: mod.ancho, alto: item.alto ?? 150, espesor: mod.espesor ?? 15, color: mod.colorCuerpo ?? '#C19A6B' });
       } else if (item.kind === 'shelf') {
         shelfIndex += 1;
-        result = addShelf(moduleId, { anchoUtil: interiorW, profReal: interiorD, espesor: mod.espesor ?? 15, index: shelfIndex });
+        // Repisa al frente por defecto: llega al borde frontal del módulo
+        // (prof − E, cara trasera contra el fondo embutido); con
+        // repisaAlFrente: 0 conserva el retranqueo histórico (prof − 2E).
+        result = addShelf(moduleId, {
+          anchoUtil: interiorW,
+          profReal: config?.repisaAlFrente !== 0 ? mod.prof - (mod.espesor ?? 15) : interiorD,
+          espesor: mod.espesor ?? 15,
+          index: shelfIndex,
+          conRefuerzo: config?.contentRefuerzoRepisa !== 0,
+        });
       } else if (item.kind === 'drawer' || item.kind === 'shoeRack') {
         drawerIndex += 1;
         if (item.kind === 'shoeRack') {

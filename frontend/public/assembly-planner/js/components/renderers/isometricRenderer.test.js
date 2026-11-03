@@ -1056,6 +1056,28 @@ describe('IsometricRenderer extracción con caja real', () => {
   });
 });
 
+describe('IsometricRenderer repisa al frente', () => {
+  // Módulo de 600 de profundidad con repisa de 585 (= prof − E): debe llegar
+  // al plano frontal del módulo (y + d = 600), no quedarse 15 mm atrás.
+  const moduleShelf = [
+    { id: 'm1-base', nombre: 'Base modulo M1', ancho: 850, alto: 585, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-tapa', nombre: 'Tapa modulo M1', ancho: 850, alto: 600, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-izq', nombre: 'Lateral izquierdo M1', ancho: 600, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-lateral-der', nombre: 'Lateral derecho M1', ancho: 600, alto: 2400, cantidad: 1, rotate: 'no', color: '#C19A6B', espesor: 15, modulo: '1' },
+    { id: 'm1-fondo', nombre: 'Fondo modulo M1', ancho: 820, alto: 2270, cantidad: 1, rotate: 'no', color: '#F2F2F2', espesor: 15, modulo: '1' },
+    { id: 'm1-repisa-1', nombre: 'Repisa 1 M1', ancho: 820, alto: 585, cantidad: 1, rotate: 'no', color: '#D9C2A3', espesor: 15, modulo: '1' },
+  ];
+
+  it('repisa de prof − E llega al borde frontal (y + d = moduleD)', () => {
+    const renderer = new IsometricRenderer({ innerHTML: '' }, { scale: 0.12 });
+    const { geometries } = renderer.computeGeometries('1', moduleShelf);
+    const repisa = geometries.find((g) => g.id === 'm1-repisa-1');
+    assert.ok(repisa, 'repisa presente');
+    assert.equal(repisa.y, 15, 'cara trasera contra el fondo embutido');
+    assert.equal(repisa.y + repisa.d, 600, 'frente alineado con el frente de los laterales');
+  });
+});
+
 describe('IsometricRenderer volquete (apertura pivotante)', () => {
   const cabinetBase = [
     { id: 'm1-base', nombre: 'Base modulo M1', ancho: 800, alto: 550, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: '1' },

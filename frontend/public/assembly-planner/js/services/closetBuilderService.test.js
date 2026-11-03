@@ -120,6 +120,13 @@ describe('addShelf', () => {
     assert.equal(r.conRefuerzo, false);
   });
 
+  it('conRefuerzo: false omite el refuerzo aunque la luz sea >= 600 (opcional)', () => {
+    const r = addShelf('1', { anchoUtil: 820, profReal: 570, index: 1, conRefuerzo: false });
+    assert.ok(r.ok);
+    assert.equal(r.pieces.length, 1, 'solo la repisa, sin refuerzo');
+    assert.equal(r.conRefuerzo, false);
+  });
+
   it('la repisa clasifica como shelf y parsea limpia', () => {
     const r = addShelf('1', { anchoUtil: 820, profReal: 570, index: 2 });
     const { result, pieces } = reparseWithCasco(r.pieces);
@@ -247,6 +254,43 @@ describe('buildCloset', () => {
     const { result } = reparse(r.pieces);
     assert.equal(result.ok, true, result.errors?.join('; '));
     assert.equal(result.warnings.length, 0, result.warnings?.join('; '));
+  });
+
+  it('la repisa llega al borde frontal del módulo por defecto (prof − E)', () => {
+    const r = buildCloset({
+      modules: [
+        { ancho: 850, alto: 2400, prof: 600, contenido: [{ kind: 'shelf' }] },
+      ],
+    });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const repisa = r.pieces.find((p) => p.id === 'm1-repisa-1');
+    assert.equal(Number(repisa.alto), 585, 'prof 600 − E 15: cara trasera contra el fondo, frente al borde');
+    const { result } = reparse(r.pieces);
+    assert.equal(result.ok, true, result.errors?.join('; '));
+    assert.equal(result.warnings.length, 0, result.warnings?.join('; '));
+  });
+
+  it('repisaAlFrente: 0 conserva el retranqueo histórico (prof − 2E)', () => {
+    const r = buildCloset({
+      repisaAlFrente: 0,
+      modules: [
+        { ancho: 850, alto: 2400, prof: 600, contenido: [{ kind: 'shelf' }] },
+      ],
+    });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const repisa = r.pieces.find((p) => p.id === 'm1-repisa-1');
+    assert.equal(Number(repisa.alto), 570);
+  });
+
+  it('contentRefuerzoRepisa: 0 genera la repisa sin refuerzo (luz >= 600)', () => {
+    const r = buildCloset({
+      contentRefuerzoRepisa: 0,
+      modules: [
+        { ancho: 850, alto: 2400, prof: 600, contenido: [{ kind: 'shelf' }] },
+      ],
+    });
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(r.pieces.filter((p) => String(p.id).includes('refuerzo-repisa')).length, 0);
   });
 
   it('shoeRack genera bandeja zapatera real: división + contrato de tipo', () => {

@@ -657,6 +657,10 @@ export function createConstructorView(store) {
       const riel = container.querySelector(`${scoped} [data-tipo-riel]`)?.value || 'catalogo';
       // Método del fondo del cajón: apoyado (default) o ranurado (embutido).
       const fondoRanurado = container.querySelector(`${scoped} [data-fondo-ranurado]`)?.checked === true;
+      // Repisa: llegar al borde frontal del módulo (default) y refuerzo con
+      // luz ≥ 600 (default). Ambos persisten como preferencia de contenido.
+      const repisaAlFrente = container.querySelector(`${scoped} [data-repisa-al-frente]`)?.checked !== false;
+      const refuerzoRepisa = container.querySelector(`${scoped} [data-refuerzo-repisa]`)?.checked !== false;
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
       // Va DENTRO del mismo saveUserConfig de abajo: saveUserConfig REEMPLAZA
       // el storage completo, un segundo call la borraría (por eso el input
@@ -676,6 +680,8 @@ export function createConstructorView(store) {
         contentAltoDivisionZapatera: altoDivisionZ ?? '',
         contentFondoRanurado: fondoRanurado ? 1 : 0,
         contentRiel: riel,
+        contentRefuerzoRepisa: refuerzoRepisa ? 1 : 0,
+        repisaAlFrente: repisaAlFrente ? 1 : 0,
       });
       store.set({ userConfig: loadUserConfig() });
       const r = addContentToModule(moduleId, kind, {
@@ -685,6 +691,7 @@ export function createConstructorView(store) {
         division, conFrente, modoFrente: modoZapatera, altoFrente: altoFrenteZ,
         altoLateral: altoLateralZ, altoFondo: altoFondoZ, altoDivision: altoDivisionZ,
         riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado',
+        repisaAlFrente: repisaAlFrente ? 1 : 0, conRefuerzo: refuerzoRepisa,
       });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
@@ -1497,6 +1504,10 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
   const prefVano = Number(cfg.contentVano) || 200;
   const prefNPorFila = Number(cfg.contentNPorFila) || 1;
   const prefDivision = Number(cfg.contentDivision) !== 0;
+  // Repisa: refuerzo automático con luz ≥ 600 (default) y borde al frente del
+  // módulo (default; desmarcado = retranqueo histórico de un espesor).
+  const prefRefuerzoRepisa = cfg.contentRefuerzoRepisa != null ? Number(cfg.contentRefuerzoRepisa) !== 0 : true;
+  const prefRepisaAlFrente = cfg.repisaAlFrente != null ? Number(cfg.repisaAlFrente) !== 0 : true;
   // Modo del frente de la zapatera. Default 'normal' (frente normal: como el
   // de un cajón — frente = vano − 3 y cara detrás a frente − 2·espesor). Los
   // prefs válidos ('normal'/'extendido'/'personalizado') se respetan; cualquier
@@ -1622,6 +1633,14 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
                 ${golaErrorFor.fixes.map((f) => `<button type="button" class="btn btn--primary btn--sm" data-action="apply-gola-fix" data-module="${escapeHtml(moduleId)}" data-fix-id="${escapeHtml(f.id)}" data-fix-mm="${Number(f.mm) || 0}">${escapeHtml(f.label)}</button>`).join('')}
               </div>
             </div>` : ''}
+            <label class="form-group cn-toggle" style="margin:0;" title="La repisa llega hasta el borde frontal del módulo (cara trasera contra el fondo embutido). Desmarcado: retranqueo histórico de un espesor (15 mm detrás del frente)">
+              <input type="checkbox" data-repisa-al-frente ${prefRepisaAlFrente ? 'checked' : ''} />
+              <span class="cn-toggle__text"><span class="cn-toggle__label">Repisa al frente</span></span>
+            </label>
+            <label class="form-group cn-toggle" style="margin:0;" title="Refuerzo interior de 100 mm en repisas con luz ≥ 600 mm (evita el pandeo; el validador lo exige a partir de esa luz con espesor ≤ 15). Desmarcado = repisa sin refuerzo">
+              <input type="checkbox" data-refuerzo-repisa ${prefRefuerzoRepisa ? 'checked' : ''} />
+              <span class="cn-toggle__text"><span class="cn-toggle__label">Refuerzo repisa</span></span>
+            </label>
             <div class="cn-constructor__content-btns cn-pref-group__actions">
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>

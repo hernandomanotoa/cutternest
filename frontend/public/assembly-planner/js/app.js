@@ -628,10 +628,16 @@ export function addContentToModule(moduleId, kind, opts = {}) {
   const tipo = opts.tipo ? getContentType(kind, opts.tipo) : null;
   const altoVano = Number(opts.altoVano) > 0 ? Number(opts.altoVano) : (tipo?.altoVano ?? 200);
   if (kind === 'shelf') {
+    // Repisa al frente por defecto (borde frontal del módulo, prof − E);
+    // repisaAlFrente=0 conserva el retranqueo histórico de un espesor. El
+    // opt del click gana sobre la preferencia persistida.
+    const alBorde = opts.repisaAlFrente != null ? Number(opts.repisaAlFrente) !== 0 : state.userConfig?.repisaAlFrente !== 0;
+    const conRefuerzo = opts.conRefuerzo != null ? !!opts.conRefuerzo : state.userConfig?.contentRefuerzoRepisa !== 0;
     result = addShelf(moduleId, {
-      anchoUtil, profReal: profUtil, espesor,
+      anchoUtil, profReal: alBorde ? profModulo - espesor : profUtil, espesor,
       color: opts.color || '#D9C2A3',
       index: nextContentIndex(state.pieces, moduleId, 'shelf'),
+      conRefuerzo,
     });
   } else if (kind === 'rail') {
     result = addHangerRail(moduleId, {

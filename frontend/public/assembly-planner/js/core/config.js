@@ -357,6 +357,9 @@ export const VERTICAL_POSITIONS = {
   contentVano: 200,          // alto de vano por defecto al agregar cajón/zapatera
   contentNPorFila: 1,        // cajones/zapateras por fila (1|2)
   contentDivision: 1,        // división central de la zapatera (1 = va, 0 = no)
+  contentRefuerzoRepisa: 1,  // 1 = refuerzo automático en repisas con luz ≥ 600 mm; 0 = nunca
+  repisaAlFrente: 1,         // 1 = la repisa llega al borde frontal del módulo (prof − E);
+                             // 0 = retranqueo histórico de un espesor (prof − 2E)
   contentFrenteZapatera: 1,  // por defecto las zapateras llevan frente decorativo (sin tirador,
                             // como los cajones: apertura sin jaladera)
                             // (el tipo 'bandeja a la vista' impone lo contrario:

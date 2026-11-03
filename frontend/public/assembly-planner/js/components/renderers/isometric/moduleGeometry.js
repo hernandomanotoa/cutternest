@@ -132,11 +132,14 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
   const baseAxes = bottom ? classifyTopBottomMountAxes(bottom, moduleW, moduleD, thickness) : { width: 'external', depth: 'external' };
   const topAxes = top ? classifyTopBottomMountAxes(top, moduleW, moduleD, thickness) : { width: 'external', depth: 'external' };
 
-  // Piezas interiores (estantes/divisores) deben detenerse en la cara interior del fondo
-  // y en la cara interior del lateral frontal: no atraviesan ni el fondo ni los laterales.
+  // Piezas interiores (estantes/divisores) se apoyan contra la cara interior
+  // del fondo (depthOffset = espesor del fondo) y llegan al plano frontal del
+  // módulo — misma referencia que dividerGeometry: por defecto la repisa va
+  // hasta el borde de los laterales (la pieza trae su propio retranqueo en
+  // el dato 'alto' si se diseña corta).
   const backThickness = back ? Number(back.espesor) || thickness : 0;
   const depthOffset = backThickness;
-  const interiorDepth = Math.max(0, moduleD - backThickness - thickness);
+  const interiorDepth = Math.max(0, moduleD - backThickness);
 
   // Zócalos frontales por módulo (plinth).
   const localPlinths = roles.filter((p) => p.role === 'plinth');

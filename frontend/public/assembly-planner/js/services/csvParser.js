@@ -156,7 +156,6 @@ function validateDimensions(pieces, warnings) {
     const moduleBox = getModuleDimensions(modPieces, sideThickness);
     const interiorWidth = Math.max(0, moduleBox.width - 2 * sideThickness);
     const backThickness = back ? Number(back.espesor) || sideThickness : 0;
-    const interiorDepth = Math.max(0, moduleBox.depth - backThickness - sideThickness);
 
     if (base && top) {
       const thickness = Number(base.espesor) || Number(top.espesor) || sideThickness;
@@ -209,14 +208,18 @@ function validateDimensions(pieces, warnings) {
       // custom: no se validan medidas (es intencionalmente distinto)
     }
 
-    // Estantes/repisas/zapateras (horizontales interiores, rol shelf)
+    // Estantes/repisas (horizontales interiores, rol shelf): la profundidad
+    // tope es fondo→frente del módulo (moduleBox.depth − fondo); la repisa
+    // puede llegar al borde frontal de los laterales (default del
+    // Constructor), no atraviesa el fondo.
+    const shelfMaxDepth = Math.max(0, moduleBox.depth - backThickness);
     const shelves = modPieces.filter((p) => inferRole(p) === 'shelf');
     shelves.forEach((s) => {
       if (interiorWidth > 0 && s.ancho > interiorWidth + 1) {
         warnings.push(`Módulo ${modId}: "${s.nombre}" (${s.ancho} mm) excede ancho interior (${interiorWidth} mm).`);
       }
-      if (interiorDepth > 0 && s.alto > interiorDepth + 1) {
-        warnings.push(`Módulo ${modId}: "${s.nombre}" (${s.alto} mm) excede profundidad interior disponible (${interiorDepth} mm).`);
+      if (shelfMaxDepth > 0 && s.alto > shelfMaxDepth + 1) {
+        warnings.push(`Módulo ${modId}: "${s.nombre}" (${s.alto} mm) excede profundidad interior disponible (${shelfMaxDepth} mm).`);
       }
     });
 
