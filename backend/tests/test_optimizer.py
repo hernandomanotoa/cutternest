@@ -405,3 +405,29 @@ def test_lote_real_closet_5_modulos_guillotina():
             original = next(pz for pz in pieces if pz["id"] == p["id"])
             if not original["rotate"]:
                 assert p["veta"] in ("horizontal", "vertical")
+
+
+def test_lote_real_closet_5_modulos_tablero_2100x2440():
+    """Misma regresión con la configuración real del taller: tablero
+    2100×2440 (veta a lo largo del alto), kerf 4 mm, margen 10 mm. Baseline
+    medido en la UI: 10 tableros (79.84% / 9.07% en los dos últimos), piso
+    teórico 9 (42.0 m² de piezas / 5.12 m² por tablero)."""
+    import os
+    ruta = os.path.join(os.path.dirname(__file__), "fixtures", "closet-5-modulos.csv")
+    pieces = _cargar_csv(ruta)
+
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2100, board_height_mm=2440,
+        pieces=pieces, kerf_mm=4, margin_mm=10, eje_veta="alto",
+    )
+    total_unidades = sum(p["cantidad"] for p in pieces)
+    assert sum(len(b["placements"]) for b in result["tableros"]) == total_unidades
+    for board in result["tableros"]:
+        _assert_no_overlaps(board)
+        _assert_cortes_completos(_rects(board))
+
+    assert result["total_tableros"] <= 10, (
+        f"se abrieron {result['total_tableros']} tableros (piso teórico 9): regresión"
+    )
+    promedio = sum(b["utilizacion"] for b in result["tableros"]) / result["total_tableros"]
+    assert promedio >= 81, f"utilización promedio {promedio:.2f}% por debajo del 81%"
