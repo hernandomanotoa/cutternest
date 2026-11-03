@@ -344,3 +344,64 @@ def test_modo_nesting_sigue_disponible():
     assert sum(len(b["placements"]) for b in result["tableros"]) == 3
     for board in result["tableros"]:
         _assert_no_overlaps(board)
+
+
+def _cargar_csv(ruta):
+    """Parsea un CSV del planner (CutterNest Piezas v1): ignora comentarios
+    (#) y la cabecera; convierte rotate si/no → bool (el backend no acepta
+    strings: bool('no') sería True)."""
+    import csv
+
+    pieces = []
+    with open(ruta, encoding="utf-8") as f:
+        for row in csv.reader(line for line in f if not line.startswith("#")):
+            if not row or row[0] == "id":
+                continue
+            pieces.append({
+                "id": row[0],
+                "nombre": row[1],
+                "ancho": float(row[2]),
+                "alto": float(row[3]),
+                "cantidad": int(row[4]),
+                "rotate": str(row[5]).strip().lower() in ("si", "sí", "yes", "true", "1"),
+                "color": row[6],
+                "espesor": float(row[7]),
+            })
+    return pieces
+
+
+def test_lote_real_closet_5_modulos_guillotina():
+    """Regresión con un lote real: closet de 5 módulos con zapateras, cajones
+    con gola y zócalo estructural (164 piezas, 42.0 m²). El piso teórico son
+    15 tableros (42.0 / 2.98 m²); la guillotina produce 16 con ~88% global y
+    CADA tablero verifica la regla de cortes completos (sin cortes en T)."""
+    import os
+    ruta = os.path.join(os.path.dirname(__file__), "fixtures", "closet-5-modulos.csv")
+    pieces = _cargar_csv(ruta)
+    assert len(pieces) == 164
+
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220,
+        pieces=pieces, kerf_mm=3, margin_mm=5,
+    )
+    total_unidades = sum(p["cantidad"] for p in pieces)
+    colocadas = sum(len(b["placements"]) for b in result["tableros"])
+    assert colocadas == total_unidades, "toda pieza debe quedar colocada"
+
+    for board in result["tableros"]:
+        _assert_no_overlaps(board)
+        _assert_cortes_completos(_rects(board))
+
+    # Regresión de aprovechamiento: piso 15 tableros; alertar si empeora.
+    assert result["total_tableros"] <= 16, (
+        f"se abrieron {result['total_tableros']} tableros (piso teórico 15): regresión de aprovechamiento"
+    )
+    promedio = sum(b["utilizacion"] for b in result["tableros"]) / result["total_tableros"]
+    assert promedio >= 85, f"utilización promedio {promedio:.2f}% por debajo del 85%"
+    # Las piezas de veta bloqueada (rotate=False: laterales, fondos, frentes)
+    # jamás rotan sobre el tablero.
+    for board in result["tableros"]:
+        for p in board["placements"]:
+            original = next(pz for pz in pieces if pz["id"] == p["id"])
+            if not original["rotate"]:
+                assert p["veta"] in ("horizontal", "vertical")
