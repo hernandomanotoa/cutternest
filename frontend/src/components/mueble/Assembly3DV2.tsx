@@ -6,11 +6,13 @@ import type { AssemblyConnector, AssemblyPiece3D, AssemblyPieceState, Point3D, T
 import { PieceLabel } from './PieceLabel'
 import { getModuleColor } from './moduleColor'
 import {
+  analizarAlcanceModulos,
   calcularTablaContinua,
   getAcabado,
   liberarMaterial,
   materialMaderaParaPieza,
   materialMetal,
+  raizDeModulo,
   tipoMetalPieza,
 } from '../../utils/texturasMadera'
 
@@ -35,6 +37,10 @@ interface Assembly3DV2Props {
   pieceStates?: Record<string, 'active' | 'placed' | 'future'>
   /** Acabado melamina procedural (id de ACABADOS); null = colores planos. */
   acabado?: string | null
+  /** Acabado de los interiores de caja (default 'blanco'). */
+  acabadoInterior?: string
+  /** Alcance del acabado: 'todo' (default) o solo módulos internos. */
+  acabadoAlcance?: 'todo' | 'internos'
   className?: string
   onSelectPiece?: (code: string | null) => void
   onTransformChange?: (id: string, transform: Transform3D) => void
@@ -124,6 +130,7 @@ interface PieceMeshProps {
   showLabels?: boolean
   pieceState?: 'active' | 'placed' | 'future'
   acabado?: string | null
+  acabadoInterior?: string
   tabla?: { offsetY: number; repeatY: number } | null
   onSelect: () => void
   onTransformEnd: (id: string, transform: Transform3D) => void
@@ -143,6 +150,7 @@ function PieceMesh({
   showLabels,
   pieceState,
   acabado,
+  acabadoInterior,
   tabla,
   onSelect,
   onTransformEnd,
@@ -169,8 +177,9 @@ function PieceMesh({
       acabado,
       undefined,
       tabla ?? null,
+      acabadoInterior ?? 'blanco',
     )
-  }, [acabado, gl, piece.nombre, piece.id, dims.ancho, dims.alto, tabla])
+  }, [acabado, acabadoInterior, gl, piece.nombre, piece.id, dims.ancho, dims.alto, tabla])
   useEffect(() => () => liberarMaterial(materialMadera), [materialMadera])
 
   const labelVisible = selected || hovered || (showLabels ?? false)
@@ -476,6 +485,8 @@ function Scene({
   levels,
   pieceStates,
   acabado,
+  acabadoInterior,
+  acabadoAlcance,
   onSelectPiece,
   onTransformEnd,
 }: Required<Pick<
@@ -497,6 +508,8 @@ function Scene({
   | 'onSelectPiece'
   | 'onTransformEnd'
   | 'acabado'
+  | 'acabadoInterior'
+  | 'acabadoAlcance'
 >> & {
   expectedPieces?: AssemblyPieceState[]
   selectedCode?: string | null
@@ -594,6 +607,23 @@ function Scene({
   // cruza el canal gola). Se calcula una vez por lista de piezas.
   const tablaContinua = useMemo(() => calcularTablaContinua(pieces), [pieces])
 
+  // Alcance del acabado: con 'internos' solo las piezas cuya raíz de módulo
+  // no está en un extremo llevan textura; el resto queda en color plano
+  // (los módulos de los extremos son los visibles desde fuera del mueble).
+  const alcanceModulos = useMemo(() => analizarAlcanceModulos(pieces), [pieces])
+  const acabadoParaPieza = useMemo(() => {
+    const map = new Map<string, string | null>()
+    if (acabadoAlcance !== 'internos') {
+      for (const p of pieces) map.set(p.id, acabado ?? null)
+      return map
+    }
+    for (const p of pieces) {
+      const raiz = raizDeModulo(p.modulo, alcanceModulos)
+      map.set(p.id, raiz && alcanceModulos.internos.has(raiz) ? (acabado ?? null) : null)
+    }
+    return map
+  }, [pieces, acabado, acabadoAlcance, alcanceModulos])
+
   return (
     <>
       <CameraDirector camera={camera} center={center} defaultDistance={cameraDistance} resetKey={cameraResetKey} />
@@ -623,7 +653,8 @@ function Scene({
           snapTarget={expectedByCode.get(p.id)}
           showLabels={showLabels}
           pieceState={pieceStateById.get(p.id)}
-          acabado={acabado}
+          acabado={acabadoParaPieza.get(p.id) ?? null}
+          acabadoInterior={acabadoInterior}
           tabla={tablaContinua.get(p.id) ?? null}
           onSelect={() => onSelectPiece(p.id)}
           onTransformEnd={onTransformEnd}
@@ -654,6 +685,8 @@ export function Assembly3DV2({
   levels = [],
   pieceStates = {},
   acabado = null,
+  acabadoInterior = 'blanco',
+  acabadoAlcance = 'todo',
   className = 'w-full h-full',
   onSelectPiece,
   onTransformChange,
@@ -674,6 +707,8 @@ export function Assembly3DV2({
       >
         <Scene
           acabado={acabado}
+          acabadoInterior={acabadoInterior}
+          acabadoAlcance={acabadoAlcance}
           pieces={pieces}
           expectedPieces={expectedPieces}
           connectors={connectors}

@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 
 import {
   ACABADOS,
+  COMBINACIONES,
   getAcabado,
+  getCombinacion,
+  analizarAlcanceModulos,
+  raizDeModulo,
   MM_POR_TILE,
   calcularRepeat,
   mulberry32,
@@ -248,5 +252,60 @@ describe('calcularTablaContinua — la veta cruza el gola (spec sección 4)', ()
   it('sin posición no participa', () => {
     const p = { id: 'x', nombre: 'Frente cajon x M1', ancho: 800, alto: 200, modulo: '1', posicion: null };
     expect(calcularTablaContinua([p, frente('a', 0, 200)]).size).toBe(0);
+  });
+});
+
+describe('COMBINACIONES — pares exterior + interior', () => {
+  it('todas referencian acabados existentes', () => {
+    for (const c of Object.values(COMBINACIONES)) {
+      expect(getAcabado(c.exterior), `${c.nombre} exterior`).not.toBeNull();
+      expect(getAcabado(c.interior), `${c.nombre} interior`).not.toBeNull();
+    }
+  });
+
+  it('getCombinacion resuelve por id y null/unknown devuelve null', () => {
+    expect(getCombinacion('roble-blanco')).toEqual({
+      nombre: 'Roble + Blanco',
+      exterior: 'roble',
+      interior: 'blanco',
+    });
+    expect(getCombinacion('no-existe')).toBeNull();
+    expect(getCombinacion(null)).toBeNull();
+  });
+});
+
+describe('analizarAlcanceModulos — módulos internos del mueble', () => {
+  const pieza = (modulo: string, x: number) => ({ modulo, posicion: { x } });
+
+  it('con <3 módulos no hay internos (los extremos son todo lo visible)', () => {
+    expect(analizarAlcanceModulos([pieza('1', 0)]).internos.size).toBe(0);
+    const dos = analizarAlcanceModulos([pieza('1', 0), pieza('2', 900)]);
+    expect(dos.raices).toEqual(new Set(['1', '2']));
+    expect(dos.internos.size).toBe(0);
+  });
+
+  it('con 3+ módulos, los internos son los que no están en los extremos (por X)', () => {
+    const a = analizarAlcanceModulos([
+      pieza('1', 0),
+      pieza('3', 1800),
+      pieza('2', 900),
+      pieza('4', 2700),
+    ]);
+    expect(a.internos).toEqual(new Set(['2', '3']));
+  });
+
+  it('submódulos se atan a su raíz (concatenados y punteados)', () => {
+    const a = analizarAlcanceModulos([
+      pieza('1', 0),
+      pieza('11', 0), // cajón del módulo 1
+      pieza('2', 900),
+      pieza('2.1', 900), // submódulo punteado del módulo 2
+      pieza('3', 1800),
+    ]);
+    expect(a.raices).toEqual(new Set(['1', '2', '3']));
+    expect(a.internos).toEqual(new Set(['2']));
+    expect(raizDeModulo('11', a)).toBe('1');
+    expect(raizDeModulo('2.1', a)).toBe('2');
+    expect(raizDeModulo('3', a)).toBe('3');
   });
 });

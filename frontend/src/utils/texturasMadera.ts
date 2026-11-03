@@ -38,6 +38,79 @@ export function getAcabado(nombre: string | null | undefined): AcabadoMadera | n
   return ACABADOS[nombre] ?? Object.values(ACABADOS).find((a) => a.nombre === nombre) ?? null;
 }
 
+// ── Combinaciones de acabado (exterior + interior de caja) ────────────────
+// Pares curados para elegir de una vez: el acabado exterior de frentes y
+// casco + el de los interiores de cajón/zapatera (antes siempre Blanco Liso).
+// Agregar una combinación = agregar una entrada aquí (y nada más).
+export interface CombinacionAcabado {
+  nombre: string;
+  /** acabado de frentes y casco */
+  exterior: string;
+  /** acabado de interiores de caja (laterales/cara/fondo/base) */
+  interior: string;
+}
+
+export const COMBINACIONES: Record<string, CombinacionAcabado> = {
+  'roble-blanco': { nombre: 'Roble + Blanco', exterior: 'roble', interior: 'blanco' },
+  'roble-grafito': { nombre: 'Roble + Grafito', exterior: 'roble', interior: 'grafito' },
+  'nogal-blanco': { nombre: 'Nogal + Blanco', exterior: 'nogal', interior: 'blanco' },
+  'wengue-blanco': { nombre: 'Wengué + Blanco', exterior: 'wengue', interior: 'blanco' },
+  'caoba-blanco': { nombre: 'Caoba + Blanco', exterior: 'caoba', interior: 'blanco' },
+  'grafito-negro': { nombre: 'Grafito + Negro', exterior: 'grafito', interior: 'negro' },
+};
+
+export function getCombinacion(id: string | null | undefined): CombinacionAcabado | null {
+  if (!id) return null;
+  return COMBINACIONES[id] ?? null;
+}
+
+// ── Alcance del acabado: todo el mueble o solo módulos internos ───────────
+// Módulo interno = raíz que NO está en un extremo del mueble (ordenadas por
+// su posición X). Con menos de 3 módulos no hay internos: los extremos son
+// todo lo visible. Soporta submódulos concatenados ('11' hijo de '1') y
+// punteados ('1.2' hijo de '1').
+export interface AlcanceModulos {
+  /** raíces del mueble (módulos que no son hijo de otro) */
+  raices: Set<string>;
+  /** raíces internas (excluidos el primer y último módulo por posición X) */
+  internos: Set<string>;
+}
+
+export function analizarAlcanceModulos<T extends {
+  modulo?: string | null;
+  posicion?: { x: number } | null;
+}>(piezas: T[]): AlcanceModulos {
+  const presentes = new Set<string>();
+  const minX = new Map<string, number>();
+  for (const p of piezas) {
+    const mod = String(p.modulo ?? '').trim();
+    if (!mod) continue;
+    presentes.add(mod);
+    const x = Number(p.posicion?.x);
+    if (Number.isFinite(x)) {
+      minX.set(mod, Math.min(minX.get(mod) ?? Infinity, x));
+    }
+  }
+  const esHijo = (m: string) =>
+    [...presentes].some((o) => o !== m && (m.startsWith(o) || m.startsWith(`${o}.`)));
+  const raices = new Set([...presentes].filter((m) => !esHijo(m)));
+  if (raices.size < 3) return { raices, internos: new Set() };
+  const ordenadas = [...raices].sort((a, b) => (minX.get(a) ?? 0) - (minX.get(b) ?? 0));
+  const internos = new Set(ordenadas.slice(1, -1));
+  return { raices, internos };
+}
+
+/** Raíz de un módulo (resuelve submódulos '11'/'1.2' → '1'). */
+export function raizDeModulo(modulo: string | null | undefined, alcance: AlcanceModulos): string {
+  const m = String(modulo ?? '').trim();
+  if (!m) return '';
+  if (alcance.raices.has(m)) return m;
+  for (const r of alcance.raices) {
+    if (m.startsWith(r) || m.startsWith(`${r}.`)) return r;
+  }
+  return m;
+}
+
 // ── Escala real ────────────────────────────────────────────────────────────
 /** mm reales que cubre un tile de textura (repetición). */
 export const MM_POR_TILE = 600;
@@ -390,8 +463,9 @@ export function materialMadera(
 /**
  * Material para una pieza con medidas reales (mm). Reglas del spec:
  * - interiores de caja (laterales/cara/trasera/fondo/base de cajón y
- *   zapatera) → SIEMPRE 'Blanco Liso', con el acabado exterior elegido solo
- *   en frentes y casco;
+ *   zapatera) → el acabado INTERIOR elegido (default 'blanco'; las
+ *   combinaciones permiten otro, p. ej. Grafito), con el exterior solo en
+ *   frentes y casco;
  * - dirección de veta por tipo de pieza (direccionVetaPieza);
  * - frentes del mismo módulo comparten textura (tabla continua): offset y
  *   repeat del grupo, para que la veta cruce el canal gola.
@@ -402,8 +476,9 @@ export function materialMaderaParaPieza(
   acabadoNombre: string,
   semilla: number = SEMILLA_DEFAULT,
   tabla?: EntradaTablaContinua | null,
+  interiorNombre: string = 'blanco',
 ): MaterialMadera {
-  const acabadoEfectivo = esInteriorCaja(pieza) ? 'blanco' : acabadoNombre;
+  const acabadoEfectivo = esInteriorCaja(pieza) ? interiorNombre : acabadoNombre;
   const direccion = direccionVetaPieza(pieza);
   const repeat = calcularRepeat(pieza.ancho, pieza.alto);
   return materialMadera(renderer, acabadoEfectivo, direccion, repeat.x, repeat.y, semilla, tabla

@@ -31,7 +31,7 @@ import { Badge } from '../ui/Badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
 import { Separator } from '../ui/Separator'
 import { getModuleColor } from './moduleColor'
-import { AcabadoSelector } from './AcabadoSelector'
+import { AcabadoSelector, type AlcanceAcabado, type SeleccionAcabado } from './AcabadoSelector'
 
 const Assembly3DV2 = lazy(() =>
   import('./Assembly3DV2').then((m) => ({ default: m.Assembly3DV2 }))
@@ -131,7 +131,8 @@ export function AssemblyPage() {
   const [error, setError] = useState<string | null>(null)
   const [cameraResetKey, setCameraResetKey] = useState(0)
   const [mode, setMode] = useState<'assistant' | 'preview' | 'planner'>('preview')
-  const [acabado, setAcabado] = useState<string | null>(null)
+  const [acabado, setAcabado] = useState<SeleccionAcabado | null>(null)
+  const [alcanceAcabado, setAlcanceAcabado] = useState<AlcanceAcabado>('todo')
   const [showHelp, setShowHelp] = useState(true)
   const [levelsOpen, setLevelsOpen] = useState(true)
 
@@ -634,7 +635,7 @@ export function AssemblyPage() {
         <div className='min-h-0 flex-1 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_22rem]'>
           <div className='flex min-h-0 flex-col gap-3'>
             <div className='flex items-center justify-between rounded-xl border bg-card px-3 py-2'>
-              <AcabadoSelector value={acabado} onChange={setAcabado} />
+              <AcabadoSelector value={acabado} alcance={alcanceAcabado} onChange={setAcabado} onAlcanceChange={setAlcanceAcabado} />
             </div>
             <div className='relative min-h-[24rem] flex-1 overflow-hidden rounded-xl border bg-card'>
               <Suspense
@@ -645,7 +646,9 @@ export function AssemblyPage() {
                 }
               >
                 <Assembly3DV2
-                acabado={acabado}
+                acabado={acabado?.exterior ?? null}
+                acabadoInterior={acabado?.interior ?? 'blanco'}
+                acabadoAlcance={alcanceAcabado}
                 pieces={mode === 'assistant' ? response.vista_completa : accumulatedPieces}
                 expectedPieces={response.pieces}
                 connectors={accumulatedConnectors}
