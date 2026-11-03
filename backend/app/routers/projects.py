@@ -187,6 +187,17 @@ def generate_labels(
     return {"pdf_path": path}
 
 
+@router.post("/{project_id}/layouts/pdf")
+def generate_layouts_pdf_endpoint(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_project_owner(db, project_id, current_user)
+    path = projects_service.generate_layouts_pdf(db, project_id)
+    return {"pdf_path": path}
+
+
 @router.get("/{project_id}/assembly", response_model=AssemblyResponse)
 def get_assembly(
     project_id: str,

@@ -494,14 +494,20 @@ export function OptimizerPage() {
     }
   }
 
-  const generatePdf = async (type: 'cutlist' | 'labels') => {
+  const generatePdf = async (type: 'cutlist' | 'labels' | 'layouts') => {
     if (!projectId) return
     try {
       const response = await api.post(`/projects/${projectId}/${type}`)
       const path = (response.data as { pdf_path?: string }).pdf_path
       if (path) {
         window.open(path, '_blank')
-        toast.success(`${type === 'cutlist' ? 'Cut list' : 'Etiquetas'} generado`)
+        toast.success(
+          type === 'cutlist'
+            ? 'Cut list generado'
+            : type === 'labels'
+              ? 'Etiquetas generadas'
+              : 'Layouts PDF generados'
+        )
       }
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err) || 'Error al generar PDF')
@@ -1458,7 +1464,16 @@ export function OptimizerPage() {
                       disabled={!projectId}
                       leftIcon={<Image className='h-4 w-4' />}
                     >
-                      Descargar PNG
+                      PNG
+                    </Button>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => generatePdf('layouts')}
+                      disabled={!projectId}
+                      leftIcon={<FileText className='h-4 w-4' />}
+                    >
+                      PDF
                     </Button>
                   </div>
                 </div>

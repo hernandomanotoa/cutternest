@@ -24,6 +24,10 @@ def _labels_pdf_path(exports_dir: str, project_id: str) -> str:
     return os.path.join(exports_dir, f"etiquetas_{project_id}.pdf")
 
 
+def _layouts_pdf_path(exports_dir: str, project_id: str) -> str:
+    return os.path.join(exports_dir, f"layouts_{project_id}.pdf")
+
+
 def _web_path(abs_path: str) -> str:
     return abs_path.replace("/app/data/exports", "/exports")
 
@@ -200,4 +204,148 @@ def generate_assembly_manual(
         story.append(Spacer(1, 5 * mm))
 
     doc.build(story)
+    return _web_path(path)
+
+
+def generate_layouts_pdf(
+    project_name: str,
+    project_id: str,
+    boards: List[Dict[str, Any]],
+    exports_dir: str,
+) -> str:
+    """PDF de layouts de corte: un tablero por página (A4 horizontal) con el
+    dibujo del tablero a escala, etiquetas adaptativas (las angostas llevan
+    el texto rotado) y una leyenda lateral con la descripción completa de
+    cada pieza — imprimible para el taller."""
+    from reportlab.lib.pagesizes import landscape
+    from reportlab.pdfgen import canvas as pdf_canvas
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    os.makedirs(exports_dir, exist_ok=True)
+    path = _layouts_pdf_path(exports_dir, str(project_id))
+    page_w, page_h = landscape(A4)  # puntos: 842 x 595
+    c = pdf_canvas.Canvas(path, pagesize=landscape(A4))
+
+    margen = 28  # pt (~10 mm)
+    textoOscuro = colors.HexColor("#111827")
+
+    def truncar(texto: str, fuente: str, tam: float, max_ancho: float) -> str:
+        if stringWidth(texto, fuente, tam) <= max_ancho:
+            return texto
+        for n in range(len(texto) - 1, 0, -1):
+            candidato = texto[:n] + "…"
+            if stringWidth(candidato, fuente, tam) <= max_ancho:
+                return candidato
+        return ""
+
+    for board in boards:
+        ancho, alto = float(board["ancho"]), float(board["alto"])
+        disponible_w = page_w - 2 * margen
+        disponible_h = page_h - 2 * margen - 24  # cabecera
+        escala = min((disponible_w * 0.62) / ancho, disponible_h / alto)
+        tab_w, tab_h = ancho * escala, alto * escala
+        ox, oy = margen, margen + (disponible_h - tab_h) / 2
+
+        # Cabecera.
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(textoOscuro)
+        c.drawString(margen, page_h - margen, f"Layout de corte — Tablero {board['board_index'] + 1}")
+        c.setFont("Helvetica", 9)
+        c.drawString(margen, page_h - margen - 14,
+                     f"Proyecto: {project_name} · Tablero {ancho:.0f}×{alto:.0f} mm · "
+                     f"Utilización {board.get('utilizacion', 0):.2f}% · {datetime.now():%d/%m/%Y}")
+
+        # Tablero.
+        c.setStrokeColor(colors.HexColor("#374151"))
+        c.setLineWidth(1)
+        c.rect(ox, oy, tab_w, tab_h, stroke=1, fill=0)
+
+        for p in board["placements"]:
+            x = ox + float(p["x"]) * escala
+            y = oy + (alto - float(p["y"]) - float(p["h"])) * escala  # PDF: Y hacia arriba
+            w, h = float(p["w"]) * escala, float(p["h"]) * escala
+            try:
+                relleno = colors.HexColor(str(p.get("color", "#3B82F6")))
+            except ValueError:
+                relleno = colors.HexColor("#3B82F6")
+            c.setFillColor(relleno)
+            c.setStrokeColor(colors.HexColor("#1f2937"))
+            c.setLineWidth(0.4)
+            c.rect(x, y, w, h, stroke=1, fill=1)
+
+            nombre = str(p.get("nombre", ""))
+            pid = str(p.get("id", ""))
+            candidatos = [f"{nombre} {float(p['w']):.0f}x{float(p['h']):.0f}", nombre, pid]
+
+            def dibujar_texto(texto: str, rotado: bool) -> None:
+                tam = max(4.0, min(7.0, (h if not rotado else w) * 0.16))
+                fuente_w = (h - 4) if rotado else (w - 4)
+                visible = truncar(texto, "Helvetica", tam, fuente_w)
+                if not visible:
+                    return
+                c.setFont("Helvetica", tam)
+                c.setFillColor(textoOscuro)
+                cx, cy = x + w / 2, y + h / 2
+                if rotado:
+                    c.saveState()
+                    c.translate(cx, cy)
+                    c.rotate(90)
+                    c.drawCentredString(0, -tam / 3, visible)
+                    c.restoreState()
+                else:
+                    c.drawCentredString(cx, cy - tam / 3, visible)
+
+            elegido = None
+            for cand in candidatos:  # completo horizontal
+                if stringWidth(cand, "Helvetica", 5.5) <= w - 4:
+                    elegido = (cand, False)
+                    break
+            if elegido is None:
+                for cand in candidatos:  # completo rotado (piezas angostas)
+                    if stringWidth(cand, "Helvetica", 5.5) <= h - 4:
+                        elegido = (cand, True)
+                        break
+            if elegido is None:
+                for cand in candidatos:  # fragmento truncado horizontal
+                    visible = truncar(cand, "Helvetica", 4.0, w - 4)
+                    if visible:
+                        elegido = (visible, False)
+                        break
+            if elegido is not None:
+                dibujar_texto(*elegido)
+            # Id corto arriba a la izquierda (referencia a la leyenda).
+            if pid:
+                id_visible = truncar(pid, "Helvetica", 4.0, w - 4)
+                if id_visible and h >= 8:
+                    c.setFont("Helvetica", 4.0)
+                    c.setFillColor(colors.HexColor("#1f2937"))
+                    c.drawString(x + 1.5, y + h - 5.5, id_visible)
+
+        # Leyenda lateral.
+        lx = ox + tab_w + 16
+        ancho_leyenda = page_w - lx - margen
+        c.setFont("Helvetica-Bold", 10)
+        c.setFillColor(textoOscuro)
+        c.drawString(lx, oy + tab_h - 12, "LEYENDA")
+        ordenadas = sorted(board["placements"],
+                           key=lambda p: (round(float(p["y"]), 1), round(float(p["x"]), 1)))
+        ly = oy + tab_h - 24
+        c.setFont("Helvetica", 6.5)
+        for p in ordenadas:
+            linea = (f"{p.get('id', '')} · {p.get('nombre', '')} · "
+                     f"{float(p['w']):.0f}x{float(p['h']):.0f}")
+            visible = truncar(linea, "Helvetica", 6.5, ancho_leyenda)
+            if ly < margen:
+                c.drawString(lx, ly, "… (ver cut list para el resto)")
+                break
+            c.drawString(lx, ly, visible)
+            ly -= 9
+
+        c.setFont("Helvetica", 7)
+        c.setFillColor(colors.HexColor("#6b7280"))
+        c.drawString(margen, margen - 16,
+                     "CutterNest — cortes completos (guillotina). Verifique medidas antes de cortar.")
+        c.showPage()
+
+    c.save()
     return _web_path(path)

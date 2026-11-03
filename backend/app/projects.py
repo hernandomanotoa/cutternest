@@ -248,6 +248,22 @@ def generate_labels(db: Session, project_id: str, label_size: str = "50x30") -> 
     return pdf_generator.generate_labels_pdf(project.name, boards, "/app/data/exports", label_size)
 
 
+def generate_layouts_pdf(db: Session, project_id: str) -> str:
+    project = get_project(db, project_id)
+    layouts = get_layouts(db, project_id)
+    boards = [
+        {
+            "board_index": l.board_index,
+            "ancho": l.board_width_mm,
+            "alto": l.board_height_mm,
+            "utilizacion": l.utilization,
+            "placements": l.placements,
+        }
+        for l in sorted(layouts, key=lambda x: x.board_index)
+    ]
+    return pdf_generator.generate_layouts_pdf(project.name, project.id, boards, "/app/data/exports")
+
+
 def delete_project(db: Session, project_id: str) -> None:
     project = get_project(db, project_id)
     db.delete(project)
