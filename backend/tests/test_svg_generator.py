@@ -14,9 +14,10 @@ def _board():
             # Baja: solo nombre/id truncado.
             {"id": "m1zapatera1-fondo", "nombre": "Fondo zapatera extraible 1 M1",
              "x": 10, "y": 620, "w": 590, "h": 60, "color": "#F2F2F2"},
-            # Angosta y alta (15 mm): etiqueta rotada.
+            # Muy angosta y alta (10 mm): ni las medidas caben horizontal;
+            # la etiqueta completa va rotada.
             {"id": "m1-gola-ala", "nombre": "Ala inferior Gola C 3",
-             "x": 610, "y": 620, "w": 15, "h": 646, "color": "#c19a6b"},
+             "x": 610, "y": 620, "w": 6, "h": 646, "color": "#c19a6b"},
             # Diminuta: sin etiqueta interna; su descripción va en la leyenda.
             {"id": "m1zapatera1-division", "nombre": "Division zapatera extraible 1 M1",
              "x": 700, "y": 620, "w": 590, "h": 60, "color": "#D9C2A3"},
@@ -50,11 +51,16 @@ def test_etiqueta_adaptativa_niveles():
         "Division zapatera extraible 1 M1", "m1zapatera1-division", 590, 2, medir,
     )
     assert texto is None
-    # Angosta y alta: rotada (a 15 mm ni el id cabe horizontal a font 2).
+    # Muy angosta y alta: rotada (a 10 mm ni las medidas caben horizontal).
+    texto, rotada = svg_generator._etiqueta_adaptativa(
+        "Ala inferior Gola C 3", "m1-gola-ala", 6, 646, medir,
+    )
+    assert texto is not None and rotada
+    # Angosta "normal" (15 mm): las MEDIDAS caben horizontal y se muestran.
     texto, rotada = svg_generator._etiqueta_adaptativa(
         "Ala inferior Gola C 3", "m1-gola-ala", 15, 646, medir,
     )
-    assert texto is not None and rotada
+    assert texto == "15x646" and not rotada
 
 
 def test_png_tiene_panel_leyenda_y_etiquetas():

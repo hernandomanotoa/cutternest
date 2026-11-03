@@ -10,12 +10,21 @@ describe('etiquetaPieza — etiquetas adaptativas', () => {
     expect(e!.lineas[1]).toContain('mm')
   })
 
-  it('pieza mediana: solo nombre (o truncado), sin rotar', () => {
+  it('pieza mediana/pequeña: las MEDIDAS siempre visibles cuando caben', () => {
     const e = etiquetaPieza({ nombre: 'Fondo zapatera extraible 1 M1', id: 'm1zapatera1-fondo', w: 59, h: 6 })
     expect(e).not.toBeNull()
     expect(e!.rotada).toBe(false)
-    // El nombre largo no cabe con medidas a este tamaño: una sola línea.
+    // El nombre + medidas no caben a dos líneas, pero las medidas solas sí:
+    // las piezas pequeñas muestran sus dimensiones.
     expect(e!.lineas).toHaveLength(1)
+    expect(e!.lineas[0]).toContain('×')
+  })
+
+  it('pieza muy angosta pero alta: medidas rotadas', () => {
+    const e = etiquetaPieza({ nombre: 'Lateral cajon 3 M1', id: 'm1cajon3-lateral-izq', w: 5.6, h: 60 })
+    expect(e).not.toBeNull()
+    expect(e!.rotada).toBe(true)
+    expect(e!.lineas[0]).toContain('×')
   })
 
   it('pieza angosta y alta: texto rotado usando el alto como longitud', () => {

@@ -56,8 +56,12 @@ export function etiquetaPieza(opciones: {
 }): EtiquetaPieza | null {
   const { nombre, id, w, h, maxFont = 10, minFont = 3 } = opciones
   const medidas = `${opciones.w.toFixed(1)}×${opciones.h.toFixed(1)}`
+  // Las medidas son lo primero que necesita quien corta: van con el nombre
+  // y también como etiqueta propia (segundo nivel), para que las piezas
+  // pequeñas SIEMPRE muestren sus medidas si caben.
   const candidatos: string[][] = [
     [nombre, `${medidas} mm`],
+    [medidas],
     [nombre],
     [id],
   ]

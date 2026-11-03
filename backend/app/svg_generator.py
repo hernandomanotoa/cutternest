@@ -39,7 +39,11 @@ def _etiqueta_adaptativa(
     va en la leyenda lateral."""
     if h < font_size * 1.1:
         return None, False
-    candidatos = [f"{nombre} {w:.0f}x{h:.0f}", nombre, pid]
+    medidas = f"{w:.0f}x{h:.0f}"
+    # Las dimensiones son lo primero que necesita quien corta: van en el
+    # primer candidato y también como etiqueta propia (segundo nivel), para
+    # que las piezas pequeñas SIEMPRE muestren sus medidas si caben.
+    candidatos = [f"{nombre} {medidas}", medidas, nombre, pid]
     ancho_h = max(0.0, w - 2.0)
     largo_v = max(0.0, h - 2.0)
     # 1) Texto COMPLETO horizontal.

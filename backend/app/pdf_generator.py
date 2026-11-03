@@ -275,7 +275,10 @@ def generate_layouts_pdf(
 
             nombre = str(p.get("nombre", ""))
             pid = str(p.get("id", ""))
-            candidatos = [f"{nombre} {float(p['w']):.0f}x{float(p['h']):.0f}", nombre, pid]
+            medidas = f"{float(p['w']):.0f}x{float(p['h']):.0f}"
+            # Las medidas siempre visibles cuando caben: van solas como
+            # segundo nivel (las piezas pequeñas muestran sus dimensiones).
+            candidatos = [f"{nombre} {medidas}", medidas, nombre, pid]
 
             def dibujar_texto(texto: str, rotado: bool) -> None:
                 tam = max(4.0, min(7.0, (h if not rotado else w) * 0.16))
