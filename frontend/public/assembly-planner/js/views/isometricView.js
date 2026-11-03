@@ -30,7 +30,7 @@ export function createIsometricView(store) {
   }
   let scale = 0.12;
   let explodeFactor = 0;
-  let drawerGap = store.get().userConfig?.frontGapMode === 'ras' ? 0 : 15;
+  let drawerGap = store.get().userConfig?.frontGapMode === 'tapajunta' ? 15 : 0;
   let isoFlip = true;
   let moduleGapMode = 'compact';
   let detachFullscreen = null;
@@ -77,7 +77,7 @@ export function createIsometricView(store) {
     unsubscribeConfig = store.subscribe('userConfig:changed', () => {
       // frontGapMode (frentes a ras/tapajunta) vive en userConfig: se
       // re-lee en cada cambio para no renderizar con el valor de mount.
-      drawerGap = store.get().userConfig?.frontGapMode === 'ras' ? 0 : 15;
+      drawerGap = store.get().userConfig?.frontGapMode === 'tapajunta' ? 15 : 0;
       render();
     });
     unsubscribeApertura = store.subscribe('apertura:changed', () => {
@@ -201,7 +201,7 @@ export function createIsometricView(store) {
     container.querySelector('#btn-iso-reset')?.addEventListener('click', () => {
       scale = 0.12;
       explodeFactor = 0;
-      drawerGap = store.get().userConfig?.frontGapMode === 'ras' ? 0 : 15;
+      drawerGap = store.get().userConfig?.frontGapMode === 'tapajunta' ? 15 : 0;
       setAperturaGlobal(0);
       render();
     });

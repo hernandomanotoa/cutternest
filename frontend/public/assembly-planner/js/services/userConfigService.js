@@ -38,7 +38,9 @@ function getStorage() {
 
 export function loadUserConfig() {
   const defaults = effectiveDefaults();
-  const config = { ...defaults, pieceOffsets: {}, fichaCorrections: {} };
+  // Frentes a ras por defecto (no sobresalen de los laterales); 'tapajunta'
+  // solo si el usuario lo eligió y quedó persistido en storage.
+  const config = { ...defaults, frontGapMode: 'ras', pieceOffsets: {}, fichaCorrections: {} };
   const storage = getStorage();
   if (!storage) return config;
 

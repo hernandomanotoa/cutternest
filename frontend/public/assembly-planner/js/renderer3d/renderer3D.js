@@ -24,7 +24,7 @@ export class Renderer3D {
     this.globalOpacity = options.globalOpacity ?? 0.85;
     this.xrayMode = options.xrayMode ?? false;
     this.mostrarVeta = options.mostrarVeta ?? true;
-    this.frontGapMode = options.frontGapMode ?? 'tapajunta';
+    this.frontGapMode = options.frontGapMode ?? 'ras';
     this.explodeFactor = options.explodeFactor ?? 0;
     this.targetExplodeFactor = this.explodeFactor;
     this.animationFrameId = null;

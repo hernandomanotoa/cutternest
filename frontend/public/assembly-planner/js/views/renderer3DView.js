@@ -247,8 +247,8 @@ export function createRenderer3DView(store) {
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Frentes de cajón/zapatera: 'A ras' termina alineado con los laterales del módulo; 'Tapajunta' cubre su cara frontal (un espesor por delante)">
               <span>Frentes</span>
               <select id="r3d-front-gap" style="cursor:pointer;background:transparent;border:none;color:inherit;font-size:inherit;">
-                <option value="tapajunta" ${state.userConfig?.frontGapMode !== 'ras' ? 'selected' : ''}>Tapajunta</option>
-                <option value="ras" ${state.userConfig?.frontGapMode === 'ras' ? 'selected' : ''}>A ras</option>
+                <option value="tapajunta" ${state.userConfig?.frontGapMode === 'tapajunta' ? 'selected' : ''}>Tapajunta</option>
+                <option value="ras" ${state.userConfig?.frontGapMode !== 'tapajunta' ? 'selected' : ''}>A ras</option>
               </select>
             </label>
             ${gapToggle.html({ checked: moduleGapMode === 'projected' })}
@@ -354,7 +354,7 @@ export function createRenderer3DView(store) {
       height: 600,
       globalOpacity: 0.85,
       mostrarVeta: Number(state.userConfig?.renderVeta) !== 0,
-      frontGapMode: state.userConfig?.frontGapMode === 'ras' ? 'ras' : 'tapajunta',
+      frontGapMode: state.userConfig?.frontGapMode === 'tapajunta' ? 'tapajunta' : 'ras',
       moduleGapMode,
       verticalPositionOverrides: state.userConfig,
       onPieceSelect: (id) => {

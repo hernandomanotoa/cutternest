@@ -76,7 +76,13 @@ describe('userConfigService', () => {
   describe('loadUserConfig', () => {
     it('returns defaults when localStorage is empty', () => {
       const config = loadUserConfig();
-      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} });
+      assert.deepEqual(config, { ...VERTICAL_POSITIONS, frontGapMode: 'ras', pieceOffsets: {}, fichaCorrections: {} });
+    });
+
+    it('frontGapMode persistedido (tapajunta) gana sobre el default a ras', () => {
+      storage.setItem('cn-assembly-config', JSON.stringify({ frontGapMode: 'tapajunta' }));
+      const config = loadUserConfig();
+      assert.equal(config.frontGapMode, 'tapajunta');
     });
 
     it('merges saved overrides with defaults', () => {
@@ -103,7 +109,7 @@ describe('userConfigService', () => {
     it('falls back to defaults when localStorage is unavailable', () => {
       delete globalThis.localStorage;
       const config = loadUserConfig();
-      assert.deepEqual(config, { ...VERTICAL_POSITIONS, pieceOffsets: {}, fichaCorrections: {} });
+      assert.deepEqual(config, { ...VERTICAL_POSITIONS, frontGapMode: 'ras', pieceOffsets: {}, fichaCorrections: {} });
     });
   });
 
