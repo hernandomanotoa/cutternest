@@ -46,6 +46,11 @@ import { PieceCountTab } from './PieceCountTab'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
 import {
+  displayOrder,
+  sortPieces,
+  type SortMode,
+} from '../../utils/pieceSorter'
+import {
   loadTemplate,
   saveTemplate,
   clearTemplate,
@@ -89,6 +94,7 @@ interface PersistedConfig {
   tablero?: BoardInput
   materialType?: string
   useOffcuts?: boolean
+  modoCorte?: 'guillotina' | 'nesting'
 }
 
 function loadConfig(): PersistedConfig {
@@ -153,6 +159,10 @@ export function OptimizerPage() {
   const [view3D, setView3D] = useState(false)
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(config.useOffcuts ?? false)
+  const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting'>(config.modoCorte ?? 'guillotina')
+  const [sortMode, setSortMode] = useState<SortMode>('tipo')
+  const [rotMenuOpen, setRotMenuOpen] = useState(false)
+  const rotAllRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo'>('piezas')
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null)
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
@@ -192,8 +202,8 @@ export function OptimizerPage() {
   }, [])
 
   useEffect(() => {
-    saveConfig({ tablero, materialType, useOffcuts })
-  }, [tablero, materialType, useOffcuts])
+    saveConfig({ tablero, materialType, useOffcuts, modoCorte })
+  }, [tablero, materialType, useOffcuts, modoCorte])
 
   useEffect(() => {
     saveTemplate(piezas)
@@ -384,6 +394,35 @@ export function OptimizerPage() {
 
   const groupedPieces = useMemo(() => groupPiecesByDimensions(piezas), [piezas])
   const totalPiecesCount = useMemo(() => totalPieces(piezas), [piezas])
+  const order = useMemo(() => displayOrder(piezas, sortMode), [piezas, sortMode])
+
+  // Rotación: grupos por dimensiones con los índices originales (marcar /
+  // desmarcar por grupo) + estado global del checkbox "todas".
+  const rotGroups = useMemo(() => {
+    const map = new Map<string, { ancho: number; alto: number; espesor: number; indices: number[] }>()
+    piezas.forEach((p, i) => {
+      const key = `${p.ancho}|${p.alto}|${p.espesor}`
+      const g = map.get(key)
+      if (g) g.indices.push(i)
+      else map.set(key, { ancho: p.ancho, alto: p.alto, espesor: p.espesor, indices: [i] })
+    })
+    return Array.from(map.values()).sort((a, b) => b.ancho * b.alto - a.ancho * a.alto)
+  }, [piezas])
+
+  const rotAllChecked = piezas.length > 0 && piezas.every((p) => p.rotate)
+  const rotSomeChecked = piezas.some((p) => p.rotate)
+
+  useEffect(() => {
+    if (rotAllRef.current) rotAllRef.current.indeterminate = rotSomeChecked && !rotAllChecked
+  }, [rotSomeChecked, rotAllChecked])
+
+  const setRotateAll = (rotate: boolean) => {
+    setPiezas((prev) => prev.map((p) => ({ ...p, rotate })))
+  }
+
+  const setRotateGroup = (indices: number[], rotate: boolean) => {
+    setPiezas((prev) => prev.map((p, i) => (indices.includes(i) ? { ...p, rotate } : p)))
+  }
 
   const ensureProject = async () => {
     if (projectId) return projectId
@@ -420,9 +459,12 @@ export function OptimizerPage() {
       }
       const response = await api.post(`/projects/${pid}/optimize`, {
         tablero,
-        piezas,
+        // El orden de entrada al optimizador importa: con tipo/tamaño las
+        // piezas estructurales grandes se empaquetan primero (mejor cabida).
+        piezas: sortMode === 'manual' ? piezas : sortPieces(piezas, sortMode),
         use_offcuts: useOffcuts,
         material_type: materialType,
+        modo_corte: modoCorte,
       })
       const data = response.data as { tableros: BoardResult[]; total_tableros: number }
       setResult(data.tableros)
@@ -697,6 +739,24 @@ export function OptimizerPage() {
                 </p>
               </div>
 
+              <div>
+                <label className='mb-1 block text-xs font-medium text-muted-foreground'>
+                  Tipo de corte
+                </label>
+                <select
+                  className='flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
+                  value={modoCorte}
+                  onChange={(e) => setModoCorte(e.target.value as 'guillotina' | 'nesting')}
+                >
+                  <option value='guillotina'>Lineal a lo largo (guillotina)</option>
+                  <option value='nesting'>Nesting 2D libre</option>
+                </select>
+                <p className='mt-1 text-xs text-muted-foreground'>
+                  Guillotina: cada pasada de sierra va de extremo a extremo (escuadradora real).
+                  Nesting: mejor aprovechamiento, pero con cortes en T.
+                </p>
+              </div>
+
               <label className='flex items-center gap-2 text-sm text-foreground'>
                 <input
                   type='checkbox'
@@ -931,6 +991,19 @@ export function OptimizerPage() {
                   </CardDescription>
                 </div>
                 <div className='flex flex-wrap items-center gap-2'>
+                  <label className='flex items-center gap-1 text-xs text-muted-foreground'>
+                    Orden
+                    <select
+                      aria-label='Orden de las piezas'
+                      className='h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value as SortMode)}
+                    >
+                      <option value='tipo'>Tipo y tamaño</option>
+                      <option value='tamano'>Tamaño</option>
+                      <option value='manual'>Manual</option>
+                    </select>
+                  </label>
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'piezas' | 'conteo')}>
                     <TabsTrigger value='piezas'>Piezas ({piezas.length})</TabsTrigger>
                     <TabsTrigger value='conteo'>Conteo</TabsTrigger>
@@ -1043,15 +1116,94 @@ export function OptimizerPage() {
                           <th className='p-2 text-left font-medium'>Alto</th>
                           <th className='p-2 text-left font-medium w-16'>Esp.</th>
                           <th className='p-2 text-left font-medium w-20'>Cant.</th>
-                          <th className='p-2 text-left font-medium w-16'>Rot.</th>
+                          <th className='relative p-2 text-left font-medium w-32'>
+                            <div className='flex items-center gap-1.5'>
+                              <span>Rot.</span>
+                              <input
+                                ref={rotAllRef}
+                                type='checkbox'
+                                checked={rotAllChecked}
+                                onChange={(e) => setRotateAll(e.target.checked)}
+                                title='Marcar/desmarcar la rotación de TODAS las piezas'
+                                aria-label='Marcar o desmarcar todas las rotaciones'
+                                className='h-4 w-4 rounded border-border text-primary focus:ring-ring'
+                              />
+                              <button
+                                type='button'
+                                onClick={() => setRotMenuOpen((v) => !v)}
+                                title='Marcar/desmarcar la rotación por grupo de dimensiones'
+                                className='rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted'
+                              >
+                                Grupos ▾
+                              </button>
+                            </div>
+                            {rotMenuOpen && (
+                              <div className='absolute right-2 top-full z-20 mt-1 max-h-64 w-60 overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg'>
+                                <div className='mb-1 flex items-center justify-between gap-2 border-b border-border pb-1'>
+                                  <span className='text-xs font-medium text-muted-foreground'>
+                                    Rotación por grupo
+                                  </span>
+                                  <button
+                                    type='button'
+                                    className='text-xs text-muted-foreground hover:text-foreground'
+                                    onClick={() => setRotMenuOpen(false)}
+                                  >
+                                    Cerrar
+                                  </button>
+                                </div>
+                                {rotGroups.map((g) => {
+                                  const all = g.indices.every((i) => piezas[i].rotate)
+                                  const some = g.indices.some((i) => piezas[i].rotate)
+                                  return (
+                                    <label
+                                      key={`${g.ancho}|${g.alto}|${g.espesor}`}
+                                      className='flex items-center gap-2 py-1 text-xs text-foreground'
+                                    >
+                                      <input
+                                        type='checkbox'
+                                        checked={all}
+                                        ref={(el) => {
+                                          if (el) el.indeterminate = some && !all
+                                        }}
+                                        onChange={(e) => setRotateGroup(g.indices, e.target.checked)}
+                                        className='h-4 w-4 rounded border-border text-primary focus:ring-ring'
+                                      />
+                                      <span>
+                                        {g.ancho}×{g.alto} · {g.espesor} mm
+                                      </span>
+                                      <span className='ml-auto text-muted-foreground'>
+                                        ×{g.indices.length}
+                                      </span>
+                                    </label>
+                                  )
+                                })}
+                                <div className='mt-1 flex gap-2 border-t border-border pt-1'>
+                                  <button
+                                    type='button'
+                                    className='text-xs text-primary hover:underline'
+                                    onClick={() => setRotateAll(true)}
+                                  >
+                                    Todas
+                                  </button>
+                                  <button
+                                    type='button'
+                                    className='text-xs text-primary hover:underline'
+                                    onClick={() => setRotateAll(false)}
+                                  >
+                                    Ninguna
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </th>
                           <th className='p-2 text-left font-medium'>Color</th>
                           <th className='p-2 text-left font-medium'>Cantos</th>
                           <th className='p-2 text-right font-medium'></th>
                         </tr>
                       </thead>
                       <tbody className='divide-y divide-border'>
-                        {piezas.map((p, i) => {
-                          const globalIndex = i
+                        {order.map((globalIndex) => {
+                          const p = piezas[globalIndex]
                           const error = pieceError(p)
                           return (
                             <tr
@@ -1071,7 +1223,7 @@ export function OptimizerPage() {
                                   onChange={(e) =>
                                     updatePiece(globalIndex, { id: e.target.value })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   placeholder='auto'
                                   className='h-8 min-w-[6rem]'
                                 />
@@ -1082,7 +1234,7 @@ export function OptimizerPage() {
                                   onChange={(e) =>
                                     updatePiece(globalIndex, { nombre: e.target.value })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 min-w-[8rem]'
                                 />
                               </td>
@@ -1095,7 +1247,7 @@ export function OptimizerPage() {
                                       ancho: parseFloat(e.target.value) || 0,
                                     })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-20'
                                 />
                               </td>
@@ -1108,7 +1260,7 @@ export function OptimizerPage() {
                                       alto: parseFloat(e.target.value) || 0,
                                     })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-20'
                                 />
                               </td>
@@ -1121,7 +1273,7 @@ export function OptimizerPage() {
                                       espesor: parseFloat(e.target.value) || 0,
                                     })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-16'
                                 />
                               </td>
@@ -1134,7 +1286,7 @@ export function OptimizerPage() {
                                       cantidad: parseInt(e.target.value) || 1,
                                     })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-16'
                                 />
                               </td>
@@ -1187,7 +1339,7 @@ export function OptimizerPage() {
                                   onChange={(e) =>
                                     updatePiece(globalIndex, { cantos: e.target.value })
                                   }
-                                  onKeyDown={(e) => handleRowKeyDown(e, i)}
+                                  onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   placeholder='T,B,L,R'
                                   className='h-8 min-w-[5rem]'
                                 />

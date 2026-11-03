@@ -180,3 +180,74 @@ def test_eje_veta_alto_preorienta_piezas_bloqueadas():
     assert (pv["w"], pv["h"]) == (600, 1100)
     assert pv["veta"] == "vertical"
     assert pv["rotado"] is False  # su lado largo ya era el alto
+
+
+def _assert_no_overlaps(board):
+    """Las piezas de un tablero no se solapan y quedan dentro de sus límites."""
+    rects = [(p["x"], p["y"], p["w"], p["h"]) for p in board["placements"]]
+    for i, (x1, y1, w1, h1) in enumerate(rects):
+        assert x1 >= -1e-6 and y1 >= -1e-6, f"pieza {i} fuera de origen"
+        assert x1 + w1 <= board["ancho"] + 1e-6, f"pieza {i} excede ancho"
+        assert y1 + h1 <= board["alto"] + 1e-6, f"pieza {i} excede alto"
+        for j in range(i + 1, len(rects)):
+            x2, y2, w2, h2 = rects[j]
+            overlap = not (x1 + w1 <= x2 + 1e-6 or x2 + w2 <= x1 + 1e-6
+                           or y1 + h1 <= y2 + 1e-6 or y2 + h2 <= y1 + 1e-6)
+            assert not overlap, f"piezas {i} y {j} se solapan"
+
+
+def test_guillotina_default_sin_solapes():
+    """El modo por defecto es guillotina (cortes lineales a lo largo): las
+    piezas quedan dentro del tablero y sin solaparse."""
+    pieces = [
+        {"id": f"lat-{i}", "nombre": f"Lateral {i}", "ancho": 600, "alto": 2200,
+         "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18}
+        for i in range(4)
+    ] + [
+        {"id": f"est-{i}", "nombre": f"Estante {i}", "ancho": 800, "alto": 400,
+         "cantidad": 2, "rotate": True, "color": "#96CEB4", "espesor": 18}
+        for i in range(6)
+    ]
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220,
+        pieces=pieces, kerf_mm=3, margin_mm=5,
+    )
+    assert result["total_tableros"] >= 1
+    for board in result["tableros"]:
+        _assert_no_overlaps(board)
+
+
+def test_guillotina_ordena_por_tipo_y_tamaño():
+    """Las piezas estructurales (laterales/fondos) se colocan primero: el
+    primer placement del primer tablero es el lateral más grande."""
+    pieces = [
+        {"id": "tir", "nombre": "Tirador", "ancho": 150, "alto": 30,
+         "cantidad": 4, "rotate": True, "color": "#111111", "espesor": 18},
+        {"id": "est", "nombre": "Estante", "ancho": 900, "alto": 300,
+         "cantidad": 2, "rotate": True, "color": "#96CEB4", "espesor": 18},
+        {"id": "lat", "nombre": "Lateral izquierdo", "ancho": 600, "alto": 2200,
+         "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18},
+    ]
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220,
+        pieces=pieces, kerf_mm=3, margin_mm=5,
+    )
+    first = result["tableros"][0]["placements"][0]
+    assert first["id"] == "lat", "el lateral (tipo estructural, más grande) va primero"
+    for board in result["tableros"]:
+        _assert_no_overlaps(board)
+
+
+def test_modo_nesting_sigue_disponible():
+    """modo='nesting' conserva el camino rectpack (MaxRects)."""
+    pieces = [
+        {"id": "a", "nombre": "Pieza A", "ancho": 800, "alto": 600,
+         "cantidad": 3, "rotate": True, "color": "#FF6B6B", "espesor": 18},
+    ]
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220,
+        pieces=pieces, kerf_mm=3, margin_mm=5, modo="nesting",
+    )
+    assert sum(len(b["placements"]) for b in result["tableros"]) == 3
+    for board in result["tableros"]:
+        _assert_no_overlaps(board)

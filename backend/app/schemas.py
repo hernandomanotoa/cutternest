@@ -95,6 +95,9 @@ class OptimizeRequest(BaseModel):
     piezas: List[PieceInput] = Field(..., max_length=5000)
     use_offcuts: bool = False
     material_type: Optional[str] = Field(None, max_length=64)
+    # 'guillotina' (default) = cortes lineales a lo largo del tablero (sierra
+    # real); 'nesting' = nesting 2D libre (rectpack, mejor aprovechamiento).
+    modo_corte: Optional[str] = Field("guillotina", max_length=16)
 
 
 class PiecesUpdateRequest(BaseModel):
