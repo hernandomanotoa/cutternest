@@ -136,6 +136,7 @@ export function OptimizerPage() {
       espesor: DEFAULT_THICKNESS,
       kerf_mm: 3,
       margen_mm: 5,
+      prioridad_corte: 'ancho',
     }
   )
   const [materialType, setMaterialType] = useState(config.materialType ?? DEFAULT_MATERIAL)
@@ -767,6 +768,27 @@ export function OptimizerPage() {
                 </p>
               </div>
 
+              <div>
+                <label className='mb-1 block text-xs font-medium text-muted-foreground'>
+                  Prioridad de corte (guillotina)
+                </label>
+                <select
+                  className='flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
+                  value={tablero.prioridad_corte ?? 'ancho'}
+                  onChange={(e) =>
+                    setTablero((t) => ({ ...t, prioridad_corte: e.target.value as 'ancho' | 'alto' }))
+                  }
+                >
+                  <option value='ancho'>A lo ancho (filas)</option>
+                  <option value='alto'>A lo alto (columnas)</option>
+                </select>
+                <p className='mt-1 text-xs text-muted-foreground'>
+                  'A lo ancho' llena el tablero por filas (cortes longitudinales que separan filas).
+                  'A lo alto' llena por columnas (cortes transversales que separan columnas) — úsalo
+                  cuando la guillotina no tenga espacio para posicionar el tablero en vertical.
+                </p>
+              </div>
+
               <label className='flex items-center gap-2 text-sm text-foreground'>
                 <input
                   type='checkbox'
@@ -777,8 +799,8 @@ export function OptimizerPage() {
                 Máximo aprovechamiento
               </label>
               <p className='-mt-1 text-xs text-muted-foreground'>
-                Solo con guillotina: prueba varios órdenes de empaquetado y se queda con el que
-                usa menos tableros (empaqueta 4 veces; un poco más lento).
+                Solo con guillotina: prueba varios órdenes de empaquetado y ambas prioridades de corte,
+                y se queda con el que usa menos tableros (8 empaquetados; un poco más lento).
               </p>
 
               <label className='flex items-center gap-2 text-sm text-foreground'>

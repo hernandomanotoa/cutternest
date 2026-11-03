@@ -139,6 +139,7 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
         eje_veta=payload.tablero.eje_veta if payload.tablero else "ancho",
         modo=payload.modo_corte or "guillotina",
         max_aprovechamiento=payload.max_aprovechamiento,
+        prioridad_corte=payload.tablero.prioridad_corte if payload.tablero else "ancho",
     )
 
     exports_dir = "/app/data/exports"

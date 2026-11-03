@@ -23,6 +23,9 @@ export interface BoardInput {
   /** Eje de veta del tablero: las piezas con rotate=false se cortan con la
    * veta paralela a este eje. */
   eje_veta?: 'ancho' | 'alto';
+  /** Prioridad del primer corte completo (guillotina): 'ancho' = filas,
+   * 'alto' = columnas (guillotinas que no admiten el tablero en vertical). */
+  prioridad_corte?: 'ancho' | 'alto';
 }
 
 export interface PieceInput {

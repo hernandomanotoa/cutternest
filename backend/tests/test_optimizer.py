@@ -463,3 +463,40 @@ def test_max_aprovechamiento_menos_tableros():
     for board in mejor["tableros"]:
         _assert_no_overlaps(board)
         _assert_cortes_completos(_rects(board))
+
+
+def test_guillotina_prioridad_corte_alto_columnas():
+    """prioridad_corte='alto' rellena el tablero por COLUMNAS (segunda pieza
+    apilada sobre la primera, mismo X), mientras que 'ancho' rellena por
+    FILAS (mismo Y, distinto X). Ambos layouts siguen siendo de cortes
+    completos: la prioridad solo cambia qué corte completo va primero."""
+    pieces = [
+        {"id": f"p{i}", "nombre": f"Panel {i}", "ancho": 800, "alto": 500,
+         "cantidad": 1, "rotate": False, "color": "#45B7D1", "espesor": 18}
+        for i in range(2)
+    ]
+
+    def posiciones(prioridad):
+        r = optimizer_service.optimize_cuts(
+            board_width_mm=2440, board_height_mm=1220, pieces=pieces,
+            kerf_mm=0, margin_mm=0, prioridad_corte=prioridad,
+        )
+        pl = r["tableros"][0]["placements"]
+        assert len(pl) == 2
+        return pl[0], pl[1]
+
+    a0, a1 = posiciones("ancho")
+    assert abs(a0["y"] - a1["y"]) < 1e-6 and abs(a0["x"] - a1["x"]) > 1, \
+        "'ancho': las piezas van en fila (mismo Y)"
+
+    b0, b1 = posiciones("alto")
+    assert abs(b0["x"] - b1["x"]) < 1e-6 and abs(b0["y"] - b1["y"]) > 1, \
+        "'alto': las piezas van en columna (mismo X)"
+
+    for prioridad in ("ancho", "alto"):
+        r = optimizer_service.optimize_cuts(
+            board_width_mm=2440, board_height_mm=1220, pieces=pieces,
+            kerf_mm=0, margin_mm=0, prioridad_corte=prioridad,
+        )
+        _assert_no_overlaps(r["tableros"][0])
+        _assert_cortes_completos(_rects(r["tableros"][0]))

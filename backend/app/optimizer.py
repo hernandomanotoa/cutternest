@@ -204,20 +204,40 @@ class _FreeRect:
         return f"_FreeRect({self.x}, {self.y}, {self.w}, {self.h})"
 
 
-def _split_guillotina(free: _FreeRect, pw: float, ph: float, kerf: float) -> List[_FreeRect]:
+def _split_guillotina(
+    free: _FreeRect,
+    pw: float,
+    ph: float,
+    kerf: float,
+    prioridad: str = "ancho",
+) -> List[_FreeRect]:
     """Divide el rectángulo libre tras colocar una pieza (pw, ph) en su
-    esquina inferior izquierda, con dos cortes COMPLETOS: el vertical corre
-    a lo largo del alto de la pieza (todo su alto) y el horizontal a lo ancho
-    del rectángulo completo. Lo que queda tras cada corte sigue siendo un
-    rectángulo cortable con cortes completos, y la franja que queda sobre una
-    pieza más baja que su vecina recibe sus propios cortes completos."""
+    esquina inferior izquierda, con dos cortes COMPLETOS.
+
+    prioridad='ancho' (default): la pieza deja una franja a su DERECHA de su
+    mismo alto y otra ARRIBA a lo ancho del rectángulo → el tablero se
+    rellena por FILAS (los cortes longitudinales separan filas).
+    prioridad='alto': la pieza deja una franja ENCIMA de su mismo ancho
+    (columna) y otra a la DERECHA a lo alto del rectángulo → el tablero se
+    rellena por COLUMNAS (los cortes transversales separan columnas). Ambos
+    layouts son cortables con pasadas completas; la elección depende de cómo
+    se posiciona el tablero en la guillotina del taller."""
     out = []
     derecha = free.w - pw - kerf
-    if derecha > 0:
-        out.append(_FreeRect(free.x + pw + kerf, free.y, derecha, ph))
     arriba = free.h - ph - kerf
-    if arriba > 0:
-        out.append(_FreeRect(free.x, free.y + ph + kerf, free.w, arriba))
+    if prioridad == "alto":
+        # Columna sobre la pieza (mismo ancho) + franja derecha a lo alto.
+        if arriba > 0:
+            out.append(_FreeRect(free.x, free.y + ph + kerf, pw, arriba))
+        if derecha > 0:
+            out.append(_FreeRect(free.x + pw + kerf, free.y, derecha, free.h))
+    else:
+        # Fila a la derecha de la pieza (mismo alto) + franja superior a lo
+        # ancho (comportamiento histórico).
+        if derecha > 0:
+            out.append(_FreeRect(free.x + pw + kerf, free.y, derecha, ph))
+        if arriba > 0:
+            out.append(_FreeRect(free.x, free.y + ph + kerf, free.w, arriba))
     return out
 
 
@@ -287,6 +307,7 @@ def _pack_guillotine_phase(
     margin_mm: float,
     phase: str,
     criterio: str = "area",
+    prioridad: str = "ancho",
 ) -> Dict[str, Dict[str, Any]]:
     """Empaqueta con cortes COMPLETOS recursivos (guillotina de máquina).
 
@@ -382,7 +403,7 @@ def _pack_guillotine_phase(
         free = board["free"].pop(ri)
         x, y = free.x, free.y
         board["free"] = _normalizar_free(
-            board["free"] + _split_guillotina(free, pw, ph, kerf_mm)
+            board["free"] + _split_guillotina(free, pw, ph, kerf_mm, prioridad)
         )
         board["placements"].append({
             "rid": item["rid"],
@@ -436,21 +457,23 @@ def _pack_guillotine_multi(
     margin_mm: float,
 ) -> Dict[str, Dict[str, Any]]:
     """MODO MÁXIMO APROVECHAMIENTO: empaqueta el lote con varios criterios de
-    orden (área / lado largo / alto / perímetro) y devuelve el mejor resultado
-    — menos tableros; a igual número, más área usada. El orden de entrada
-    decide la estructura guillotina, así que distintos órdenes pueden diferir
-    en uno o más tableros. Costo: un empaquetado por criterio (rápido)."""
+    orden (área / lado largo / alto / perímetro) y AMBAS prioridades de corte
+    (a lo ancho y a lo alto), y devuelve el mejor resultado — menos tableros;
+    a igual número, más área usada. El orden de entrada y la prioridad del
+    split deciden la estructura guillotina, así que cada combinación puede
+    diferir en tableros. Costo: 8 empaquetados (rápido)."""
     mejor = None  # (clave, resultado)
     for crit in _CRITERIOS_ORDEN:
-        r = _pack_guillotine_phase(
-            rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
-            phase=f"g_{crit}", criterio=crit,
-        )
-        tableros = len(r)
-        usada = sum(p["w"] * p["h"] for b in r.values() for p in b["placements"])
-        clave = (tableros, -round(usada, 3))
-        if mejor is None or clave < mejor[0]:
-            mejor = (clave, r)
+        for prioridad in ("ancho", "alto"):
+            r = _pack_guillotine_phase(
+                rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+                phase=f"g_{crit}_{prioridad}", criterio=crit, prioridad=prioridad,
+            )
+            tableros = len(r)
+            usada = sum(p["w"] * p["h"] for b in r.values() for p in b["placements"])
+            clave = (tableros, -round(usada, 3))
+            if mejor is None or clave < mejor[0]:
+                mejor = (clave, r)
     return mejor[1]
 
 
@@ -464,6 +487,7 @@ def optimize_cuts(
     eje_veta: str = "ancho",
     modo: str = "guillotina",
     max_aprovechamiento: bool = False,
+    prioridad_corte: str = "ancho",
 ) -> Dict[str, Any]:
     """
     Optimiza el corte de piezas en tableros. Las dimensiones están en mm.
@@ -489,8 +513,11 @@ def optimize_cuts(
     MaxRects), mejor aprovechamiento teórico pero con cortes en T que la
     sierra no puede hacer de una pasada. max_aprovechamiento=True (solo
     guillotina): prueba varios órdenes de empaquetado (área / lado largo /
-    alto / perímetro) y devuelve el que usa menos tableros (a igual número,
-    más área usada).
+    alto / perímetro) y AMBAS prioridades de corte, y devuelve el que usa
+    menos tableros (a igual número, más área usada). prioridad_corte='ancho'
+    (default) rellena el tablero por FILAS (cortes longitudinales que separan
+    filas); 'alto' rellena por COLUMNAS (cortes transversales que separan
+    columnas) — para cuando la guillotina no admite el tablero en vertical.
     """
     offcuts = offcuts or []
     kerf_mm = kerf_mm if kerf_mm is not None else settings.kerf_mm
@@ -535,7 +562,7 @@ def optimize_cuts(
             else:
                 bins.update(_pack_guillotine_phase(
                     rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
-                    phase="g",
+                    phase="g", prioridad=prioridad_corte,
                 ))
     else:
         free_rects = [r for r in rects if r[5]]

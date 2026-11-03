@@ -75,6 +75,11 @@ class BoardInput(BaseModel):
     # lo largo de su primera medida) se cortan con la veta paralela a este
     # eje. Default 'ancho' (veta a lo largo del lado más largo, 2440).
     eje_veta: Literal["ancho", "alto"] = "ancho"
+    # Prioridad del primer corte completo (guillotina): 'ancho' rellena por
+    # filas (cortes longitudinales separan filas); 'alto' rellena por
+    # columnas (cortes transversales separan columnas) — para guillotinas
+    # que no admiten el tablero posicionado en vertical.
+    prioridad_corte: Literal["ancho", "alto"] = "ancho"
 
 
 class PieceInput(BaseModel):
