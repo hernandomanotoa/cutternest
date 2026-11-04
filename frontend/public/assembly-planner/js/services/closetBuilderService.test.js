@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   createModule,
   addZocalo,
+  addDivider,
   addShelf,
   addHangerRail,
   addDoubleRail,
@@ -693,5 +694,45 @@ describe('zapatera: rim configurable por contrato (tipo.rim)', () => {
     for (const suf of ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division']) {
       assert.equal(r.pieces.find((p) => p.id.endsWith(suf))?.alto, 150, `${suf} al rim personalizado`);
     }
+  });
+});
+
+describe('cantos — convención "solo aristas vistas" (auditoría 2026-11)', () => {
+  const cantosDe = (pieces, id) => pieces.find((p) => p.id === id)?.cantos;
+
+  it('casco: laterales solo arista frontal (L/R), tapa B,L,R, base y fondo sin cantos', () => {
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces;
+    assert.equal(cantosDe(casco, 'm1-lateral-izq'), 'L', 'izq: frente a la izquierda (cara exterior)');
+    assert.equal(cantosDe(casco, 'm1-lateral-der'), 'R');
+    assert.equal(cantosDe(casco, 'm1-tapa'), 'B,L,R', 'frente + lados; trasera contra la pared');
+    assert.equal(cantosDe(casco, 'm1-base'), '');
+    assert.equal(cantosDe(casco, 'm1-fondo'), '');
+  });
+
+  it('contenido: repisa solo frente (B); cajón/zapatera con caja sin cantos', () => {
+    const repisa = addShelf('1', { anchoUtil: 820, profReal: 585, index: 1 }).pieces;
+    assert.equal(cantosDe(repisa, 'm1-repisa-1'), 'B');
+    assert.equal(cantosDe(repisa, 'm1-refuerzo-repisa-1'), '', 'refuerzo: caras vistas, aristas ocultas');
+
+    const cajon = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }).pieces;
+    assert.equal(cantosDe(cajon, 'm1cajon1-frente'), 'T,B,L,R', 'frente visible por 4 lados');
+    assert.equal(cantosDe(cajon, 'm1cajon1-lateral-izq'), '', 'caja oculta (la riel cubre la arista superior)');
+    assert.equal(cantosDe(cajon, 'm1cajon1-base'), '');
+    assert.equal(cantosDe(cajon, 'm1cajon1-fondo'), '');
+    assert.equal(cantosDe(cajon, 'm1cajon1-cara'), '');
+
+    const zap = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }).pieces;
+    assert.equal(cantosDe(zap, 'm1zapatera1-frente'), 'T,B,L,R');
+    assert.equal(cantosDe(zap, 'm1zapatera1-division'), 'T', 'solo la arista superior de la tabla');
+    assert.equal(cantosDe(zap, 'm1zapatera1-lateral-izq'), '');
+  });
+
+  it('zócalo simple solo T; divisor solo L,R; marco: frente T y resto sin cantos', () => {
+    const z = addZocalo('1', { ancho: 850, alto: 150, espesor: 15 }).pieces;
+    assert.equal(cantosDe(z, 'm1-zocalo'), 'T', 'solo la arista superior del frente');
+
+    const casco = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces;
+    const div = addDivider('1', { altoUtil: 2200, espesor: 15, index: 1 }).pieces;
+    assert.equal(cantosDe(div, 'm1-divisor-1'), 'L,R', 'las dos caras largas vistas');
   });
 });

@@ -257,3 +257,14 @@ describe('reglas estructurales: desactualizado por montantes faltantes', () => {
     assert.equal(marcoDesactualizado(r.pieces), false);
   });
 });
+
+describe('cantos del marco (auditoría 2026-11: solo aristas vistas)', () => {
+  it('frente solo T; trasero, costados y montantes sin cantos', () => {
+    const r = buildPlinthFrame({ moduleWidths: [1400], profundidad: 600, altoZocalo: 100, espesor: 15 });
+    const cantos = (id) => r.pieces.find((p) => p.id === id)?.cantos;
+    assert.equal(cantos('glb-zocalo-frente'), 'T');
+    assert.equal(cantos('glb-zocalo-trasero'), '', 'contra la pared');
+    assert.equal(cantos('glb-zocalo-costado-izq'), '', 'entre frente y trasero');
+    assert.equal(cantos('glb-zocalo-montante-1'), '');
+  });
+});

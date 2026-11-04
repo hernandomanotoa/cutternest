@@ -298,6 +298,26 @@ telescópicas. `buildPlinthFrame` ya no la genera ni recibe `drawerModules`/
 dibujen y se eliminen con el marco; al **Regenerar marco** desaparecen del
 despiece.
 
+### Convención de cantos (auditoría 2026-11: solo aristas vistas)
+
+Los cantos (T,B,L,R) se leen **mirando la cara visible de la pieza en su
+posición en el mueble**: para verticales T/B = cabezas y L/R = aristas
+longitudinales (para el lateral izq, mirando su cara exterior, el frente
+del mueble queda a la izquierda → `L` = frente; para el der, `R`); para
+horizontales B = arista frontal y T = trasera (vista en planta con el
+frente abajo). Regla: **canto solo en aristas vistas**. Asignaciones del
+Constructor: laterales `L`/`R` (solo el frente; las cabezas quedan bajo
+tapa y sobre zócalo); tapa `B,L,R` (conservador: los lados aunque en
+módulos internos queden enfrentados); repisa `B` (frente); divisor `L,R`;
+zócalo simple `T`; marco del zócalo: frente `T` y trasero/costados/
+montantes `''` (bandeja: nadie ve sus aristas); frentes de cajón/zapatera
+`T,B,L,R` (visibles por los gaps); cajas enteras sin cantos (la corredera
+cubre la arista superior del lateral); división de zapatera `T`; fondos,
+bases de caja, caras, refuerzo de repisa y barras `''`. La tabla
+`VETA_POR_ROL` (cutOrientationService) es el fallback por rol. El heurístico
+`orientacion` de `csvParser.classifyPiece` (4/3/0 cantos → horizontal/
+vertical/fondo) NO se usa en consumidores: sin riesgo al reducir cantos.
+
 ### Modo de frentes (tapajunta vs a ras) y extracción de la caja
 
 - `frontGapMode` (userConfig, default `ras`): select «Frentes» en la toolbar de la vista 3D. Fija `drawerGap` del `IsometricRenderer`: 0 = a ras (el frente termina alineado con los laterales, `[D−E, D]` — default, no sobresale), 15 = tapajunta (cubre la cara frontal del módulo, `[D, D+15]`) y `'interno'` = retranqueado un espesor completo (`[D−2E, D−E]`: el frente queda entre los laterales y desde fuera se ve la cara frontal de los laterales como marco). La conversión a mm la centraliza `effectiveDrawerGap(drawerGap, thickness)` (`drawerGeometry.js`, exportada y reusada por `golaGeometry.js`): `'interno'` → `−thickness` (retranqueo exacto con cualquier espesor 15/18/25). Con gola activa, el canal y las marcas del agarre derivan del mismo `yFace`, así la gola queda automáticamente detrás del plano del frente interno. **La caja/bandeja se retrasan con el modo**: `addDrawer`/`addShoeTray` descuentan el retranqueo (0/E/2E vía `retranqueoFrenteMm`) de la profundidad para conservar la holgura con el fondo (`holguraFondoCajon`, userConfig, default 10 mm — regla de taller; el riel 'catalogo' conserva su regla propia de −25). El render clampa además la caja al espacio real (`maxDepth = yFace − E − holgura` en `buildDrawerBoxGeometries`) y avisa si los datos vienen de otro modo (regenerar con editar módulo). El default lo fija `loadUserConfig` (`frontGapMode: 'ras'`); lo persistido en storage gana. Ojo: `IsometricRenderer` lo aplica con `?? 15` — un `||` convertiría el 0 explícito en 15 (bug histórico); el default del RENDERER sigue siendo 15 (tapajunta) por compat, las vistas le pasan el modo siempre. La vista isométrica lo re-lee en cada `userConfig:changed` (no lo capturen al montar) y el botón de reset lo re-deriva del userConfig en vez de forzar 15. `renderer3D.js` mapea el modo con `_drawerGapOption()` (ras→0, interno→'interno', tapajunta→undefined).

@@ -319,9 +319,12 @@ export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espeso
     });
   }
 
-  const mk = (id, nombre, ancho, rotate = false) => ({
+  // Cantos 2026-11 (auditoría, solo aristas vistas): el frente del marco
+  // solo muestra su arista superior (T); el trasero va contra la pared y
+  // los costados/montantes quedan entre frente y trasero: sin cantos.
+  const mk = (id, nombre, ancho, rotate = false, cantos = '') => ({
     id, nombre, ancho, alto: Z, cantidad: 1, rotate,
-    color, espesor: e, cantos: 'T,B,L,R', modulo: 'estructura', pos_z: 0,
+    color, espesor: e, cantos, modulo: 'estructura', pos_z: 0,
   });
 
   const pieces = [];
@@ -333,7 +336,7 @@ export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espeso
     // entre sus caras interiores (prof − 2e) y quedan CUBIERTOS en ambos
     // extremos (convención bandeja).
     const larg = Math.round(span.width);
-    pieces.push(mk(`${span.key}-frente${suf}`, `Zocalo marco${label} frente`, larg));
+    pieces.push(mk(`${span.key}-frente${suf}`, `Zocalo marco${label} frente`, larg, false, 'T'));
     pieces.push(mk(`${span.key}-trasero${suf}`, `Zocalo marco${label} trasero`, larg));
     // Costados de cada banda (en el empalme solo los extremos del cajón).
     if (!span.ab || span.ab === 'a') {

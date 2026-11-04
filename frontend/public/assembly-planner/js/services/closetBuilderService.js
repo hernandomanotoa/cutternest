@@ -178,8 +178,12 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
     piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho, prof, { rol: 'top_panel', color, espesor: E, modulo }),
     // Orientación de mueble (congruente con el taller): ancho/alto = como
     // está la pieza en el módulo. La veta la deriva la tabla por rol.
-    piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,L', modulo }),
-    piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'T,B,R', modulo }),
+    // Cantos 2026-11 (auditoría, solo aristas vistas): para el lateral, la
+    // letra se lee mirando su cara exterior — para el izquierdo el frente
+    // del mueble queda a la izquierda (y a la derecha para el derecho). T/B
+    // (cabezas) quedan ocultas: bajo la tapa y sobre el zócalo/piso.
+    piece(`m${modulo}-lateral-izq`, `Lateral izquierdo M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'L', modulo }),
+    piece(`m${modulo}-lateral-der`, `Lateral derecho M${modulo}`, prof, alto, { rol: 'side_panel', color, espesor: E, cantos: 'R', modulo }),
     piece(`m${modulo}-fondo`, `Fondo modulo M${modulo}`, ancho - 2 * E, fondoH, { rol: 'back_panel', color: '#F2F2F2', espesor: E, modulo }),
   ];
   return { ok: true, pieces, interiorWidth: ancho - 2 * E, interiorDepth: prof - 2 * E };
@@ -197,7 +201,7 @@ export function addZocalo(moduleId, { ancho, alto = 150, espesor = 15, color = '
   return {
     ok: true,
     pieces: [
-      piece(`m${moduleId}-zocalo`, `Zocalo M${moduleId}`, ancho - 2 * espesor, alto, { rotate: 'si', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
+      piece(`m${moduleId}-zocalo`, `Zocalo M${moduleId}`, ancho - 2 * espesor, alto, { rotate: 'si', color: c, espesor, cantos: 'T', modulo: moduleId }),
     ],
   };
 }
@@ -422,8 +426,8 @@ export function addDrawer(moduleId, index, {
     // Laterales y fondo de la caja: piezas ocultas → rotate libre (tabla).
     // Dims en orientación de mueble (las ocultas no tienen swap); los
     // servicios (drawerGeometryService, golaService) las leen crudas.
-    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-izq`, `Lateral ${vocab}${num}${ladoIzq} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-lateral-der`, `Lateral ${vocab}${num}${ladoDer} M${moduleId}`, profCajon, latAlto, { rol: 'drawer_side', color: cl, espesor: E, modulo: sub }),
     piece(`m${moduleId}${idp}${index}-fondo`, `Fondo ${vocab}${num} M${moduleId}`, fondoAncho, fondoAlto, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, modulo: sub }),
   ];
   if (!volquete) {
@@ -644,8 +648,8 @@ export function addShoeTray(moduleId, index, {
   // Laterales y fondo de la bandeja: piezas ocultas → rotate libre (tabla);
   // dims en orientación de mueble (las ocultas no tienen swap).
   pieces.push(
-    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,L', modulo: sub }),
-    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, cantos: 'T,B,R', modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-izq`, `Lateral zapatera extraible${num} izq M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, modulo: sub }),
+    piece(`m${moduleId}zapatera${index}-lateral-der`, `Lateral zapatera extraible${num} der M${moduleId}`, profBandeja2, altoLado, { rol: 'drawer_side', color: cl, espesor: E, modulo: sub }),
     piece(`m${moduleId}zapatera${index}-fondo`, `Fondo zapatera extraible${num} M${moduleId}`, interior2, altoFondoEf, { rol: 'drawer_back', color: '#F2F2F2', espesor: E, modulo: sub }),
   );
   if (!frenteCompleto) {
@@ -699,7 +703,7 @@ export function addDivider(moduleId, { altoUtil, espesor = 15, color = '#C19A6B'
   return {
     ok: true,
     pieces: [
-      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, espesor, altoUtil, { rol: 'divider', color: c, espesor, cantos: 'T,B,L,R', modulo: moduleId }),
+      piece(`m${moduleId}-divisor-${index}`, `Divisor ${index} M${moduleId}`, espesor, altoUtil, { rol: 'divider', color: c, espesor, cantos: 'L,R', modulo: moduleId }),
     ],
   };
 }

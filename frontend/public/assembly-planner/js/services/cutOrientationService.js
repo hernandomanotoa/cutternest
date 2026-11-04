@@ -30,13 +30,16 @@ export const CLASE_VETA = {
 // los que no aparecen aquí no tienen regla de veta — p. ej. 'panel' genérico).
 export const VETA_POR_ROL = {
   // ── Vista horizontal: la veta corre a lo largo del ancho (lado largo) ──
+  // Convención de cantos (auditoría 2026-11): solo aristas VISTAS. Para
+  // piezas horizontales T = arista trasera y B = arista frontal (vista en
+  // planta con el frente del mueble abajo).
   drawer_face: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
   door: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
   front_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
   gola_strip: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B' },
-  shelf: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B' },
-  top_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
-  drawer_divider: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T,B,L,R' },
+  shelf: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'B' },
+  top_panel: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'B,L,R' },
+  drawer_divider: { clase: CLASE_VETA.VISTA_HORIZONTAL, rotate: false, ladoVeta: 'ancho', cantos: 'T' },
 
   // ── Vista vertical: la veta corre a lo largo del alto (lado largo) ──
   side_panel: { clase: CLASE_VETA.VISTA_VERTICAL, rotate: false, ladoVeta: 'alto', cantos: '' },
