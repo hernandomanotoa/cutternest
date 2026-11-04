@@ -416,13 +416,6 @@ export function createConstructorView(store) {
         store.set({ userConfig: loadUserConfig() });
         if (hasPlinthFrame(store.get().pieces)) doApplyPlinth();
       }
-      if (e.target.dataset.obra === 'divpar') {
-        // Con/sin división paralela bajo cajones: regenera al instante si ya
-        // existe el marco (la preferencia persiste para el próximo).
-        saveUserConfig({ plinthDivpar: e.target.checked ? 1 : 0 });
-        store.set({ userConfig: loadUserConfig() });
-        if (hasPlinthFrame(store.get().pieces)) doApplyPlinth();
-      }
       return;
     }
     // Modo de construcción de la zapatera: muestra/oculta los campos de
@@ -1065,10 +1058,6 @@ export function createConstructorView(store) {
             </label>
             <label class="form-group">Retraso frente (mm)
               <span class="cn-field-num"><input type="number" data-obra="retraso" value="${Number(state.userConfig?.plinthFrontRecess) || 0}" min="0" max="150" step="5" />${numSteppers()}</span>
-            </label>
-            <label class="form-group cn-toggle" title="Lámina vertical paralela al frente, a media profundidad, bajo cada módulo de cajón/zapatera: apoya el medio de la base (evita el pandeo). Desmárcala si tu taller la omite con correderas telescópicas.">
-              <input type="checkbox" data-obra="divpar" ${Number(state.userConfig?.plinthDivpar ?? 1) !== 0 ? 'checked' : ''} />
-              <span class="cn-toggle__text"><span class="cn-toggle__label">División bajo cajones</span></span>
             </label>
           </div>
           <details class="cn-constructor__obra" ${Number(state.userConfig?.obraHTecho) > 0 ? 'open' : ''}>

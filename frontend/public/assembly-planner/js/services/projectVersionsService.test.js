@@ -263,9 +263,15 @@ describe('projectVersionsService/zócalo estructural a marco', () => {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, modulo: '1' });
     const marco = buildPlinthFrame({
       moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
-      drawerModules: [{ moduloId: '1', ancho: 850 }],
     });
-    const pieces = [...casco.pieces, ...marco.pieces];
+    // divpar legacy agregada a mano (el Constructor ya no la genera): las
+    // versiones deben seguir preservándola al cargar.
+    const divparLegacy = {
+      id: 'glb-zocalo-divpar-1', nombre: 'Division zocalo paralela frente M1',
+      ancho: 850 - 2 * 18, alto: 90, cantidad: 1, rotate: 'si',
+      color: '#C19A6B', espesor: 18, cantos: 'T,B,L,R', modulo: 'estructura', pos_z: 0,
+    };
+    const pieces = [...casco.pieces, ...marco.pieces, divparLegacy];
     assert.equal(plinthTotalWidth(pieces), 850);
 
     const saved = saveVersion('Closet con marco', { pieces });

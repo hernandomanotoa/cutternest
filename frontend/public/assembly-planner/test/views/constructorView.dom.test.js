@@ -989,16 +989,17 @@ test('Zócalo aplicado: si lo más bajo es una ZAPATERA, ningún frente se ajust
   view.destroy();
 });
 
-test('Zócalo único: división paralela al frente bajo el módulo con cajón', () => {
+test('Zócalo único: SIN división paralela (eliminada del Constructor)', () => {
   const { store, view, container } = mountView();
   click(container, '[data-action="add-module"]');
   click(container, '[data-action="add-content"][data-kind="drawer"]');
   click(container, '[data-action="apply-plinth"]');
-  const divpar = store.get().pieces.find((p) => p.id === 'glb-zocalo-divpar-1');
-  assert.ok(divpar, 'división paralela al frente bajo el módulo de cajón');
-  assert.equal(divpar.ancho, 850 - 2 * 15, 'de luz interior del módulo');
-  assert.equal(divpar.rotate, true, 'panel horizontal (rotate)');
-  // Módulo sin cajones: sin división.
+  assert.equal(
+    store.get().pieces.filter((p) => String(p.id).includes('divpar')).length,
+    0,
+    'la divpar no se genera aunque el módulo tenga cajón'
+  );
+  assert.ok(store.get().pieces.some((p) => p.id === 'glb-zocalo-frente'), 'el marco sí se genera');
   view.destroy();
 });
 

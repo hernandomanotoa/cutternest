@@ -290,11 +290,13 @@ diseños guardados con la convención anterior (frente = span − 2E) quedan
 contra la suma de bases con la misma convención.
 
 La **división paralela al frente** (divpar, panel vertical a media
-profundidad bajo cada módulo de cajón/zapatera) apoya el medio de la base
-del cajón. Es **opcional**: el toggle «División bajo cajones» de la tarjeta
-de zócalo persiste en `plinthDivpar` (default 1) y `buildPlinthFrame` la
-omite con `conDivpar: false`; al cambiarlo con marco aplicado se regenera
-al instante.
+profundidad bajo cada módulo de cajón/zapatera) **fue eliminada del
+Constructor** (2026-11): el taller la considera innecesaria con correderas
+telescópicas. `buildPlinthFrame` ya no la genera ni recibe `drawerModules`/
+`conDivpar`. Las piezas divpar de diseños previos siguen reconocidas
+(`MARCO_PIECE_RE`, `divparLayoutFromPieces`, renderer) para que carguen,
+dibujen y se eliminen con el marco; al **Regenerar marco** desaparecen del
+despiece.
 
 ### Modo de frentes (tapajunta vs a ras) y extracción de la caja
 

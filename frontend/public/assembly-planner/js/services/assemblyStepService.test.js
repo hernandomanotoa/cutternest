@@ -406,10 +406,15 @@ describe('assemblyStepService/base interna vs externa', () => {
 
 describe('assemblyStepService/zócalo estructural a marco', () => {
   it('el marco va primero en la secuencia, con orden físico de cajón', () => {
-    const { pieces: marco } = buildPlinthFrame({
+    const { pieces: marco0 } = buildPlinthFrame({
       moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
-      drawerModules: [{ moduloId: '1', ancho: 850 }],
     });
+    // divpar legacy agregada a mano (el Constructor ya no la genera).
+    const marco = [...marco0, {
+      id: 'glb-zocalo-divpar-1', nombre: 'Division zocalo paralela frente M1',
+      ancho: 850 - 2 * 18, alto: 90, cantidad: 1, rotate: 'si',
+      color: '#C19A6B', espesor: 18, modulo: 'estructura', pos_z: 0,
+    }];
     const modulos = [
       mk('m1-base', 'Base modulo M1'),
       mk('m1-tapa', 'Tapa modulo M1'),

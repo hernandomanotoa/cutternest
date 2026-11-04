@@ -271,7 +271,11 @@ export function symmetricSplit(total, n) {
 //   los costados/montantes van entre las caras interiores de frente y
 //   trasero (prof − 2·espesor). Es lo que se ve en el render y lo que el
 //   taller espera al armar: los extremos de los costados quedan ocultos.
-export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espesor = 18, color = '#C19A6B', drawerModules = [], nZocalos = 1, conDivpar = true }) {
+// - NO se generan divisiones paralelas al frente (divpar): el taller las
+//   considera innecesarias con correderas telescópicas. Las piezas divpar
+//   de diseños previos siguen reconocidas (MARCO_PIECE_RE, renderer) y se
+//   eliminan al regenerar el marco.
+export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espesor = 18, color = '#C19A6B', nZocalos = 1 }) {
   const errors = [];
   if (!Array.isArray(moduleWidths) || !moduleWidths.length) errors.push('Se necesita al menos un módulo (moduleWidths)');
   if (!Number.isFinite(profundidad) || profundidad <= 0) errors.push('profundidad inválida');
@@ -350,18 +354,6 @@ export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espeso
       warnings.push(`Larguero de ${larg} mm (zócalo ${i + 1}) supera el tablero de ${PLINTH_BOARD_LENGTH} mm: partirlo en obra o aumentar la cantidad de zócalos.`);
     }
   });
-
-  // Divisiones paralelas al frente bajo módulos de cajón (van entre costados
-  // interiores: −2e del módulo; no dependen de la división en zócalos).
-  // Opcional (conDivpar): apoyan el medio de la base del cajón/zapatera;
-  // algunos talleres las omiten con correderas telescópicas.
-  if (conDivpar) {
-    (drawerModules || []).forEach((m, i) => {
-      const mw = Math.round((Number(m.ancho) || 0) - 2 * e);
-      if (mw <= 0) return;
-      pieces.push(mk(`glb-zocalo-divpar-${i + 1}`, `Division zocalo paralela frente M${m.moduloId}`, mw, true));
-    });
-  }
 
   if (total < Z) {
     warnings.push(`Zócalo (${total} mm) es más angosto que su alto (${Z} mm): posible inestabilidad.`);

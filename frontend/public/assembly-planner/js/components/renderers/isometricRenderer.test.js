@@ -1234,10 +1234,19 @@ describe('IsometricRenderer zócalo-cajón global (modelo sin base global)', () 
 
 
 describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
-  const unicoPieces = () => buildPlinthFrame({
-    moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
-    drawerModules: [{ moduloId: '1', ancho: 850 }],
-  }).pieces;
+  // La divpar ya no la genera el Constructor; la pieza se agrega a mano en
+  // los tests de render legacy (diseños previos que aún la contienen).
+  const piezaDivpar = (ancho = 850) => ({
+    id: 'glb-zocalo-divpar-1', nombre: 'Division zocalo paralela frente M1',
+    ancho: ancho - 2 * 18, alto: 90, cantidad: 1, rotate: 'si',
+    color: '#C19A6B', espesor: 18, cantos: 'T,B,L,R', modulo: 'estructura', pos_z: 0,
+  });
+  const unicoPieces = () => [
+    ...buildPlinthFrame({
+      moduleWidths: [850], profundidad: 600, altoZocalo: 90, espesor: 18,
+    }).pieces,
+    piezaDivpar(850),
+  ];
 
   it('costados y montantes se dibujan con su profundidad real de corte (entre trasero y frente)', () => {
     // El hover muestra w×d×h de la geometría: debe coincidir con la pieza

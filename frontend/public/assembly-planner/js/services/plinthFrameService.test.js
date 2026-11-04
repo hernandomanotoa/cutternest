@@ -43,26 +43,13 @@ describe('buildPlinthFrame (forma paramétrica)', () => {
     assert.equal(costado.pos_z, 0);
   });
 
-  it('agrega división paralela al frente bajo módulos con cajones', () => {
+  it('NO genera divisiones paralelas al frente (eliminadas del Constructor)', () => {
     const r = buildPlinthFrame({
       moduleWidths: [850, 450], ...base,
       drawerModules: [{ moduloId: '1', ancho: 850 }],
     });
-    const divpar = r.pieces.find((p) => p.id === 'glb-zocalo-divpar-1');
-    assert.ok(divpar);
-    assert.equal(divpar.ancho, 850 - 2 * 18);
-    assert.equal(divpar.rotate, true);
-    assert.match(divpar.nombre, /paralela frente M1/);
-    assert.equal(r.pieces.filter((p) => p.id.includes('divpar')).length, 1);
-  });
-
-  it('conDivpar: false omite las divisiones paralelas bajo cajones', () => {
-    const r = buildPlinthFrame({
-      moduleWidths: [850, 450], ...base,
-      drawerModules: [{ moduloId: '1', ancho: 850 }],
-      conDivpar: false,
-    });
-    assert.equal(r.pieces.filter((p) => p.id.includes('divpar')).length, 0);
+    assert.equal(r.pieces.filter((p) => p.id.includes('divpar')).length, 0,
+      'la divpar se eliminó: no se genera aunque haya módulos con cajón');
     assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente'), 'el resto del marco va igual');
   });
 
@@ -102,8 +89,14 @@ describe('helpers derivados de las piezas (CSV-safe)', () => {
     assert.equal(plinthLevelerCount([]), 0);
   });
 
-  it('divparLayoutFromPieces deriva posiciones acumuladas', () => {
-    const pieces = mk([850, 450], { drawerModules: [{ moduloId: '1', ancho: 850 }, { moduloId: '2', ancho: 450 }] });
+  it('divparLayoutFromPieces deriva posiciones acumuladas (piezas legacy)', () => {
+    // La divpar ya no la genera el Constructor; el helper sigue resolviendo
+    // el layout de diseños previos que la contienen.
+    const pieces = [
+      ...mk([850, 450]),
+      { id: 'glb-zocalo-divpar-1', nombre: 'Division zocalo paralela frente M1', ancho: 850 - 2 * 15, alto: 100, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: 'estructura', pos_z: 0 },
+      { id: 'glb-zocalo-divpar-2', nombre: 'Division zocalo paralela frente M2', ancho: 450 - 2 * 15, alto: 100, cantidad: 1, rotate: 'si', color: '#C19A6B', espesor: 15, modulo: 'estructura', pos_z: 0 },
+    ];
     assert.deepEqual(divparLayoutFromPieces(pieces), [{ x0: 0, width: 850 }, { x0: 850, width: 450 }]);
   });
 
