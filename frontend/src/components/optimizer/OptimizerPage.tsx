@@ -44,6 +44,7 @@ import { Tablero3D } from './Tablero3D'
 import { Layout2D } from './Layout2D'
 import { PieceCountTab } from './PieceCountTab'
 import { CantosTab } from './CantosTab'
+import { ClasificacionCantos } from './ClasificacionCantos'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
 import {
@@ -1463,11 +1464,14 @@ export function OptimizerPage() {
               )}
 
               {activeTab === 'conteo' && (
-                <PieceCountTab
-                  groups={groupedPieces}
-                  totalPieces={totalPiecesCount}
-                  totalGroups={groupedPieces.length}
-                />
+                <>
+                  <PieceCountTab
+                    groups={groupedPieces}
+                    totalPieces={totalPiecesCount}
+                    totalGroups={groupedPieces.length}
+                  />
+                  <ClasificacionCantos pieces={piezas} projectId={projectId} />
+                </>
               )}
 
               {activeTab === 'cantos' && <CantosTab pieces={piezas} />}

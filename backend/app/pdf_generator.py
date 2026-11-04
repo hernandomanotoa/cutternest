@@ -374,3 +374,143 @@ def generate_layouts_pdf(
 
     c.save()
     return _web_path(path)
+
+
+# ── Clasificación de cantos (9 categorías, spec taller) ──────────────────
+CATEGORIAS_CANTO = [
+    "Sin laminar", "1 Corto", "2 Cortos", "1 Largo", "2 Largos",
+    "1 Largo + 1 Corto", "2 Largos + 1 Corto", "1 Largo + 2 Cortos", "4 Lados",
+]
+
+
+def _lados_largo(ancho: float, alto: float) -> set:
+    return {"T", "B"} if ancho >= alto else {"L", "R"}
+
+
+def _letras_canto(cantos: str) -> list:
+    vistos, out = set(), []
+    for raw in str(cantos or "").split(","):
+        letra = raw.strip().upper()
+        if len(letra) == 1 and letra in "TBLR" and letra not in vistos:
+            vistos.add(letra)
+            out.append(letra)
+    return out
+
+
+def _categoria_canto(cantos: str, ancho: float, alto: float) -> int:
+    largos = _lados_largo(ancho, alto)
+    n_l = sum(1 for l in _letras_canto(cantos) if l in largos)
+    n_c = sum(1 for l in _letras_canto(cantos) if l not in largos)
+    if n_l + n_c == 0:
+        return 0
+    if n_l == 0:
+        return 1 if n_c == 1 else 2
+    if n_c == 0:
+        return 3 if n_l == 1 else 4
+    if n_l == 1 and n_c == 1:
+        return 5
+    if n_l == 2 and n_c == 1:
+        return 6
+    if n_l == 1 and n_c == 2:
+        return 7
+    return 8
+
+
+def _clasificar_cantos(pieces: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Agrupa por categoría + medidas + cantos; suma unidades y metros
+    lineales de tapacanto (mm de arista canteadas × unidades)."""
+    grupos: Dict[str, Dict[str, Any]] = {}
+    for p in pieces:
+        ancho = float(p.get("ancho") or p.get("width_mm") or 0)
+        alto = float(p.get("alto") or p.get("height_mm") or 0)
+        if ancho <= 0 or alto <= 0:
+            continue
+        cantos = str(p.get("cantos") or p.get("edge_banding") or "").strip()
+        und = max(1, int(p.get("cantidad") or p.get("quantity") or 1))
+        cat = _categoria_canto(cantos, ancho, alto)
+        key = f"{cat}|{ancho}|{alto}|{cantos}"
+        largos = _lados_largo(ancho, alto)
+        # Longitud de arista: T/B corren a lo largo del ancho, L/R del alto.
+        mm = sum((ancho if l in ("T", "B") else alto) for l in _letras_canto(cantos))
+        metros = mm * und / 1000.0
+        g = grupos.get(key)
+        if g:
+            g["unidades"] += und
+            g["metros"] += metros
+        else:
+            grupos[key] = {
+                "categoria": cat, "ancho": ancho, "alto": alto,
+                "cantos": cantos, "unidades": und, "metros": metros,
+            }
+    filas = sorted(
+        grupos.values(),
+        key=lambda g: (g["categoria"], -(g["ancho"] * g["alto"])),
+    )
+    return {
+        "filas": filas,
+        "total_metros": sum(g["metros"] for g in filas),
+        "total_unidades": sum(g["unidades"] for g in filas),
+    }
+
+
+def _cantos_pdf_path(exports_dir: str, project_id: str) -> str:
+    return os.path.join(exports_dir, f"clasificacion_cantos_{project_id}.pdf")
+
+
+def generate_cantos_pdf(
+    project_name: str,
+    project_id: str,
+    pieces: List[Dict[str, Any]],
+    exports_dir: str,
+) -> str:
+    """PDF con la clasificación de cantos en 9 categorías: unidades y
+    metros lineales de tapacanto por grupo de medidas."""
+    os.makedirs(exports_dir, exist_ok=True)
+    path = _cantos_pdf_path(exports_dir, str(project_id))
+    doc = SimpleDocTemplate(
+        path, pagesize=A4,
+        rightMargin=15 * mm, leftMargin=15 * mm, topMargin=15 * mm, bottomMargin=15 * mm,
+    )
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph("<b>Clasificación de cantos - CutterNest</b>", styles["Title"]),
+        Paragraph(f"Proyecto: {project_name}", styles["Heading2"]),
+        Paragraph(
+            "Largo = arista paralela al lado más largo de la pieza. Metros lineales = "
+            "longitud de las aristas canteadas × unidades.",
+            styles["Normal"],
+        ),
+        Spacer(1, 5 * mm),
+    ]
+    data = [["Categoría", "Medidas (mm)", "Cantos", "Und.", "Metros lineales"]]
+    clasificacion = _clasificar_cantos(pieces)
+    filas_por_cat: Dict[int, list] = {i: [] for i in range(9)}
+    for f in clasificacion["filas"]:
+        filas_por_cat[f["categoria"]].append(f)
+    for cat, nombre in enumerate(CATEGORIAS_CANTO):
+        del_grupo = filas_por_cat[cat]
+        if not del_grupo:
+            data.append([nombre, "—", "—", "0", "0.00"])
+            continue
+        for i, f in enumerate(del_grupo):
+            data.append([
+                nombre if i == 0 else "",
+                f"{f['ancho']:.0f} x {f['alto']:.0f}",
+                f["cantos"] or "—",
+                str(f["unidades"]),
+                f"{f['metros']:.2f}",
+            ])
+    data.append(["Total", "", "", str(clasificacion["total_unidades"]),
+                 f"{clasificacion['total_metros']:.2f} m"])
+    table = Table(data, colWidths=[45 * mm, 35 * mm, 30 * mm, 20 * mm, 35 * mm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#f3f4f6")),
+        ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
+    ]))
+    story.append(table)
+    doc.build(story)
+    return _web_path(path)

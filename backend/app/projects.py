@@ -271,6 +271,21 @@ def generate_layouts_pdf(db: Session, project_id: str) -> str:
     return pdf_generator.generate_layouts_pdf(project.name, project.id, boards, "/app/data/exports")
 
 
+def generate_cantos_pdf(db: Session, project_id: str) -> str:
+    project = get_project(db, project_id)
+    pieces_db = db.query(Piece).filter(Piece.project_id == project_id).all()
+    pieces = [
+        {
+            "ancho": p.width_mm,
+            "alto": p.height_mm,
+            "cantidad": p.quantity,
+            "cantos": p.edge_banding or "",
+        }
+        for p in pieces_db
+    ]
+    return pdf_generator.generate_cantos_pdf(project.name, project.id, pieces, "/app/data/exports")
+
+
 def delete_project(db: Session, project_id: str) -> None:
     project = get_project(db, project_id)
     db.delete(project)
