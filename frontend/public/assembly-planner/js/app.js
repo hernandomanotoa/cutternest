@@ -1695,13 +1695,15 @@ export function applyStructuralPlinth(opts = {}) {
   // no hay restas de espesor — solo la forma (anchos de módulo, profundidad,
   // alto Z) y la cantidad de zócalos.
   const cfg0 = state.userConfig || {};
+  const conDivpar = Number(cfg0.plinthDivpar ?? 1) !== 0;
   const built = buildPlinthFrame({
     moduleWidths: dims.map((d) => d.ancho),
     profundidad,
     altoZocalo,
     espesor,
-    drawerModules: modulosConCajones(state.pieces),
-    nZocalos: Number(opts.nZocalos ?? cfg0.plinthNZocalo) || 1,
+    drawerModules: conDivpar ? modulosConCajones(state.pieces) : [],
+    nZocalos: Number(opts.nZocalos ?? cfg0.plinthNZocalos) || 1,
+    conDivpar,
   });
   if (!built.ok) return { ok: false, errors: built.errors };
   if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');

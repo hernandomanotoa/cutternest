@@ -149,37 +149,29 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
       // Ya dibujados en pasadas anteriores (necesitan plinthH / layout).
     } else if (drawerPlinth && (role === 'back_panel' || /-trasero(-[ab])?$/.test(String(p.id))) && n.includes('zocalo')) {
       // Trasero del cajón de zócalo: banda z:0..zocaloHeight en la cara
-      // trasera. Con marco se dibuja como banda continua sobre el mapa; el
-      // patrón de catálogo conserva su ancho propio.
+      // trasera, CUBRIENDO los extremos de costados/montantes (convención
+      // bandeja: el larguero mide el ancho total de la banda). El patrón de
+      // catálogo conserva su ancho propio.
       const w = Number(p.ancho) || moduleW;
       const t = Number(p.espesor) || thickness;
       const band = bandDe(String(p.id).replace(/-trasero/, '-frente'));
-      // Tramo de empalme: el tramo A llega hasta la junta y el B arranca en
-      // ella (sin costado intermedió); los demás van entre costados (−2t).
-      const esA = /-a$/.test(String(p.id));
-      const esB = /-b$/.test(String(p.id));
-      const offL = band ? (esB ? 0 : t) : 0;
-      const offR = band ? (esA ? 0 : t) : 0;
       geometries.push({
-        x: band ? px(band.x0) + offL : 0, y: band ? 0 : -t, z: 0,
-        w: band ? pw(band.x0, band.width) - offL - offR : w, d: t, h: Number(p.alto) || plinthH,
+        x: band ? px(band.x0) : 0, y: band ? 0 : -t, z: 0,
+        w: band ? pw(band.x0, band.width) : w, d: t, h: Number(p.alto) || plinthH,
         color, role: 'back_panel', name: p.nombre, id: p.id, opacity: opacoMarco ? 1 : 0.25,
       });
     } else if (role === 'bottom_panel' || n.includes('zocalo')) {
       const w = Number(p.ancho) || moduleW;
       if (drawerPlinth) {
         // Frente del cajón de zócalo: banda visible z:0..zocaloHeight,
-        // retrasada `plinthRecess` mm (efecto de flotación); el patrón de
+        // retrasada `plinthRecess` mm (efecto de flotación) y CUBRIENDO los
+        // costados/montantes (ancho total de la banda); el patrón de
         // catálogo sigue al ras (recess = 0) y con su ancho propio.
         const t = Number(p.espesor) || thickness;
         const band = bandDe(p.id);
-        const esA = /-a$/.test(String(p.id));
-        const esB = /-b$/.test(String(p.id));
-        const offL = band ? (esB ? 0 : t) : 0;
-        const offR = band ? (esA ? 0 : t) : 0;
         geometries.push({
-          x: band ? px(band.x0) + offL : 0, y: moduleD - t - (band ? plinthRecess : 0), z: 0,
-          w: band ? pw(band.x0, band.width) - offL - offR : w, d: t, h: Number(p.alto) || plinthH,
+          x: band ? px(band.x0) : 0, y: moduleD - t - (band ? plinthRecess : 0), z: 0,
+          w: band ? pw(band.x0, band.width) : w, d: t, h: Number(p.alto) || plinthH,
           color, role: 'plinth', name: p.nombre, id: p.id,
         });
       } else {

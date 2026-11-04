@@ -1266,10 +1266,11 @@ describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildGlobalGeometries(unicoPieces(), 850, 600, 2300, 18, true, 90);
     const frente = geoms.find((g) => g.id === 'glb-zocalo-frente');
-    assert.equal(frente.x, 18, 'banda entre las caras interiores de los costados');
-    assert.equal(frente.w, 850 - 2 * 18);
+    assert.equal(frente.x, 0, 'banda cubriendo de costado a costado (convención bandeja)');
+    assert.equal(frente.w, 850);
     const trasero = geoms.find((g) => g.id === 'glb-zocalo-trasero');
-    assert.equal(trasero.w, 850 - 2 * 18);
+    assert.equal(trasero.w, 850);
+    assert.equal(trasero.x, 0);
     const divpar = geoms.find((g) => g.id === 'glb-zocalo-divpar-1');
     assert.ok(divpar, 'división paralela al frente dibujada');
     assert.equal(divpar.x, 18);
@@ -1305,11 +1306,11 @@ describe('IsometricRenderer alineación zócalo único en vista completa', () =>
     const rowEnd = Math.max(...geometries.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
     const frente = geometries.find((g) => g.id === 'glb-zocalo-frente');
     const trasero = geometries.find((g) => g.id === 'glb-zocalo-trasero');
-    // Frente y trasero: mismo origen y mismo ancho, cubriendo la fila
-    // (banda entre las caras interiores de los costados).
-    assert.equal(frente.x, 15);
+    // Frente y trasero: mismo origen y mismo ancho, cubriendo la fila de
+    // costado a costado (convención bandeja: x=0, ancho total).
+    assert.equal(frente.x, 0);
     assert.ok(Math.abs(frente.w - trasero.w) < 1e-6, 'frente y trasero alineados');
-    assert.ok(Math.abs(frente.x + frente.w - (rowEnd - 15)) < 40, `frente cubre la fila de módulos (hasta ${rowEnd})`);
+    assert.ok(Math.abs(frente.x + frente.w - rowEnd) < 40, `frente cubre la fila de módulos (hasta ${rowEnd})`);
     // Costados en los extremos de la fila.
     const der = geometries.find((g) => g.id === 'glb-zocalo-costado-der');
     assert.ok(Math.abs(der.x + der.w - rowEnd) < 40, 'costado derecho en el extremo de la fila');
@@ -1387,15 +1388,16 @@ describe('IsometricRenderer N zócalos y montantes', () => {
     const f1 = frentes.find((g) => g.id === 'glb-zocalo-s1-frente');
     const f2 = frentes.find((g) => g.id === 'glb-zocalo-s2-frente');
     const rowEnd = Math.max(...geoms.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
-    assert.equal(f1.x, 15);
-    assert.ok(Math.abs(f2.x + f2.w - (rowEnd - 15)) < 40, 'la banda S2 cierra en el extremo de la fila');
-    // Entre bandas quedan los dos costados enfrentados (2t) en la unión.
-    assert.ok(Math.abs(f2.x - (f1.x + f1.w) - 30) < 2e-6, 'entre bandas: costados enfrentados (2×15)');
+    assert.equal(f1.x, 0);
+    assert.ok(Math.abs(f2.x + f2.w - rowEnd) < 40, 'la banda S2 cierra en el extremo de la fila');
+    // Entre bandas quedan los dos costados enfrentados (2t) en la unión, y
+    // cada frente cubre hasta su costado (convención bandeja: contiguos).
+    assert.ok(Math.abs(f2.x - (f1.x + f1.w)) < 2e-6, 'frentes contiguos; entre ellos los costados enfrentados (2×15)');
     // 4 costados: extremos y enfrentados en el medio (x=1700).
     const costados = geoms.filter((g) => /glb-zocalo-s\d-costado-(izq|der)/.test(String(g.id)));
     assert.equal(costados.length, 4);
-    // Unión S1–S2: el frente S2 arranca +t desde la cara del costado.
-    const unionX = f2.x - 15;
+    // Unión S1–S2: los costados enfrentados quedan ocultos tras los frentes.
+    const unionX = f2.x;
     const medio = costados.filter((g) => Math.abs(g.x - unionX) < 5 || Math.abs(g.x + g.w - unionX) < 5);
     assert.equal(medio.length, 2, 'dos costados enfrentados en la unión S1–S2');
     // 2 montantes, uno centrado en cada banda (respecto al frente de su banda).
@@ -1415,10 +1417,10 @@ describe('IsometricRenderer N zócalos y montantes', () => {
     const fa = geoms.find((g) => g.id === 'glb-zocalo-frente-a');
     const fb = geoms.find((g) => g.id === 'glb-zocalo-frente-b');
     assert.ok(fa && fb, 'ambos tramos dibujados');
-    assert.equal(fa.x, 15);
+    assert.equal(fa.x, 0);
     assert.ok(Math.abs(fb.x - (fa.x + fa.w)) < 2e-6, 'tramos contiguos en la junta');
     const rowEnd = Math.max(...geoms.filter((g) => /^m\d+-lateral-der$/.test(String(g.id))).map((g) => g.x + g.w));
-    assert.ok(Math.abs(fb.x + fb.w - (rowEnd - 15)) < 40, 'cierra la fila');
+    assert.ok(Math.abs(fb.x + fb.w - rowEnd) < 40, 'cierra la fila');
     // Solo 2 costados (extremos).
     assert.equal(geoms.filter((g) => /glb-zocalo-costado-(izq|der)$/.test(String(g.id))).length, 2);
   });
@@ -1470,7 +1472,7 @@ describe('IsometricRenderer vista Global/Estructura', () => {
     const { geometries, moduleW } = renderer.computeGeometries('estructura', [...mods, ...marco]);
     assert.equal(moduleW, 1700, 'el ancho de la vista es el ancho total del marco');
     const f2 = geometries.find((g) => g.id === 'glb-zocalo-s2-frente');
-    assert.equal(f2.w, 820, 'la banda S2 a su ancho real (850−2e, sin escala)');
+    assert.equal(f2.w, 850, 'la banda S2 cubre su span completo (850, convención bandeja)');
     const der = geometries.find((g) => g.id === 'glb-zocalo-s2-costado-der');
     assert.equal(der.x + der.w, 1700, 'el costado derecho cierra el ancho total');
   });

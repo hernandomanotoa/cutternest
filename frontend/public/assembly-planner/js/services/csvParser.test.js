@@ -486,9 +486,9 @@ describe('parseCSV - zócalo global vs suma de bases', () => {
     `glb-zocalo-s${i + 1}-frente,Zocalo marco S${i + 1} frente,${ancho},100,1,no,#C19A6B,18,"T,B,L,R",estructura,0`
   ).join('\n');
 
-  it('zócalo a marco segmentado: Σ(ancho + 2*espesor) = suma de bases, sin aviso', () => {
-    // Módulo de 600 → dos segmentos de 300: frentes de 300-2*18 = 264.
-    const csv = [...MODULE_CSV, marcoFrentes([['s1', 264], ['s2', 264]])].join('\n');
+  it('zócalo a marco segmentado: Σ frentes = suma de bases, sin aviso', () => {
+    // Módulo de 600 → dos segmentos de 300: frentes de 300 (cubren el span).
+    const csv = [...MODULE_CSV, marcoFrentes([['s1', 300], ['s2', 300]])].join('\n');
     const result = parseCSV(csv);
     assert.equal(result.ok, true, `errores: ${result.errors.join(' | ')}`);
     assert.ok(
@@ -498,7 +498,7 @@ describe('parseCSV - zócalo global vs suma de bases', () => {
   });
 
   it('zócalo a marco desactualizado (segmentos no cubren los módulos): avisa', () => {
-    const csv = [...MODULE_CSV, marcoFrentes([['s1', 214]])].join('\n'); // cubre 250, bases 600
+    const csv = [...MODULE_CSV, marcoFrentes([['s1', 250]])].join('\n'); // cubre 250, bases 600
     const result = parseCSV(csv);
     assert.ok(
       result.warnings.some((w) => w.includes('no coincide con suma de bases')),
@@ -517,11 +517,11 @@ describe('parseCSV - zócalo global vs suma de bases', () => {
 });
 
 describe('parseCSV - zócalo único a marco', () => {
-  it('frente único (glb-zocalo-frente): ancho + 2*espesor = suma de bases, sin aviso', () => {
+  it('frente único (glb-zocalo-frente): ancho = suma de bases, sin aviso', () => {
     const csv = [
       ...MODULE_CSV,
-      'glb-zocalo-frente,Zocalo marco frente,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-trasero,Zocalo marco trasero,564,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-frente,Zocalo marco frente,600,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-trasero,Zocalo marco trasero,600,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
 'glb-zocalo-costado-izq,Lateral zocalo izquierdo,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
 'glb-zocalo-costado-der,Lateral zocalo derecho,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
 'glb-zocalo-divpar-1,Division zocalo paralela frente M1,100,564,1,si,#C19A6B,18,"T,B,L,R",estructura,0',
@@ -536,16 +536,15 @@ describe('parseCSV - zócalo único a marco', () => {
 });
 
 describe('parseCSV - zócalo con empalme (tramos a/b)', () => {
-  it('Σ(ancho + e) de los tramos = suma de bases, sin aviso', () => {
-    // Empalme: dos tramos a/b; cada uno cubre ancho + e (un solo costado).
-    // Tramos de 300 mm (larguero 300-18=282): covered = (282+18)*2 = 600
-    // = suma de bases del módulo de prueba (600 mm).
+  it('Σ tramos = suma de bases, sin aviso', () => {
+    // Empalme: dos tramos a/b que cubren de extremo a junta (convención
+    // bandeja): tramos de 300 mm cada uno, Σ = 600 = suma de bases.
     const csv = [
       ...MODULE_CSV,
-      'glb-zocalo-frente-a,Zocalo marco tramo A frente,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-frente-b,Zocalo marco tramo B frente,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-trasero-a,Zocalo marco tramo A trasero,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
-      'glb-zocalo-trasero-b,Zocalo marco tramo B trasero,282,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-frente-a,Zocalo marco tramo A frente,300,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-frente-b,Zocalo marco tramo B frente,300,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-trasero-a,Zocalo marco tramo A trasero,300,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
+      'glb-zocalo-trasero-b,Zocalo marco tramo B trasero,300,100,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
 'glb-zocalo-costado-izq,Lateral zocalo izquierdo,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
 'glb-zocalo-costado-der,Lateral zocalo derecho,100,564,1,no,#C19A6B,18,"T,B,L,R",estructura,0',
     ].join('\n');

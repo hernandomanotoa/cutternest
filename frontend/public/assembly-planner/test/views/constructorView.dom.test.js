@@ -926,7 +926,7 @@ test('Zócalo estructural: generar marco reemplaza frentes simples y ancla el ap
   // Modo único (default): un solo marco del ancho total de los módulos.
   const frente = pieces.find((p) => p.id === 'glb-zocalo-frente');
   assert.ok(frente, 'marco único generado');
-  assert.equal(frente.ancho, 850 - 2 * 15, 'larguero del ancho total menos 2*espesor');
+  assert.equal(frente.ancho, 850, 'larguero cubre el ancho total (convención bandeja)');
   assert.ok(pieces.some((p) => p.id === 'glb-zocalo-trasero'));
   assert.ok(pieces.some((p) => p.id === 'glb-zocalo-costado-izq'));
   const resumen = container.querySelector('[data-plinth-resumen]')?.textContent || '';
@@ -1057,7 +1057,7 @@ test('B2: módulo nuevo sin frente simple cuando hay marco; el marco se redefine
   assert.equal(pieces.some((p) => p.id === 'm2-zocalo'), false, 'sin frente simple en el módulo nuevo');
   // El zócalo único se auto-redefinió al ancho total (850+850).
   const frente = pieces.find((p) => p.id === 'glb-zocalo-frente');
-  assert.equal(frente.ancho, 1700 - 2 * 15, 'marco único del ancho total de los módulos');
+  assert.equal(frente.ancho, 1700, 'marco único cubriendo el ancho total de los módulos');
   assert.ok(!container.textContent.includes('desactualizado'), 'el marco redefinido está al día');
   view.destroy();
 });

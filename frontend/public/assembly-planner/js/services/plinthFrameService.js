@@ -42,16 +42,14 @@ function frentePiecesSorted(pieces) {
 }
 
 // Layout del marco como bandas [ {pieceId, x0, width} ] derivado de los
-// frentes (ancho + 2*espesor por banda, acumulado en orden). Sobrevive el
-// CSV de las versiones. [] con el patrón de catálogo (sin frente propio).
+// frentes (su ancho ES el ancho total de la banda: cubren de costado a
+// costado). Sobrevive el CSV de las versiones. [] con el patrón de catálogo
+// (sin frente propio).
 export function plinthLayoutFromPieces(pieces) {
   const layout = [];
   let x0 = 0;
   for (const f of frentePiecesSorted(pieces)) {
-    const e = Number(f.espesor) || 15;
-    // Tramo de empalme (`-a/-b`): toca un costado solo en un extremo.
-    const ab = /-[ab]$/.test(String(f.id));
-    const width = (Number(f.ancho) || 0) + (ab ? e : 2 * e);
+    const width = Number(f.ancho) || 0;
     if (width <= 0) continue;
     layout.push({ pieceId: String(f.id), x0, width });
     x0 += width;
@@ -268,7 +266,12 @@ export function symmetricSplit(total, n) {
 //   enfrentados.
 // - Cualquier luz > PLINTH_MONTANTE_LUZ lleva montante(s) interior(es)
 //   vertical(es) entre frente y trasero (refuerzo anti-flecha/racking).
-export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espesor = 18, color = '#C19A6B', drawerModules = [], nZocalos = 1 }) {
+// - Convención de UNIÓN (bandeja): los largueros (frente/trasero) CUBREN a
+//   los costados y montantes — su largo es el ancho TOTAL de la banda — y
+//   los costados/montantes van entre las caras interiores de frente y
+//   trasero (prof − 2·espesor). Es lo que se ve en el render y lo que el
+//   taller espera al armar: los extremos de los costados quedan ocultos.
+export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espesor = 18, color = '#C19A6B', drawerModules = [], nZocalos = 1, conDivpar = true }) {
   const errors = [];
   if (!Array.isArray(moduleWidths) || !moduleWidths.length) errors.push('Se necesita al menos un módulo (moduleWidths)');
   if (!Number.isFinite(profundidad) || profundidad <= 0) errors.push('profundidad inválida');
@@ -321,11 +324,11 @@ export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espeso
   spans.forEach((span, i) => {
     const suf = span.ab ? `-${span.ab}` : '';
     const label = span.ab ? ` tramo ${span.ab.toUpperCase()}` : (n > 1 ? ` S${i + 1}` : '');
-    // Larguero: entre costados (−2e) por banda completa; en el empalme el
-    // tramo interno va del costado/extremo a la junta (−e).
-    const larg = span.ab
-      ? Math.round(span.width - e)
-      : Math.round(span.width - 2 * e);
+    // Larguero: cubre de costado a costado (o hasta la junta de empalme):
+    // su largo ES el ancho total de la banda. Los costados/montantes van
+    // entre sus caras interiores (prof − 2e) y quedan CUBIERTOS en ambos
+    // extremos (convención bandeja).
+    const larg = Math.round(span.width);
     pieces.push(mk(`${span.key}-frente${suf}`, `Zocalo marco${label} frente`, larg));
     pieces.push(mk(`${span.key}-trasero${suf}`, `Zocalo marco${label} trasero`, larg));
     // Costados de cada banda (en el empalme solo los extremos del cajón).
@@ -350,11 +353,15 @@ export function buildPlinthFrame({ moduleWidths, profundidad, altoZocalo, espeso
 
   // Divisiones paralelas al frente bajo módulos de cajón (van entre costados
   // interiores: −2e del módulo; no dependen de la división en zócalos).
-  (drawerModules || []).forEach((m, i) => {
-    const mw = Math.round((Number(m.ancho) || 0) - 2 * e);
-    if (mw <= 0) return;
-    pieces.push(mk(`glb-zocalo-divpar-${i + 1}`, `Division zocalo paralela frente M${m.moduloId}`, mw, true));
-  });
+  // Opcional (conDivpar): apoyan el medio de la base del cajón/zapatera;
+  // algunos talleres las omiten con correderas telescópicas.
+  if (conDivpar) {
+    (drawerModules || []).forEach((m, i) => {
+      const mw = Math.round((Number(m.ancho) || 0) - 2 * e);
+      if (mw <= 0) return;
+      pieces.push(mk(`glb-zocalo-divpar-${i + 1}`, `Division zocalo paralela frente M${m.moduloId}`, mw, true));
+    });
+  }
 
   if (total < Z) {
     warnings.push(`Zócalo (${total} mm) es más angosto que su alto (${Z} mm): posible inestabilidad.`);

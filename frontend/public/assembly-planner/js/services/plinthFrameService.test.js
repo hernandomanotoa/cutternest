@@ -34,7 +34,8 @@ describe('buildPlinthFrame (forma paramétrica)', () => {
       'glb-zocalo-costado-izq', 'glb-zocalo-costado-der',
       'glb-zocalo-montante-1', // luz 1700 > 1000: 1 montante
     ]);
-    assert.equal(r.pieces.find((p) => p.id === 'glb-zocalo-frente').ancho, 1700 - 2 * 18);
+    assert.equal(r.pieces.find((p) => p.id === 'glb-zocalo-frente').ancho, 1700,
+      'frente cubre el ancho total (convención bandeja)');
     const costado = r.pieces.find((p) => p.id === 'glb-zocalo-costado-izq');
     assert.equal(costado.ancho, 600 - 2 * 18, 'costados entre frente y trasero');
     assert.equal(costado.alto, 90);
@@ -53,6 +54,16 @@ describe('buildPlinthFrame (forma paramétrica)', () => {
     assert.equal(divpar.rotate, true);
     assert.match(divpar.nombre, /paralela frente M1/);
     assert.equal(r.pieces.filter((p) => p.id.includes('divpar')).length, 1);
+  });
+
+  it('conDivpar: false omite las divisiones paralelas bajo cajones', () => {
+    const r = buildPlinthFrame({
+      moduleWidths: [850, 450], ...base,
+      drawerModules: [{ moduloId: '1', ancho: 850 }],
+      conDivpar: false,
+    });
+    assert.equal(r.pieces.filter((p) => p.id.includes('divpar')).length, 0);
+    assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente'), 'el resto del marco va igual');
   });
 
   it('avisa cuando el larguero supera el tablero estándar o es inestable', () => {
@@ -207,9 +218,9 @@ describe('N zócalos, montantes y empalme por tablero', () => {
     assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente-a'));
     assert.ok(r.pieces.some((p) => p.id === 'glb-zocalo-frente-b'));
     assert.equal(r.pieces.filter((p) => /-costado-/.test(p.id)).length, 2, 'solo los extremos');
-    // Cada tramo del larguero mide 1700 − e y cabe en el tablero.
+    // Cada tramo del larguero cubre hasta la junta y cabe en el tablero.
     const fa = r.pieces.find((p) => p.id === 'glb-zocalo-frente-a');
-    assert.equal(fa.ancho, 1700 - 15);
+    assert.equal(fa.ancho, 1700, 'el tramo A cubre de extremo a junta (convención bandeja)');
     assert.equal(plinthTotalWidth(r.pieces), 3400);
   });
 
