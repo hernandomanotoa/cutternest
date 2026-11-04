@@ -262,6 +262,12 @@ def generate_layouts_pdf(db: Session, project_id: str) -> str:
         }
         for l in sorted(layouts, key=lambda x: x.board_index)
     ]
+    if not boards:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail="El proyecto no tiene layouts de corte: pulse «Optimizar» primero y vuelva a intentarlo.",
+        )
     return pdf_generator.generate_layouts_pdf(project.name, project.id, boards, "/app/data/exports")
 
 
