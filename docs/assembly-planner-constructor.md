@@ -265,6 +265,17 @@ zapatera y ningún frente se toca. El ajuste ocurre solo al aplicar el marco
 la primera vez (una regeneración no duplica el +30) y `removeStructuralPlinth`
 lo revierte. La constante vive en `plinthFrameService.js`.
 
+### Render del marco (globalGeometry.js)
+
+Los costados y montantes se dibujan **entre las caras interiores de trasero
+y frente**: `d` = ancho codificado de la pieza (prof − 2E, su medida de
+corte) y `y` = espesor — así el hover (w×d×h) coincide con la pieza que se
+corta (p. ej. 15 × 570 × 100 en un módulo de 600 con E 15), no con el spán
+cara a cara del módulo. El patrón de catálogo legacy (sin trasero de cajón)
+conserva el spán completo. Los frentes/traseros van como bandas sobre el
+mapa de módulos (con skew); la divpar es un panel vertical (d = espesor) a
+media profundidad.
+
 ### Modo de frentes (tapajunta vs a ras) y extracción de la caja
 
 - `frontGapMode` (userConfig, default `ras`): select «Frentes» en la toolbar de la vista 3D. Fija `drawerGap` del `IsometricRenderer`: 0 = a ras (el frente termina alineado con los laterales, `[D−E, D]` — default, no sobresale), 15 = tapajunta (cubre la cara frontal del módulo, `[D, D+15]`) y `'interno'` = retranqueado un espesor completo (`[D−2E, D−E]`: el frente queda entre los laterales y desde fuera se ve la cara frontal de los laterales como marco). La conversión a mm la centraliza `effectiveDrawerGap(drawerGap, thickness)` (`drawerGeometry.js`, exportada y reusada por `golaGeometry.js`): `'interno'` → `−thickness` (retranqueo exacto con cualquier espesor 15/18/25). Con gola activa, el canal y las marcas del agarre derivan del mismo `yFace`, así la gola queda automáticamente detrás del plano del frente interno. **La caja/bandeja se retrasan con el modo**: `addDrawer`/`addShoeTray` descuentan el retranqueo (0/E/2E vía `retranqueoFrenteMm`) de la profundidad para conservar la holgura con el fondo (`holguraFondoCajon`, userConfig, default 10 mm — regla de taller; el riel 'catalogo' conserva su regla propia de −25). El render clampa además la caja al espacio real (`maxDepth = yFace − E − holgura` en `buildDrawerBoxGeometries`) y avisa si los datos vienen de otro modo (regenerar con editar módulo). El default lo fija `loadUserConfig` (`frontGapMode: 'ras'`); lo persistido en storage gana. Ojo: `IsometricRenderer` lo aplica con `?? 15` — un `||` convertiría el 0 explícito en 15 (bug histórico); el default del RENDERER sigue siendo 15 (tapajunta) por compat, las vistas le pasan el modo siempre. La vista isométrica lo re-lee en cada `userConfig:changed` (no lo capturen al montar) y el botón de reset lo re-deriva del userConfig en vez de forzar 15. `renderer3D.js` mapea el modo con `_drawerGapOption()` (ras→0, interno→'interno', tapajunta→undefined).

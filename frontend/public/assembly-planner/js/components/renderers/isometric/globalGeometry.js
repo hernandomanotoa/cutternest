@@ -65,8 +65,20 @@ export function buildGlobalGeometries(renderer, globalPieces, moduleW, moduleD, 
 
   const pushSide = (side, x, t, isLeft) => {
     const isFront = renderer.isoFlip ? !isLeft : isLeft;
+    // En el marco real (cajón con frente y trasero) el costado/montante va
+    // ENTRE ambos: arranca en la cara interior del trasero (y = t) y mide su
+    // profundidad REAL de corte (el ancho codificado de la pieza, prof −
+    // 2·espesor) — así el dibujo y el hover coinciden con la pieza que se
+    // corta (p. ej. 570 mm en un módulo de 600 con E 15), en vez de spán de
+    // cara a cara del módulo. El patrón de catálogo legacy (sin trasero)
+    // conserva el comportamiento histórico (cara a cara).
+    const enmarco = bandLayout.length > 0;
+    const dPieza = Number(side.ancho) || 0;
+    const d = enmarco
+      ? (dPieza > 0 && dPieza < moduleD ? dPieza : moduleD - 2 * thickness)
+      : moduleD;
     geometries.push({
-      x, y: 0, z: 0, w: t, d: moduleD, h: plinthH,
+      x, y: enmarco ? t : 0, z: 0, w: t, d, h: plinthH,
       color: side.color || ROLE_COLORS.wood, role: isFront ? 'side_panel_front' : 'side_panel_rear',
       name: side.nombre, id: side.id, opacity: opacoMarco ? 1 : 0.4,
     });

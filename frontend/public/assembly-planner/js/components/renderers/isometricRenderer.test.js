@@ -1239,6 +1239,29 @@ describe('IsometricRenderer zócalo único y divisiones paralelas', () => {
     drawerModules: [{ moduloId: '1', ancho: 850 }],
   }).pieces;
 
+  it('costados y montantes se dibujan con su profundidad real de corte (entre trasero y frente)', () => {
+    // El hover muestra w×d×h de la geometría: debe coincidir con la pieza
+    // que se corta (prof − 2·E), no spán de cara a cara del módulo.
+    const pieces = buildPlinthFrame({
+      moduleWidths: [1400], profundidad: 600, altoZocalo: 100, espesor: 15,
+      drawerModules: [{ moduloId: '1', ancho: 1400 }],
+    }).pieces;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const geoms = renderer._buildGlobalGeometries(pieces, 1400, 600, 2300, 15, true, 100);
+    const costado = geoms.find((g) => g.id === 'glb-zocalo-costado-izq');
+    assert.equal(costado.d, 570, 'profundidad de corte = 600 − 2·15');
+    assert.equal(costado.y, 15, 'arranca en la cara interior del trasero');
+    const montante = geoms.find((g) => g.id === 'glb-zocalo-montante-1');
+    assert.ok(montante, 'con luz 1400 va un montante');
+    assert.equal(montante.d, 570, 'el montante comparte la profundidad de corte del costado');
+    assert.equal(montante.y, 15);
+    // Cierre del cajón: trasero [0..15] + costado [15..585] + frente en 585.
+    const trasero = geoms.find((g) => g.id === 'glb-zocalo-trasero');
+    assert.equal(trasero.y, 0);
+    const frente = geoms.find((g) => g.id === 'glb-zocalo-frente');
+    assert.ok(Math.abs(frente.y - (600 - 15)) < 1e-9, 'frente en la cara interior opuesta');
+  });
+
   it('dibuja el marco único a ancho total con su división a mitad de profundidad', () => {
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
     const geoms = renderer._buildGlobalGeometries(unicoPieces(), 850, 600, 2300, 18, true, 90);
