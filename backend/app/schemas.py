@@ -124,6 +124,9 @@ class PlacementRead(BaseModel):
     rotado: bool
     en_sobrante: bool = False
     offcut_id: Optional[str] = None
+    # Cantos (T,B,L,R) de la pieza, para marcar las aristas que llevan
+    # tapacantos en los layouts y el cut list.
+    cantos: str = ""
     # Sentido de veta sobre el tablero: 'horizontal'/'vertical' para piezas
     # con rotate=False (paralela al eje de veta del tablero), 'libre' para
     # el resto.

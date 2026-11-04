@@ -67,3 +67,30 @@ def test_png_tiene_panel_leyenda_y_etiquetas():
     img = svg_generator.render_board_png(_board(), width=900)
     ancho_tablero = 900
     assert img.width > ancho_tablero + 100, "el PNG debe crecer con el panel de leyenda"
+
+
+def test_aristas_canteadas_mapeo_rotacion():
+    from app.svg_generator import aristas_canteadas
+
+    # Sin rotación: identidad.
+    assert aristas_canteadas("T,B,L,R", False) == {"T", "B", "L", "R"}
+    assert aristas_canteadas("L", False) == {"L"}
+    # Rotada 90°: cabezas T/B en los lados cortos (L/R del plano) y los
+    # longitudinales L/R en los largos (T/B del plano).
+    assert aristas_canteadas("L", True) == {"T"}
+    assert aristas_canteadas("T,B", True) == {"L", "R"}
+    # Vacío / basura.
+    assert aristas_canteadas("", False) == set()
+    assert aristas_canteadas("X,Y", False) == set()
+
+
+def test_svg_marca_aristas_canteadas():
+    board = {
+        "ancho": 2100, "alto": 2440,
+        "placements": [
+            {"id": "p1", "nombre": "Frente", "x": 10, "y": 10, "w": 644, "h": 227,
+             "color": "#8B5A2B", "cantos": "T,B,L,R", "rotado": False},
+        ],
+    }
+    svg = svg_generator.generate_svg(board)
+    assert svg.count(COLOR_CANTO_ESPERADO := "#15803d") >= 4, "una línea por arista canteadas"

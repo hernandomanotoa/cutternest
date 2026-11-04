@@ -12,6 +12,26 @@ def _ancho_texto_estimado(texto: str, font_size: float) -> float:
     return max(1, len(texto)) * font_size * 0.6
 
 
+# ── Cantos en el plano del tablero ─────────────────────────────────────────
+# Las letras (T,B,L,R) describen la pieza en SU orientación; sobre el
+# tablero puede estar rotada 90°. Convención para piezas rotadas: el lado
+# largo quedó a lo largo del tablero (huella pre-orientada), así las cabezas
+# T/B caen en los lados cortos del rectángulo y los longitudinales L/R en
+# los largos.
+_LADOS_ROTADO = {"T": "L", "B": "R", "L": "T", "R": "B"}
+COLOR_CANTO = "#15803d"
+
+
+def aristas_canteadas(cantos: str, rotado: bool) -> set:
+    """Lados del rectángulo COLOCADO en el tablero que llevan tapacantos
+    ('T','B','L','R' del plano)."""
+    lados = {l.strip().upper() for l in str(cantos or "").split(",") if l.strip()}
+    lados &= {"T", "B", "L", "R"}
+    if rotado:
+        return {_LADOS_ROTADO[l] for l in lados}
+    return lados
+
+
 def _truncar_a_medida(texto: str, medir, max_ancho: float, font_size: float) -> str | None:
     """Devuelve el texto truncado con '…' para que quepa en max_ancho, o None
     si ni siquiera un carácter cabe."""
@@ -65,14 +85,18 @@ def _etiqueta_adaptativa(
 
 def _leyenda_lineas(board: Dict[str, Any]) -> list[str]:
     """Líneas de la leyenda lateral (una por pieza, orden de lectura) con la
-    descripción completa de las piezas pequeñas."""
+    descripción completa de las piezas pequeñas, incluidos sus cantos."""
     ordenadas = sorted(board["placements"], key=lambda p: (round(float(p["y"]), 1), round(float(p["x"]), 1)))
     lineas = []
     for p in ordenadas:
         pid = str(p.get("id", ""))
         nombre = str(p.get("nombre", ""))
         w, h = float(p["w"]), float(p["h"])
-        lineas.append(f"{pid} · {nombre} · {w:.0f}x{h:.0f}")
+        cantos = str(p.get("cantos", "") or "")
+        linea = f"{pid} · {nombre} · {w:.0f}x{h:.0f}"
+        if cantos:
+            linea += f" · cantos {cantos}"
+        lineas.append(linea)
     return lineas
 
 
@@ -94,6 +118,16 @@ def generate_svg(board: Dict[str, Any], board_index: int = 0) -> str:
         x, y, w, h = float(p["x"]), float(p["y"]), float(p["w"]), float(p["h"])
         color = p.get("color", "#3B82F6")
         dwg.add(dwg.rect(insert=(x, y), size=(w, h), fill=color, stroke="#1f2937", stroke_width=0.3, opacity=0.85))
+        # Aristas canteadas: borde verde sobre el lado que lleva tapacantos.
+        for lado in sorted(aristas_canteadas(p.get("cantos", ""), bool(p.get("rotado")))):
+            if lado == "T":
+                dwg.add(dwg.line(start=(x, y + 0.6), end=(x + w, y + 0.6), stroke=COLOR_CANTO, stroke_width=1.0))
+            elif lado == "B":
+                dwg.add(dwg.line(start=(x, y + h - 0.6), end=(x + w, y + h - 0.6), stroke=COLOR_CANTO, stroke_width=1.0))
+            elif lado == "L":
+                dwg.add(dwg.line(start=(x + 0.6, y), end=(x + 0.6, y + h), stroke=COLOR_CANTO, stroke_width=1.0))
+            else:
+                dwg.add(dwg.line(start=(x + w - 0.6, y), end=(x + w - 0.6, y + h), stroke=COLOR_CANTO, stroke_width=1.0))
         # Etiqueta interna adaptativa (horizontal, o rotada en piezas
         # angostas y altas); la descripción completa vive en la leyenda.
         etiqueta, rotada = _etiqueta_adaptativa(
@@ -115,7 +149,8 @@ def generate_svg(board: Dict[str, Any], board_index: int = 0) -> str:
     # Leyenda lateral.
     lx = width + 6.0
     dwg.add(dwg.text("LEYENDA", insert=(lx, 8.0), font_size=3.0, fill="#111827", font_weight="bold"))
-    ly = 14.0
+    dwg.add(dwg.text("Borde verde = canto PVC", insert=(lx, 11.5), font_size=1.8, fill=COLOR_CANTO))
+    ly = 16.0
     for linea in lineas:
         visible = _truncar_a_medida(linea, medir_estimado, ancho_leyenda - 4.0, 2.2) or ""
         dwg.add(dwg.text(visible, insert=(lx, ly), font_size=2.2, fill="#111827"))
@@ -173,6 +208,17 @@ def render_board_png(board: Dict[str, Any], width: int = 1200, height: Optional[
         color = p.get("color", "#3B82F6") or "#3B82F6"
         stroke_width = max(1, int(0.3 * scale))
         draw.rectangle([px, py, px + pw, py + ph], fill=color, outline="#1f2937", width=stroke_width)
+        # Aristas canteadas: borde verde sobre el lado que lleva tapacantos.
+        inset = max(2, stroke_width + 1)
+        for lado in sorted(aristas_canteadas(p.get("cantos", ""), bool(p.get("rotado")))):
+            if lado == "T":
+                draw.line([px + inset, py + inset, px + pw - inset, py + inset], fill=COLOR_CANTO, width=4)
+            elif lado == "B":
+                draw.line([px + inset, py + ph - inset, px + pw - inset, py + ph - inset], fill=COLOR_CANTO, width=4)
+            elif lado == "L":
+                draw.line([px + inset, py + inset, px + inset, py + ph - inset], fill=COLOR_CANTO, width=4)
+            else:
+                draw.line([px + pw - inset, py + inset, px + pw - inset, py + ph - inset], fill=COLOR_CANTO, width=4)
 
         # Etiqueta interna adaptativa con medición REAL del texto.
         font_size = max(8, min(24, int(min(pw, ph) * 0.18)))
@@ -207,7 +253,8 @@ def render_board_png(board: Dict[str, Any], width: int = 1200, height: Optional[
     fuente_titulo = _load_font(16)
     fuente_linea = _load_font(13)
     draw.text((lx, 12), "LEYENDA", fill="#111827", font=fuente_titulo)
-    ly = 40
+    draw.text((lx, 34), "Borde verde = canto PVC", fill=COLOR_CANTO, font=_load_font(11))
+    ly = 56
     for linea in lineas:
         # Truncar con medición real al ancho del panel.
         visible = linea

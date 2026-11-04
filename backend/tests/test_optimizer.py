@@ -500,3 +500,22 @@ def test_guillotina_prioridad_corte_alto_columnas():
         )
         _assert_no_overlaps(r["tableros"][0])
         _assert_cortes_completos(_rects(r["tableros"][0]))
+
+
+def test_placements_llevan_cantos():
+    """Los placements propagan los cantos de la pieza para marcar las
+    aristas con tapacantos en los layouts y el cut list."""
+    pieces = [
+        {"id": "frente", "nombre": "Frente cajon", "ancho": 644, "alto": 227,
+         "cantidad": 1, "rotate": False, "color": "#8B5A2B", "espesor": 15, "cantos": "T,B,L,R"},
+        {"id": "lat", "nombre": "Lateral izquierdo", "ancho": 600, "alto": 2400,
+         "cantidad": 1, "rotate": False, "color": "#C19A6B", "espesor": 15, "cantos": "L"},
+    ]
+    result = optimizer_service.optimize_cuts(
+        board_width_mm=2100, board_height_mm=2440, pieces=pieces,
+        kerf_mm=4, margin_mm=10, eje_veta="alto",
+    )
+    placements = _placements_of(result)
+    por_id = {p["id"]: p for p in placements}
+    assert por_id["frente"]["cantos"] == "T,B,L,R"
+    assert por_id["lat"]["cantos"] == "L"

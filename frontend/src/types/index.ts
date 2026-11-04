@@ -52,6 +52,8 @@ export interface Placement {
   color: string;
   espesor: number;
   rotado: boolean;
+  /** Cantos de la pieza (T,B,L,R) para marcar aristas con tapacantos. */
+  cantos?: string;
   /** Sentido de veta sobre el tablero: 'horizontal' | 'vertical' | 'libre'. */
   veta?: string;
 }

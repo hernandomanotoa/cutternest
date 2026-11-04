@@ -11,6 +11,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 
+from app.svg_generator import aristas_canteadas
+
 
 def _quote_pdf_path(exports_dir: str, quote_id: str) -> str:
     return os.path.join(exports_dir, f"cotizacion_{quote_id}.pdf")
@@ -88,13 +90,13 @@ def generate_cutlist_pdf(project_name: str, boards: List[Dict[str, Any]], export
     cut_number = 1
     for board in boards:
         story.append(Paragraph(f"Tablero {board['board_index'] + 1} - {board['ancho']:.1f}x{board['alto']:.1f} mm", styles["Heading3"]))
-        data = [["N", "Dimension (mm)", "Pieza", "Angulo"]]
+        data = [["N", "Dimension (mm)", "Pieza", "Cantos", "Angulo"]]
         for p in board["placements"]:
             dimension = f"{p['w']:.1f} x {p['h']:.1f}"
             angle = "90" if p.get("rotado") else "0"
-            data.append([str(cut_number), dimension, p["nombre"], angle])
+            data.append([str(cut_number), dimension, p["nombre"], p.get("cantos", "") or "-", angle])
             cut_number += 1
-        table = Table(data, colWidths=[15 * mm, 40 * mm, 80 * mm, 20 * mm])
+        table = Table(data, colWidths=[15 * mm, 40 * mm, 70 * mm, 25 * mm, 20 * mm])
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
@@ -272,6 +274,20 @@ def generate_layouts_pdf(
             c.setStrokeColor(colors.HexColor("#1f2937"))
             c.setLineWidth(0.4)
             c.rect(x, y, w, h, stroke=1, fill=1)
+            # Aristas canteadas: borde verde sobre el lado que lleva tapacantos
+            # (T/B del plano = alto/bajo del PDF; el plano mira el tablero con
+            # Y hacia abajo y el PDF con Y hacia arriba).
+            c.setStrokeColor(colors.HexColor("#15803d"))
+            c.setLineWidth(1.6)
+            for lado in sorted(aristas_canteadas(p.get("cantos", ""), bool(p.get("rotado")))):
+                if lado == "T":
+                    c.line(x, y + h - 1.2, x + w, y + h - 1.2)
+                elif lado == "B":
+                    c.line(x, y + 1.2, x + w, y + 1.2)
+                elif lado == "L":
+                    c.line(x + 1.2, y, x + 1.2, y + h)
+                else:
+                    c.line(x + w - 1.2, y, x + w - 1.2, y + h)
 
             nombre = str(p.get("nombre", ""))
             pid = str(p.get("id", ""))
@@ -330,13 +346,19 @@ def generate_layouts_pdf(
         c.setFont("Helvetica-Bold", 10)
         c.setFillColor(textoOscuro)
         c.drawString(lx, oy + tab_h - 12, "LEYENDA")
+        c.setFont("Helvetica", 7)
+        c.setFillColor(colors.HexColor("#15803d"))
+        c.drawString(lx, oy + tab_h - 21, "Borde verde = canto PVC")
+        c.setFillColor(textoOscuro)
         ordenadas = sorted(board["placements"],
                            key=lambda p: (round(float(p["y"]), 1), round(float(p["x"]), 1)))
-        ly = oy + tab_h - 24
+        ly = oy + tab_h - 33
         c.setFont("Helvetica", 6.5)
         for p in ordenadas:
             linea = (f"{p.get('id', '')} · {p.get('nombre', '')} · "
                      f"{float(p['w']):.0f}x{float(p['h']):.0f}")
+            if p.get("cantos"):
+                linea += f" · cantos {p['cantos']}"
             visible = truncar(linea, "Helvetica", 6.5, ancho_leyenda)
             if ly < margen:
                 c.drawString(lx, ly, "… (ver cut list para el resto)")

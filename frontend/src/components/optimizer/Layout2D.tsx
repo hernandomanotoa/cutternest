@@ -28,6 +28,18 @@ function strokeColor(tone: string): string {
   return 'hsl(var(--danger))'
 }
 
+// Aristas del rectángulo colocado que llevan tapacantos. Las letras
+// describen la pieza en su orientación; rotada 90°, las cabezas T/B caen
+// en los lados cortos del rectángulo y los longitudinales L/R en los largos.
+const LADOS_ROTADO: Record<string, 'T' | 'B' | 'L' | 'R'> = { T: 'L', B: 'R', L: 'T', R: 'B' }
+const COLOR_CANTO = '#15803d'
+
+function aristasCanteadas(p: Placement): Array<'T' | 'B' | 'L' | 'R'> {
+  const letras = (p.cantos || '').split(',').map((s) => s.trim().toUpperCase()).filter((l) => 'TBLR'.includes(l))
+  const unicos = [...new Set(letras)] as Array<'T' | 'B' | 'L' | 'R'>
+  return p.rotado ? unicos.map((l) => LADOS_ROTADO[l]) : unicos
+}
+
 export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
   const width = board.ancho * SCALE
   const height = board.alto * SCALE
@@ -148,6 +160,7 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
             >
               <title>
                 {p.nombre} · {p.w.toFixed(1)}×{p.h.toFixed(1)} mm{p.rotado ? ' · rotada 90°' : ''}
+                {p.cantos ? ` · cantos: ${p.cantos}` : ''}
               </title>
               <rect
                 x={x}
@@ -160,6 +173,19 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
                 strokeWidth={strokeWidth}
                 style={{ transition: 'all 150ms ease' }}
               />
+              <g pointerEvents='none'>
+                {aristasCanteadas(p).map((lado) =>
+                  lado === 'T' ? (
+                    <line key='T' x1={x} y1={y + 1.2} x2={x + w} y2={y + 1.2} stroke={COLOR_CANTO} strokeWidth={1.6} />
+                  ) : lado === 'B' ? (
+                    <line key='B' x1={x} y1={y + h - 1.2} x2={x + w} y2={y + h - 1.2} stroke={COLOR_CANTO} strokeWidth={1.6} />
+                  ) : lado === 'L' ? (
+                    <line key='L' x1={x + 1.2} y1={y} x2={x + 1.2} y2={y + h} stroke={COLOR_CANTO} strokeWidth={1.6} />
+                  ) : (
+                    <line key='R' x1={x + w - 1.2} y1={y} x2={x + w - 1.2} y2={y + h} stroke={COLOR_CANTO} strokeWidth={1.6} />
+                  )
+                )}
+              </g>
               {etiqueta && (
                 <g
                   transform={etiquetaRotada ? `rotate(90, ${cx}, ${cy})` : undefined}
@@ -209,6 +235,12 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
             <>
               <span className='mx-2 text-muted-foreground'>·</span>
               <span className='text-primary'>Rotada 90°</span>
+            </>
+          )}
+          {selectedPlacement.cantos && (
+            <>
+              <span className='mx-2 text-muted-foreground'>·</span>
+              <span style={{ color: COLOR_CANTO }}>Cantos: {selectedPlacement.cantos}</span>
             </>
           )}
         </div>

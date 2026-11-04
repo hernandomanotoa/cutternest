@@ -187,6 +187,7 @@ def _pack_phase(
                 "rotado": abs(rect.width - (ow + kerf_mm)) > 1e-6,
                 "en_sobrante": not is_new_board,
                 "offcut_id": bid_to_offcut_id.get(bid.split("__", 1)[1]) if not is_new_board else None,
+                "cantos": original.get("cantos", "") if original else "",
                 "veta": original.get("__veta__", "libre") if original else "libre",
             })
     return bins
@@ -438,6 +439,7 @@ def _pack_guillotine_phase(
                 "rotado": abs(pw - (item["ow"] + kerf_mm)) > 1e-6,
                 "en_sobrante": not is_new,
                 "offcut_id": bid_to_offcut_id.get(bid.split("__", 1)[1]) if not is_new else None,
+                "cantos": original.get("cantos", ""),
                 "veta": original.get("__veta__", "libre"),
             })
         out[bid] = {
