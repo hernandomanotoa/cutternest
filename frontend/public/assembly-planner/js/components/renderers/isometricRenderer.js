@@ -27,6 +27,7 @@ import { getModuleDepth, inferThickness } from '../../services/isoGeometryServic
 import { detectFamily, inferRole } from '../../services/classifierService.js';
 import { applyExplode } from '../../services/isoGeometryService.js';
 import { isGlobalPiece, getModuleLabel, ALL_MODULE_ID } from '../../services/moduleService.js';
+import { hasPlinthFrame } from '../../services/plinthFrameService.js';
 import { aperturaEfectivaGlobal, applyAperturas } from './isometric/apertures.js';
 import { sortByDepth } from './isometric/depthSort.js';
 import {
@@ -111,6 +112,11 @@ export class IsometricRenderer {
     // llegar al suelo. Sin laterales se conserva el patín retranqueado
     // clásico (frente solo, dibujado bajo el suelo) y todo queda como antes.
     const zocaloDrawerHeight = globalPieces.some((p) => inferRole(p) === 'plinth_side') ? zocaloHeight : 0;
+    // Marco estructural propio (frentes `glb-zocalo-*-frente`, bandeja del
+    // Constructor): convención de casco — los laterales llevan SU alto del
+    // CSV (piso a tapa, marco dentro) en vez del alto derivado del
+    // zócalo-cajón de catálogo.
+    const marcoFrame = hasPlinthFrame(globalPieces);
     const isGlobalModule = String(moduleId).toLowerCase() === 'estructura' || String(moduleId).toLowerCase() === 'global';
     const target = String(moduleId).trim();
 
@@ -190,7 +196,7 @@ export class IsometricRenderer {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
         const subGeometries = this._buildModuleGeometries(
-          group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight
+          group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame
         );
         const useProjection = this.moduleGapMode === 'projected';
         const bounds = this._computeModuleBounds(subGeometries, useProjection);
@@ -212,7 +218,7 @@ export class IsometricRenderer {
         geometries.push(...globalGeoms);
       }
     } else {
-      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight));
+      geometries.push(...this._buildModuleGeometries(allPieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame));
       if (globalPieces.length) {
         geometries.push(...this._buildGlobalGeometries(globalPieces, moduleW, moduleD, moduleH, thickness, false, zocaloHeight));
       }
@@ -285,8 +291,8 @@ export class IsometricRenderer {
   // GEOMETRÍA 3D (delegan en los módulos de ./isometric/)
   // ═══════════════════════════════════════════════════════════
 
-  _buildModuleGeometries(pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0, zocaloDrawerHeight = 0) {
-    return buildModuleGeometries(this, pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight);
+  _buildModuleGeometries(pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0, zocaloDrawerHeight = 0, marcoFrame = false) {
+    return buildModuleGeometries(this, pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame);
   }
 
   _buildFrontPanelGeometries(panels, moduleW, moduleD, moduleH, thickness, family, bottomPanelOffset = 0, topPanelOffset = null, allRoles = []) {

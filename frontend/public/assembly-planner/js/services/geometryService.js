@@ -42,6 +42,13 @@ export function getPieceDims(piece, role, thickness = DEFAULT_THICKNESS, family 
     return { w, h: sAlto };
   }
 
+  if (role === 'brace') {
+    // Refuerzo bajo repisa: franja VERTICAL vista de frente (ancho = luz,
+    // alto = caída del refuerzo). El alto del CSV es su altura, no su
+    // profundidad.
+    return { w, h: sAlto };
+  }
+
   if (role === 'seat_panel') {
     return { w, h: espesor };
   }

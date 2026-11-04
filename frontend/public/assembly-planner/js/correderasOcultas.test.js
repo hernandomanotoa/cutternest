@@ -92,10 +92,10 @@ describe('ejemplo cajonera con correderas ocultas', () => {
     assert.equal(der.x, x + w - 16 - 5, 'el lateral derecho se retranquea 5 mm');
     const base = box.find((b) => b.role === 'drawer_bottom');
     assert.ok(base, 'falta la base del cajón en la caja');
-    // Máximo interior = ancho del frente − 42 = 526; la base real (528, cortada
-    // a vano 570 − 42) se clampa quedando 2 mm más estrecha que la pieza real
-    // porque el frente cubre vano − 2.
-    assert.equal(base.w, 526, 'base clampada a ancho del frente − 42 mm (deducción oculta)');
+    // La base se dibuja con SU medida real del CSV (528 = vano 570 − 42);
+    // el hover debe coincidir con la fila del CSV, no con un clamp del
+    // modelo (el máximo interior 526 = frente − 42 solo es fallback).
+    assert.equal(base.w, 528, 'base con su ancho real de la pieza (modo catálogo oculta)');
     assert.ok(Math.abs(izq.z - (50 + 16 - 12.7)) < 1e-9, 'rebajo inferior: la caja cuelga 12,7 mm bajo el vano');
   });
 

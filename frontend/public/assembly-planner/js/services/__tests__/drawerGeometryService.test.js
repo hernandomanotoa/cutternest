@@ -103,19 +103,19 @@ describe('buildDrawerBoxGeometries', () => {
       assert.equal(geo.name, geo.id.includes('izq') ? 'Lateral cajon 1 izq' : 'Lateral cajon 1 der');
     }
 
-    // Máximo interior con holgura telescópica: 400 − 2·(15+12,7) = 344,6.
-    // La base real (370) se clampa a ese vano interior.
+    // La base se dibuja con su ancho REAL del CSV (370), centrada en el vano
+    // del frente: la pieza manda sobre el cálculo (auditoría 3D vs CSV).
     const base = box.find((g) => g.id === 'm1-cajon-base');
     assert.equal(base.role, 'drawer_bottom');
-    assert.ok(Math.abs(base.w - 344.6) < 1e-9, 'base real clampada al máximo interior (vano − 2·(esp+holgura))');
-    assert.ok(Math.abs(base.x - 127.7) < 1e-9, 'centrada en el vano del frente');
+    assert.equal(base.w, 370, 'ancho real de la pieza (ya no se clampa al interior)');
+    assert.equal(base.x, 115, 'centrada en el vano del frente (100 + (400−370)/2)');
     assert.equal(base.y, 35, 'confinada: de la cara interior del fondo a la cara interior de la cara (yFace − espLat − profBase)');
     assert.equal(base.d, 450, 'profundidad real de la base (lateral − 2×espLat)');
     assert.equal(base.h, 15, 'espesor real de la base');
 
     const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
     assert.equal(fondo.role, 'drawer_back');
-    assert.ok(Math.abs(fondo.w - 344.6) < 1e-9);
+    assert.equal(fondo.w, 370, 'ancho real de la pieza (ya no se clampa al interior)');
     assert.equal(fondo.d, 15, 'espesor real del fondo');
     assert.equal(fondo.y, 20, 'trasera de la caja, contra el fondo del cajón');
     // Fondo ESTRUCTURAL perimetral: interno a los laterales y A PISO (el
@@ -143,8 +143,7 @@ describe('buildDrawerBoxGeometries', () => {
     assert.equal(cara.x, 127.7, 'cara interior del lateral izq (latX[0] + espLat)');
     assert.equal(cara.y, 485, 'yFace − espCara (500−15)');
     assert.equal(cara.z, 65);
-    assert.ok(Math.abs(cara.w - 344.6) < 1e-9, 'ancho real clampado al interior entre laterales');
-    assert.ok(Math.abs(cara.x + cara.w - 472.3) < 1e-9, 'cara termina exactamente en la cara interior del lateral der');
+    assert.equal(cara.w, 370, 'ancho real de la pieza (ya no se clampa al interior)');
     assert.equal(cara.d, 15, 'espesor real de la cara (en profundidad)');
     assert.equal(cara.h, 170, 'mismo alto que los laterales');
     assert.equal(cara.real, true);
@@ -180,17 +179,17 @@ describe('buildDrawerBoxGeometries', () => {
     assert.equal(izq.z, 52.3, 'z = z + espBase − bottomClearance (50 + 15 − 12,7)');
     assert.equal(izq.h, 170, 'alto real 170 ≤ vano − 23 (177), sin cap');
 
-    // Máximo interior oculta: 400 − 42 = 358 (deducción de catálogo). La base
-    // real (370) se clampa a ese interior.
+    // La base se dibuja con su ancho REAL (370), centrada en el vano; con la
+    // oculta la deducción de catálogo solo posiciona los laterales.
     const base = box.find((g) => g.id === 'm1-cajon-base');
-    assert.equal(base.w, 358, 'base clampada a vano − 42 (deducción interior oculta)');
-    assert.equal(base.x, 121);
+    assert.equal(base.w, 370, 'ancho real de la pieza (ya no se clampa a vano − 42)');
+    assert.equal(base.x, 115);
 
     // La cara comparte el anclaje del lateral izquierdo y va al frente de la caja.
     const cara = box.find((g) => g.id === 'm1-cajon-cara');
     assert.equal(cara.x, 121, 'cara interior del lateral izq (106 + espLat)');
     assert.equal(cara.y, 485, 'yFace − espCara (500−15)');
-    assert.equal(cara.w, 358, 'cara clampada al interior entre laterales');
+    assert.equal(cara.w, 370, 'ancho real de la pieza (ya no se clampa)');
     assert.equal(cara.h, 170);
   });
 
@@ -284,11 +283,11 @@ describe('divisor interior de cajón (drawer_divider)', () => {
     assert.ok(div, 'falta la geometría del divisor');
     assert.equal(div.role, 'drawer_divider');
     const fondo = box.find((g) => g.id === FONDO.id);
-    const base = box.find((g) => g.id === BASE.id);
     const cara = box.find((g) => g.id === CARA.id);
-    // Mismo plano que el fondo (ancho en x, espesor en y), apoyado sobre la base.
-    assert.equal(div.z, base.z + base.h);
-    assert.equal(div.w, fondo.w);
+    // A piso de la caja (zBox), como la cara y el fondo: la pieza real mide
+    // su alto completo (el CSV manda sobre el cálculo de apoyo).
+    assert.equal(div.z, 65, 'a piso de la caja (zBox), con la base apoyada contra ella');
+    assert.equal(div.w, 370, 'ancho real de la pieza (ya no se clampa al interior)');
     assert.equal(div.d, DIVISOR.espesor);
     // Entre la cara (frente) y el fondo, sin tocarlos.
     assert.ok(div.y > fondo.y + fondo.d, 'el divisor debe quedar detrás del fondo');
@@ -341,12 +340,12 @@ describe('fondo ranurado (fondoMetodo: ranurado)', () => {
     assert.ok(fondo.x >= 112.7, 'anclado dentro del vano del frente');
   });
 
-  it('capa el fondo a la ranura si la pieza excede el hueco disponible', () => {
+  it('dibuja el fondo con su alto real aunque exceda el hueco de la ranura (el CSV manda)', () => {
     const fondoAlto = { ...FONDO_RANURADO, alto: 170 };
     const parts = matchDrawerBoxParts(FACE, [LAT_IZQ, LAT_DER, BASE, fondoAlto, CARA]);
     const box = buildDrawerBoxGeometries({ parts, ...PLACE, fondoMetodo: 'ranurado' });
     const fondo = box.find((g) => g.id === 'm1-cajon-fondo');
-    assert.equal(fondo.h, 158, 'capado a latAlto − 2·ranura: no puede asomar sobre la ranura');
+    assert.equal(fondo.h, 170, 'alto real de la pieza: el CSV manda sobre el cálculo de la ranura');
     assert.equal(fondo.z, 71);
   });
 });

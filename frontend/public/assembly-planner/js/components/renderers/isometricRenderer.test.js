@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { IsometricRenderer, sortByDepth } from './isometricRenderer.js';
 import { buildPlinthFrame } from '../../services/plinthFrameService.js';
-import { createModule, addDrawer, addShoeTray } from '../../services/closetBuilderService.js';
+import { createModule, addDrawer, addShoeTray, addShelf, addZocalo, addDivider, addHangerRail } from '../../services/closetBuilderService.js';
+import { applyGola } from '../../services/golaService.js';
 
 function parsePolygons(svg) {
   const regex = /<polygon[^>]*>/g;
@@ -1484,5 +1485,78 @@ describe('IsometricRenderer vista Global/Estructura', () => {
     assert.equal(f2.w, 850, 'la banda S2 cubre su span completo (850, convención bandeja)');
     const der = geometries.find((g) => g.id === 'glb-zocalo-s2-costado-der');
     assert.equal(der.x + der.w, 1700, 'el costado derecho cierra el ancho total');
+  });
+});
+
+
+describe('auditoría 3D vs CSV: cada pieza respeta su ancho×alto×espesor', () => {
+  // Convención: el CSV describe la pieza COMO ESTÁ en el mueble
+  // (orientación de mueble). El 3D debe dibujarla con esas mismas
+  // dimensiones asignadas a los ejes según su tipo:
+  //   horizontal (repisa/tapa/base de caja): w=ancho, d=alto, h=espesor
+  //   vertical de frente (frente/fondo/cara/división): w=ancho, d=espesor, h=alto
+  //   vertical de costado (laterales de módulo y de caja, costados del
+  //   marco): w=espesor, d=ancho, h=alto
+  const E = 15;
+  const casco = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: E, modulo: '1' }).pieces;
+  const cajon = addDrawer('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }).pieces;
+  const cajon2 = addDrawer('1', 2, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 }).pieces;
+  const zap = addShoeTray('1', 3, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, conFrente: true }).pieces;
+  const repisa = addShelf('1', { anchoUtil: 820, profReal: 585, index: 1 }).pieces;
+  const barra = addHangerRail('1', { anchoUtil: 820, index: 1 }).pieces;
+  const zocalo = addZocalo('1', { ancho: 850, alto: 150, espesor: E }).pieces;
+  const divisor = addDivider('1', { altoUtil: 2000, espesor: E, index: 1 }).pieces;
+  const marco = buildPlinthFrame({ moduleWidths: [850], profundidad: 600, altoZocalo: 100, espesor: E }).pieces;
+
+  function esperado(p) {
+    const id = String(p.id);
+    const A = Number(p.ancho), H = Number(p.alto), e = Number(p.espesor);
+    if (/m\d+-base$/.test(id) || /m\d+-tapa$/.test(id)) return { w: A, d: H, h: e };
+    if (/m\d+-lateral-(izq|der)$/.test(id)) return { w: e, d: A, h: H };
+    if (/m\d+-fondo$/.test(id)) return { w: A, d: e, h: H };
+    if (/m\d+-zocalo$/.test(id)) return { w: A, d: e, h: H };
+    if (/repisa-\d+$/.test(id) && !/refuerzo/.test(id)) return { w: A, d: H, h: e };
+    if (/refuerzo-repisa/.test(id)) return { w: A, d: e, h: H };
+    if (/barra/.test(id)) return { w: A, d: H, h: H };
+    if (/divisor-\d+$/.test(id)) return { w: e, h: H }; // d derivada (span completo)
+    if (/-frente$/.test(id)) return { w: A, d: e, h: H };
+    if (/-lateral-(izq|der)$/.test(id)) return { w: e, d: A, h: H };
+    if (/-fondo$/.test(id) || /-cara$/.test(id)) return { w: A, d: e, h: H };
+    if (/-base$/.test(id)) return { w: A, d: H, h: e };
+    if (/-division$/.test(id)) return { w: A, d: e, h: H };
+    if (/-gola-c\d+-fondo$/.test(id)) return { w: A, d: e, h: H };
+    if (/-gola-c\d+-ala-(inf|sup)$/.test(id)) return { w: A, d: H, h: e };
+    if (/glb-zocalo(-s\d+)?-frente/.test(id) || /glb-zocalo(-s\d+)?-trasero/.test(id)) return { w: A, d: e, h: H };
+    if (/glb-zocalo.*-(costado|montante)/.test(id)) return { w: e, d: A, h: H };
+    return null; // sin regla: no se audita
+  }
+
+  it('cada pieza dibujada coincide con su fila del CSV', () => {
+    let base = [...casco, ...cajon, ...cajon2, ...zap, ...repisa, ...barra, ...zocalo, ...divisor];
+    // Anclar frentes con pos_z (lo que hace addContentToModule en la app):
+    // zapatera fija abajo y dos cajones móviles arriba.
+    const ordenFrentes = { 'm1zapatera3-frente': 20, 'm1cajon1-frente': 240, 'm1cajon2-frente': 460 };
+    base = base.map((p) => (
+      ordenFrentes[p.id] != null ? { ...p, pos_z: ordenFrentes[p.id] } : p
+    ));
+    const conGola = applyGola(base, '1', {});
+    assert.ok(conGola.ok, conGola.errors?.join('; '));
+    base = conGola.pieces;
+    const renderer = new IsometricRenderer({ innerHTML: '' }, {});
+    const { geometries } = renderer.computeGeometries('all', [...base, ...marco]);
+
+    const fallos = [];
+    for (const p of [...base, ...marco]) {
+      const esp = esperado(p);
+      if (!esp) continue;
+      const geo = geometries.find((g) => g.id === p.id);
+      if (!geo) { fallos.push(`${p.id}: sin geometría`); continue; }
+      for (const eje of Object.keys(esp)) {
+        if (Math.abs(geo[eje] - esp[eje]) > 1.5) {
+          fallos.push(`${p.id}: ${eje}=${geo[eje]} (CSV ${p.ancho}×${p.alto}×${p.espesor} → esperado ${eje}=${esp[eje]})`);
+        }
+      }
+    }
+    assert.deepEqual(fallos, []);
   });
 });

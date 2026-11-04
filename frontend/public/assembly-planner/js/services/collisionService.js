@@ -83,6 +83,27 @@ function isLegitJoint(a, b) {
 }
 
 /**
+ * Piezas de la MISMA caja de cajón/zapatera: por diseño van entrados a
+ * entradas y sus contactos no son colisiones. El detector se concentra en
+ * choques de la caja contra el EXTERIOR (casco, gola, otras cajas). El
+ * prefijo de caja se obtiene quitando el sufijo de pieza (igual criterio
+ * que matchDrawerBoxParts): 'm11-lateral-der' → 'm11' (submódulo
+ * concatenado) y 'm1cajon1-lateral-izq' → 'm1cajon1' (convención nueva).
+ */
+const SUFIJO_PIEZA_CAJA = /-(frente|cara|fondo|base|division|divisor|tirador?|lateral-izq|lateral-der|ala-inf|ala-sup|montante-\d+)$/;
+// Convención de catálogo legacy (generadores de ejemplos): 'm11-cajon-fondo',
+// 'm12-zapatera-cara' — el submódulo es 'm11' y 'cajon'/'zapatera' es parte
+// del sufijo compuesto de la pieza.
+const SUFIJO_PIEZA_COMPOSESTA = /-(?:cajon|zapatera)-(?:frente|cara|fondo|base|division|divisor|tirador|lateral-izq|lateral-der|ala-inf|ala-sup)$/;
+
+function sameDrawerBoxGroup(a, b) {
+  const prefijo = (g) =>
+    String(g.id || '').replace(SUFIJO_PIEZA_COMPOSESTA, '').replace(SUFIJO_PIEZA_CAJA, '');
+  const pa = prefijo(a);
+  return pa.length > 0 && pa !== String(a.id || '') && pa === prefijo(b);
+}
+
+/**
  * Piezas con la MISMA rotación (eje, ángulo y pivote) pertenecen al mismo
  * grupo rígido (p. ej. caja de volquete que pivota con su frente): no pueden
  * colisionar entre sí. El AABB de un volumen rotado se infla respecto al
@@ -167,12 +188,14 @@ export function detectCollisions(geometries, movingIds) {
       const { geo: b, box: bb } = boxes[j];
       if (isLegitJoint(a, b)) continue;
       if (sameRigidRotation(a, b)) continue;
+      if (sameDrawerBoxGroup(a, b)) continue;
       consider(a, ba, b, bb, false);
     }
   }
   for (const { geo: m, box: bm } of boxes) {
     for (const { geo: o, box: bo } of obstacles) {
       if (isTapaCanalL(o, m)) continue;
+      if (sameDrawerBoxGroup(o, m)) continue;
       consider(m, bm, o, bo, true);
     }
   }

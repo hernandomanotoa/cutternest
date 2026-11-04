@@ -94,15 +94,38 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
     zones.push({ yStart: z0, yEnd: z0 + d.h });
   });
 
+  // Tope real del hueco vertical (sin las zonas sintéticas pos_z anexadas):
+  // altura útil total del módulo entre base y tapa.
+  const coreZoneEnd = zones.length > anchoredDims.length
+    ? zones[zones.length - anchoredDims.length - 1].yEnd
+    : zones[zones.length - 1].yEnd;
+
   zoneGroups.forEach((group, zi) => {
     if (!group.length) return;
     const zone = zones[zi];
     const zoneH = Math.max(0, zone.yEnd - zone.yStart);
     const totalH = group.reduce((s, d) => s + d.h, 0);
+    // Fila horizontal: cuando los frentes NO caben apilados en su zona pero
+    // juntos sí quepan a lo ancho del vano, se distribuyen en columna (caso
+    // cajones en fila tipo buro/comoda). Sin pos_z no hay otra señal de la
+    // disposición diseñada; apilado sigue siendo el default cuando cabe.
+    const vanoW = Math.max(0, moduleW - 2 * thickness);
+    const totalW = group.reduce((s, d) => s + d.w, 0);
+    const fila = group.length > 1 && totalH > zoneH && totalW <= vanoW;
     const stackGap = renderer.verticalPositionOverrides?.stackGap ?? VERTICAL_POSITIONS.stackGap;
     const distributedGap = group.length > 0 ? (zoneH - totalH) / (group.length + 1) : 0;
     const gap = totalH < zoneH ? Math.min(stackGap, distributedGap) : 0;
-    const scale = totalH > zoneH ? zoneH / totalH : 1;
+    let scale = totalH > zoneH && !fila ? zoneH / totalH : 1;
+    if (fila) {
+      // Cada frente centrado en TODA la altura útil del módulo; si ni así
+      // cabe, se escala (mismo warning que el apilado).
+      const fullH = Math.max(0, coreZoneEnd - zones[0].yStart);
+      const maxH = Math.max(...group.map((d) => d.h));
+      if (maxH > fullH) scale = fullH / maxH;
+      renderer.warnings.push(
+        `Los frentes no caben apilados en el vano (${Math.round(totalH)} mm en ${Math.round(zoneH)} mm); se dibujan en fila horizontal.`
+      );
+    }
     if (scale < 1) {
       // Antes el escalado era silencioso: el 3D mostraba cajones más bajos
       // de lo diseñado sin avisar. Se conserva el ajuste para no solapar
@@ -114,11 +137,21 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
       );
     }
     let currentZ = zone.yStart + gap;
+    const fullZoneH = Math.max(0, coreZoneEnd - zones[0].yStart);
+    // En fila: gap igual entre frentes repartiendo el ancho sobrante del vano.
+    const gapFila = fila && group.length > 0
+      ? Math.max(0, vanoW - totalW) / (group.length + 1)
+      : 0;
+    let filaCursor = thickness + gapFila;
 
     group.forEach((d) => {
       const h = d.h * scale;
       const w = d.w;
-      const x = (moduleW - w) / 2;
+      const x = fila ? filaCursor : (moduleW - w) / 2;
+      if (fila) filaCursor += w + gapFila;
+      const zBase = fila
+        ? zones[0].yStart + Math.max(0, (fullZoneH - h) / 2)
+        : currentZ;
       const drawerDepth = Math.max(0, moduleD - 2 * thickness - 10);
       const yFace = moduleD - thickness + effectiveDrawerGap(renderer.drawerGap, thickness);
       // Fondo del módulo (embutido, [0..E]) + holgura configurada (default 10
@@ -150,7 +183,7 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
       const railType = railTypeFor(d.face);
       let rail;
       if (faceCfg && faceCfg.kind === 'hinge') {
-        const faceBase = { x, y: yFace, z: currentZ, w, d: thickness, h };
+        const faceBase = { x, y: yFace, z: zBase, w, d: thickness, h };
         const moved = applyApertureToGeo(faceBase, faceCfg, drawerOpen, renderer.angulos?.[d.face.id]);
         const rotation = moved.rotation
           ? { ...moved.rotation, pivot: { ...moved.rotation.pivot, y: yFace + thickness } }
@@ -171,7 +204,7 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
 
       // Frente del cajón
       geometries.push(rail({
-        x, y: yFace, z: currentZ, w, d: thickness, h,
+        x, y: yFace, z: zBase, w, d: thickness, h,
         color: d.face.color, role: 'drawer_face', name: d.face.nombre, id: d.face.id,
         overflow: scale < 1,
       }));
@@ -187,7 +220,7 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         // (comportamiento histórico, detección por datos).
         const fondoMetodo = fondoMetodoDeTipo(tipoTagDe(d.face?.nombre));
         const boxGeos = buildDrawerBoxGeometries({
-          parts: drawerBox, x, yFace, z: currentZ, w, h, thickness, fallbackDepth: drawerDepth, railType,
+          parts: drawerBox, x, yFace, z: zBase, w, h, thickness, fallbackDepth: drawerDepth, railType,
           fondoMetodo,
           maxDepth: profMax,
         });
@@ -203,24 +236,24 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         const synthDepth = clampProf(drawerDepth);
         geometries.push(
           rail({
-            x: x + thickness + clear, y: 0, z: currentZ + thickness, w: thickness, d: synthDepth, h: sideH,
+            x: x + thickness + clear, y: 0, z: zBase + thickness, w: thickness, d: synthDepth, h: sideH,
             color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side`, opacity: 0.5,
           }),
           rail({
-            x: x + w - 2 * thickness - clear, y: 0, z: currentZ + thickness, w: thickness, d: synthDepth, h: sideH,
+            x: x + w - 2 * thickness - clear, y: 0, z: zBase + thickness, w: thickness, d: synthDepth, h: sideH,
             color: sideColor, role: 'drawer_side', name: 'Lateral cajón', id: `${d.face.id}-side2`, opacity: 0.5,
           })
         );
 
         // Base del cajón
         geometries.push(rail({
-          x: x + thickness + clear, y: 0, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: synthDepth, h: thickness,
+          x: x + thickness + clear, y: 0, z: zBase + thickness, w: w - 2 * thickness - 2 * clear, d: synthDepth, h: thickness,
           color: sideColor, role: 'drawer_bottom', name: 'Base cajón', id: `${d.face.id}-bottom`, opacity: 0.5,
         }));
 
         // Fondo del cajón
         geometries.push(rail({
-          x: x + thickness + clear, y: synthDepth - thickness, z: currentZ + thickness, w: w - 2 * thickness - 2 * clear, d: thickness, h: sideH,
+          x: x + thickness + clear, y: synthDepth - thickness, z: zBase + thickness, w: w - 2 * thickness - 2 * clear, d: thickness, h: sideH,
           color: sideColor, role: 'drawer_back', name: 'Fondo cajón', id: `${d.face.id}-back`, opacity: 0.4,
         }));
       }
@@ -234,14 +267,14 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
       );
       if (handle) {
         const hx = x + w / 2 - 15;
-        const hz = currentZ + h / 2 - 10;
+        const hz = zBase + h / 2 - 10;
         geometries.push(rail({
           x: hx, y: moduleD + effectiveDrawerGap(renderer.drawerGap, thickness), z: hz, w: 30, d: 10, h: 20,
           color: handle.color || ROLE_COLORS.handle, role: 'handle', name: handle.nombre, id: handle.id,
         }));
       }
 
-      currentZ += h + gap;
+      if (!fila) currentZ += h + gap;
     });
   });
 

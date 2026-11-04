@@ -175,8 +175,10 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
   const maxInterior = catalog
     ? Math.max(0, w - Number(rail.interiorDeduction))
     : Math.max(0, w - 2 * (espLat + clear));
+  // Dimensiones REALES de la pieza (el CSV manda: hover = fila del CSV);
+  // el interior calculado solo es fallback cuando el dato falta.
   const baseRealW = Math.max(0, Number(parts.base.ancho) || 0);
-  const baseW = baseRealW > 0 ? Math.min(baseRealW, maxInterior) : maxInterior;
+  const baseW = baseRealW > 0 ? baseRealW : maxInterior;
   // Convención perimetral: la base confinada (largo = lateral − 2·espLat)
   // va ENTRE la cara y el fondo: de la cara interior del fondo a la cara
   // interior de la cara frontal. Los CSV viejos (base a profundidad completa)
@@ -206,24 +208,23 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
       );
       const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
       const backWMax = interiorBetween + 2 * gd;
-      const backW = backRealW > 0 ? Math.min(backRealW, backWMax) : backWMax;
+      const backW = backRealW > 0 ? backRealW : backWMax;
       const backMaxH = Math.max(0, latAlto - 2 * gd);
-      const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
+      const backRealH = Math.max(0, Number(parts.fondo.alto) || 0);
+      const backH = backRealH > 0 ? backRealH : backMaxH;
       box.push({
         x: latX[0] + espLat - gd, y: yFace - profLat, z: zBox + gd,
         w: backW, d: backT, h: backH,
         color: parts.fondo.color, role: 'drawer_back', name: parts.fondo.nombre, id: parts.fondo.id, real: true,
       });
     } else {
-      const backW = backRealW > 0 ? Math.min(backRealW, maxInterior) : maxInterior;
+      const backW = backRealW > 0 ? backRealW : maxInterior;
       // El fondo va APOYADO SOBRE la base (en un cajón real no comparten el
-      // plano inferior: z = zBox + espBase) y su alto se capa para no pasar
-      // el borde superior de los laterales: ocupa [zBox + espBase, zBox + latAlto).
-      // Fondo ESTRUCTURAL perimetral: interno a los laterales y A PISO (par
-      // trasero de la cara). Los CSV viejos (fondo apoyado sobre la base) se
-      // dibujan como indican sus medidas reales.
+      // plano inferior: z = zBox + espBase) — se dibuja con sus medidas
+      // REALES del CSV; el alto máx. solo es fallback cuando falta el dato.
+      const backRealH = Math.max(0, Number(parts.fondo.alto) || 0);
       const backMaxH = Math.max(0, latAlto);
-      const backH = Math.min(Math.max(0, Number(parts.fondo.alto) || 0) || backMaxH, backMaxH);
+      const backH = backRealH > 0 ? backRealH : backMaxH;
       const backSobreBase = backH <= latAlto - espBase + 1 && Number(parts.fondo.alto) > 0;
       box.push({
         x: x + (w - backW) / 2, y: yFace - profLat, z: backSobreBase ? zBox + espBase : zBox,
@@ -240,32 +241,38 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
   // caja, pegada al frente.
   if (parts.cara) {
     const caraRealW = Math.max(0, Number(parts.cara.ancho) || 0);
+    const caraRealH = Math.max(0, Number(parts.cara.alto) || 0);
     const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
-    const caraW = caraRealW > 0 ? Math.min(caraRealW, interiorBetween) : interiorBetween;
+    // Dimensiones REALES del CSV (el hover debe coincidir con la fila);
+    // los interiores calculados solo son fallback cuando falta el dato.
+    const caraW = caraRealW > 0 ? caraRealW : interiorBetween;
+    const caraH = caraRealH > 0 ? caraRealH : latAlto;
     const espCara = Number(parts.cara.espesor) || espLat;
     box.push({
       x: latX[0] + espLat, y: yFace - espCara, z: zBox,
-      w: caraW, d: espCara, h: latAlto,
+      w: caraW, d: espCara, h: caraH,
       color: parts.cara.color, role: 'drawer_part', name: parts.cara.nombre, id: parts.cara.id, real: true,
     });
   }
 
   // Divisores: paneles interiores paralelos al fondo/frente que dividen la
-  // caja a lo largo de su profundidad. Se apoyan sobre la base (mismo z que
-  // el fondo), su ancho se capa al interior entre laterales (igual ancla que
-  // la cara) y su alto al borde superior de los laterales. En y quedan
-  // centrados en la profundidad de la caja, entre la cara y el fondo.
+  // caja a lo largo de su profundidad. Se dibujan con las dimensiones REALES
+  // de la pieza (el CSV es la verdad: hover = fila del CSV); los cálculos
+  // solo son fallback cuando el dato falta. Van de piso a techo de la caja,
+  // como la cara (mismo alto que los laterales), con la base apoyada contra
+  // su cara.
   if (parts.divisores?.length) {
     const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
     const divMaxH = Math.max(0, latAlto - espBase);
     const yCenter = yFace - profLat / 2;
     for (const div of parts.divisores) {
       const divRealW = Math.max(0, Number(div.ancho) || 0);
-      const divW = divRealW > 0 ? Math.min(divRealW, interiorBetween) : interiorBetween;
-      const divH = Math.min(Math.max(0, Number(div.alto) || 0) || divMaxH, divMaxH);
+      const divRealH = Math.max(0, Number(div.alto) || 0);
+      const divW = divRealW > 0 ? divRealW : interiorBetween;
+      const divH = divRealH > 0 ? divRealH : divMaxH;
       const espDiv = Number(div.espesor) || espLat;
       box.push({
-        x: latX[0] + espLat, y: yCenter - espDiv / 2, z: zBox + espBase,
+        x: latX[0] + espLat, y: yCenter - espDiv / 2, z: zBox,
         w: divW, d: espDiv, h: divH,
         color: div.color, role: 'drawer_divider', name: div.nombre, id: div.id, real: true,
       });

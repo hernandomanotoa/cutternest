@@ -100,7 +100,7 @@ export function computeModuleBounds(renderer, geometries, includeDepth = true) {
   };
 }
 
-export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0, zocaloDrawerHeight = 0) {
+export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, moduleH, thickness, family, zocaloHeight = 0, coronaHeight = 0, zocaloDrawerHeight = 0, marcoFrame = false) {
   const geometries = [];
   const roles = pieces.map((p) => ({ ...p, role: inferRole(p) }));
 
@@ -188,7 +188,10 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
   // un cajón completo bajo los módulos: los laterales del módulo arrancan
   // en su cara superior, no en el suelo. En el patín retranqueado clásico
   // se conserva el comportamiento anterior (laterales al suelo, zócalo
-  // frontal embutido/retranqueado entre ellos).
+  // frontal embutido/retranqueado entre ellos). Con MARCO PROPIO
+  // (marcoFrame, bandeja del Constructor) la altura real de cada lateral se
+  // aplica en su bucle: convención de casco, el alto del CSV es la altura
+  // del casco (marco dentro, laterales de piso a tapa).
   const sideStartZ = zocaloDrawerHeight > 0
     ? zocaloDrawerHeight
     : (baseAxes.width === 'internal' ? 0 : bottomPanelOffset + thickness);
@@ -316,8 +319,14 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
     // En perspectiva normal (isoFlip=false) el lateral derecho queda al fondo
     // y el izquierdo al frente. Con isoFlip=true es al revés.
     const isFront = renderer.isoFlip ? !isLeft : isLeft;
+    // Marco propio (bandeja del Constructor): convención de casco — el alto
+    // del lateral ES el del CSV (el marco vive dentro del cajón y la tapa
+    // externa cubre sus cabezas). Fuera de ese modo se conserva el alto
+    // derivado del hueco (zócalo-cajón de catálogo).
+    const h = marcoFrame ? Math.max(0, Number(side.alto) || 0) : sideH;
+    const z = marcoFrame ? 0 : sideStartZ;
     geometries.push({
-      x, y: 0, z: sideStartZ, w: thickness, d: moduleD, h: sideH,
+      x, y: 0, z, w: thickness, d: moduleD, h,
       color: side.color, role: isFront ? 'side_panel_front' : 'side_panel_rear', name: side.nombre, id: side.id,
       // Los laterales se dibujan semi-transparentes para dejar ver el
       // interior (repisas/estantes) a través de ellos.

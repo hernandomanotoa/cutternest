@@ -276,6 +276,39 @@ conserva el spán completo. Los frentes/traseros van como bandas sobre el
 mapa de módulos (con skew); la divpar es un panel vertical (d = espesor) a
 media profundidad.
 
+### El 3D dibuja las dimensiones reales del CSV (auditoría 3D vs CSV)
+
+Regla cerrada en la auditoría 2026-11: **el hover del 3D debe replicar la fila
+del CSV** — cada geometría se dibuja con el `ancho`/`alto`/`espesor` de su
+pieza, y los cálculos del modelo (interior de vano, holguras de riel, ranuras)
+son **solo fallback cuando el dato falta**. En `drawerGeometryService` las
+piezas de la caja (laterales, base, fondo, cara, división) usan sus medidas
+reales; los `Math.min(...)` que las clampaban al interior calculado salieron.
+Esto puede hacer que una pieza mal generada (más ancha que el interior) se
+dibuje sobresaliendo — es intencional: el CSV es la verdad de corte y el
+desajuste se corrige regenerando el contenido, no ocultándolo en el render.
+
+Corolarios del mismo cierre:
+
+- **Laterales del módulo con marco propio** (`hasPlinthFrame`): se dibujan con
+  su `alto` REAL de piso a tapa (`z = 0`); el marco es un cajón más que vive
+  dentro del casco, no una extensión de los laterales (`moduleGeometry.js`,
+  flag `marcoFrame` propagado desde `isometricRenderer`).
+- **Refuerzo de repisa** (`role: 'brace'`) es una franja vertical: dims
+  `w = ancho`, `h = alto` del CSV (`getPieceDims` en `geometryService`).
+- **Colisiones intra-caja**: las piezas de una misma caja de cajón/zapatera van
+  entrados a entradas por diseño; `collisionService.sameDrawerBoxGroup` exime
+  los contactos internos (prefijo de caja quitando el sufijo de pieza, con
+  soporte para ambas convenciones de id: `'m1cajon1-lateral-izq'` y el
+  compuesto de catálogo `'m11-cajon-fondo'`). El detector se concentra en
+  choques contra el EXTERIOR.
+- **Frentes en fila horizontal** (`drawerGeometry.js`): sin `pos_z`, los
+  frentes se apilan por zonas; pero si el grupo **no cabe apilado** en su zona
+  y la suma de sus anchos sí cabe a lo ancho del vano, se distribuyen en fila
+  (caso cajones en columna tipo buro/comoda), centrados en toda la altura útil
+  del módulo y con el ancho sobrante repartido como gap. El apilado vertical
+  sigue siendo el default cuando los frentes caben apilados.
+
 ### Convención de unión del marco (bandeja) y división paralela
 
 Desde 2026-11 el marco usa **convención bandeja**: los largueros (frente y
