@@ -202,6 +202,19 @@ describe('OptimizerPage', () => {
     expect(window.open).toHaveBeenCalledWith('/exports/layouts_p1.pdf', '_blank')
   })
 
+  it('color global: el color elegido se aplica a TODAS las piezas', () => {
+    renderPage()
+    const picker = document.querySelector('input[type="color"]') as HTMLInputElement
+    expect(picker).toBeTruthy()
+    fireEvent.change(picker, { target: { value: '#123456' } })
+    const swatches = document.querySelectorAll('button[title="#123456"]')
+    // Las 11 piezas del ejemplo + la muestra del formulario "Agregar pieza"
+    // conservan su color; las de la tabla deben ser 11.
+    expect(swatches.length).toBeGreaterThanOrEqual(11)
+    expect((document.querySelector('tbody') as HTMLElement).querySelectorAll('button[title="#123456"]').length)
+      .toBe(11)
+  })
+
   it('muestra error al cargar el proyecto vinculado desde navegación', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url === '/projects/p1') {

@@ -164,6 +164,7 @@ export function OptimizerPage() {
   const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting'>(config.modoCorte ?? 'guillotina')
   const [maxAprovechamiento, setMaxAprovechamiento] = useState(config.maxAprovechamiento ?? false)
   const [sortMode, setSortMode] = useState<SortMode>('tamano')
+  const [colorTodas, setColorTodas] = useState('#C19A6B')
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo' | 'resultados'>('piezas')
@@ -542,6 +543,13 @@ export function OptimizerPage() {
 
   const setColorForRow = (index: number, hex: string) => {
     updatePiece(index, { color: hex })
+  }
+
+  // Color global: aplica el color elegido a TODAS las piezas de la lista
+  // (útil tras cargar un CSV para unificar el acabado del lote).
+  const aplicarColorATodas = (hex: string) => {
+    setColorTodas(hex)
+    setPiezas((prev) => prev.map((p) => ({ ...p, color: hex })))
   }
 
   const handleRowKeyDown = (e: KeyboardEvent<HTMLInputElement>, rowIndex: number) => {
@@ -1129,6 +1137,20 @@ export function OptimizerPage() {
                 >
                   Limpiar
                 </Button>
+                <label
+                  className='flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground'
+                  title='Color único para el lote: se aplica a TODAS las piezas de la lista'
+                >
+                  Color todas
+                  <input
+                    type='color'
+                    aria-label='Color para todas las piezas'
+                    value={colorTodas}
+                    disabled={piezas.length === 0}
+                    onChange={(e) => aplicarColorATodas(e.target.value)}
+                    className='h-6 w-8 cursor-pointer rounded border-0 bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-40'
+                  />
+                </label>
               </div>
               </>
               )}
