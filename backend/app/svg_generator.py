@@ -32,6 +32,17 @@ def aristas_canteadas(cantos: str, rotado: bool) -> set:
     return lados
 
 
+def lados_canto_en_plano(piece: Dict[str, Any]) -> set:
+    """Lados del rectángulo colocado que llevan tapacantos. Prefiere
+    'cantos_plano' (resuelto en el optimizador, composición exacta de la
+    pre-orientación y la rotación del packer); para layouts persistidos
+    antes del campo, recurre al fallback cantos + rotado."""
+    plano = str(piece.get("cantos_plano") or "")
+    if plano:
+        return {l.strip().upper() for l in plano.split(",") if l.strip()} & {"T", "B", "L", "R"}
+    return aristas_canteadas(piece.get("cantos", ""), bool(piece.get("rotado")))
+
+
 def _truncar_a_medida(texto: str, medir, max_ancho: float, font_size: float) -> str | None:
     """Devuelve el texto truncado con '…' para que quepa en max_ancho, o None
     si ni siquiera un carácter cabe."""
@@ -119,7 +130,7 @@ def generate_svg(board: Dict[str, Any], board_index: int = 0) -> str:
         color = p.get("color", "#3B82F6")
         dwg.add(dwg.rect(insert=(x, y), size=(w, h), fill=color, stroke="#1f2937", stroke_width=0.3, opacity=0.85))
         # Aristas canteadas: borde verde sobre el lado que lleva tapacantos.
-        for lado in sorted(aristas_canteadas(p.get("cantos", ""), bool(p.get("rotado")))):
+        for lado in sorted(lados_canto_en_plano(p)):
             if lado == "T":
                 dwg.add(dwg.line(start=(x, y + 0.6), end=(x + w, y + 0.6), stroke=COLOR_CANTO, stroke_width=1.0))
             elif lado == "B":
@@ -210,7 +221,7 @@ def render_board_png(board: Dict[str, Any], width: int = 1200, height: Optional[
         draw.rectangle([px, py, px + pw, py + ph], fill=color, outline="#1f2937", width=stroke_width)
         # Aristas canteadas: borde verde sobre el lado que lleva tapacantos.
         inset = max(2, stroke_width + 1)
-        for lado in sorted(aristas_canteadas(p.get("cantos", ""), bool(p.get("rotado")))):
+        for lado in sorted(lados_canto_en_plano(p)):
             if lado == "T":
                 draw.line([px + inset, py + inset, px + pw - inset, py + inset], fill=COLOR_CANTO, width=4)
             elif lado == "B":

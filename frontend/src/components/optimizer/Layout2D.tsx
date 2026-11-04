@@ -28,13 +28,17 @@ function strokeColor(tone: string): string {
   return 'hsl(var(--danger))'
 }
 
-// Aristas del rectángulo colocado que llevan tapacantos. Las letras
-// describen la pieza en su orientación; rotada 90°, las cabezas T/B caen
-// en los lados cortos del rectángulo y los longitudinales L/R en los largos.
+// Aristas del rectángulo colocado que llevan tapacantos. Lo fiable es
+// `cantosPlano` (el backend resuelve la composición exacta de la
+// pre-orientación de la huella con la rotación del empaquetador); el
+// mapeo local es solo fallback para resultados previos.
 const LADOS_ROTADO: Record<string, 'T' | 'B' | 'L' | 'R'> = { T: 'L', B: 'R', L: 'T', R: 'B' }
 const COLOR_CANTO = '#15803d'
 
 function aristasCanteadas(p: Placement): Array<'T' | 'B' | 'L' | 'R'> {
+  if (p.cantosPlano) {
+    return [...new Set(p.cantosPlano.split(',').map((s) => s.trim().toUpperCase()).filter((l) => 'TBLR'.includes(l)))] as Array<'T' | 'B' | 'L' | 'R'>
+  }
   const letras = (p.cantos || '').split(',').map((s) => s.trim().toUpperCase()).filter((l) => 'TBLR'.includes(l))
   const unicos = [...new Set(letras)] as Array<'T' | 'B' | 'L' | 'R'>
   return p.rotado ? unicos.map((l) => LADOS_ROTADO[l]) : unicos

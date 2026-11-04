@@ -54,6 +54,8 @@ export interface Placement {
   rotado: boolean;
   /** Cantos de la pieza (T,B,L,R) para marcar aristas con tapacantos. */
   cantos?: string;
+  /** Cantos resueltos a lados del rectángulo colocado (lo dibuja el layout). */
+  cantosPlano?: string;
   /** Sentido de veta sobre el tablero: 'horizontal' | 'vertical' | 'libre'. */
   veta?: string;
 }

@@ -519,3 +519,31 @@ def test_placements_llevan_cantos():
     por_id = {p["id"]: p for p in placements}
     assert por_id["frente"]["cantos"] == "T,B,L,R"
     assert por_id["lat"]["cantos"] == "L"
+
+
+def test_cantos_plano_compone_preorientacion_y_rotacion():
+    """cantos_plano resuelve las aristas en coordenadas del tablero:
+    composición de la convención de colocación de la huella (CCW cuando el
+    largo sigue el ancho del tablero) con la rotación del empaquetador.
+    Con eje_veta='alto' los laterales NO rotan y su 'L' cae a la izquierda;
+    con eje_veta='ancho' la huella giró CCW y el 'L' cae abajo."""
+    laterales = [
+        {"id": f"lat-{i}", "nombre": f"Lateral {i}", "ancho": 600, "alto": 2400,
+         "cantidad": 1, "rotate": False, "color": "#C19A6B", "espesor": 15, "cantos": "L"}
+        for i in range(3)
+    ]
+    r_alto = optimizer_service.optimize_cuts(
+        board_width_mm=2100, board_height_mm=2440, pieces=laterales,
+        kerf_mm=4, margin_mm=10, eje_veta="alto",
+    )
+    for p in _placements_of(r_alto):
+        assert p["cantos"] == "L"
+        assert p["cantos_plano"] == "L", "eje alto: la huella no rota, L a la izquierda"
+
+    r_ancho = optimizer_service.optimize_cuts(
+        board_width_mm=2440, board_height_mm=1220, pieces=laterales,
+        kerf_mm=4, margin_mm=10, eje_veta="ancho",
+    )
+    for p in _placements_of(r_ancho):
+        assert p["cantos"] == "L"
+        assert p["cantos_plano"] == "B", "eje ancho: huella CCW, el frente L cae abajo"

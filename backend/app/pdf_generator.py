@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 
-from app.svg_generator import aristas_canteadas
+from app.svg_generator import lados_canto_en_plano
 
 
 def _quote_pdf_path(exports_dir: str, quote_id: str) -> str:
@@ -279,7 +279,7 @@ def generate_layouts_pdf(
             # Y hacia abajo y el PDF con Y hacia arriba).
             c.setStrokeColor(colors.HexColor("#15803d"))
             c.setLineWidth(1.6)
-            for lado in sorted(aristas_canteadas(p.get("cantos", ""), bool(p.get("rotado")))):
+            for lado in sorted(lados_canto_en_plano(p)):
                 if lado == "T":
                     c.line(x, y + h - 1.2, x + w, y + h - 1.2)
                 elif lado == "B":

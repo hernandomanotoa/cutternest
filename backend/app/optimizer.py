@@ -76,7 +76,17 @@ def _expanded_rects(
         tablero — con eje_veta='ancho' la huella es (largo, corto); con
         'alto' es (corto, largo). rotate=True va siempre con la huella
         original (el optimizador decide, la veta es libre).
+      - original["__mapa__"]: convención documentada de colocación en
+        plano — a cada letra de canto de la pieza (T,B,L,R, leídas mirando
+        su cara visible en el mueble) le asigna el lado de la HUELLA donde
+        cae esa arista. Convención: la pieza se tumba "hacia el frente" —
+        con eje_veta='alto' (el largo sigue el alto del tablero) la cabeza
+        T queda arriba y el frente L a la izquierda (mapeo identidad); con
+        eje_veta='ancho' (el largo sigue el ancho del tablero) la pieza
+        giró 90° CCW: T va a la izquierda y el frente L abajo.
     """
+    MAPA_IDENTIDAD = {"T": "T", "B": "B", "L": "L", "R": "R"}
+    MAPA_CCW = {"T": "L", "B": "R", "L": "B", "R": "T"}
     rects = []
     for p in pieces:
         ow = float(p["ancho"])
@@ -84,14 +94,38 @@ def _expanded_rects(
         rot = bool(p.get("rotate", True))
         if rot:
             w, h = ow, oh
+            p["__mapa__"] = MAPA_IDENTIDAD
         else:
             # Regla del taller: la veta sigue el lado más largo; ese lado
             # queda paralelo al eje de veta del tablero.
             largo, corto = (ow, oh) if ow >= oh else (oh, ow)
-            w, h = (largo, corto) if eje_veta == "ancho" else (corto, largo)
+            if eje_veta == "ancho":
+                w, h = largo, corto
+                p["__mapa__"] = MAPA_CCW
+            else:
+                w, h = corto, largo
+                p["__mapa__"] = MAPA_IDENTIDAD
         qty = int(p.get("cantidad", 1))
         for i in range(qty):
             rects.append((w, h, ow, oh, f"{p['id']}__{i}", rot, p))
+    return rects
+
+
+_ROTACION_CCW = {"T": "L", "B": "R", "L": "B", "R": "T"}
+
+
+def _cantos_en_plano(cantos: str, mapa_pieza: Dict[str, str], rotada_tablero: bool) -> str:
+    """Resuelve las letras de canto de la pieza a lados del rectángulo
+    COLOCADO en el tablero (T,B,L,R del plano), componiendo la convención
+    de colocación de la huella (__mapa__) con la rotación que le dio el
+    empaquetador (90° CCW, misma convención documentada)."""
+    letras = {l.strip().upper() for l in str(cantos or "").split(",") if l.strip()}
+    letras &= {"T", "B", "L", "R"}
+    lados = set()
+    for letra in letras:
+        lado = mapa_pieza.get(letra, letra)
+        lados.add(_ROTACION_CCW[lado] if rotada_tablero else lado)
+    return ",".join(sorted(lados))
     return rects
 
 
@@ -175,6 +209,10 @@ def _pack_phase(
             base_id, _idx = rid.rsplit("__", 1)
             original = next((r[6] for r in rects if r[4] == rid), None)
             ow, oh = next(((r[2], r[3]) for r in rects if r[4] == rid), (rect.width, rect.height))
+            huella_w = next((r[0] for r in rects if r[4] == rid), rect.width - kerf_mm)
+            # Rotación RESPECTO A LA HUELLA (la del empaquetador); el flag
+            # 'rotado' publicado sigue midiendo respecto a las dims del CSV.
+            rotada_tablero = abs(rect.width - (huella_w + kerf_mm)) > 1e-6
             bins[bid]["placements"].append({
                 "id": base_id,
                 "nombre": original["nombre"] if original else base_id,
@@ -188,6 +226,11 @@ def _pack_phase(
                 "en_sobrante": not is_new_board,
                 "offcut_id": bid_to_offcut_id.get(bid.split("__", 1)[1]) if not is_new_board else None,
                 "cantos": original.get("cantos", "") if original else "",
+                "cantos_plano": _cantos_en_plano(
+                    original.get("cantos", "") if original else "",
+                    original.get("__mapa__", {}) if original else {},
+                    rotada_tablero,
+                ),
                 "veta": original.get("__veta__", "libre") if original else "libre",
             })
     return bins
@@ -440,6 +483,11 @@ def _pack_guillotine_phase(
                 "en_sobrante": not is_new,
                 "offcut_id": bid_to_offcut_id.get(bid.split("__", 1)[1]) if not is_new else None,
                 "cantos": original.get("cantos", ""),
+                "cantos_plano": _cantos_en_plano(
+                    original.get("cantos", ""),
+                    original.get("__mapa__", {}),
+                    abs(pw - item["w"]) > 1e-6,
+                ),
                 "veta": original.get("__veta__", "libre"),
             })
         out[bid] = {

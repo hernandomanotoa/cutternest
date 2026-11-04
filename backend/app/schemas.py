@@ -127,6 +127,10 @@ class PlacementRead(BaseModel):
     # Cantos (T,B,L,R) de la pieza, para marcar las aristas que llevan
     # tapacantos en los layouts y el cut list.
     cantos: str = ""
+    # Mismo canto resuelto a lados del rectángulo COLOCADO en el tablero
+    # (composición de la convención de colocación de la huella con la
+    # rotación del empaquetador). Lo dibujan los layouts.
+    cantos_plano: str = ""
     # Sentido de veta sobre el tablero: 'horizontal'/'vertical' para piezas
     # con rotate=False (paralela al eje de veta del tablero), 'libre' para
     # el resto.
