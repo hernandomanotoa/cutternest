@@ -43,6 +43,7 @@ import type {
 import { Tablero3D } from './Tablero3D'
 import { Layout2D } from './Layout2D'
 import { PieceCountTab } from './PieceCountTab'
+import { CantosTab } from './CantosTab'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
 import {
@@ -167,7 +168,7 @@ export function OptimizerPage() {
   const [colorTodas, setColorTodas] = useState('#C19A6B')
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
-  const [activeTab, setActiveTab] = useState<'piezas' | 'conteo' | 'resultados'>('piezas')
+  const [activeTab, setActiveTab] = useState<'piezas' | 'conteo' | 'cantos' | 'resultados'>('piezas')
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null)
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
   const [showTips, setShowTips] = useState<boolean>(() => {
@@ -1062,9 +1063,10 @@ export function OptimizerPage() {
                       <option value='manual'>Manual</option>
                     </select>
                   </label>
-                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'piezas' | 'conteo' | 'resultados')}>
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'piezas' | 'conteo' | 'cantos' | 'resultados')}>
                     <TabsTrigger value='piezas'>Piezas ({piezas.length})</TabsTrigger>
                     <TabsTrigger value='conteo'>Conteo</TabsTrigger>
+                    <TabsTrigger value='cantos'>Cantos</TabsTrigger>
                     <TabsTrigger value='resultados'>Resultados{result ? ` (${result.length})` : ''}</TabsTrigger>
                   </Tabs>
                 </div>
@@ -1467,6 +1469,8 @@ export function OptimizerPage() {
                   totalGroups={groupedPieces.length}
                 />
               )}
+
+              {activeTab === 'cantos' && <CantosTab pieces={piezas} />}
 
               {activeTab === 'piezas' && (
               <div className='flex flex-wrap gap-3'>

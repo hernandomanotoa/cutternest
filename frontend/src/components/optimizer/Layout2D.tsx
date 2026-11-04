@@ -28,21 +28,10 @@ function strokeColor(tone: string): string {
   return 'hsl(var(--danger))'
 }
 
-// Aristas del rectángulo colocado que llevan tapacantos. Lo fiable es
-// `cantosPlano` (el backend resuelve la composición exacta de la
-// pre-orientación de la huella con la rotación del empaquetador); el
-// mapeo local es solo fallback para resultados previos.
-const LADOS_ROTADO: Record<string, 'T' | 'B' | 'L' | 'R'> = { T: 'L', B: 'R', L: 'T', R: 'B' }
+// Los cantos se visualizan en la pestaña «Cantos» (resumen por grupos de
+// tamaño con la forma de la pieza); en el tablero solo aparecen en el
+// tooltip y en la barra de la pieza seleccionada.
 const COLOR_CANTO = '#15803d'
-
-function aristasCanteadas(p: Placement): Array<'T' | 'B' | 'L' | 'R'> {
-  if (p.cantosPlano) {
-    return [...new Set(p.cantosPlano.split(',').map((s) => s.trim().toUpperCase()).filter((l) => 'TBLR'.includes(l)))] as Array<'T' | 'B' | 'L' | 'R'>
-  }
-  const letras = (p.cantos || '').split(',').map((s) => s.trim().toUpperCase()).filter((l) => 'TBLR'.includes(l))
-  const unicos = [...new Set(letras)] as Array<'T' | 'B' | 'L' | 'R'>
-  return p.rotado ? unicos.map((l) => LADOS_ROTADO[l]) : unicos
-}
 
 export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
   const width = board.ancho * SCALE
@@ -177,19 +166,6 @@ export function Layout2D({ board, margenMm = 0 }: Layout2DProps) {
                 strokeWidth={strokeWidth}
                 style={{ transition: 'all 150ms ease' }}
               />
-              <g pointerEvents='none'>
-                {aristasCanteadas(p).map((lado) =>
-                  lado === 'T' ? (
-                    <line key='T' x1={x} y1={y + 1.2} x2={x + w} y2={y + 1.2} stroke={COLOR_CANTO} strokeWidth={1.6} />
-                  ) : lado === 'B' ? (
-                    <line key='B' x1={x} y1={y + h - 1.2} x2={x + w} y2={y + h - 1.2} stroke={COLOR_CANTO} strokeWidth={1.6} />
-                  ) : lado === 'L' ? (
-                    <line key='L' x1={x + 1.2} y1={y} x2={x + 1.2} y2={y + h} stroke={COLOR_CANTO} strokeWidth={1.6} />
-                  ) : (
-                    <line key='R' x1={x + w - 1.2} y1={y} x2={x + w - 1.2} y2={y + h} stroke={COLOR_CANTO} strokeWidth={1.6} />
-                  )
-                )}
-              </g>
               {etiqueta && (
                 <g
                   transform={etiquetaRotada ? `rotate(90, ${cx}, ${cy})` : undefined}
