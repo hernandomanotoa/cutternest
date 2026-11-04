@@ -171,7 +171,35 @@ describe('OptimizerPage', () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('Pieza demasiado grande')
     )
-    expect(screen.queryByText('Resultados')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tablero 1')).not.toBeInTheDocument()
+  })
+
+  it('descarga el PDF de layouts: POST a /projects/{id}/layouts/pdf', async () => {
+    vi.spyOn(window, 'prompt').mockReturnValue('Proyecto Demo')
+    vi.spyOn(window, 'open').mockImplementation(() => null)
+    vi.mocked(api.post).mockImplementation((url: string) => {
+      if (url === '/projects') return Promise.resolve({ data: mockProject })
+      if (url === '/projects/p1/optimize') {
+        return Promise.resolve({ data: { tableros: [mockBoard], total_tableros: 1 } })
+      }
+      if (url === '/projects/p1/layouts/pdf') {
+        return Promise.resolve({ data: { pdf_path: '/exports/layouts_p1.pdf' } })
+      }
+      return Promise.reject(new Error(`Unexpected URL: ${url}`))
+    })
+
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Optimizar' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('Optimizado en 1 tablero(s)')
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'PDF' }))
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/projects/p1/layouts/pdf')
+    )
+    expect(window.open).toHaveBeenCalledWith('/exports/layouts_p1.pdf', '_blank')
   })
 
   it('muestra error al cargar el proyecto vinculado desde navegación', async () => {

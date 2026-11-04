@@ -166,7 +166,7 @@ export function OptimizerPage() {
   const [sortMode, setSortMode] = useState<SortMode>('tamano')
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
-  const [activeTab, setActiveTab] = useState<'piezas' | 'conteo'>('piezas')
+  const [activeTab, setActiveTab] = useState<'piezas' | 'conteo' | 'resultados'>('piezas')
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null)
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
   const [showTips, setShowTips] = useState<boolean>(() => {
@@ -473,6 +473,7 @@ export function OptimizerPage() {
       const data = response.data as { tableros: BoardResult[]; total_tableros: number }
       setResult(data.tableros)
       setSelectedBoard(0)
+      setActiveTab('resultados')
       toast.success(`Optimizado en ${data.total_tableros} tablero(s)`)
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err) || 'Error al optimizar')
@@ -498,7 +499,10 @@ export function OptimizerPage() {
   const generatePdf = async (type: 'cutlist' | 'labels' | 'layouts') => {
     if (!projectId) return
     try {
-      const response = await api.post(`/projects/${projectId}/${type}`)
+      const url = type === 'layouts'
+        ? `/projects/${projectId}/layouts/pdf`
+        : `/projects/${projectId}/${type}`
+      const response = await api.post(url)
       const path = (response.data as { pdf_path?: string }).pdf_path
       if (path) {
         window.open(path, '_blank')
@@ -1050,14 +1054,17 @@ export function OptimizerPage() {
                       <option value='manual'>Manual</option>
                     </select>
                   </label>
-                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'piezas' | 'conteo')}>
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'piezas' | 'conteo' | 'resultados')}>
                     <TabsTrigger value='piezas'>Piezas ({piezas.length})</TabsTrigger>
                     <TabsTrigger value='conteo'>Conteo</TabsTrigger>
+                    <TabsTrigger value='resultados'>Resultados{result ? ` (${result.length})` : ''}</TabsTrigger>
                   </Tabs>
                 </div>
               </div>
             </CardHeader>
             <CardContent className='space-y-3'>
+              {activeTab === 'piezas' && (
+              <>
               <div className='flex flex-wrap gap-2'>
                 <Button
                   variant='outline'
@@ -1123,8 +1130,10 @@ export function OptimizerPage() {
                   Limpiar
                 </Button>
               </div>
+              </>
+              )}
 
-              {activeTab === 'piezas' ? (
+              {activeTab === 'piezas' && (
                 piezas.length === 0 ? (
                   <div className='flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border py-12 text-center'>
                     <Scissors className='h-8 w-8 text-muted-foreground' />
@@ -1427,7 +1436,9 @@ export function OptimizerPage() {
                     </div>
                   </>
                 )
-              ) : (
+              )}
+
+              {activeTab === 'conteo' && (
                 <PieceCountTab
                   groups={groupedPieces}
                   totalPieces={totalPiecesCount}
@@ -1435,6 +1446,7 @@ export function OptimizerPage() {
                 />
               )}
 
+              {activeTab === 'piezas' && (
               <div className='flex flex-wrap gap-3'>
                 <Button
                   variant='secondary'
@@ -1455,89 +1467,94 @@ export function OptimizerPage() {
                   Optimizar
                 </Button>
               </div>
+              )}
+
+              {activeTab === 'resultados' && (
+                result && selectedBoardResult ? (
+                  <>
+                    <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                      <div className='flex items-center gap-2'>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setView3D((v) => !v)}
+                          leftIcon={view3D ? <Layers className='h-4 w-4' /> : <Box className='h-4 w-4' />}
+                        >
+                          {view3D ? 'Ver 2D' : 'Ver 3D'}
+                        </Button>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setSelectedPieceCode(null)}
+                        >
+                          Limpiar selección
+                        </Button>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={descargarPng}
+                          disabled={!projectId}
+                          leftIcon={<Image className='h-4 w-4' />}
+                        >
+                          PNG
+                        </Button>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => generatePdf('layouts')}
+                          disabled={!projectId}
+                          leftIcon={<FileText className='h-4 w-4' />}
+                        >
+                          PDF
+                        </Button>
+                      </div>
+                    </div>
+                    <div className='flex flex-wrap gap-2'>
+                      {result.map((b) => (
+                        <button
+                          key={b.board_index}
+                          type='button'
+                          onClick={() => setSelectedBoard(b.board_index)}
+                          className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                            selectedBoard === b.board_index
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-border bg-background text-foreground hover:bg-muted'
+                          }`}
+                        >
+                          <span>Tablero {b.board_index + 1}</span>
+                          <Badge
+                            variant={utilizationTone(b.utilizacion)}
+                            className='pointer-events-none'
+                          >
+                            {b.utilizacion}%
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+
+                    {view3D ? (
+                      <Tablero3D board={selectedBoardResult} />
+                    ) : (
+                      <Layout2D board={selectedBoardResult} margenMm={tablero.margen_mm} />
+                    )}
+
+                    {selectedPieceCode && (
+                      <div className='rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground'>
+                        Pieza seleccionada: <span className='font-medium'>{selectedPieceCode}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className='flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border py-12 text-center'>
+                    <Scissors className='h-8 w-8 text-muted-foreground' />
+                    <p className='max-w-sm text-sm text-muted-foreground'>
+                      Todavía no hay resultados. Carga las piezas y pulsa «Optimizar» para ver los tableros aquí.
+                    </p>
+                  </div>
+                )
+              )}
             </CardContent>
           </Card>
-
-          {result && selectedBoardResult && (
-            <Card>
-              <CardHeader>
-                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-                  <CardTitle className='text-lg'>Resultados</CardTitle>
-                  <div className='flex items-center gap-2'>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => setView3D((v) => !v)}
-                      leftIcon={view3D ? <Layers className='h-4 w-4' /> : <Box className='h-4 w-4' />}
-                    >
-                      {view3D ? 'Ver 2D' : 'Ver 3D'}
-                    </Button>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => setSelectedPieceCode(null)}
-                    >
-                      Limpiar selección
-                    </Button>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={descargarPng}
-                      disabled={!projectId}
-                      leftIcon={<Image className='h-4 w-4' />}
-                    >
-                      PNG
-                    </Button>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => generatePdf('layouts')}
-                      disabled={!projectId}
-                      leftIcon={<FileText className='h-4 w-4' />}
-                    >
-                      PDF
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <div className='flex flex-wrap gap-2'>
-                  {result.map((b) => (
-                    <button
-                      key={b.board_index}
-                      type='button'
-                      onClick={() => setSelectedBoard(b.board_index)}
-                      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
-                        selectedBoard === b.board_index
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border bg-background text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      <span>Tablero {b.board_index + 1}</span>
-                      <Badge
-                        variant={utilizationTone(b.utilizacion)}
-                        className='pointer-events-none'
-                      >
-                        {b.utilizacion}%
-                      </Badge>
-                    </button>
-                  ))}
-                </div>
-
-                {view3D ? (
-                  <Tablero3D board={selectedBoardResult} />
-                ) : (
-                  <Layout2D board={selectedBoardResult} margenMm={tablero.margen_mm} />
-                )}
-
-                {selectedPieceCode && (
-                  <div className='rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground'>
-                    Pieza seleccionada: <span className='font-medium'>{selectedPieceCode}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>
