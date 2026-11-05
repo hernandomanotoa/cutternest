@@ -1,6 +1,6 @@
 # CutterNest - Sistema de Optimización de Cortes
 
-Sistema web autocontenido para optimizar cortes de tableros (MDF, madera, melamina) en fabricación de muebles. Incluye visualización 2D/3D, cotización local, inventario de sobrantes, autenticación TOTP + Guest PIN y generación de PDFs (cotización, cut list, etiquetas).
+Sistema web autocontenido para optimizar cortes de tableros (MDF, madera, melamina) en fabricación de muebles. Incluye **Assembly Planner** (constructor visual de clósets con geometría 3D, sistema gola y zócalo estructural), **Optimizador de cortes** con cortes lineales completos (guillotina, modo mixto y nesting), visualización 2D/3D con veta procedural, clasificación de cantos en 9 categorías, cotización local, inventario de sobrantes, autenticación TOTP + Guest PIN y generación de PDFs (cotización, cut list, etiquetas, tableros, cantos).
 
 > **MVP**: todo corre dentro de Docker Compose sin dependencias de servicios externos (sin PostgreSQL, Redis, SMTP, SMS, WhatsApp, ni APIs de terceros).
 
@@ -54,28 +54,51 @@ cutternest-kit/
 │       ├── security.py
 │       ├── dependencies.py
 │       ├── auth.py
-│       ├── optimizer.py
+│       ├── optimizer.py          # guillotina / mixto / nesting + máx. aprovechamiento
 │       ├── inventory.py
 │       ├── templates.py
 │       ├── projects.py
 │       ├── quotes.py
 │       ├── assembly.py
 │       ├── svg_generator.py
-│       ├── pdf_generator.py
+│       ├── pdf_generator.py      # tableros (leyenda agrupada), cantos, manuales
 │       └── routers/
 ├── frontend/
 │   ├── Dockerfile
 │   ├── nginx.conf
-│   └── src/                      # React 18 + Vite + Three.js
-│       ├── main.tsx
-│       ├── App.tsx
-│       ├── api/client.ts
-│       ├── hooks/useAuth.ts
-│       ├── types/index.ts
-│       └── components/
+│   ├── src/                      # React 18 + Vite + Three.js (optimizer, proyectos)
+│   └── public/assembly-planner/  # Assembly Planner vanilla (constructor de clósets)
+│       ├── index.html            # app autocontenida, sin build (sirve nginx)
+│       ├── js/                   # app.js (orquestador), services/, views/, renderer3d/
+│       ├── data/                 # ejemplos CSV seleccionables ("Seleccionar mueble")
+│       └── test/                 # suites node --test + validate-examples
+├── scripts/                      # generadores de ejemplos, router dev, utilidades
+├── docs/                         # guías (assembly-planner-constructor.md, ejemplos CSV)
 ├── data/                         # SQLite + PDFs/SVGs exportados
 └── backups/
 ```
+
+---
+
+## Assembly Planner (constructor de clósets)
+
+Aplicación vanilla (sin build) en `/assembly-planner/`: armado paso a paso de clósets abiertos con geometría de taller:
+
+- **Constructor**: módulos con casco (tapa **embutida**, laterales que llegan al techo), contenido arrastrable (repisas con refuerzo opcional, barras, cajones, zapateras), zócalo simple o **marco estructural** (el casco apoya sobre el marco), **sistema gola** entre cajones (canales C con agarre, sin tiradores) y versiones del diseño (local/nube) con autoguardado.
+- **Reglas de taller configurables**: Canto PVC del frente (descuenta 2·canto del ancho de corte, tag `[cantoN]`), Luz frente, **Prof. caja** explícita con holgura al fondo calculada (tag `[profN]`), frentes A ras / Tapajunta / Interno, holgura caja→fondo.
+- **Vistas**: isométrica, **3D orbital** (SVG propio) con veta procedural por pieza, estructural y auditoría. El hover del 3D replica la fila del CSV (auditoría 3D vs CSV).
+- **Datos de obra**: zócalo estructural en N zócalos, altura de techo con verificación de cuerpo/diagonal, espesor de tablero y color de cuerpo.
+- **CSV como fuente de verdad**: todo persiste como CSV versionado; ~50 ejemplos seleccionables (catálogo regenerable con `scripts/generar-ejemplos-assembly.mjs` y `scripts/generar-closet-auditoria.mjs`).
+
+Guía detallada: `docs/assembly-planner-constructor.md`.
+
+## Optimizador de cortes
+
+- **Modos de corte** (todos respetando kerf y margen): `guillotina` (cortes lineales completos, prioridad en filas o columnas), `mixto` (dos fases: columnas completas con las piezas grandes de alto ≥ 50% del tablero y luego filas con las pequeñas hacia la derecha; con **Máximo aprovechamiento** prueba mixto 50%/65% y guillotina, y se queda con el mejor lote) y `nesting` 2D libre (rectpack, cortes en T).
+- **Veta**: eje de veta del tablero (a lo ancho o al alto); las piezas con rotación bloqueada se pre-orientan paralelas a la veta y se empacan sin rotar.
+- **Clasificación de cantos**: 9 categorías (Sin laminar … 4 Lados) lado-indistinto (T=B, L=R), metros lineales de tapacanto, columna editable en Conteo que escribe de vuelta en el CSV, y PDF dedicado.
+- **PDF de tableros**: layout por tablero con cotas, leyenda **agrupada por medidas** (concatena ids/nombres/cantos cuando difieren) y borde verde en piezas canteadas.
+- **Sobrantes (offcuts)**: optimización previa en sobrantes registrados y alta de sobrantes nuevos desde el layout.
 
 ---
 
@@ -133,6 +156,7 @@ docker logs -f cutternest-whatsapp
 - `GET /api/v1/projects/{id}/quotes`
 - `POST /api/v1/projects/{id}/cutlist`
 - `POST /api/v1/projects/{id}/labels`
+- `POST /api/v1/projects/{id}/cantos/pdf`        # clasificación de cantos (9 categorías)
 - `GET /api/v1/projects/{id}/assembly`
 - `POST /api/v1/projects/{id}/assembly/generate`
 - `POST /api/v1/projects/{id}/assembly/plan`
@@ -162,16 +186,25 @@ El backend realiza una migración automática al arrancar para convertir columna
 
 ## Tests
 
-Backend:
+Backend (pytest):
 
 ```bash
 ./scripts/test-backend.sh
 ```
 
-Frontend:
+Frontend React (Vitest) + build:
 
 ```bash
 ./scripts/test-frontend.sh
+```
+
+Assembly Planner (node --test, happy-dom y validación de ejemplos):
+
+```bash
+cd frontend/public/assembly-planner
+node --test 'test/*.test.mjs' 'js/**/*.test.js'   # suite unitaria + integración
+pnpm test:dom                                    # vistas DOM (happy-dom)
+node test/validate-examples.mjs                  # catálogo de ejemplos CSV
 ```
 
 Diagnostico completo (Docker, backend, frontend):
@@ -204,4 +237,5 @@ Diagnostico completo (Docker, backend, frontend):
 
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0, Pydantic, SQLite, rectpack, ReportLab, pyotp.
 - **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Three.js, @react-three/fiber, zustand.
+- **Assembly Planner**: JavaScript vanilla (ES modules), SVG procedural (vista 3D orbital propia), sin build — lo sirve nginx tal cual.
 - **Infraestructura**: Docker Compose, nginx.
