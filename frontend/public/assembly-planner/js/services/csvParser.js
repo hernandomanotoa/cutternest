@@ -6,7 +6,7 @@ import { inferRole } from './classifierService.js';
 import { migraPiezasAMueble } from './cutOrientationService.js';
 import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes, constructorCascoWidth } from './geometryService.js';
 import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight, drawerBackMaxHeight } from './railService.js';
-import { tipoTagDe, fondoMetodoDeTipo } from '../core/contentTypes.js';
+import { tipoTagDe, fondoMetodoDeTipo, cantoTagDe } from '../core/contentTypes.js';
 import { validateShoeClearance } from './shoeClearanceService.js';
 import { validateStackClearance } from './stackClearanceService.js';
 import { COLORS, DRAWER_GROOVE_DEPTH } from '../core/config.js';
@@ -336,8 +336,13 @@ function validateDimensions(pieces, warnings) {
             const holguras = { telescopica: 25.4, telescopica26: 26, oculta: Math.max(0, 42 - 2 * espLat), ruedas: 25, ligera: 20 };
             const esperadaH = holguras[tipoRiel] ?? 25.4;
             const luzFrente = interiorWidth - Number(front.ancho) || 0;
-            if (Math.abs(luzFrente - 2) > 1.5) {
-              warnings.push(`Módulo ${modId} → ${subId}: frente de ${front.ancho} mm sin luz perimetral de 2 mm por lado (vano ${interiorWidth} mm; esperado ${interiorWidth - 2} mm).`);
+            // La luz esperada total incluye el doble del canto del frente
+            // (tag [cantoN], convención 2026-11): con canto 1–2 mm el frente
+            // se corta más angosto y la holgura final sigue siendo ~1 mm/lado.
+            const cantoFrente = cantoTagDe(front.nombre) || 0;
+            const luzEsperada = 2 + 2 * cantoFrente;
+            if (Math.abs(luzFrente - luzEsperada) > 1.5) {
+              warnings.push(`Módulo ${modId} → ${subId}: frente de ${front.ancho} mm sin luz perimetral esperada (vano ${interiorWidth} mm; esperado ${interiorWidth - luzEsperada} mm${cantoFrente ? ` incluye canto ${cantoFrente} mm` : ''}).`);
             }
             const anchoCaja = (() => {
               // El ancho de la caja se mide por la CARA (mide el interior);
@@ -497,7 +502,9 @@ function validateDimensions(pieces, warnings) {
       const b = findPiece(modules[modId], ['base']);
       if (!b) return sum;
       const modBox = getModuleDimensions(modules[modId], b.espesor);
-      return sum + modBox.width;
+      // Convención 2026-11 (tapa embutida): el ancho exterior se deriva del
+      // fondo, no de la base/tapa internas.
+      return sum + constructorCascoWidth(modules[modId], modBox.width);
     }, 0);
     const anchoZocalo = frentesMarco.length
       ? frentesMarco.reduce((s, p) => s + (Number(p.ancho) || 0), 0)

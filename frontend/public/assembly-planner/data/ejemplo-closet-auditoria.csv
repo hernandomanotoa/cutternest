@@ -1,0 +1,160 @@
+# CutterNest Piezas v1
+# Closet de auditoría (Constructor): abierto 3360×2380×600, melamina 15 mm.
+# 5 módulos de 672: 2 zapateras (vano 180, bandeja 60, telescópica 26) + 2 cajones
+# (vanos 220 y 150) + gola entre cajones + repisa superior a 350 de inset.
+# Canto PVC 1 mm (tag [canto1]) y Luz frente 1 mm → frentes 638 mm.
+# Módulo 3 conserva solo la repisa superior. Marco estructural en 2 zócalos.
+id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
+m1-base,Base modulo M1,642,585,1,si,#C19A6B,15,,1,
+m1-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",1,
+m1-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",1,
+m1-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",1,
+m1-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,1,
+m1zapatera1-lateral-izq,Lateral zapatera extraible 1 izq M1,560,60,1,si,#D9C2A3,15,,11,
+m1zapatera1-lateral-der,Lateral zapatera extraible 1 der M1,560,60,1,si,#D9C2A3,15,,11,
+m1zapatera1-fondo,Fondo zapatera extraible 1 M1,586,60,1,si,#F2F2F2,15,,11,
+m1zapatera1-cara,Cara [v180] zapatera extraible 1 M1,586,147,1,si,#D9C2A3,15,,11,25
+m1zapatera1-division,Division zapatera extraible 1 M1,586,45,1,no,#D9C2A3,15,"T",11,
+m1zapatera1-base,Base zapatera extraible 1 M1,586,530,1,si,#D9C2A3,15,,11,
+m1zapatera2-lateral-izq,Lateral zapatera extraible 2 izq M1,560,60,1,si,#D9C2A3,15,,12,
+m1zapatera2-lateral-der,Lateral zapatera extraible 2 der M1,560,60,1,si,#D9C2A3,15,,12,
+m1zapatera2-fondo,Fondo zapatera extraible 2 M1,586,60,1,si,#F2F2F2,15,,12,
+m1zapatera2-cara,Cara [v180] zapatera extraible 2 M1,586,147,1,si,#D9C2A3,15,,12,207.5
+m1zapatera2-division,Division zapatera extraible 2 M1,586,45,1,no,#D9C2A3,15,"T",12,
+m1zapatera2-base,Base zapatera extraible 2 M1,586,530,1,si,#D9C2A3,15,,12,
+m1cajon3-frente,Frente [canto1] cajon telescopica 26 3 M1,638,277,1,no,#8B5A2B,15,"T,B,L,R",13,375
+m1cajon3-lateral-izq,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,13,
+m1cajon3-lateral-der,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,13,
+m1cajon3-fondo,Fondo cajon 3 M1,586,187,1,si,#F2F2F2,15,,13,
+m1cajon3-cara,Cara cajon 3 M1,586,187,1,si,#D9C2A3,15,,13,
+m1cajon3-base,Base cajon 3 M1,586,530,1,si,#D9C2A3,15,,13,
+m1cajon4-frente,Frente [canto1] cajon telescopica 26 4 M1,638,177,1,no,#8B5A2B,15,"T,B,L,R",14,667
+m1cajon4-lateral-izq,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,14,
+m1cajon4-lateral-der,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,14,
+m1cajon4-fondo,Fondo cajon 4 M1,586,117,1,si,#F2F2F2,15,,14,
+m1cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,14,
+m1cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,14,
+m1-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",1,2000
+m1-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,1,2000
+m2-base,Base modulo M1,642,585,1,si,#C19A6B,15,,2,
+m2-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",2,
+m2-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",2,
+m2-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",2,
+m2-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,2,
+m2zapatera1-lateral-izq,Lateral zapatera extraible 1 izq M1,560,60,1,si,#D9C2A3,15,,21,
+m2zapatera1-lateral-der,Lateral zapatera extraible 1 der M1,560,60,1,si,#D9C2A3,15,,21,
+m2zapatera1-fondo,Fondo zapatera extraible 1 M1,586,60,1,si,#F2F2F2,15,,21,
+m2zapatera1-cara,Cara [v180] zapatera extraible 1 M1,586,147,1,si,#D9C2A3,15,,21,25
+m2zapatera1-division,Division zapatera extraible 1 M1,586,45,1,no,#D9C2A3,15,"T",21,
+m2zapatera1-base,Base zapatera extraible 1 M1,586,530,1,si,#D9C2A3,15,,21,
+m2zapatera2-lateral-izq,Lateral zapatera extraible 2 izq M1,560,60,1,si,#D9C2A3,15,,22,
+m2zapatera2-lateral-der,Lateral zapatera extraible 2 der M1,560,60,1,si,#D9C2A3,15,,22,
+m2zapatera2-fondo,Fondo zapatera extraible 2 M1,586,60,1,si,#F2F2F2,15,,22,
+m2zapatera2-cara,Cara [v180] zapatera extraible 2 M1,586,147,1,si,#D9C2A3,15,,22,207.5
+m2zapatera2-division,Division zapatera extraible 2 M1,586,45,1,no,#D9C2A3,15,"T",22,
+m2zapatera2-base,Base zapatera extraible 2 M1,586,530,1,si,#D9C2A3,15,,22,
+m2cajon3-frente,Frente [canto1] cajon telescopica 26 3 M1,638,277,1,no,#8B5A2B,15,"T,B,L,R",23,375
+m2cajon3-lateral-izq,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,23,
+m2cajon3-lateral-der,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,23,
+m2cajon3-fondo,Fondo cajon 3 M1,586,187,1,si,#F2F2F2,15,,23,
+m2cajon3-cara,Cara cajon 3 M1,586,187,1,si,#D9C2A3,15,,23,
+m2cajon3-base,Base cajon 3 M1,586,530,1,si,#D9C2A3,15,,23,
+m2cajon4-frente,Frente [canto1] cajon telescopica 26 4 M1,638,177,1,no,#8B5A2B,15,"T,B,L,R",24,667
+m2cajon4-lateral-izq,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,24,
+m2cajon4-lateral-der,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,24,
+m2cajon4-fondo,Fondo cajon 4 M1,586,117,1,si,#F2F2F2,15,,24,
+m2cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,24,
+m2cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,24,
+m2-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",2,2000
+m2-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,2,2000
+m3-base,Base modulo M1,642,585,1,si,#C19A6B,15,,3,
+m3-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",3,
+m3-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",3,
+m3-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",3,
+m3-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,3,
+m3-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",3,2000
+m3-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,3,2000
+m4-base,Base modulo M1,642,585,1,si,#C19A6B,15,,4,
+m4-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",4,
+m4-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",4,
+m4-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",4,
+m4-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,4,
+m4zapatera1-lateral-izq,Lateral zapatera extraible 1 izq M1,560,60,1,si,#D9C2A3,15,,41,
+m4zapatera1-lateral-der,Lateral zapatera extraible 1 der M1,560,60,1,si,#D9C2A3,15,,41,
+m4zapatera1-fondo,Fondo zapatera extraible 1 M1,586,60,1,si,#F2F2F2,15,,41,
+m4zapatera1-cara,Cara [v180] zapatera extraible 1 M1,586,147,1,si,#D9C2A3,15,,41,25
+m4zapatera1-division,Division zapatera extraible 1 M1,586,45,1,no,#D9C2A3,15,"T",41,
+m4zapatera1-base,Base zapatera extraible 1 M1,586,530,1,si,#D9C2A3,15,,41,
+m4zapatera2-lateral-izq,Lateral zapatera extraible 2 izq M1,560,60,1,si,#D9C2A3,15,,42,
+m4zapatera2-lateral-der,Lateral zapatera extraible 2 der M1,560,60,1,si,#D9C2A3,15,,42,
+m4zapatera2-fondo,Fondo zapatera extraible 2 M1,586,60,1,si,#F2F2F2,15,,42,
+m4zapatera2-cara,Cara [v180] zapatera extraible 2 M1,586,147,1,si,#D9C2A3,15,,42,207.5
+m4zapatera2-division,Division zapatera extraible 2 M1,586,45,1,no,#D9C2A3,15,"T",42,
+m4zapatera2-base,Base zapatera extraible 2 M1,586,530,1,si,#D9C2A3,15,,42,
+m4cajon3-frente,Frente [canto1] cajon telescopica 26 3 M1,638,277,1,no,#8B5A2B,15,"T,B,L,R",43,375
+m4cajon3-lateral-izq,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,43,
+m4cajon3-lateral-der,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,43,
+m4cajon3-fondo,Fondo cajon 3 M1,586,187,1,si,#F2F2F2,15,,43,
+m4cajon3-cara,Cara cajon 3 M1,586,187,1,si,#D9C2A3,15,,43,
+m4cajon3-base,Base cajon 3 M1,586,530,1,si,#D9C2A3,15,,43,
+m4cajon4-frente,Frente [canto1] cajon telescopica 26 4 M1,638,177,1,no,#8B5A2B,15,"T,B,L,R",44,667
+m4cajon4-lateral-izq,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,44,
+m4cajon4-lateral-der,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,44,
+m4cajon4-fondo,Fondo cajon 4 M1,586,117,1,si,#F2F2F2,15,,44,
+m4cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,44,
+m4cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,44,
+m4-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",4,2000
+m4-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,4,2000
+m5-base,Base modulo M1,642,585,1,si,#C19A6B,15,,5,
+m5-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",5,
+m5-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",5,
+m5-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",5,
+m5-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,5,
+m5zapatera1-lateral-izq,Lateral zapatera extraible 1 izq M1,560,60,1,si,#D9C2A3,15,,51,
+m5zapatera1-lateral-der,Lateral zapatera extraible 1 der M1,560,60,1,si,#D9C2A3,15,,51,
+m5zapatera1-fondo,Fondo zapatera extraible 1 M1,586,60,1,si,#F2F2F2,15,,51,
+m5zapatera1-cara,Cara [v180] zapatera extraible 1 M1,586,147,1,si,#D9C2A3,15,,51,25
+m5zapatera1-division,Division zapatera extraible 1 M1,586,45,1,no,#D9C2A3,15,"T",51,
+m5zapatera1-base,Base zapatera extraible 1 M1,586,530,1,si,#D9C2A3,15,,51,
+m5zapatera2-lateral-izq,Lateral zapatera extraible 2 izq M1,560,60,1,si,#D9C2A3,15,,52,
+m5zapatera2-lateral-der,Lateral zapatera extraible 2 der M1,560,60,1,si,#D9C2A3,15,,52,
+m5zapatera2-fondo,Fondo zapatera extraible 2 M1,586,60,1,si,#F2F2F2,15,,52,
+m5zapatera2-cara,Cara [v180] zapatera extraible 2 M1,586,147,1,si,#D9C2A3,15,,52,207.5
+m5zapatera2-division,Division zapatera extraible 2 M1,586,45,1,no,#D9C2A3,15,"T",52,
+m5zapatera2-base,Base zapatera extraible 2 M1,586,530,1,si,#D9C2A3,15,,52,
+m5cajon3-frente,Frente [canto1] cajon telescopica 26 3 M1,638,277,1,no,#8B5A2B,15,"T,B,L,R",53,375
+m5cajon3-lateral-izq,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,53,
+m5cajon3-lateral-der,Lateral cajon 3 M1,560,187,1,si,#D9C2A3,15,,53,
+m5cajon3-fondo,Fondo cajon 3 M1,586,187,1,si,#F2F2F2,15,,53,
+m5cajon3-cara,Cara cajon 3 M1,586,187,1,si,#D9C2A3,15,,53,
+m5cajon3-base,Base cajon 3 M1,586,530,1,si,#D9C2A3,15,,53,
+m5cajon4-frente,Frente [canto1] cajon telescopica 26 4 M1,638,177,1,no,#8B5A2B,15,"T,B,L,R",54,667
+m5cajon4-lateral-izq,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,54,
+m5cajon4-lateral-der,Lateral cajon 4 M1,560,117,1,si,#D9C2A3,15,,54,
+m5cajon4-fondo,Fondo cajon 4 M1,586,117,1,si,#F2F2F2,15,,54,
+m5cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,54,
+m5cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,54,
+m5-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",5,2000
+m5-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,5,2000
+m1gola-c1-fondo,Fondo de canal Gola C 1,642,84,1,no,#C19A6B,15,"T,B",1,610
+m1gola-c1-ala-inf,Ala inferior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",1,610
+m1gola-c1-ala-sup,Ala superior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",1,679
+m2gola-c1-fondo,Fondo de canal Gola C 1,642,84,1,no,#C19A6B,15,"T,B",2,610
+m2gola-c1-ala-inf,Ala inferior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",2,610
+m2gola-c1-ala-sup,Ala superior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",2,679
+m4gola-c1-fondo,Fondo de canal Gola C 1,642,84,1,no,#C19A6B,15,"T,B",4,610
+m4gola-c1-ala-inf,Ala inferior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",4,610
+m4gola-c1-ala-sup,Ala superior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",4,679
+m5gola-c1-fondo,Fondo de canal Gola C 1,642,84,1,no,#C19A6B,15,"T,B",5,610
+m5gola-c1-ala-inf,Ala inferior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",5,610
+m5gola-c1-ala-sup,Ala superior Gola C 1,642,73,1,si,#C19A6B,15,"T,B",5,679
+glb-zocalo-s1-frente,Zocalo marco S1 frente,1680,100,1,no,#C19A6B,15,"T",estructura,0
+glb-zocalo-s1-trasero,Zocalo marco S1 trasero,1680,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s1-costado-izq,Lateral zocalo S1 izquierdo,570,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s1-costado-der,Lateral zocalo S1 derecho,570,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s1-montante-1,Montante zocalo S1 1,570,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s2-frente,Zocalo marco S2 frente,1680,100,1,no,#C19A6B,15,"T",estructura,0
+glb-zocalo-s2-trasero,Zocalo marco S2 trasero,1680,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s2-costado-izq,Lateral zocalo S2 izquierdo,570,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s2-costado-der,Lateral zocalo S2 derecho,570,100,1,no,#C19A6B,15,,estructura,0
+glb-zocalo-s2-montante-1,Montante zocalo S2 1,570,100,1,no,#C19A6B,15,,estructura,0

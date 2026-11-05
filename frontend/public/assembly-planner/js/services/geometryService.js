@@ -230,7 +230,10 @@ export function constructorCascoWidth(pieces, baseW) {
     if (!f || Math.abs((Number(t.ancho) || 0) - (Number(f.ancho) || 0)) > 2) continue;
     const mod = String(t.id).match(/^m(\d+)-tapa$/)[1];
     const lat = laterales.find((p) => String(p.id) === `m${mod}-lateral-izq`);
-    if (lat && Math.abs((Number(t.alto) || 0) - ((Number(lat.ancho) || 0) - (Number(t.espesor) || 15))) > 2) continue;
+    // Sin el lateral del Constructor (nomenclatura `m{N}-lateral-izq`) no
+    // hay firma completa: casos legacy (p. ej. `m1-lat-izq`) no se tocan.
+    if (!lat) continue;
+    if (Math.abs((Number(t.alto) || 0) - ((Number(lat.ancho) || 0) - (Number(t.espesor) || 15))) > 2) continue;
     w = Math.max(w, (Number(f.ancho) || 0) + 2 * (Number(f.espesor) || 15));
   }
   return w;

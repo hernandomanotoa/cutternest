@@ -26,6 +26,7 @@ export const FICHAS_EJEMPLOS = {
   'ejemplo-tocador.csv': { tipo: 'tocador' },
   'ejemplo-tocador-espejo.csv': { tipo: 'tocador' },
   'ejemplo-closet-interior.csv': { tipo: 'closet' },
+  'ejemplo-closet-auditoria.csv': { tipo: 'closet' },
   'ejemplo-closet-abierto-modular.csv': { tipo: 'closet' },
   'ejemplo-closet-zapatera-mixta.csv': { tipo: 'zapatera' },
 

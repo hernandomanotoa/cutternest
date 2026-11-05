@@ -72,12 +72,20 @@ function validateFile(filePath) {
     }
   }
 
+  // Warnings de DISEÑO (los decide el usuario en la pestaña Auditoría, no
+  // son defectos del CSV): cobertura de frentes <35% del alto útil y el aire
+  // libre que reporta la gola. Se reportan como '[DISEÑO]' informativos y
+  // NO cuentan en el gate de warnings del catálogo.
+  const WARNING_DISENO = [/frentes de cajón suman/, /quedan \d+ mm libres/];
+  const warnings = (result.warnings || []).filter((w) => !WARNING_DISENO.some((re) => re.test(w)));
+  const diseno = (result.warnings || []).filter((w) => WARNING_DISENO.some((re) => re.test(w)));
   return {
     file: filePath,
     ok: result.ok,
     parseError: result.error || null,
     errors: result.errors || [],
-    warnings: result.warnings || [],
+    warnings,
+    diseno,
     pieceCount: result.pieces ? result.pieces.length : 0,
     genericPieces,
     families,
@@ -92,6 +100,7 @@ function printFileReport(r, { showFamilies = false } = {}) {
   if (r.parseError) console.log(`  ERROR DE PARSEO: ${r.parseError}`);
   r.errors.forEach((e) => console.log(`  [ERROR] ${e}`));
   r.warnings.forEach((w) => console.log(`  [WARN]  ${w}`));
+  (r.diseno || []).forEach((w) => console.log(`  [DISEÑO] ${w}`));
 
   if (r.genericPieces.length) {
     console.log(`  piezas genéricas (${r.genericPieces.length}):`);
