@@ -57,6 +57,14 @@ export function loadUserConfig() {
             }
           }
         }
+        for (const key of NUMERIC_PREFS) {
+          if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+            const value = Number(parsed[key]);
+            if (Number.isFinite(value)) {
+              config[key] = value;
+            }
+          }
+        }
         if (parsed.pieceOffsets && typeof parsed.pieceOffsets === 'object') {
           config.pieceOffsets = { ...parsed.pieceOffsets };
         }
@@ -81,6 +89,10 @@ export function loadUserConfig() {
 // Preferencias de texto persistibles (selects del formulario de contenido
 // del Constructor). Se guardan tal cual; loadUserConfig las rehidrata.
 export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel', 'golaFijacion', 'contentModoZapatera', 'colorCuerpo', 'frontGapMode'];
+
+// Preferencias numéricas persistibles fuera de VERTICAL_POSITIONS. El revert
+// compara contra el default del preset (cantoFrente: 0 = sin descuento).
+const NUMERIC_PREFS = ['cantoFrente'];
 
 export function saveUserConfig(overrides) {
   const storage = getStorage();
@@ -108,6 +120,16 @@ export function saveUserConfig(overrides) {
         Number.isFinite(value)
       ) {
         if (value !== defaults[key]) diff[key] = value;
+        else delete diff[key];
+      }
+    }
+    for (const key of NUMERIC_PREFS) {
+      const value = overrides?.[key];
+      if (
+        Object.prototype.hasOwnProperty.call(overrides || {}, key) &&
+        Number.isFinite(value)
+      ) {
+        if (value !== (defaults[key] ?? 0)) diff[key] = value;
         else delete diff[key];
       }
     }

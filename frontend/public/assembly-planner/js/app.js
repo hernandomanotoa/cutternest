@@ -50,7 +50,7 @@ import {
   MARCO_PIECE_RE,
   PLINTH_DRAWER_FRONT_LIFT_MM,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, vanoDesdeCara, fondoMetodoDeTipo, vanoTagId } from './core/contentTypes.js';
+import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, cantoTagDe, vanoDesdeCara, fondoMetodoDeTipo, vanoTagId } from './core/contentTypes.js';
 import {
   createModule,
   addZocalo,
@@ -619,6 +619,13 @@ function frenteBoxOpts(userConfig) {
   return { frontGapMode: modo, holguraFondo: Number.isFinite(h) && h >= 0 ? h : null };
 }
 
+// Canto del frente (PVC/melamina en lados L/R) de la config del usuario:
+// 0 (sin descuento, default), 0.4, 1 o 2 mm. Valida rango; fuera de rango 0.
+function cantoFrenteDeCfg(userConfig) {
+  const v = Number(userConfig?.cantoFrente);
+  return Number.isFinite(v) && v >= 0 && v <= 3 ? v : 0;
+}
+
 export function addContentToModule(moduleId, kind, opts = {}) {
   snapshotUndo("Agregar contenido");
   const store = getStore();
@@ -731,6 +738,8 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         riel: ['catalogo', 'telescopica26', 'oculta', 'marco'].includes(opts.riel) ? opts.riel : 'catalogo',
         frenteLuz: Number(opts.frenteLuz) || 1,
         ...frenteBoxOpts(state.userConfig),
+        // Canto del frente (0/0,4/1/2): preferencia global del usuario.
+        cantoFrente: cantoFrenteDeCfg(state.userConfig),
       });
     } else {
       result = addDrawer(moduleId, idx, {
@@ -751,6 +760,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         // tipo (addDrawer cae a 'apoyado' sin contrato).
         fondoMetodo: ['apoyado', 'ranurado'].includes(opts.fondoMetodo) ? opts.fondoMetodo : null,
         ...frenteBoxOpts(state.userConfig),
+        cantoFrente: cantoFrenteDeCfg(state.userConfig),
       });
     }
   } else if (kind === 'divider') {
@@ -1859,8 +1869,8 @@ export function removeStructuralPlinth() {
   return { ok: true, restored: restauradas.length };
 }
 
-export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
-  snapshotUndo("Editar dimensiones");
+export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {}) {
+  if (!opts.skipUndo) snapshotUndo("Editar dimensiones");
   const store = getStore();
   const state = store.get();
   const dims = { ancho: Number(ancho), alto: Number(alto), prof: Number(prof) };
@@ -1966,6 +1976,9 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
         // no lleva el tag del riel; sin frente cae al catálogo).
         riel: frente ? inferRailType(frente) : 'catalogo',
         ...frenteBoxOpts(getStore().get().userConfig),
+        // Canto del frente: el tag [cantoN] del frente viejo conserva el
+        // valor ante ediciones; sin tag, la preferencia global.
+        cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? cantoFrenteDeCfg(getStore().get().userConfig),
       })
       : addDrawer(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
@@ -1990,6 +2003,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
             return caraW > 0 && Number(fondoViejo?.ancho) > caraW + 1 ? 'ranurado' : 'apoyado';
           })(),
         ...frenteBoxOpts(getStore().get().userConfig),
+        cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? cantoFrenteDeCfg(getStore().get().userConfig),
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
@@ -2091,6 +2105,45 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }) {
   store.set({ pieces: finalPieces, dependencies: sugerirDependencias(finalPieces) });
   recalculateAll();
   return golaWarnings.length ? { ok: true, warnings: golaWarnings } : { ok: true };
+}
+
+// Cambia el Canto PVC global y RECONSTRUYE el mueble: regenera los cajones y
+// zapateras de TODOS los módulos con el nuevo espesor (override del tag: el
+// valor elegido manda sobre lo que cada frente traía). Un solo snapshot de
+// deshacer para todo el lote. El valor queda persistido en el userConfig y
+// se reestampa como [cantoN] en cada frente regenerado, así sobrevive a
+// cualquier edición posterior de los módulos.
+export function aplicarCantoFrente(valor) {
+  const v = Number(valor);
+  if (!Number.isFinite(v) || v < 0 || v > 3) {
+    return { ok: false, errors: [`Canto PVC debe estar entre 0 y 3 mm (recibido "${valor}")`] };
+  }
+  snapshotUndo('Canto PVC global');
+  saveUserConfig({ cantoFrente: v });
+  const store = getStore();
+  store.set({ userConfig: loadUserConfig() });
+  const state = store.get();
+  // Módulos con contenido móvil (cajón/zapatera): frentes por submódulo.
+  const moduloDe = (p) => String(p.modulo || '');
+  const raizDe = (m) => (m.includes('.') ? m.split('.')[0] : (/^\d+$/.test(m) ? m[0] : m));
+  const conFrentes = new Set();
+  for (const p of state.pieces) {
+    if (inferRole(p) === 'drawer_face' || (inferRole(p) === 'drawer_part' && /cara/i.test(`${p.nombre} ${p.id}`))) {
+      const m = moduloDe(p);
+      if (m !== 'estructura' && m !== 'global') conFrentes.add(raizDe(m));
+    }
+  }
+  const errores = [];
+  let reconstruidos = 0;
+  for (const moduleId of conFrentes) {
+    const dims = moduleDims(state.pieces.filter((p) => String(p.modulo) === String(moduleId)), moduleId);
+    if (!dims || !dims.altoModulo) continue;
+    const r = editModuleDimensions(moduleId, { ancho: dims.anchoModulo, alto: dims.altoModulo, prof: dims.profModulo }, { cantoFrenteOverride: v, skipUndo: true });
+    if (!r.ok) errores.push(...(r.errors || []));
+    else reconstruidos += 1;
+  }
+  if (errores.length) return { ok: false, errors: errores };
+  return { ok: true, reconstruidos };
 }
 
 // Limpia todo el mueble (nuevo mueble). La vista pide doble confirmacion.

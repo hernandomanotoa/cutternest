@@ -13,6 +13,7 @@ import {
   applyGolaFix,
   addModuleFromBuilder,
   addContentToModule,
+  aplicarCantoFrente,
   removeModule,
   duplicateModule,
   recolorModule,
@@ -668,9 +669,13 @@ export function createConstructorView(store) {
       // el storage completo, un segundo call la borraría (por eso el input
       // volvía a 1 tras aplicar).
       const luzFrente = Math.max(0.5, Number(container.querySelector(`${scoped} [data-luz-frente]`)?.value) || 1);
+      // Canto PVC del frente (0/0,4/1/2): persistido y aplicado a los
+      // contenidos nuevos; los existentes se reconstruyen con '↻ Todo'.
+      const cantoFrente = Number(container.querySelector(`${scoped} [data-canto-frente]`)?.value ?? 0) || 0;
       // Persistir las preferencias para los siguientes módulos (sesión).
       saveUserConfig({
         drawerFrontLuz: luzFrente,
+        cantoFrente,
         ...(altoVano > 0 ? { contentVano: altoVano } : {}),
         contentNPorFila: nPorFila,
         contentDivision: division ? 1 : 0,
@@ -695,10 +700,22 @@ export function createConstructorView(store) {
         altoLateral: altoLateralZ, altoFondo: altoFondoZ, altoDivision: altoDivisionZ,
         riel, frenteLuz: luzFrente, fondoMetodo: fondoRanurado ? 'ranurado' : 'apoyado',
         repisaAlFrente: repisaAlFrente ? 1 : 0, conRefuerzo: refuerzoRepisa,
+        cantoFrente,
       });
       if (r.ok) {
         toast(`${labelKind(kind)} agregado al módulo ${moduleId}`, { type: 'success' });
         warnIfAny(r.warnings);
+      } else {
+        toast(r.errors.join('; '), { type: 'error' });
+      }
+    } else if (action === 'apply-canto-global') {
+      const scoped0 = `[data-module-scoped="${CSS.escape(btn.dataset.module)}"]`;
+      const valor = Number(container.querySelector(`${scoped0} [data-canto-frente]`)?.value ?? 0) || 0;
+      const r = aplicarCantoFrente(valor);
+      if (r.ok) {
+        saveUserConfig({ cantoFrente: valor });
+        store.set({ userConfig: loadUserConfig() });
+        toast(`Canto PVC ${valor} mm aplicado: ${r.reconstruidos} módulo(s) reconstruido(s)`, { type: 'success' });
       } else {
         toast(r.errors.join('; '), { type: 'error' });
       }
@@ -1688,6 +1705,12 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
             <label class="form-group" style="margin:0;" title="Luz perimetral del frente por lado respecto del vano interior (spec gola: 3 mm)">Luz frente (mm)
               <input type="number" data-luz-frente value="${Number(cfg.drawerFrontLuz ?? 1)}" min="0.5" max="5" step="0.5" />
             </label>
+            <label class="form-group" style="margin:0;" title="Canto (PVC o melamina) en los lados del frente: se descuenta 2×espesor del ancho de corte para que el frente canteado conserve la holgura en el vano (con PVC 1–2 mm el frente sin descuento quedaría al ras o no entraría). '↻ Todo' reconstruye los frentes existentes del mueble con el nuevo valor">Canto PVC (mm)
+              <select data-canto-frente>
+                ${[0, 0.4, 1, 2].map((v) => `<option value="${v}" ${Number(cfg.cantoFrente ?? 0) === v ? 'selected' : ''}>${v === 0 ? '0 (sin canto)' : v}</option>`).join('')}
+              </select>
+            </label>
+            <button class="btn btn--sm" style="align-self:end;" data-action="apply-canto-global" data-module="${escapeHtml(moduleId)}" title="Reconstruye TODOS los frentes del mueble (cajones y zapateras) con el Canto PVC elegido. Un solo paso de deshacer (Ctrl+Z) revierte el lote completo">↻ Todo el mueble</button>
             <label class="form-group" style="margin:0;" title="Espesor del frente decorativo (puede diferir del cuerpo: frente 18 con cuerpo 15 es lo mas comun)">Esp. frente
               <select data-espesor-frente>
                 <option value="15" selected>15 mm</option>

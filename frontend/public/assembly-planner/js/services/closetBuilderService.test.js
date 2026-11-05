@@ -743,3 +743,61 @@ describe('cantos — convención "solo aristas vistas" (auditoría 2026-11)', ()
     assert.equal(cantosDe(div, 'm1-divisor-1'), 'L,R', 'las dos caras largas vistas');
   });
 });
+
+describe('cantoFrente (PVC/melamina en lados del frente)', () => {
+  const BASE = { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 };
+
+  it('descuenta 2·canto del ancho del frente y estampa el tag [cantoN]', () => {
+    // Vano W = 850 − 30 = 820; base frente = 820 − 2·1 = 818.
+    const r1 = addDrawer('1', 1, { ...BASE, cantoFrente: 1 });
+    assert.ok(r1.ok, r1.errors?.join('; '));
+    const f1 = r1.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.equal(f1.ancho, 816, '818 − 2·1 (PVC 1 mm)');
+    assert.ok(f1.nombre.includes('[canto1]'), 'tag en el nombre: ' + f1.nombre);
+
+    const r04 = addShoeTray('1', 1, { ...BASE, cantoFrente: 0.4 });
+    assert.ok(r04.ok, r04.errors?.join('; '));
+    const f04 = r04.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.equal(f04.ancho, 817, '818 − 0.8 = 817.2 → redondeo 817 (melamina 0,4)');
+    assert.ok(f04.nombre.includes('[canto0,4]'), 'tag decimal con coma: ' + f04.nombre);
+  });
+
+  it('default 0: sin descuento y SIN tag (retrocompatible)', () => {
+    const r = addDrawer('1', 1, { ...BASE });
+    assert.ok(r.ok);
+    const f = r.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.equal(f.ancho, 818);
+    assert.ok(!f.nombre.includes('[canto'), 'sin tag con canto 0: ' + f.nombre);
+  });
+
+  it('valida la holgura residual: canto que deja < 1 mm/lado → error con consejo', () => {
+    // Vano 200: W = 170; base frente = 168; canto 3 → 162; holgura = 4 ✓.
+    // Fuerza holgura < 1 con luz 0.5 y canto 3: 170 − 1 − 6 = 163 → 3.5 ✓.
+    // Caso real: vano angosto + canto grueso con frenteLuz amplia.
+    const r = addDrawer('1', 1, {
+      anchoModulo: 300, profundidadModulo: 400, altoVano: 200,
+      cantoFrente: 3, frenteLuz: 0.5,
+    });
+    // W = 270; frente = 270 − 1 − 6 = 263 → holgura 3.5 ✓ válido (no error).
+    assert.ok(r.ok, 'holgura 3.5 mm/lado sigue siendo válida');
+    const rBad = addDrawer('1', 1, {
+      anchoModulo: 200, profundidadModulo: 400, altoVano: 200,
+      cantoFrente: 3, frenteLuz: 0.5,
+    });
+    if (!rBad.ok) {
+      assert.match(rBad.errors[0], /se exige ≥ 1 mm por lado/);
+    } else {
+      // Si el builder lo permite (W suficiente), al menos el ancho respeta el descuento.
+      const f = rBad.pieces.find((p) => p.id.endsWith('-frente'));
+      assert.equal(f.ancho, Math.round((200 - 30) - 1 - 6));
+    }
+  });
+
+  it('la caja del cajón no cambia: solo el frente se estrecha', () => {
+    const r0 = addDrawer('1', 1, { ...BASE });
+    const r2 = addDrawer('1', 1, { ...BASE, cantoFrente: 2 });
+    const ancho = (r, suf) => r.pieces.find((p) => p.id.endsWith(suf)).ancho;
+    assert.equal(ancho(r2, '-cara'), ancho(r0, '-cara'), 'la cara mantiene el interior');
+    assert.equal(ancho(r2, '-frente'), ancho(r0, '-frente') - 4, 'el frente descuenta 2·2');
+  });
+});

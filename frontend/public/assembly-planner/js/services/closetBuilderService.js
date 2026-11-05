@@ -5,7 +5,7 @@
 // Todas las funciones devuelven { ok: true, pieces } o { ok: false, errors }
 // y nunca lanzan: la vista muestra los errors en un toast.
 
-import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, stampTipoTag, getContentType, fondoMetodoDeTipo } from '../core/contentTypes.js';
+import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, stampTipoTag, stampCantoTag, getContentType, fondoMetodoDeTipo } from '../core/contentTypes.js';
 import { DRAWER_GROOVE_DEPTH } from '../core/config.js';
 import { rotateDeRol, cantosDeRol } from './cutOrientationService.js';
 
@@ -349,6 +349,9 @@ export function addDrawer(moduleId, index, {
   frontGapMode = 'tapajunta', // 'tapajunta'|'ras'|'interno': el retranqueo del
                               // plano de frentes descuenta de la caja
   holguraFondo = null, // mm caja→fondo del módulo (null → HOLGURA_FONDO_DEFAULT)
+  cantoFrente = 0, // mm de canto (PVC/melamina) en los lados L/R del frente:
+                   // se descuenta 2·canto del ancho de corte. Tag [cantoN]
+                   // en el nombre para que sobreviva al CSV y a ediciones.
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -358,6 +361,10 @@ export function addDrawer(moduleId, index, {
   if (!['corredera', 'volquete'].includes(tipo)) errors.push(`tipo: "${tipo}" no soportado (corredera|volquete)`);
   if (riel === 'marco') errors.push('riel "marco" solo aplica a zapateras (herraje de catálogo)');
   if (!['cajon', 'zapatera'].includes(vocabulario)) errors.push(`vocabulario: "${vocabulario}" no soportado (cajon|zapatera)`);
+  const canto = Number(cantoFrente) || 0;
+  if (!Number.isFinite(canto) || canto < 0 || canto > 3) {
+    errors.push(`cantoFrente: debe estar entre 0 y 3 mm (recibido "${cantoFrente}")`);
+  }
   const metodoFondo = fondoMetodo ?? (tipoId ? fondoMetodoDeTipo(tipoId) : 'apoyado');
   if (!['apoyado', 'ranurado'].includes(metodoFondo)) {
     errors.push(`fondoMetodo: "${metodoFondo}" no soportado (apoyado|ranurado)`);
@@ -369,7 +376,19 @@ export function addDrawer(moduleId, index, {
   const E = espesorModulo; // espesor del MODULO: W/D y caja descuentan E
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
-  const frenteAncho = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
+  // Descuento del canto en los lados del frente (2·canto del ancho de corte,
+  // redondeado al mm entero) y validación de la holgura residual en el vano:
+  // con canto grueso (PVC 1–2 mm) el frente canteado no puede quedar al ras
+  // ni más ancho que el vano — exigimos ≥ 1 mm por lado.
+  const baseFrente = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
+  const frenteAncho = Math.max(1, Math.round(baseFrente - 2 * canto));
+  const holguraLado = (W - frenteAncho) / 2;
+  if (holguraLado < 1) {
+    return {
+      ok: false,
+      errors: [`cajon: con canto de ${canto} mm el frente canteado (${frenteAncho} mm) quedaría a ${holguraLado.toFixed(1)} mm/lado del vano (${W} mm); se exige ≥ 1 mm por lado. Baje el canto (0/0,4/1) o aumente la luz del frente.`],
+    };
+  }
   const frenteAlto = altoVano - 3;
   const volquete = tipo === 'volquete';
   // El tipo de riel define las medidas de la caja (spec del taller). La
@@ -422,7 +441,7 @@ export function addDrawer(moduleId, index, {
   const fondoAncho = interior + 2 * ranura;
   const fondoAlto = Math.max(0, latAlto - 2 * ranura);
   const pieces = [
-    piece(`m${moduleId}${idp}${index}-frente`, stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-frente`, stampCantoTag(stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), canto), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
     // Laterales y fondo de la caja: piezas ocultas → rotate libre (tabla).
     // Dims en orientación de mueble (las ocultas no tienen swap); los
     // servicios (drawerGeometryService, golaService) las leen crudas.
@@ -540,6 +559,8 @@ export function addShoeTray(moduleId, index, {
   espesorModulo = 15, // espesor REAL del casco (createModule): la bandeja descuenta E
   frontGapMode = 'tapajunta', // el retranqueo del plano de frentes descuenta de la bandeja
   holguraFondo = null, // mm bandeja→fondo del módulo (null → HOLGURA_FONDO_DEFAULT)
+  cantoFrente = 0, // mm de canto en los lados del frente (descuento 2·canto);
+                   // tag [cantoN] en el nombre para que sobreviva al CSV.
 }) {
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
@@ -567,10 +588,25 @@ export function addShoeTray(moduleId, index, {
   }
   if (errors.length) return { ok: false, errors };
 
+  const canto = Number(cantoFrente) || 0;
+  if (!Number.isFinite(canto) || canto < 0 || canto > 3) {
+    return { ok: false, errors: [`cantoFrente: debe estar entre 0 y 3 mm (recibido "${cantoFrente}")`] };
+  }
+
   const E = espesorModulo; // espesor del MODULO: W/D y bandeja descuentan E
   const W = anchoModulo - 2 * E;
   const D = profundidadModulo - E - E;
-  const frenteAncho = W - 2 * frenteLuz;
+  // Descuento del canto en los lados del frente (2·canto) con validación de
+  // la holgura residual (≥ 1 mm/lado): con PVC 1–2 mm el frente canteado no
+  // puede quedar al ras ni pasarse del vano.
+  const frenteAncho = Math.max(1, Math.round(W - 2 * frenteLuz - 2 * canto));
+  const holguraLado = (W - frenteAncho) / 2;
+  if (holguraLado < 1) {
+    return {
+      ok: false,
+      errors: [`zapatera: con canto de ${canto} mm el frente canteado (${frenteAncho} mm) quedaría a ${holguraLado.toFixed(1)} mm/lado del vano (${W} mm); se exige ≥ 1 mm por lado. Baje el canto (0/0,4/1) o aumente la luz del frente.`],
+    };
+  }
   const frenteAlto = altoVano - 3;
   // Frente: lo lleva salvo que conFrente=false (bandeja abierta: la cara alta
   // queda de frente visible/de agarre). El frente completo de tipo (botas)
@@ -613,7 +649,7 @@ export function addShoeTray(moduleId, index, {
       frente: { ancho: frenteAncho, alto: frenteAlto },
       warnings: [`${RIEL_RULES.marco.nota} Vano de ${anchoModulo} mm (p. ej. marco regulable 800–900).`],
       pieces: [
-        piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
+        piece(`m${moduleId}zapatera${index}-frente`, stampCantoTag(stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), canto), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
       ],
     };
   }
@@ -648,7 +684,7 @@ export function addShoeTray(moduleId, index, {
     : Math.max(20, Math.min(altoDivision ?? (altoLado - E), frenteAltoEf));
   const pieces = [];
   if (llevaFrente) {
-    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampCantoTag(stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), canto), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }));
   }
   // Laterales y fondo de la bandeja: piezas ocultas → rotate libre (tabla);
   // dims en orientación de mueble (las ocultas no tienen swap).

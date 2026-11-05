@@ -49,6 +49,28 @@ export function tipoTagDe(nombre) {
   return m ? m[1].toLowerCase() : null;
 }
 
+// Contrato de canto del frente (PVC/melamina en los lados L/R): el descuento
+// de ancho del frente (2·canto) se estampa en el nombre como [cantoN] y
+// sobrevive al CSV/round-trips. El regex exige el prefijo 'canto', así no
+// colisiona con el tag de tipo ([tipoTagDe] toma el primer tag genérico).
+// Valores: [canto0,4] (melamina 0,4 mm), [canto1], [canto2] (PVC). Sin tag =
+// sin descuento (comportamiento histórico).
+export function stampCantoTag(nombre, cantoMm) {
+  const v = Number(cantoMm);
+  if (!Number.isFinite(v) || v <= 0) return nombre;
+  const txt = Number.isInteger(v) ? String(v) : String(v).replace('.', ',');
+  // Tras la primera palabra — incluyendo el tag de tipo si ya lo lleva, para
+  // no colisionar con tipoTagDe ('Frente [bandeja] …' → 'Frente [bandeja]
+  // [cantoN] …').
+  return String(nombre).replace(/(\S+(?:\s+\[[^\]]+\])?)/, `$1 [canto${txt}]`);
+}
+
+// Extrae el canto del tag ('Frente [canto1] cajon…' → 1; sin tag → null).
+export function cantoTagDe(nombre) {
+  const m = String(nombre || '').match(/\[canto(\d+(?:[.,]\d+)?)\]/i);
+  return m ? Number(m[1].replace(',', '.')) : null;
+}
+
 // Vano de la unidad a partir de su cara ancla: con tag, el delta sale del
 // contrato (cajaDelta = frente − caja; el frente siempre es vano − 3); sin
 // tag (catálogo/diseños previos), el histórico 30 + 3 = 33.

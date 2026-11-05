@@ -12,6 +12,8 @@ import {
   SHOE_RACK_TYPES,
   getContentType,
   stampTipoTag,
+  stampCantoTag,
+  cantoTagDe,
   tipoTagDe,
   vanoDesdeCara,
   fondoMetodoDeTipo,
@@ -202,4 +204,25 @@ describe('fondoMetodo (método de montaje del fondo del cajón)', () => {
     assert.equal(fondoMetodoDeTipo('nope'), 'apoyado', 'id desconocido');
   });
 
+});
+
+describe('tag [cantoN] (contrato de canto del frente)', () => {
+  it('round-trip: estampa y extrae el espesor (entero y decimal)', () => {
+    assert.equal(cantoTagDe(stampCantoTag('Frente cajon 1 M1', 1)), 1);
+    assert.equal(cantoTagDe(stampCantoTag('Frente cajon 1 M1', 2)), 2);
+    assert.equal(cantoTagDe(stampCantoTag('Frente cajon 1 M1', 0.4)), 0.4);
+  });
+
+  it('canto 0 o inválido: no estampa (sin tag = sin descuento)', () => {
+    assert.equal(stampCantoTag('Frente cajon 1 M1', 0), 'Frente cajon 1 M1');
+    assert.equal(stampCantoTag('Frente cajon 1 M1', null), 'Frente cajon 1 M1');
+    assert.equal(cantoTagDe('Frente cajon 1 M1'), null);
+  });
+
+  it('no colisiona con el tag de tipo: ambos coexisten y tipoTagDe ignora el canto', () => {
+    const n = stampCantoTag(stampTipoTag('Frente zapatera extraible 1 M1', 'bandeja'), 1);
+    assert.equal(tipoTagDe(n), 'bandeja', 'el tag de tipo sigue siendo el primero genérico');
+    assert.equal(cantoTagDe(n), 1);
+    assert.ok(n.includes('[bandeja]') && n.includes('[canto1]'));
+  });
 });
