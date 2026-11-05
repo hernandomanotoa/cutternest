@@ -1754,6 +1754,11 @@ export function applyStructuralPlinth(opts = {}) {
   });
   if (!built.ok) return { ok: false, errors: built.errors };
   if (!opts.skipUndo) snapshotUndo('Zocalo estructural a marco');
+  // Idempotencia: si YA había marco (regeneración por cantidad de zócalos,
+  // doble aplicación), el casco YA está acortado — NO se vuelve a restar
+  // altoZocalo (bug real: 2380 → 2280 → 2180). Solo la PRIMERA aplicación
+  // acorta laterales y descuenta el fondo.
+  const yaHabiaMarco = state.pieces.some((p) => MARCO_PIECE_RE.test(String(p.id)));
   // El marco reemplaza al frente simple de cada módulo (el apilado se
   // ancla al marco vía cursorInsercion).
   const pieces = [
@@ -1777,8 +1782,11 @@ export function applyStructuralPlinth(opts = {}) {
     // APOYA el casco — los laterales se acortan en altoZocalo y arrancan
     // sobre el marco (el render los dibuja z = altoZocalo). La altura TOTAL
     // del mueble queda fija (casco + marco = alto original del lateral).
+    // SOLO en la primera aplicación: en una regeneración (yaHabiaMarco) el
+    // casco ya está acortado y se conserva tal cual.
     const ml = String(p.id).match(/^m(\d+)-lateral-(izq|der)$/);
     if (ml) {
+      if (yaHabiaMarco) return p;
       const altoOriginal = altoLateral.get(ml[1]) || 0;
       return { ...p, alto: Math.max(100, altoOriginal - altoZocalo) };
     }
@@ -1788,7 +1796,9 @@ export function applyStructuralPlinth(opts = {}) {
     if (!altoMod) return p;
     const e = Number(p.espesor) || 15;
     if (mm[2] === 'fondo') {
-      return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
+      // Primera aplicación: el fondo descuenta la zona del marco. En
+      // regeneración el casco ya la descontó: el fondo recorre el casco.
+      return { ...p, alto: Math.max(100, altoMod - (yaHabiaMarco ? 0 : altoZocalo) - 2 * e) };
     }
     // Base externa (ancho ≈ tapa): pasa a interna, apoyada sobre el marco.
     const tapaW = anchoTapa.get(mm[1]) || 0;
@@ -1805,10 +1815,10 @@ export function applyStructuralPlinth(opts = {}) {
   // arriba y la mitad abajo). SOLO frentes de cajón: si lo más bajo es una
   // zapatera, esa zona es de la zapatera y ningún frente se toca. Solo al
   // aplicar el marco la PRIMERA vez (si ya había marco es una regeneración:
-  // no se duplica el incremento).
-  const teniaMarco = state.pieces.some((p) => MARCO_PIECE_RE.test(String(p.id)));
+  // no se duplica el incremento). yaHabiaMarco (misma detección, arriba)
+  // reutilizada para no computarla dos veces.
   const ajusteFrentes = [];
-  if (!teniaMarco) {
+  if (!yaHabiaMarco) {
     const masBajoPorModulo = new Map();
     for (const p of piecesFinales) {
       const m = String(p.id).match(/^m(\d+)(cajon|zapatera)\d+-frente$/);
