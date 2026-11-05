@@ -107,3 +107,17 @@ test('el valor del canto se conserva al editar las dimensiones del módulo (tag 
   assert.equal(Number(f.ancho), 864, 'el tag [canto2] se preserva y manda: ' + f.ancho);
   assert.ok(f.nombre.includes('[canto2]'), 'tag intacto tras la edición: ' + f.nombre);
 });
+
+test('la Luz frente se conserva al editar las dimensiones del módulo', () => {
+  const { container } = armarModuloYVista();
+  container.querySelector('[data-luz-frente]').value = '2';
+  agregarCajon(container);
+  assert.equal(Number(frenteDe().ancho), 816, '820 − 2·2 con luz 2');
+  const scoped = '[data-module-scoped="1"]';
+  container.querySelector(`${scoped} [data-action="edit-module"]`).click();
+  container.querySelector(`${scoped} [data-edit-ancho]`).value = '900';
+  container.querySelector(`${scoped} [data-action="apply-edit-module"]`).click();
+  const f = frenteDe();
+  // W = 870; luz 2 (persistida) → 866.
+  assert.equal(Number(f.ancho), 866, 'la luz persistida se aplica en la regeneración: ' + f.ancho);
+});

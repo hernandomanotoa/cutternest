@@ -627,6 +627,13 @@ function cantoFrenteDeCfg(userConfig) {
   return Number.isFinite(v) && v >= 0 && v <= 3 ? v : 0;
 }
 
+// Luz perimetral del frente (drawerFrontLuz, default 1 mm/lado): valida
+// rango 0,5..5; fuera de rango cae al default.
+function luzFrenteDeCfg(userConfig) {
+  const v = Number(userConfig?.drawerFrontLuz);
+  return Number.isFinite(v) && v >= 0.5 && v <= 5 ? v : 1;
+}
+
 export function addContentToModule(moduleId, kind, opts = {}) {
   snapshotUndo("Agregar contenido");
   const store = getStore();
@@ -1982,6 +1989,10 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
         // descuenta nada — el valor global solo entra en contenido nuevo o
         // con '↻ Todo el mueble' (reconstrucción explícita).
         cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? 0,
+        // Luz del frente: preferencia global persistida (drawerFrontLuz);
+        // sin ella la regeneración caía siempre a 1 y perdía el ajuste del
+        // usuario al editar dimensiones.
+        frenteLuz: luzFrenteDeCfg(getStore().get().userConfig),
       })
       : addDrawer(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
@@ -2007,6 +2018,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
           })(),
         ...frenteBoxOpts(getStore().get().userConfig),
         cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? 0,
+        frenteLuz: luzFrenteDeCfg(getStore().get().userConfig),
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };

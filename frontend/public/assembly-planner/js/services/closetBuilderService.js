@@ -380,7 +380,7 @@ export function addDrawer(moduleId, index, {
   // redondeado al mm entero) y validación de la holgura residual en el vano:
   // con canto grueso (PVC 1–2 mm) el frente canteado no puede quedar al ras
   // ni más ancho que el vano — exigimos ≥ 1 mm por lado.
-  const baseFrente = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - 1;
+  const baseFrente = nPorFila === 1 ? W - 2 * frenteLuz : Math.floor((W - (nPorFila - 1) * 3) / nPorFila) - frenteLuz;
   const frenteAncho = Math.max(1, Math.round(baseFrente - 2 * canto));
   const holguraLado = (W - frenteAncho) / 2;
   if (holguraLado < 1) {

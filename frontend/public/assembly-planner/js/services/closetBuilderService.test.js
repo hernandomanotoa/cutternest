@@ -801,3 +801,23 @@ describe('cantoFrente (PVC/melamina en lados del frente)', () => {
     assert.equal(ancho(r2, '-frente'), ancho(r0, '-frente') - 4, 'el frente descuenta 2·2');
   });
 });
+
+describe('frenteLuz (luz perimetral del frente)', () => {
+  const BASE = { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 };
+
+  it('aplica la luz en cajón (1 y 2 por fila) y zapatera', () => {
+    // Vano W = 820.
+    const c1 = addDrawer('1', 1, { ...BASE, frenteLuz: 2 });
+    assert.equal(c1.pieces.find((p) => p.id.endsWith('-frente')).ancho, 816, '820 − 2·2');
+    const c2 = addDrawer('1', 1, { ...BASE, frenteLuz: 2, nPorFila: 2 });
+    assert.equal(c2.pieces.find((p) => p.id.endsWith('-frente')).ancho, 406, 'floor((820 − 3)/2) − 2');
+    const z = addShoeTray('1', 1, { ...BASE, frenteLuz: 2 });
+    assert.equal(z.pieces.find((p) => p.id.endsWith('-frente')).ancho, 816, 'zapatera: 820 − 2·2');
+  });
+
+  it('con canto y luz el frente canteado conserva la luz exacta por lado', () => {
+    // W = 820; corte = 820 − 2·2 − 2·1 = 814; canteado = 814 + 2 = 816 = W − 2·2 ✓
+    const r = addDrawer('1', 1, { ...BASE, frenteLuz: 2, cantoFrente: 1 });
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-frente')).ancho, 814);
+  });
+});
