@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   CATEGORIAS_CANTO,
   categoriaCanto,
+  cantosParaCategoria,
   clasificarCantos,
   ladosLargo,
   metrosCanto,
@@ -86,5 +87,35 @@ describe('clasificarCantos', () => {
     expect(filaCorta?.cantos).toBe('L/R')
     expect(filaCorta?.unidades).toBe(5)
     expect(filaCorta?.metros).toBeCloseTo(5 * 300 / 1000)
+  })
+})
+
+describe('cantosParaCategoria (edición masiva: categoría + medidas → letras)', () => {
+  it('pieza apaisada 646×585 (T/B largos, L/R cortos; B = frente primero)', () => {
+    expect(cantosParaCategoria(0, 646, 585)).toBe('')
+    expect(cantosParaCategoria(1, 646, 585)).toBe('L')
+    expect(cantosParaCategoria(2, 646, 585)).toBe('L,R')
+    expect(cantosParaCategoria(3, 646, 585)).toBe('B')
+    expect(cantosParaCategoria(4, 646, 585)).toBe('B,T')
+    expect(cantosParaCategoria(5, 646, 585)).toBe('B,L')
+    expect(cantosParaCategoria(6, 646, 585)).toBe('B,T,L')
+    expect(cantosParaCategoria(7, 646, 585)).toBe('B,L,R')
+    expect(cantosParaCategoria(8, 646, 585)).toBe('B,T,L,R')
+  })
+
+  it('pieza vertical 600×2380 (L/R largos, T/B cortos)', () => {
+    expect(cantosParaCategoria(3, 600, 2380)).toBe('L')
+    expect(cantosParaCategoria(4, 600, 2380)).toBe('L,R')
+    expect(cantosParaCategoria(1, 600, 2380)).toBe('B')
+    expect(cantosParaCategoria(7, 600, 2380)).toBe('L,B,T')
+    expect(cantosParaCategoria(8, 600, 2380)).toBe('L,R,B,T')
+  })
+
+  it('redondeo: la categoría de las letras generadas es la pedida (idempotencia)', () => {
+    for (let cat = 0; cat < 9; cat++) {
+      for (const [w, h] of [[646, 585], [600, 2380], [500, 500]] as const) {
+        expect(categoriaCanto(cantosParaCategoria(cat, w, h), w, h)).toBe(cat)
+      }
+    }
   })
 })

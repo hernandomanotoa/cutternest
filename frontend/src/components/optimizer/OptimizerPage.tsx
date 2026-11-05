@@ -47,6 +47,7 @@ import { CantosTab } from './CantosTab'
 import { ClasificacionCantos } from './ClasificacionCantos'
 import { generateCsv, parseCsv, downloadCsv } from '../../utils/piecesCsv'
 import { groupPiecesByDimensions, totalPieces } from '../../utils/pieceCounter'
+import { categoriaCanto, cantosParaCategoria, CATEGORIAS_CANTO } from '../../utils/cantoClasificacion'
 import {
   displayOrder,
   sortPieces,
@@ -306,6 +307,22 @@ export function OptimizerPage() {
     setPiezas((prev) =>
       prev.map((p, i) => (i === index ? { ...p, ...patch } : p))
     )
+  }
+
+  // Edición masiva de cantos desde el Conteo: aplica la categoría elegida
+  // (como largos/cortos, según las medidas de cada pieza) a todas las
+  // piezas del grupo. Al ser `piezas` la fuente de verdad, el cambio persiste
+  // en el CSV al exportar/guardar.
+  const cambiarCantosGrupo = (grupo: (typeof groupedPieces)[number], nuevaCategoria: number) => {
+    const categoriaActual = grupo.cantos[0]?.categoria ?? 0
+    setPiezas((prev) =>
+      prev.map((p) => {
+        if (p.ancho !== grupo.ancho || p.alto !== grupo.alto || p.espesor !== grupo.espesor) return p
+        if (categoriaCanto(p.cantos || '', p.ancho, p.alto) !== categoriaActual) return p
+        return { ...p, cantos: cantosParaCategoria(nuevaCategoria, p.ancho, p.alto) }
+      })
+    )
+    toast.success(`Cantos actualizados: ${grupo.ancho}×${grupo.alto} → ${CATEGORIAS_CANTO[nuevaCategoria]}`)
   }
 
   const cargarPlantilla = () => {
@@ -1469,6 +1486,7 @@ export function OptimizerPage() {
                     groups={groupedPieces}
                     totalPieces={totalPiecesCount}
                     totalGroups={groupedPieces.length}
+                    onCambiarCantos={cambiarCantosGrupo}
                   />
                   <ClasificacionCantos pieces={piezas} projectId={projectId} />
                 </>

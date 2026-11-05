@@ -1,5 +1,6 @@
 import type { PieceGroup } from '../../utils/pieceCounter'
 import { nombreCategoria } from '../../utils/pieceCounter'
+import { CATEGORIAS_CANTO } from '../../utils/cantoClasificacion'
 import {
   Card,
   CardContent,
@@ -9,9 +10,13 @@ interface PieceCountTabProps {
   groups: PieceGroup[]
   totalPieces: number
   totalGroups: number
+  /** Edición masiva de cantos: aplica la categoría elegida a todas las
+   * piezas del grupo (mismas medidas + espesor + clasificación actual).
+   * Al cambiarla el grupo se re-clasifica y la fila se regenera. */
+  onCambiarCantos?: (grupo: PieceGroup, nuevaCategoria: number) => void
 }
 
-export function PieceCountTab({ groups, totalPieces, totalGroups }: PieceCountTabProps) {
+export function PieceCountTab({ groups, totalPieces, totalGroups, onCambiarCantos }: PieceCountTabProps) {
   return (
     <div className='space-y-4'>
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
@@ -60,6 +65,18 @@ export function PieceCountTab({ groups, totalPieces, totalGroups }: PieceCountTa
                   <td className='p-3 font-medium text-foreground'>{g.cantidad}</td>
                   <td className='p-3'>
                     <div className='space-y-0.5'>
+                      {onCambiarCantos ? (
+                        <select
+                          className='w-full max-w-[10rem] rounded border border-border bg-background px-1 py-0.5 text-xs text-foreground'
+                          value={g.cantos[0]?.categoria ?? 0}
+                          onChange={(e) => onCambiarCantos(g, Number(e.target.value))}
+                          aria-label={`Cantos de ${g.ancho}×${g.alto}`}
+                        >
+                          {CATEGORIAS_CANTO.map((nombre, cat) => (
+                            <option key={cat} value={cat}>{nombre}</option>
+                          ))}
+                        </select>
+                      ) : null}
                       {g.cantos.map((c) => (
                         <div key={c.patron} className='flex items-baseline gap-1.5' title={nombreCategoria(c.categoria)}>
                           <span className='font-mono text-xs text-foreground'>{c.patron || '—'}</span>

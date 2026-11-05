@@ -30,6 +30,30 @@ export function ladosLargo(ancho: number, alto: number): Set<string> {
   return ancho >= alto ? new Set(['T', 'B']) : new Set(['L', 'R'])
 }
 
+/** Orden de preferencia al asignar letras para una categoría: el primer
+ * largo y el primer corto se eligen con el lado visible/frente primero
+ * (B = frente en piezas apaisadas, L en verticales — convención del
+ * casco: tapa B,L,R, laterales con la arista frontal). El ajuste fino por
+ * lado se hace pieza a pieza en la pestaña Piezas. */
+const CONTEO_POR_CATEGORIA: Array<[number, number]> = [
+  [0, 0], // 0 Sin laminar
+  [0, 1], // 1 1 Corto
+  [0, 2], // 2 2 Cortos
+  [1, 0], // 3 1 Largo
+  [2, 0], // 4 2 Largos
+  [1, 1], // 5 1 Largo + 1 Corto
+  [2, 1], // 6 2 Largos + 1 Corto
+  [1, 2], // 7 1 Largo + 2 Cortos
+  [2, 2], // 8 4 Lados
+]
+
+export function cantosParaCategoria(categoria: number, ancho: number, alto: number): string {
+  const [nL, nC] = CONTEO_POR_CATEGORIA[categoria] ?? [0, 0]
+  const largos = ancho >= alto ? ['B', 'T'] : ['L', 'R']
+  const cortos = ancho >= alto ? ['L', 'R'] : ['B', 'T']
+  return [...largos.slice(0, nL), ...cortos.slice(0, nC)].join(',')
+}
+
 /** Cantos en forma canónica: el lado es indistinto (T = B y L = R — la
  * laminación va por pares de cortes lineales y el tablero se lamina a los
  * dos lados). Un lado del par → 'T/B'; ambos → 'T,B'. Igual con L/R. */
