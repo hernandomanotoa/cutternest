@@ -522,12 +522,15 @@ def _pack_mixto_phase(
     ancho fija la franja y se COMPLETA la columna apilando la pieza más alta
     que quepa (grande o pequeña) hasta agotar el alto. Así cada columna es
     una franja vertical de corte completo sin desperdicio horizontal. Fase
-    filas: las piezas que quedan (las pequeñas) se empacan de izquierda a
-    derecha en ESTANTES dentro de la franja que sobra a la derecha de las
-    columnas; cada estante es una franja horizontal de corte completo. Todo
-    corte es lineal completo (guillotina), sin cortes en T. Las piezas que
-    no caben en un tablero pasan al siguiente (los sobrantes se ofrecen
-    primero, como en la fase guillotina)."""
+    filas: las piezas que quedan (las pequeñas) se agrupan POR MISMO TAMAÑO:
+    cada fila se siembra con un grupo y se completa el ancho con piezas
+    IGUALES hacia la derecha (la sierra repite la misma medida por fila);
+    la cola que sobra se rellena con la pieza más alta que quepa. Las filas
+    viven en la franja que sobra a la derecha de las columnas y cada una es
+    una franja horizontal de corte completo. Todo corte es lineal completo
+    (guillotina), sin cortes en T. Las piezas que no caben en un tablero
+    pasan al siguiente (los sobrantes se ofrecen primero, como en la fase
+    guillotina)."""
     items = []
     for w, h, ow, oh, rid, rot, original in rects:
         items.append({
@@ -620,30 +623,57 @@ def _pack_mixto_phase(
                 y += ph  # huella con kerf incluido
             x0 += col_w  # huella con kerf incluido
 
-        # ── FASE FILAS: las pequeñas en estantes (x0..W), de izq. a der. ──
-        shelf_y, shelf_h, shelf_x = 0.0, 0.0, x0
-        pequenas = [it for it in items if not it["placed"]]
-        pequenas.sort(key=lambda it: (-alto_max(it), it["rid"]))
-        for it in pequenas:
-            colocado = False
-            for pw, ph in orientaciones(it):
-                if shelf_h > 0 and ph <= shelf_h + 1e-9 \
-                        and shelf_x + pw <= W + 1e-9:
-                    colocar(board, it, pw, ph, shelf_x, shelf_y)
-                    shelf_x += pw
-                    colocado = True
-                    break
-            if colocado:
+        # ── FASE FILAS: GRUPOS de mismo tamaño, de izq. a der. ──
+        # Cada fila se siembra con un GRUPO (piezas del mismo tamaño en su
+        # orientación natural) y se COMPLETA EL ANCHO apilando piezas
+        # IGUALES hacia la derecha: la sierra repite la misma medida por
+        # fila (corte ordenado, menos error). La cola que no admite otra
+        # igual se completa con la pieza MÁS ALTA de otros grupos que quepa
+        # (misma altura de fila, mejor orientación) para no desperdiciar la
+        # franja. Los grupos se procesan de más alto a más bajo; lo que no
+        # cabe queda para el siguiente tablero.
+        grupos: Dict[Tuple[float, float], List[Dict[str, Any]]] = {}
+        for it in items:
+            if it["placed"]:
                 continue
-            # Abrir estante nuevo (o el primero) en la franja.
-            base_y = shelf_y + shelf_h if shelf_h > 0 else 0.0  # huella con kerf
-            for pw, ph in orientaciones(it):
-                if ph <= H - base_y + 1e-9 and pw <= W - x0 + 1e-9:
-                    shelf_y, shelf_h, shelf_x = base_y, ph, x0 + pw
-                    colocar(board, it, pw, ph, x0, shelf_y)
-                    colocado = True
-                    break
-            # Si no cabe en ninguna orientación, queda para el siguiente tablero.
+            grupos.setdefault((it["w"], it["h"]), []).append(it)  # huella natural
+        orden_grupos = sorted(grupos.items(), key=lambda kv: (-kv[0][1], -kv[0][0]))
+
+        strip_x = x0
+        shelf_y = 0.0
+        for (gw, gh), miembros in orden_grupos:
+            while miembros:
+                if gw > W - strip_x + 1e-9 or shelf_y + gh > H + 1e-9:
+                    break  # restantes del grupo → siguiente tablero
+                x = strip_x
+                fila_y = shelf_y
+                # Pila del MISMO tamaño hacia la derecha (completar el ancho).
+                while miembros and x + gw <= W + 1e-9:
+                    it = miembros.pop(0)
+                    colocar(board, it, gw, gh, x, fila_y)
+                    x += gw
+                # Cola: la más alta de OTROS grupos que quepa (h <= gh),
+                # probando también la orientación rotada de las libres.
+                while True:
+                    cand = None
+                    for (ow, oh), otro in grupos.items():
+                        if not otro or (ow, oh) == (gw, gh):
+                            continue
+                        opciones = [(ow, oh)]
+                        if otro[0]["rot"] and abs(ow - oh) > 1e-9:
+                            opciones.append((oh, ow))
+                        for pw, ph in opciones:
+                            if ph <= gh + 1e-9 and pw <= W - x + 1e-9:
+                                if cand is None or ph > cand[0]:
+                                    cand = (ph, pw, ph, otro)
+                                break
+                    if cand is None:
+                        break
+                    _oh, pw, ph, otro = cand
+                    it = otro.pop(0)
+                    colocar(board, it, pw, ph, x, fila_y)
+                    x += pw
+                shelf_y += gh  # huella con kerf incluido
         return len(board["placements"]) - antes
 
     # Empaquetado: sobrantes primero (en orden), tableros nuevos después.

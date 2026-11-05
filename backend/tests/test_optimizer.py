@@ -552,18 +552,23 @@ def test_cantos_plano_compone_preorientacion_y_rotacion():
 
 def test_mixto_columnas_de_grandes_y_filas_de_pequenas():
     """MODO MIXTO: los grandes (alto >= 50% del tablero) forman COLUMNAS
-    completas y las pequeñas van en FILAS hacia la derecha. Cortes completos.
-    Tablero 1000x2000 (kerf 2, margen 0): dos grandes 300x1200 (columnas de
-    300), un 300x700 que completa la primera columna, y 4 repisas 250x300
-    en filas en la franja derecha."""
+    completas y las pequeñas van en FILAS AGRUPADAS POR MISMO TAMAÑO hacia
+    la derecha; la cola que no admite otra igual se completa con la pieza
+    más alta que quepa. Cortes completos.
+
+    Tablero 1200x2000 (kerf 2, margen 0): dos grandes 300x1900 (columnas de
+    302) dejan la franja x >= 604. Grupo A (250x300 x4): dos filas de DOS
+    piezas iguales; la primera fila la completa C (90x300) en la cola.
+    Grupo B (200x200 x2): una fila de dos."""
     pieces = [
-        {"id": "a1", "nombre": "Grande A1", "ancho": 300, "alto": 1200, "cantidad": 1, "rotate": False},
-        {"id": "a2", "nombre": "Grande A2", "ancho": 300, "alto": 1200, "cantidad": 1, "rotate": False},
-        {"id": "b1", "nombre": "Relleno B1", "ancho": 300, "alto": 700, "cantidad": 1, "rotate": True},
-        {"id": "r1", "nombre": "Repisa 1", "ancho": 250, "alto": 300, "cantidad": 4, "rotate": True},
+        {"id": "g1", "nombre": "Grande 1", "ancho": 300, "alto": 1900, "cantidad": 1, "rotate": False},
+        {"id": "g2", "nombre": "Grande 2", "ancho": 300, "alto": 1900, "cantidad": 1, "rotate": False},
+        {"id": "a", "nombre": "Repisa A", "ancho": 250, "alto": 300, "cantidad": 4, "rotate": True},
+        {"id": "c", "nombre": "Cola C", "ancho": 90, "alto": 300, "cantidad": 1, "rotate": True},
+        {"id": "b", "nombre": "Fondo B", "ancho": 200, "alto": 200, "cantidad": 2, "rotate": True},
     ]
     result = optimizer_service.optimize_cuts(
-        board_width_mm=1000, board_height_mm=2000,
+        board_width_mm=1200, board_height_mm=2000,
         pieces=pieces, kerf_mm=2, margin_mm=0, eje_veta="alto",
         modo="mixto",
     )
@@ -572,28 +577,22 @@ def test_mixto_columnas_de_grandes_y_filas_de_pequenas():
     _assert_no_overlaps(board)
     _assert_cortes_completos(_rects(board))
 
-    by_id = {}
+    by_id: Dict[str, list] = {}
     for p in board["placements"]:
-        by_id.setdefault(p["id"].rsplit("-", 1)[0], []).append((p["x"], p["y"], p["w"], p["h"]))
-    # Columna 1 (x=0): el grande más alto y el relleno que la completa.
-    col1 = sorted([r for r in by_id["a1"] + by_id["b1"] if r[0] == 0], key=lambda r: r[1])
-    assert len(col1) == 2, f"columna 1: {col1}"
-    assert col1[0][3] == 1200 and col1[1][3] == 700
-    assert col1[1][1] == pytest.approx(1202, abs=0.5)  # kerf entre apilados
-    # Columna 2 (x=302): el segundo grande.
-    assert any(abs(r[0] - 302) < 0.6 and r[3] == 1200 for r in by_id["a2"])
-    # Las 4 repisas 250x300: dos COMPLETAN la columna 2 (x=302, bajo el
-    # grande de 1200) y dos van en FILAS en la franja derecha (x=604).
-    repisas = sorted(by_id["r1"], key=lambda r: (r[0], r[1]))
-    assert len(repisas) == 4
-    col2_fill = [r for r in repisas if r[0] == pytest.approx(302, abs=0.6)]
-    franja = [r for r in repisas if r[0] == pytest.approx(604, abs=0.6)]
-    assert len(col2_fill) == 2, f"relleno de columna 2: {repisas}"
-    assert len(franja) == 2
-    assert col2_fill[0][1] == pytest.approx(1202, abs=0.5)
-    assert col2_fill[1][1] == pytest.approx(1504, abs=0.5)
-    assert franja[0][1] == pytest.approx(0, abs=0.5)
-    assert franja[1][1] == pytest.approx(302, abs=0.5)  # segunda fila
+        by_id.setdefault(p["id"].rsplit("-", 1)[0], []).append((p["x"], p["y"]))
+    # Columnas de grandes a la izquierda.
+    assert sorted(by_id["g1"])[0][0] == 0.0
+    assert sorted(by_id["g2"])[0][0] == pytest.approx(302, abs=0.6)
+    # Grupo A: DOS FILAS con sus dos piezas del MISMO tamaño juntas.
+    filas_a = sorted(by_id["a"], key=lambda r: (r[1], r[0]))
+    assert filas_a == [(604.0, 0.0), (856.0, 0.0), (604.0, 302.0), (856.0, 302.0)], filas_a
+    # C (90x300) no cabe entera en ninguna fila de A (la franja admite dos
+    # piezas de 252 y C sumaría 504+92 > 596): la fase de columnas la toma
+    # ROTADA (huella 302x92) y llena con ella el huequecito bajo el grande
+    # de la columna 1 (quedan 98 mm de alto) — mejor aprovechamiento.
+    assert by_id["c"] == [(0.0, pytest.approx(1902, abs=0.6))]
+    # Grupo B: una fila con sus dos piezas iguales, debajo de las filas de A.
+    assert sorted(by_id["b"], key=lambda r: (r[1], r[0])) == [(604.0, 604.0), (806.0, 604.0)]
 
 
 def test_mixto_max_aprovechamiento_nunca_peor_que_guillotina():
