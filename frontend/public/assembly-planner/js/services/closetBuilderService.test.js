@@ -394,8 +394,8 @@ describe('buildCloset', () => {
     const division = porId('-division');
     assert.ok(division);
     assert.equal(division.ancho, 753, 'misma luz que el fondo');
-    assert.equal(division.alto, 100, 'división al alto de la bandeja (uniforme)');
-    assert.equal(division.alto, porId('-fondo').alto, 'alto del lateral');
+    assert.equal(division.alto, 82, 'división apoyada sobre la base: bandeja − E (100 − 18)');
+    assert.equal(division.alto, porId('-fondo').alto - 18, 'fondo − espesor de la base');
     assert.equal(division.espesor, 18);
     // Base confinada: 539 − 36 = 503.
     assert.equal(porId('-base').alto, 503);
@@ -465,7 +465,7 @@ describe('zapatera: división central (apoyo de la fila delantera)', () => {
     assert.ok(div, 'división presente por defecto');
     const fondo = r.pieces.find((p) => p.id === 'm1zapatera1-fondo');
     assert.equal(div.ancho, fondo.ancho, 'misma luz interior que el fondo');
-    assert.equal(div.alto, fondo.alto, 'misma altura de apoyo que el fondo');
+    assert.equal(div.alto, fondo.alto - 15, 'apoyada sobre la base: fondo − E (techo a ras del borde)');
     assert.equal(inferRole(div), 'drawer_divider');
     assert.equal(div.modulo, '11');
   });
@@ -559,39 +559,45 @@ describe('tipo de riel: define las medidas de la caja', () => {
 
 describe('zapatera: bandeja a la vista (ladosIguales)', () => {
   const altoDe = (r, suf) => r.pieces.find((p) => p.id.endsWith(suf))?.alto;
-  const LADOS = ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division'];
+  const LADOS = ['-lateral-izq', '-lateral-der', '-fondo', '-cara'];
+  // La división va apoyada sobre la base: rim − E (techo a ras del borde).
+  const assertDivision = (r, alto, ctx) =>
+    assert.equal(altoDe(r, '-division'), alto - 15, `${ctx}: división = bandeja − E (apoyada sobre la base)`);
 
-  it('sin frente (conFrente: false): cara, laterales, fondo y división al MISMO alto (rim 120)', () => {
+  it('sin frente (conFrente: false): cara, laterales y fondo al MISMO alto; división sobre la base (rim 120)', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true, conFrente: false });
     assert.ok(r.ok);
     for (const suf of LADOS) {
       assert.equal(altoDe(r, suf), 120, `${suf} al alto del rim`);
     }
+    assertDivision(r, 120, 'rim 120');
     assert.equal(r.pieces.some((p) => p.id.endsWith('-frente')), false, 'sin frente decorativo');
     assert.equal(r.pieces.some((p) => p.id.endsWith('-tirador')), false, 'sin tirador');
     // El rim queda un poco por encima de la riel (RAIL_SIDE_HEIGHT = 100).
     assert.ok(120 > 100, 'rim un poco más alto que la riel');
   });
 
-  it('el rim respeta el vano: vano bajo → todos al vano − 33', () => {
+  it('el rim respeta el vano: vano bajo → lados al vano − 33; división sobre la base', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 120, ladosIguales: true, conFrente: false });
     assert.ok(r.ok);
     for (const suf of LADOS) {
       assert.equal(altoDe(r, suf), 87, `${suf} = vano − 3 − 2·15`);
     }
+    assertDivision(r, 87, 'rim 87');
   });
 
-  it('con frente (modo normal) la bandeja es uniforme al alto configurado', () => {
+  it('con frente (modo normal) la bandeja es uniforme al alto configurado; división sobre la base', () => {
     // ladosIguales solo aplica cuando la bandeja va SIN frente; con frente en
-    // modo 'normal' la bandeja es de borde uniforme (cara = laterales = fondo
-    // = división) y el frente corto mide bandeja + 30.
+    // modo 'normal' la bandeja es de borde uniforme (cara = laterales = fondo)
+    // y la división al alto de la bandeja MENOS el espesor de la base; el
+    // frente corto mide bandeja + 30.
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 160, ladosIguales: true, conFrente: true });
     assert.ok(r.ok);
     assert.equal(altoDe(r, '-frente'), 130, 'frente = bandeja (100) + 30');
     assert.equal(altoDe(r, '-cara'), 100, 'cara = alto de bandeja (uniforme)');
     assert.equal(altoDe(r, '-lateral-izq'), 100, 'laterales = alto de bandeja');
     assert.equal(altoDe(r, '-fondo'), 100, 'fondo = alto de bandeja');
-    assert.equal(altoDe(r, '-division'), 100, 'división = alto de bandeja');
+    assertDivision(r, 100, 'bandeja 100');
   });
 
   it('sin ladosIguales (tipos normales) la bandeja es uniforme (cara = laterales)', () => {
@@ -691,9 +697,10 @@ describe('zapatera: rim configurable por contrato (tipo.rim)', () => {
   it('rim personalizado acota el borde de la bandeja a la vista', () => {
     const r = addShoeTray('1', 1, { anchoModulo: 850, profundidadModulo: 600, altoVano: 200, ladosIguales: true, conFrente: false, rim: 150 });
     assert.ok(r.ok);
-    for (const suf of ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division']) {
+    for (const suf of ['-lateral-izq', '-lateral-der', '-fondo', '-cara']) {
       assert.equal(r.pieces.find((p) => p.id.endsWith(suf))?.alto, 150, `${suf} al rim personalizado`);
     }
+    assert.equal(r.pieces.find((p) => p.id.endsWith('-division'))?.alto, 135, 'división apoyada sobre la base: rim − E');
   });
 });
 

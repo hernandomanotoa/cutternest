@@ -284,9 +284,11 @@ describe('divisor interior de cajón (drawer_divider)', () => {
     assert.equal(div.role, 'drawer_divider');
     const fondo = box.find((g) => g.id === FONDO.id);
     const cara = box.find((g) => g.id === CARA.id);
-    // A piso de la caja (zBox), como la cara y el fondo: la pieza real mide
-    // su alto completo (el CSV manda sobre el cálculo de apoyo).
-    assert.equal(div.z, 65, 'a piso de la caja (zBox), con la base apoyada contra ella');
+    // Apoyada sobre la base (zBox + espBase), con sus dimensiones reales:
+    // con el alto correcto (bandeja − E) su techo queda a ras del borde de
+    // los laterales.
+    const base = box.find((g) => g.id === BASE.id);
+    assert.equal(div.z, base.z + base.h, 'apoyada sobre la base');
     assert.equal(div.w, 370, 'ancho real de la pieza (ya no se clampa al interior)');
     assert.equal(div.d, DIVISOR.espesor);
     // Entre la cara (frente) y el fondo, sin tocarlos.

@@ -490,17 +490,19 @@ export function rootModuleIds(pieces) {
 //     lleva frente. El tipo 'bandeja a la vista' impone sin frente por defecto
 //     (conFrenteDefault: false — su razón de ser es verse).
 //   - ladosIguales (tipo 'bandeja a la vista'): solo cuando va SIN frente,
-//     la cara, los laterales, el fondo y la división quedan al MISMO alto —
-//     un borde apenas más alto que la riel (BANDEJA_RIM_HEIGHT) — para que
-//     la bandeja se vea completa y la cara no sobresalga del lateral.
+//     la cara, los laterales y el fondo quedan al MISMO alto — un borde apenas
+//     más alto que la riel (BANDEJA_RIM_HEIGHT) — para que la bandeja se vea
+//     completa y la cara no sobresalga del lateral. La división siempre va
+//     apoyada sobre la base: alto = bandeja − E.
 //   - modoFrente (3 modos — la forma del frente; el TIPO solo elige el alto
 //     del vano): 'normal' (DEFAULT: frente corto — el frente mide bandeja +
 //     ZAPATERA_FRENTE_DROP (30 mm), NO cubre el vano: el aire superior queda
 //     abierto para el calzado y la unidad reserva SU vano completo en el
-//     apilado. La bandeja es de borde UNIFORME: cara = laterales = fondo =
-//     división al alto configurado `altoLateral` (default RAIL_SIDE_HEIGHT,
-//     100 mm). Requisito: altoBandeja + 30 ≤ altoVano, si no hay error con
-//     consejo. SIN frente decorativo (conFrente=false) la cara queda ALTA
+//     apilado. La bandeja es de borde UNIFORME: cara = laterales = fondo al alto
+//     configurado `altoLateral` (default RAIL_SIDE_HEIGHT, 100 mm) y la
+//     división al alto de la bandeja MENOS el espesor de la base (apoyada
+//     sobre ella: 60 − 15 = 45 mm, techo a ras del borde de los laterales).
+//     Requisito: altoBandeja + 30 ≤ altoVano, si no hay error con consejo. SIN frente decorativo (conFrente=false) la cara queda ALTA
 //     (vano − 3 − 2·E), como la bandeja abierta histórica),
 //     'extendido' (el frente completa el vano hasta arriba: frente =
 //     altoVano − 1, holgura mínima; cara y laterales como en 'normal') o
@@ -637,10 +639,13 @@ export function addShoeTray(moduleId, index, {
     ? Math.max(40, Math.min(rim, cajaCap))
     : latAlto;
   // Alturas independientes ('personalizado'): clamp razonable 20..frente. En
-  // el modo 'normal' la bandeja es uniforme: fondo y división al alto de la
-  // bandeja (el alto configurado manda en todo).
+  // el modo 'normal' la bandeja es uniforme: fondo al alto de la bandeja y
+  // división al alto de la bandeja MENOS el espesor de la base (va apoyada
+  // sobre ella: 60 − 15 = 45, techo a ras del borde de los laterales).
   const altoFondoEf = bandejaUniformeNormal ? altoLado : Math.max(20, Math.min(altoFondo ?? altoLado, frenteAltoEf));
-  const altoDivisionEf = bandejaUniformeNormal ? altoLado : Math.max(20, Math.min(altoDivision ?? altoLado, frenteAltoEf));
+  const altoDivisionEf = bandejaUniformeNormal
+    ? Math.max(20, altoLado - E)
+    : Math.max(20, Math.min(altoDivision ?? (altoLado - E), frenteAltoEf));
   const pieces = [];
   if (llevaFrente) {
     pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }));
@@ -668,9 +673,10 @@ export function addShoeTray(moduleId, index, {
   }
   if (division) {
     // División central (por defecto): apoyo paralelo al fondo a media
-    // profundidad de la bandeja. Sirve de respaldo para la fila delantera
-    // de zapatos; la fila trasera se apoya en el fondo. El renderer la
-    // posiciona centrada (rol drawer_divider).
+    // profundidad de la bandeja, APOYADA SOBRE LA BASE (alto = bandeja − E,
+    // techo a ras del borde de los laterales). Sirve de respaldo para la fila
+    // delantera de zapatos; la fila trasera se apoya en el fondo. El renderer
+    // la posiciona centrada (rol drawer_divider).
     pieces.push(piece(`m${moduleId}zapatera${index}-division`, `Division zapatera extraible${num} M${moduleId}`, interior2, altoDivisionEf, { rol: 'drawer_divider', color: cl, espesor: E, modulo: sub }));
   }
   pieces.push(

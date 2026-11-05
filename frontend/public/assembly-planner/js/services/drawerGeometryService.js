@@ -257,10 +257,9 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
 
   // Divisores: paneles interiores paralelos al fondo/frente que dividen la
   // caja a lo largo de su profundidad. Se dibujan con las dimensiones REALES
-  // de la pieza (el CSV es la verdad: hover = fila del CSV); los cálculos
-  // solo son fallback cuando el dato falta. Van de piso a techo de la caja,
-  // como la cara (mismo alto que los laterales), con la base apoyada contra
-  // su cara.
+  // de la pieza (el CSV es la verdad: hover = fila del CSV) y APOYADOS SOBRE
+  // LA BASE (la división de la zapatera vive sobre su base: con el alto
+  // correcto = bandeja − E su techo queda a ras del borde de los laterales).
   if (parts.divisores?.length) {
     const interiorBetween = Math.max(0, latX[1] - (latX[0] + espLat));
     const divMaxH = Math.max(0, latAlto - espBase);
@@ -272,7 +271,7 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
       const divH = divRealH > 0 ? divRealH : divMaxH;
       const espDiv = Number(div.espesor) || espLat;
       box.push({
-        x: latX[0] + espLat, y: yCenter - espDiv / 2, z: zBox,
+        x: latX[0] + espLat, y: yCenter - espDiv / 2, z: zBox + espBase,
         w: divW, d: espDiv, h: divH,
         color: div.color, role: 'drawer_divider', name: div.nombre, id: div.id, real: true,
       });

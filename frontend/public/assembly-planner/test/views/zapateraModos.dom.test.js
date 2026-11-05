@@ -91,9 +91,10 @@ test("el alto de la zapatera (modo normal) llega a las piezas: bandeja uniforme,
 
   const z = (suf) => getStore().get().pieces.find((p) => p.id === `m1zapatera1-${suf}`);
   assert.equal(Number(z('frente').alto), 110, 'frente = bandeja (80) + 30');
-  for (const suf of ['cara', 'lateral-izq', 'fondo', 'division']) {
+  for (const suf of ['cara', 'lateral-izq', 'fondo']) {
     assert.equal(Number(z(suf).alto), 80, `${suf}: borde uniforme al alto configurado`);
   }
+  assert.equal(Number(z('division').alto), 65, 'división apoyada sobre la base: bandeja − E (80 − 15)');
   const cfg = loadUserConfig();
   assert.equal(cfg.contentModoZapatera, 'normal');
   assert.equal(cfg.contentAltoLateralZapatera, 80, 'alto de zapatera persistido');

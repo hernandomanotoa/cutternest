@@ -133,10 +133,10 @@ describe('cajon() con espesorModulo (casco de 18 mm)', () => {
     // W = 600 − 36 = 564 → frente 562 × 177; lateral 499 × 141;
     // interior = round(564 − 25,4) − 36 = 503.
     const porSufijo = (suf) => rows.find((r) => r.startsWith(`m11-cajon-${suf},`));
-    assert.ok(porSufijo('frente').includes(',562,177,1,si,'));
-    assert.ok(porSufijo('lateral-izq').includes(',499,141,1,no,'));
+    assert.ok(porSufijo('frente').includes(',562,177,1,no,'), 'frente de vista: rotate bloqueado');
+    assert.ok(porSufijo('lateral-izq').includes(',499,141,1,si,'), 'lateral oculto: rotación libre');
     assert.ok(porSufijo('lateral-izq').includes(',18,"T,B,L",'));
-    assert.ok(porSufijo('fondo').startsWith('m11-cajon-fondo,Fondo cajon M1,503,141,1,no,#F2F2F2,18,,'));
+    assert.ok(porSufijo('fondo').startsWith('m11-cajon-fondo,Fondo cajon M1,503,141,1,si,#F2F2F2,18,,'));
     // Base confinada: largo = lateral − 2·18 = 499 − 36 = 463.
     assert.ok(porSufijo('base').includes(',503,463,1,si,'));
   });
@@ -180,10 +180,11 @@ describe('cajon() zapatera: división transversal (espejo de addShoeTray)', () =
     const division = rows.find((r) => r.startsWith('m11-zapatera-division,'));
     assert.ok(division, 'falta la división transversal');
     const fondo = rows.find((r) => r.startsWith('m11-zapatera-fondo,'));
-    // Modo 'normal' (default): bandeja uniforme 100; interior =
-    // round(770 − 25,4) − 30 = 715; frente = 100 + 30 = 130.
-    assert.ok(division.includes('Division zapatera extraible 1 M1,715,100,1,no,'), division);
-    assert.ok(division.includes(',715,100,'), 'misma luz y alto que el fondo');
+    // Modo 'normal' (default): bandeja uniforme 100 (división 85 = bandeja
+    // − E, apoyada sobre la base); interior = round(770 − 25,4) − 30 = 715;
+    // frente = 100 + 30 = 130.
+    assert.ok(division.includes('Division zapatera extraible 1 M1,715,85,1,no,'), division);
+    assert.ok(division.includes(',715,85,'), 'apoyada sobre la base: bandeja − E (100 − 15), techo a ras del borde');
     assert.ok(fondo.includes(',715,100,'));
   });
 
@@ -194,9 +195,9 @@ describe('cajon() zapatera: división transversal (espejo de addShoeTray)', () =
       colorFrente: '#C19A6B', colorLateral: '#D9C2A3',
     });
     const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
-    assert.ok(frente.includes(',768,150,1,si,'), frente);
+    assert.ok(frente.includes(',768,150,1,no,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
-    assert.ok(cara.includes(',715,120,1,no,'), cara);
+    assert.ok(cara.includes(',715,120,1,si,'), cara);
   });
 
   it('modo normal: bandeja + 30 debe caber en el vano (error con consejo)', () => {
@@ -238,10 +239,10 @@ describe('cajon() fondoMetodo ranurado (espejo de addDrawer)', () => {
     // interior = round(820 − 25,4) − 30 = 765. Ranura 6: fondo 777 × 155.
     const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
     assert.ok(fondo, 'falta el fondo');
-    assert.ok(fondo.includes(',777,155,1,no,#F2F2F2,15,,'), fondo);
+    assert.ok(fondo.includes(',777,155,1,si,#F2F2F2,15,,'), fondo);
     // La cara conserva el interior (765 × 167): solo el fondo cambia.
     const cara = rows.find((r) => r.startsWith('m11-cajon-cara,'));
-    assert.ok(cara.includes(',765,167,1,no,'), cara);
+    assert.ok(cara.includes(',765,167,1,si,'), cara);
   });
 
   it('es coherente con addDrawer pieza a pieza (mismas medidas del fondo)', async () => {
@@ -258,7 +259,7 @@ describe('cajon() fondoMetodo ranurado (espejo de addDrawer)', () => {
   it('retrocompatibilidad: sin fondoMetodo el fondo mide interior × latAlto (como antes)', () => {
     const rows = cajon(1, 1, OPTS);
     const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
-    assert.ok(fondo.includes(',765,167,1,no,#F2F2F2,15,,'), fondo);
+    assert.ok(fondo.includes(',765,167,1,si,#F2F2F2,15,,'), fondo);
   });
 
   it('respeta el espesor del módulo (E=18): la ranura se acota a E/2', () => {
@@ -266,14 +267,14 @@ describe('cajon() fondoMetodo ranurado (espejo de addDrawer)', () => {
     // latAlto = 197 − 36 = 161; interior = round(814 − 25,4) − 36 = 753.
     // ranura = min(6, floor(18/2)) = 6 → fondo 765 × 149.
     const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
-    assert.ok(fondo.includes(',765,149,1,no,#F2F2F2,18,,'), fondo);
+    assert.ok(fondo.includes(',765,149,1,si,#F2F2F2,18,,'), fondo);
   });
 
   it('el volquete conserva el fondo clásico aunque se pida ranurado', () => {
     const rows = cajon(1, 1, { ...OPTS, tipo: 'volquete', altBandeja: 150, fondoMetodo: 'ranurado' });
     const fondo = rows.find((r) => r.startsWith('m11-cajon-fondo,'));
     // Modelo clásico del volquete: interior × (latAlto − E).
-    assert.ok(fondo.includes(',788,135,1,no,'), fondo);
+    assert.ok(fondo.includes(',788,135,1,si,'), fondo);
   });
 });
 
@@ -291,12 +292,13 @@ describe('cajon() zapatera: modos del frente (espejo de addShoeTray)', () => {
     assert.equal(rows.length, 8);
     const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
     // frente = bandeja (100) + 30 = 130: NO cubre el vano (200 − 3 = 197).
-    assert.ok(frente.includes(',818,130,1,si,'), frente);
+    assert.ok(frente.includes(',818,130,1,no,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
-    // Bandeja de borde uniforme: cara = laterales = fondo = división = 100.
-    assert.ok(cara.includes(',765,100,1,no,'), cara);
+    // Bandeja de borde uniforme: cara = laterales = fondo = 100; división
+    // apoyada sobre la base = 85 (100 − 15).
+    assert.ok(cara.includes(',765,100,1,si,'), cara);
     const lateral = rows.find((r) => r.startsWith('m11-zapatera-lateral-izq,'));
-    assert.ok(lateral.includes(',545,100,1,no,'), lateral);
+    assert.ok(lateral.includes(',545,100,1,si,'), lateral);
     const def = cajon(1, 1, OPTS); // sin modo: default 'normal'
     assert.equal(def.length, 8, "default 'normal': 8 filas históricas");
     assert.ok(def.some((r) => r.includes('-frente,')));
@@ -307,15 +309,15 @@ describe('cajon() zapatera: modos del frente (espejo de addShoeTray)', () => {
   it("modo 'extendido': frente = vano − 1; con E=18 cara = frente − 36", () => {
     const rows = cajon(1, 1, { ...OPTS, modoFrente: 'extendido' });
     const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
-    assert.ok(frente.includes(',818,199,1,si,'), frente);
+    assert.ok(frente.includes(',818,199,1,no,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
-    assert.ok(cara.includes(',765,169,1,no,'), cara);
+    assert.ok(cara.includes(',765,169,1,si,'), cara);
     // E=18: frente sigue siendo vano − 1; la cara = frente − 2·18 = 163.
     const e18 = cajon(1, 1, { ...OPTS, modoFrente: 'extendido', espesorModulo: 18 });
     const frente18 = e18.find((r) => r.startsWith('m11-zapatera-frente,'));
-    assert.ok(frente18.includes(',812,199,1,si,'), frente18);
+    assert.ok(frente18.includes(',812,199,1,no,'), frente18);
     const cara18 = e18.find((r) => r.startsWith('m11-zapatera-cara,'));
-    assert.ok(cara18.includes(',753,163,1,no,'), cara18);
+    assert.ok(cara18.includes(',753,163,1,si,'), cara18);
   });
 
   it("modo 'personalizado': alturas independientes; la cara = frente − 2·E", () => {
@@ -324,12 +326,12 @@ describe('cajon() zapatera: modos del frente (espejo de addShoeTray)', () => {
       altoFrente: 150, altoFondo: 70, altoDivision: 60,
     });
     const frente = rows.find((r) => r.startsWith('m11-zapatera-frente,'));
-    assert.ok(frente.includes(',818,150,1,si,'), frente);
+    assert.ok(frente.includes(',818,150,1,no,'), frente);
     const cara = rows.find((r) => r.startsWith('m11-zapatera-cara,'));
     // La cara queda detrás del frente: 150 − 2·15 = 120 (nunca cara-borde).
-    assert.ok(cara.includes(',765,120,1,no,'), cara);
+    assert.ok(cara.includes(',765,120,1,si,'), cara);
     const fondo = rows.find((r) => r.startsWith('m11-zapatera-fondo,'));
-    assert.ok(fondo.includes(',765,70,1,no,'), fondo);
+    assert.ok(fondo.includes(',765,70,1,si,'), fondo);
     const division = rows.find((r) => r.startsWith('m11-zapatera-division,'));
     assert.ok(division.includes(',765,60,1,no,'), division);
   });

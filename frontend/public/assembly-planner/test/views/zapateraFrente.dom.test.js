@@ -226,11 +226,13 @@ test('editar dimensiones preserva la bandeja a la vista (rim y lados iguales)', 
   container.querySelector(`${scoped} [data-action="apply-edit-module"]`).click();
 
   const zap = piezasZapatera();
-  const altos = ['-lateral-izq', '-lateral-der', '-fondo', '-cara', '-division']
+  const altos = ['-lateral-izq', '-lateral-der', '-fondo', '-cara']
     .map((s) => zap.find((p) => p.id.endsWith(s))?.alto);
   assert.ok(altos.every(Boolean), 'todas las piezas del tray regeneradas');
   assert.ok(altos.every((a) => a === 120),
     `rim y lados iguales preservados tras editar dims: ${JSON.stringify(altos)}`);
+  assert.equal(zap.find((p) => p.id.endsWith('-division'))?.alto, 105,
+    'división apoyada sobre la base: rim − E (120 − 15), techo a ras del borde');
   assert.equal(zap.some((p) => p.id.endsWith('-frente')), false, 'sigue sin frente');
 });
 

@@ -46,8 +46,9 @@ export function tirador(id, nombre, color, modulo) {
 //   modoFrente 'normal' (default): frente CORTO — mide bandeja +
 //   ZAPATERA_FRENTE_DROP (30 mm) y NO cubre el vano (el aire superior queda
 //   abierto para el calzado). La bandeja va de borde uniforme: cara =
-//   laterales = fondo = división al alto `altoBandeja` (default 100 mm, alto
-//   de riel). Requisito: altoBandeja + 30 ≤ altoVano (error con consejo).
+//   laterales = fondo al alto `altoBandeja` (default 100 mm, alto de
+//   riel) y la división al alto de la bandeja MENOS E (apoyada sobre la
+//   base). Requisito: altoBandeja + 30 ≤ altoVano (error con consejo).
 //   'extendido': el frente completa el vano hasta arriba (vano − 1, holgura
 //   mínima); cara y laterales como el frente − 2·E habitual.
 //   'personalizado': alturas independientes (altoFrente, altoBandeja como
@@ -75,7 +76,7 @@ export function cajon(parent, index, opts) {
     modoFrente = 'normal', // zapatera: 'normal'|'extendido'|'personalizado'
     altoBandeja = ZAPATERA_BANDEJA_DEFAULT, // alto uniforme de la bandeja (modo 'normal')
     altoFondo = null,   // borde trasero independiente (default: alto del lateral)
-    altoDivision = null,// división independiente (default: alto del lateral)
+    altoDivision = null,// división independiente (default: alto del lateral − E, va sobre la base)
     altoFrente = null,  // frente independiente (default según el modo)
   } = opts;
   const E = espesorModulo; // espesor laterales/fondo del MODULO y de la caja
@@ -112,7 +113,11 @@ export function cajon(parent, index, opts) {
     : bandejaUniforme ? altoBandeja : Math.min(frenteAlto - 2 * E, cajaCap);
   const caraAlto = bandejaUniforme ? altoBandeja : cajaCap;
   const altoFondoEf = bandejaUniforme ? altoBandeja : Math.max(20, Math.min(altoFondo ?? latAlto, frenteAltoEf));
-  const altoDivisionEf = bandejaUniforme ? altoBandeja : Math.max(20, Math.min(altoDivision ?? latAlto, frenteAltoEf));
+  // División APOYADA SOBRE LA BASE (espejo de addShoeTray): alto = bandeja − E
+  // (con el alto correcto su techo queda a ras del borde de los laterales).
+  const altoDivisionEf = bandejaUniforme
+    ? Math.max(20, altoBandeja - E)
+    : Math.max(20, Math.min(altoDivision ?? (latAlto - E), frenteAltoEf));
   const llevaFrente = true; // cajon() no tiene opt de frente sí/no (servicio sí)
   // El volquete/abatible queda fuera del modelo de corredera: mantiene el
   // cálculo clásico derivado del frente decorativo y sin pieza de cara.
@@ -156,7 +161,8 @@ export function cajon(parent, index, opts) {
   }
   if (esZapatera && !volquete && division) {
     // División transversal (espejo de addShoeTray): misma luz que el fondo
-    // y alto del lateral; apoyo de la fila delantera a media profundidad.
+    // y alto = bandeja − E (apoyada sobre la base de la bandeja); apoyo de
+    // la fila delantera a media profundidad.
     rows.push(`m${sm}-${idp}-division,Division ${vocab}${label} M${parent},${interior},${altoDivisionEf},1,no,${colorLateral},${E},"T,B,L,R",${sm}`);
   }
   rows.push(

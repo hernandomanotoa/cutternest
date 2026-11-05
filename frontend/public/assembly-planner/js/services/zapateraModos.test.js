@@ -4,7 +4,9 @@
 //       (ZAPATERA_FRENTE_DROP) y NO cubre el vano: el aire superior queda
 //       abierto para el calzado y la unidad reserva SU vano completo en el
 //       apilado. La bandeja es de borde UNIFORME al alto configurado
-//       (`altoLateral`, default 100 mm): cara = laterales = fondo = división.
+//       (`altoLateral`, default 100 mm): cara = laterales = fondo; la
+//       división al alto de la bandeja MENOS el espesor de la base (va
+//       apoyada sobre ella: 100 − 15 = 85 mm, techo a ras del borde).
 //       Sin tirador (apertura sin jaladera).
 //   (X) 'extendido': el frente completa el vano hasta arriba (vano − 1,
 //       holgura mínima); cara y laterales detrás a frente − 2·E.
@@ -33,9 +35,10 @@ describe('zapatera: modos de construcción del frente', () => {
     assert.equal(r.conFrente, true, 'lleva frente decorativo');
     assert.equal(porId(r, 'm1zapatera1-frente').alto, 130, 'frente = bandeja (100) + 30');
     assert.equal(porId(r, 'm1zapatera1-tirador'), undefined, 'sin tirador (apertura sin jaladera)');
-    for (const sufijo of ['cara', 'lateral-izq', 'lateral-der', 'fondo', 'division']) {
+    for (const sufijo of ['cara', 'lateral-izq', 'lateral-der', 'fondo']) {
       assert.equal(porId(r, `m1zapatera1-${sufijo}`).alto, 100, `${sufijo}: borde uniforme al alto de bandeja`);
     }
+    assert.equal(porId(r, 'm1zapatera1-division').alto, 85, 'división apoyada sobre la base: bandeja − E (100 − 15), techo a ras del borde');
     // El alto de la zapatera es configurable: manda en la bandeja y el frente.
     const b80 = addShoeTray('1', 1, { ...BASE, modoFrente: 'normal', altoLateral: 80 });
     assert.ok(b80.ok, b80.errors?.join('; '));
