@@ -11,7 +11,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 
-from app.svg_generator import lados_canto_en_plano
 
 
 def _quote_pdf_path(exports_dir: str, quote_id: str) -> str:
@@ -274,20 +273,6 @@ def generate_layouts_pdf(
             c.setStrokeColor(colors.HexColor("#1f2937"))
             c.setLineWidth(0.4)
             c.rect(x, y, w, h, stroke=1, fill=1)
-            # Aristas canteadas: borde verde sobre el lado que lleva tapacantos
-            # (T/B del plano = alto/bajo del PDF; el plano mira el tablero con
-            # Y hacia abajo y el PDF con Y hacia arriba).
-            c.setStrokeColor(colors.HexColor("#15803d"))
-            c.setLineWidth(1.6)
-            for lado in sorted(lados_canto_en_plano(p)):
-                if lado == "T":
-                    c.line(x, y + h - 1.2, x + w, y + h - 1.2)
-                elif lado == "B":
-                    c.line(x, y + 1.2, x + w, y + 1.2)
-                elif lado == "L":
-                    c.line(x + 1.2, y, x + 1.2, y + h)
-                else:
-                    c.line(x + w - 1.2, y, x + w - 1.2, y + h)
 
             nombre = str(p.get("nombre", ""))
             pid = str(p.get("id", ""))
@@ -349,11 +334,8 @@ def generate_layouts_pdf(
         c.setFont("Helvetica-Bold", 10)
         c.setFillColor(textoOscuro)
         c.drawString(lx, oy + tab_h - 12, "LEYENDA")
-        c.setFont("Helvetica", 7)
-        c.setFillColor(colors.HexColor("#15803d"))
-        c.drawString(lx, oy + tab_h - 21, "Borde verde = canto PVC")
         c.setFillColor(textoOscuro)
-        ly = oy + tab_h - 33
+        ly = oy + tab_h - 24
         c.setFont("Helvetica", 6.5)
         for linea in _leyenda_agrupada(board["placements"]):
             visible = truncar(linea, "Helvetica", 6.5, ancho_leyenda)
