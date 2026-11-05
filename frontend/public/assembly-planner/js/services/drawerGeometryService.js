@@ -119,7 +119,7 @@ export function hasRealDrawerBox(parts) {
  * @returns {Array} [{x,y,z,w,d,h,color,role,name,id}] por pieza real; [] si el
  *   conjunto no alcanza el mínimo (hasRealDrawerBox).
  */
-export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE, fondoMetodo = 'apoyado', grooveDepth = DRAWER_GROOVE_DEPTH, maxDepth = 0 }) {
+export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness = DEFAULT_THICKNESS, fallbackDepth = 0, railType = DEFAULT_RAIL_TYPE, fondoMetodo = 'apoyado', grooveDepth = DRAWER_GROOVE_DEPTH, maxDepth = 0, rielHolgura = null }) {
   if (!hasRealDrawerBox(parts)) return [];
 
   const rail = getRailType(railType);
@@ -143,7 +143,7 @@ export function buildDrawerBoxGeometries({ parts, x, yFace, z, w, h, thickness =
     : Math.max(0, Number(lat.ancho) || 0) || fallbackDepth;
   const latInset = catalog
     ? Math.max(0, (Number(rail.interiorDeduction) - 2 * espLat) / 2)
-    : clear;
+    : (Number(rielHolgura) > 0 ? Number(rielHolgura) : clear);
   const bottomDrop = catalog ? Math.max(0, Number(rail.bottomClearance) || 0) : 0;
   const maxBoxH = catalog
     ? Math.max(0, h - (Number(rail.maxHeightDeduction) || 0))

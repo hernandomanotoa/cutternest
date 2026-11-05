@@ -868,3 +868,34 @@ describe('profundidadCaja (profundidad explícita de caja, tag [profN])', () => 
     assert.ok(!f.nombre.includes('[prof'), 'sin tag en automático: ' + f.nombre);
   });
 });
+
+describe('rielHolgura (holgura lateral del herraje por lado, tag [rielN])', () => {
+  const BASE = { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 };
+
+  it('override de la regla del tipo: la caja se calcula con el valor del usuario', () => {
+    // Telescópica 26 por defecto: 13/lado → interior = 820 − 26 − 30 = 764.
+    const auto = addDrawer('1', 1, { ...BASE, riel: 'telescopica26' });
+    const caraAuto = auto.pieces.find((p) => p.id.endsWith('-cara'));
+    assert.equal(caraAuto.ancho, 764);
+    // Con riel física de 11 mm/lado: interior = 820 − 22 − 30 = 768.
+    const r = addDrawer('1', 1, { ...BASE, riel: 'telescopica26', rielHolgura: 11 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+    assert.equal(cara.ancho, 768, 'interior con la holgura personalizada');
+    const f = r.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.ok(f.nombre.includes('[riel11]'), 'tag en el frente: ' + f.nombre);
+  });
+
+  it('zapatera: interior de la bandeja con la holgura personalizada', () => {
+    const r = addShoeTray('1', 1, { ...BASE, altoVano: 200, rielHolgura: 11 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const cara = r.pieces.find((p) => p.id.endsWith('-cara'));
+    assert.equal(cara.ancho, 768);
+  });
+
+  it('sin rielHolgura: regla del tipo (sin tag)', () => {
+    const r = addDrawer('1', 1, { ...BASE, riel: 'telescopica26' });
+    const f = r.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.ok(!f.nombre.includes('[riel'), 'sin tag en automático: ' + f.nombre);
+  });
+});

@@ -709,6 +709,7 @@ export function createConstructorView(store) {
       // (disponible − profundidad), para que la validación de holgura use
       // el valor que el usuario ve en la tarjeta.
       const profCajaVal = Number(container.querySelector(`${scoped} [data-prof-caja]`)?.value) || 0;
+      const rielHolguraVal = Number(container.querySelector(`${scoped} [data-riel-holgura]`)?.value) || 0;
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
       // Va DENTRO del mismo saveUserConfig de abajo: saveUserConfig REEMPLAZA
       // el storage completo, un segundo call la borraría (por eso el input
@@ -735,10 +736,12 @@ export function createConstructorView(store) {
         repisaAlFrente: repisaAlFrente ? 1 : 0,
         holguraFondoCajon: holguraFondo,
         contentProfCaja: profCajaVal || 0,
+        contentRielHolgura: rielHolguraVal || 0,
       });
       store.set({ userConfig: loadUserConfig() });
       const r = addContentToModule(moduleId, kind, {
         altoVano,
+        rielHolgura: rielHolguraVal > 0 ? rielHolguraVal : null,
         profundidadCaja: profCajaVal > 0 ? profCajaVal : null,
         tipo: null, // los tipos de catálogo se eliminaron del UI (vano libre)
         tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente,
@@ -1746,6 +1749,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
             </label>
             <label class="form-group" style="margin:0;" title="Profundidad de la caja del cajón/zapatera. Vacío = automática por regla del riel (telescópica −26, etc.). Al fijarla, la 'Holgura fondo' se recalcula con lo que sobra hasta el fondo del módulo — y al editar la holgura se recalcula esta profundidad. El valor se guarda en el frente (tag [profN]) y sobrevive al CSV y a ediciones">Prof. caja (mm)
               <input type="number" data-prof-caja value="${Number(cfg.contentProfCaja) > 0 ? Number(cfg.contentProfCaja) : ''}" placeholder="auto (riel)" min="100" step="5" />
+            </label>
+            <label class="form-group" style="margin:0;" title="Holgura lateral del herraje POR LADO (lo que la corredera descuenta entre la caja y el lateral del módulo). Vacío = regla del tipo de riel (catálogo 12,7 mm/lado; telescópica 26 13 mm/lado). Fíjala si tu riel física difiere — la caja y su posición se calculan con tu valor. Se guarda en el frente (tag [rielN]) y sobrevive al CSV y a ediciones">Holgura riel (mm/lado)
+              <input type="number" data-riel-holgura value="${Number(cfg.contentRielHolgura) > 0 ? Number(cfg.contentRielHolgura) : ''}" placeholder="regla del tipo" min="0" max="30" step="0.5" />
             </label>
             <label class="form-group" style="margin:0;" title="Espacio recomendado entre la cara trasera de la caja (cajón/zapatera) y el fondo del módulo. 10 mm = regla de taller (tolerancias de corte, montaje y ventilación); el riel 'Catálogo' conserva su regla propia de 25 mm. Si fijas 'Prof. caja', este valor es el SOBRANTE (editable: recalcula la profundidad)">Holgura fondo (mm)
               <input type="number" data-holgura-fondo value="${Number(cfg.holguraFondoCajon ?? 10)}" min="0" max="50" step="1" />

@@ -8,7 +8,7 @@
  */
 
 import { ROLE_COLORS, VERTICAL_POSITIONS } from '../../../core/config.js';
-import { fondoMetodoDeTipo, tipoTagDe } from '../../../core/contentTypes.js';
+import { fondoMetodoDeTipo, tipoTagDe, rielTagDe } from '../../../core/contentTypes.js';
 import { inferRole } from '../../../services/classifierService.js';
 import { buildDrawerBoxGeometries, hasRealDrawerBox, matchDrawerBoxParts } from '../../../services/drawerGeometryService.js';
 import { getPieceDims } from '../../../services/geometryService.js';
@@ -221,6 +221,7 @@ export function buildDrawerGeometries(renderer, roles, moduleW, moduleD, moduleH
         const fondoMetodo = fondoMetodoDeTipo(tipoTagDe(d.face?.nombre));
         const boxGeos = buildDrawerBoxGeometries({
           parts: drawerBox, x, yFace, z: zBase, w, h, thickness, fallbackDepth: drawerDepth, railType,
+          rielHolgura: rielTagDe(d.face?.nombre),
           fondoMetodo,
           maxDepth: profMax,
         });

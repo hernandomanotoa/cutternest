@@ -89,7 +89,7 @@ export function loadUserConfig() {
 export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel', 'golaFijacion', 'contentModoZapatera', 'colorCuerpo', 'frontGapMode'];
 
 // Preferencias numéricas persistibles fuera de VERTICAL_POSITIONS.
-const NUMERIC_PREFS = ['contentProfCaja'];
+const NUMERIC_PREFS = ['contentProfCaja', 'contentRielHolgura'];
 
 
 export function saveUserConfig(overrides) {

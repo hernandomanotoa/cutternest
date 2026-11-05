@@ -5,7 +5,7 @@
 // Todas las funciones devuelven { ok: true, pieces } o { ok: false, errors }
 // y nunca lanzan: la vista muestra los errors en un toast.
 
-import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, stampTipoTag, stampCantoTag, stampProfTag, getContentType, fondoMetodoDeTipo } from '../core/contentTypes.js';
+import { RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, stampTipoTag, stampCantoTag, stampProfTag, stampRielTag, getContentType, fondoMetodoDeTipo } from '../core/contentTypes.js';
 import { DRAWER_GROOVE_DEPTH } from '../core/config.js';
 import { rotateDeRol, cantosDeRol } from './cutOrientationService.js';
 
@@ -367,7 +367,11 @@ export function addDrawer(moduleId, index, {
                    // en el nombre para que sobreviva al CSV y a ediciones.
   profundidadCaja = null, // mm explícitos de profundidad de caja (null =
                           // automática por regla del riel). Tag [profN].
+  rielHolgura = null, // mm de holgura lateral POR LADO del herraje (null =
+                     // regla del tipo: catálogo 12,7 / telescópica 13).
+                     // Tag [rielN] en el frente.
 }) {
+  const rielHolguraOpt = Number(rielHolgura) > 0 ? Number(rielHolgura) : null;
   const errors = [];
   validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
   validateDimension(profundidadModulo, 'profundidadModulo', errors, { min: 100 });
@@ -417,7 +421,11 @@ export function addDrawer(moduleId, index, {
   // profundidad descuenta además el retranqueo del modo de frentes (ras =
   // un espesor, interno = dos) para que la cara trasera conserve la holgura
   // con el fondo del módulo (configurable, default 10 mm).
-  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, E);
+  const { rule: rielRegla } = rielRule(riel, E);
+  // Holgura lateral por lado: la del tipo, o la del herraje real si el
+  // usuario la fija ([rielN]). Define el interior de la caja y el
+  // retranqueo de los laterales.
+  const holguraRiel = rielHolguraOpt ?? rielRule(riel, E).holgura;
   const hFondo = holguraFondo != null && Number.isFinite(Number(holguraFondo)) && Number(holguraFondo) >= 0
     ? Number(holguraFondo)
     : HOLGURA_FONDO_DEFAULT;
@@ -437,7 +445,7 @@ export function addDrawer(moduleId, index, {
     : frenteAlto - 2 * E;
   const interior = volquete
     ? frenteAncho - 2 * E
-    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * rielHolgura) - 2 * E;
+    : Math.round((nPorFila === 1 ? W : frenteAncho + 2) - 2 * holguraRiel) - 2 * E;
 
   if (interior <= 0) {
     return { ok: false, errors: [`cajon: vano de ${anchoModulo} mm demasiado estrecho para ${nPorFila} cajon/cajones`] };
@@ -466,7 +474,7 @@ export function addDrawer(moduleId, index, {
   const fondoAncho = interior + 2 * ranura;
   const fondoAlto = Math.max(0, latAlto - 2 * ranura);
   const pieces = [
-    piece(`m${moduleId}${idp}${index}-frente`, stampProfTag(stampCantoTag(stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), canto), profundidadCaja), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
+    piece(`m${moduleId}${idp}${index}-frente`, stampRielTag(stampProfTag(stampCantoTag(stampTipoTag(`Frente ${frenteVocab}${num} M${moduleId}`, tipoId), canto), profundidadCaja), rielHolguraOpt), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
     // Laterales y fondo de la caja: piezas ocultas → rotate libre (tabla).
     // Dims en orientación de mueble (las ocultas no tienen swap); los
     // servicios (drawerGeometryService, golaService) las leen crudas.
@@ -587,7 +595,9 @@ export function addShoeTray(moduleId, index, {
   cantoFrente = 0, // mm de canto en los lados del frente (descuento 2·canto);
                    // tag [cantoN] en el nombre para que sobreviva al CSV.
   profundidadCaja = null, // mm explícitos de profundidad de bandeja (tag [profN]).
+  rielHolgura = null, // mm de holgura lateral por lado del herraje (tag [rielN]).
 }) {
+  const rielHolguraOpt = Number(rielHolgura) > 0 ? Number(rielHolgura) : null;
   if (profundidadCaja != null) {
     const disp = profundidadCajaDisponible(profundidadModulo, espesorModulo, frontGapMode);
     const v = Number(profundidadCaja);
@@ -663,7 +673,9 @@ export function addShoeTray(moduleId, index, {
   // Tope de la caja detrás del frente: cara y laterales no lo superan.
   const cajaCap = Math.max(20, frenteAltoEf - 2 * E);
   const latAlto = bandejaUniformeNormal ? altoLateral : Math.min(altoLateral, cajaCap); // lateral bajo (cubre la riel)
-  const interior = Math.round((W - 2 * HOLGURA_CORREDERA)) - 2 * E;
+  // Interior de la bandeja: holgura de corredera por defecto, o la del
+  // herraje real si el usuario la fija ([rielN]).
+  const interior = Math.round(W - 2 * (rielHolguraOpt ?? HOLGURA_CORREDERA)) - 2 * E;
 
   if (interior <= 0) {
     return { ok: false, errors: [`zapatera: vano de ${anchoModulo} mm demasiado estrecho`] };
@@ -682,11 +694,11 @@ export function addShoeTray(moduleId, index, {
       frente: { ancho: frenteAncho, alto: frenteAlto },
       warnings: [`${RIEL_RULES.marco.nota} Vano de ${anchoModulo} mm (p. ej. marco regulable 800–900).`],
       pieces: [
-        piece(`m${moduleId}zapatera${index}-frente`, stampProfTag(stampCantoTag(stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), canto), profundidadCaja), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
+        piece(`m${moduleId}zapatera${index}-frente`, stampRielTag(stampProfTag(stampCantoTag(stampTipoTag(`Frente zapatera marco regulable${num} M${moduleId}`, tipoId), canto), profundidadCaja), rielHolguraOpt), frenteAncho, frenteAlto, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }),
       ],
     };
   }
-  const { rule: rielRegla, holgura: rielHolgura } = rielRule(riel, E);
+  const { rule: rielRegla } = rielRule(riel, E);
   const hFondoZ = holguraFondo != null && Number.isFinite(Number(holguraFondo)) && Number(holguraFondo) >= 0
     ? Number(holguraFondo)
     : HOLGURA_FONDO_DEFAULT;
@@ -701,7 +713,9 @@ export function addShoeTray(moduleId, index, {
       errors: [`zapatera: con frentes "${frontGapMode}" la bandeja quedaría de ${profBandeja} mm en un módulo de ${profundidadModulo} mm; use frentes tapajunta o una holgura al fondo menor.`],
     };
   }
-  const interior2 = Math.round(W - 2 * rielHolgura) - 2 * E;
+  // Interior real de la bandeja: holgura del tipo de riel, o la del
+  // herraje real si el usuario la fija ([rielN]).
+  const interior2 = Math.round(W - 2 * (rielHolguraOpt ?? rielRule(riel, E).holgura)) - 2 * E;
   const rielTagZ = riel === 'oculta' ? ' oculta' : riel === 'telescopica26' ? ' telescopica 26' : '';
   // Bandeja a la vista (ladosIguales) SIN frente: cara, laterales, fondo y
   // división al alto del rim (borde apenas más alto que la riel), para que
@@ -719,7 +733,7 @@ export function addShoeTray(moduleId, index, {
     : Math.max(20, Math.min(altoDivision ?? (altoLado - E), frenteAltoEf));
   const pieces = [];
   if (llevaFrente) {
-    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampProfTag(stampCantoTag(stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), canto), profundidadCaja), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }));
+    pieces.push(piece(`m${moduleId}zapatera${index}-frente`, stampRielTag(stampProfTag(stampCantoTag(stampTipoTag(`Frente zapatera extraible${rielTagZ}${num} M${moduleId}`, tipoId), canto), profundidadCaja), rielHolguraOpt), frenteAncho, frenteAltoEf, { rol: 'drawer_face', color: cf, espesor: espesorFrente, modulo: sub }));
   }
   // Laterales y fondo de la bandeja: piezas ocultas → rotate libre (tabla);
   // dims en orientación de mueble (las ocultas no tienen swap).

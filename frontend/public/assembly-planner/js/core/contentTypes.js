@@ -75,6 +75,23 @@ export function stampProfTag(nombre, profMm) {
   return String(nombre).replace(/(\S+(?:\s+\[[^\]]+\])?)/, `$1 [prof${Math.round(v)}]`);
 }
 
+// Contrato de holgura de riel personalizada (mm por lado): cuando el
+// herraje físico difiere de la regla del tipo (catálogo 12,7/lado,
+// telescópica 26 13/lado), el valor se estampa como [rielN] en el nombre
+// del frente y sobrevive al CSV y a regeneraciones (igual que [profN]).
+// Sin tag = regla del tipo de riel.
+export function stampRielTag(nombre, holguraMm) {
+  const v = Number(holguraMm);
+  if (!Number.isFinite(v) || v <= 0) return nombre;
+  return String(nombre).replace(/(\S+(?:\s+\[[^\]]+\])?)/, `$1 [riel${Math.round(v)}]`);
+}
+
+// Extrae la holgura del tag ('Frente [riel12] cajon…' → 12).
+export function rielTagDe(nombre) {
+  const m = String(nombre || '').match(/\[riel(\d+(?:[.,]\d+)?)\]/i);
+  return m ? Number(m[1].replace(',', '.')) : null;
+}
+
 // Extrae la profundidad del tag ('Frente [prof560] cajon…' → 560).
 export function profTagDe(nombre) {
   const m = String(nombre || '').match(/\[prof(\d+(?:[.,]\d+)?)\]/i);

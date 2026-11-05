@@ -170,3 +170,21 @@ test('el select Frentes en Datos de obra persiste el modo (ras/tapajunta/interno
   const htmlSel = container.querySelector('[data-obra="frontgap"]')?.outerHTML || '';
   assert.ok(/value="interno" selected/.test(htmlSel), 'el re-render marca Interno como seleccionado: ' + htmlSel);
 });
+
+test('Holgura riel: input persiste, aplica al cajón y sobrevive a ediciones', () => {
+  const { container } = armarModuloYVista();
+  container.querySelector('[data-riel-holgura]').value = '11';
+  container.querySelector('[data-riel-holgura]').dispatchEvent(new window.Event('change', { bubbles: true }));
+  agregarCajon(container);
+  const cara = () => getStore().get().pieces.find((p) => p.id.endsWith('cajon1-cara'));
+  const f = () => getStore().get().pieces.find((p) => p.id.endsWith('-frente'));
+  assert.equal(Number(cara().ancho), 768, 'interior con holgura 11/lado (850−30 −22 −30)');
+  assert.ok(f().nombre.includes('[riel11]'), 'tag persistido: ' + f().nombre);
+  // Editar dimensiones del módulo conserva la holgura del tag.
+  const scoped = '[data-module-scoped="1"]';
+  container.querySelector(`${scoped} [data-action="edit-module"]`).click();
+  container.querySelector(`${scoped} [data-edit-ancho]`).value = '900';
+  container.querySelector(`${scoped} [data-action="apply-edit-module"]`).click();
+  assert.equal(Number(cara().ancho), 818, 'W(870) − 2·11 − 2E(30) con el tag preservado');
+  assert.ok(f().nombre.includes('[riel11]'), 'tag intacto tras la edición');
+});
