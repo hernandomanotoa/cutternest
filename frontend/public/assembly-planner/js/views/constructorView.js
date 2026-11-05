@@ -66,6 +66,7 @@ import {
   plinthFrameSpec,
   plinthLevelerCount,
   marcoDesactualizado,
+  marcoZocaloHeight,
 } from '../services/plinthFrameService.js';
 
 const ALTO_VANO_OPCIONES = [130, 180, 200, 220, 280];
@@ -784,9 +785,12 @@ export function createConstructorView(store) {
     } else if (action === 'apply-edit-module') {
       const moduleId = btn.dataset.module;
       const scoped = `[data-module-scoped="${CSS.escape(moduleId)}"]`;
+      const marcoHEd = Number(container.querySelector(`${scoped} [data-edit-alto]`)?.dataset.marcoH) || 0;
       const dims = {
         ancho: Number(container.querySelector(`${scoped} [data-edit-ancho]`)?.value),
-        alto: Number(container.querySelector(`${scoped} [data-edit-alto]`)?.value),
+        // El campo es altura TOTAL con marco: se descuenta para regenerar
+        // el casco (los laterales miden casco = total − marco).
+        alto: Math.max(100, Number(container.querySelector(`${scoped} [data-edit-alto]`)?.value) - marcoHEd),
         prof: Number(container.querySelector(`${scoped} [data-edit-prof]`)?.value),
       };
       // La luz del frente también se persiste al "Aplicar" (el usuario la
@@ -1865,13 +1869,18 @@ function renderEditForm(moduleId, piezas) {
   const tapa = piezas.find((p) => p.id.endsWith('-tapa'));
   const lateral = piezas.find((p) => p.id.endsWith('-lateral-izq'));
   if (!tapa || !lateral) return '';
+  // Convención 2026-11: con marco estructural el lateral mide el CASCO
+  // (apoyado sobre el marco). El campo Alto muestra la altura TOTAL del
+  // mueble (casco + marco) y apply-edit descuenta el marco al regenerar.
+  const marcoH = hasPlinthFrame(piezas) ? marcoZocaloHeight(piezas) : 0;
+  const altoTotal = (Number(lateral.alto) || 0) + marcoH;
   return `
     <div class="cn-constructor__edit-form is-hidden" data-edit-form>
       <label class="form-group" style="margin:0;">Ancho
         <input type="number" data-edit-ancho value="${Number(tapa.ancho)}" min="100" step="10" />
       </label>
-      <label class="form-group" style="margin:0;">Alto
-        <input type="number" data-edit-alto value="${Number(lateral.alto)}" min="100" step="10" />
+      <label class="form-group" style="margin:0;" title="${marcoH ? `Con marco estructural: altura TOTAL (casco ${Number(lateral.alto)} + marco ${marcoH})` : 'Altura del módulo'}">Alto${marcoH ? ' (total)' : ''}
+        <input type="number" data-edit-alto data-marco-h="${marcoH}" value="${altoTotal}" min="100" step="10" />
       </label>
       <label class="form-group" style="margin:0;">Prof.
         <input type="number" data-edit-prof value="${Number(tapa.alto)}" min="100" step="10" />

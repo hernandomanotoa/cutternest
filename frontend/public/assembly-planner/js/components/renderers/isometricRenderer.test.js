@@ -1328,18 +1328,25 @@ describe('IsometricRenderer alineación zócalo único en vista completa', () =>
     assert.equal(izq.x, 0);
   });
 
-  it('el fondo del módulo se apoya sobre la base (no invade la zona del zócalo)', () => {
-    const mods = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1', baseInterna: true, alturaZocalo: 100 }).pieces;
+  it('el fondo del módulo recorre el casco apoyado sobre el marco (convención 2026-11)', () => {
+    // Casco de 2300 apoyado sobre el marco de 100 → mueble total 2400.
+    // Los laterales miden el CASCO (aplicar el marco los acorta); el fondo
+    // recorre el casco de base a tapa.
+    const mods = createModule({ ancho: 850, alto: 2300, prof: 600, espesor: 15, modulo: '1', baseInterna: true }).pieces;
     const marco = buildPlinthFrame({
       moduleWidths: [850], profundidad: 600, altoZocalo: 100, espesor: 15,
     }).pieces;
     const renderer = new IsometricRenderer({ innerHTML: '' }, {});
-    const { geometries } = renderer.computeGeometries('all', [...mods, ...marco]);
+    const { geometries, moduleH } = renderer.computeGeometries('all', [...mods, ...marco]);
+    assert.equal(moduleH, 2400, 'mueble total = casco (2300) + marco (100)');
+    const lateral = geometries.find((g) => g.id === 'm1-lateral-izq');
+    assert.equal(lateral.z, 100, 'el lateral arranca SOBRE el marco');
+    assert.equal(lateral.z + lateral.h, 2400, 'y llega hasta la tapa');
     const fondo = geometries.find((g) => g.id === 'm1-fondo');
     const base = geometries.find((g) => g.id === 'm1-base');
-    assert.equal(fondo.z, 100 + 15, 'fondo apoyado sobre la base interior (zócalo + espesor)');
-    assert.ok(Math.abs((fondo.z + fondo.h) - (base.z + base.h + 2270 - 15)) < 1e-6 || fondo.h === 2270, 'alto del fondo con descuento del zócalo');
-    assert.equal(fondo.z + fondo.h, 2385, 'el fondo llega hasta la tapa');
+    assert.equal(base.z, 100, 'base interior apoyada sobre el marco');
+    assert.equal(fondo.z, 100 + 15, 'fondo apoyado sobre la base interior (marco + espesor)');
+    assert.ok(Math.abs((fondo.z + fondo.h) - (moduleH - 15)) < 1e-6, 'el fondo llega hasta la tapa');
   });
 });
 

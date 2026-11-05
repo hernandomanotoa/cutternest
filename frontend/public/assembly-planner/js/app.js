@@ -1773,6 +1773,15 @@ export function applyStructuralPlinth(opts = {}) {
     if (mt) anchoTapa.set(mt[1], Number(p.ancho) || 0);
   });
   const piecesFinales = pieces.map((p) => {
+    // Convención de taller (2026-11): el marco es un cajón sobre el que
+    // APOYA el casco — los laterales se acortan en altoZocalo y arrancan
+    // sobre el marco (el render los dibuja z = altoZocalo). La altura TOTAL
+    // del mueble queda fija (casco + marco = alto original del lateral).
+    const ml = String(p.id).match(/^m(\d+)-lateral-(izq|der)$/);
+    if (ml) {
+      const altoOriginal = altoLateral.get(ml[1]) || 0;
+      return { ...p, alto: Math.max(100, altoOriginal - altoZocalo) };
+    }
     const mm = String(p.id).match(/^m(\d+)-(fondo|base)$/);
     if (!mm) return p;
     const altoMod = altoLateral.get(mm[1]);
@@ -1887,22 +1896,30 @@ export function removeStructuralPlinth() {
       pos_z: Math.round(((Number(frente.pos_z) || 0) + PLINTH_DRAWER_FRONT_LIFT_MM / 2) * 10) / 10,
     });
   }
-  // Restaurar también el fondo a su alto completo (sin descuento de zócalo).
+  // 1) Restaurar el casco primero: los laterales recuperan el alto que
+  //    cedieron al marco (el frente simple restaurado ocupa esa zona). El
+  //    mapa de alturas para el fondo se lee DESPUÉS, ya con el casco
+  //    restaurado (si no, el fondo se calcula contra el alto acortado).
+  const conLateralesRestaurados = pieces.map((p) => {
+    const rev = revertirPorId.get(String(p.id));
+    if (rev) return { ...p, alto: rev.alto, pos_z: rev.pos_z };
+    const ml = String(p.id).match(/^m(\d+)-lateral-(izq|der)$/);
+    if (ml) return { ...p, alto: (Number(p.alto) || 0) + altoZocalo };
+    return p;
+  });
+  // 2) Fondo: el frente simple restaurado vuelve a ocupar la zona del
+  //    zócalo (mismo Z): mantiene el descuento y sigue apoyado en la base.
   const altoLateral = new Map();
-  pieces.forEach((p) => {
+  conLateralesRestaurados.forEach((p) => {
     const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
     if (ml) altoLateral.set(ml[1], Number(p.alto) || 0);
   });
-  const piecesFinales = pieces.map((p) => {
-    const rev = revertirPorId.get(String(p.id));
-    if (rev) return { ...p, alto: rev.alto, pos_z: rev.pos_z };
+  const piecesFinales = conLateralesRestaurados.map((p) => {
     const mf = String(p.id).match(/^m(\d+)-fondo$/);
     if (!mf) return p;
     const altoMod = altoLateral.get(mf[1]);
     if (!altoMod) return p;
     const e = Number(p.espesor) || 15;
-    // El frente simple restaurado vuelve a ocupar la zona del zócalo
-    // (mismo Z): el fondo mantiene el descuento y sigue apoyado en la base.
     return { ...p, alto: Math.max(100, altoMod - altoZocalo - 2 * e) };
   });
   store.set({ pieces: piecesFinales, dependencies: sugerirDependencias(piecesFinales) });
@@ -2085,9 +2102,13 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
   // 2. Casco redimensionado. El fondo descuenta la zona del zócalo (simple
   //    o marco): la altura del mueble queda fija y se apoya sobre la base.
   const zocaloSimple = state.pieces.find((p) => p.id === `m${moduleId}-zocalo`);
+  // Convención 2026-11: con marco estructural el casco APOYA sobre el marco
+  // (altura total = casco + marco): el fondo recorre TODO el casco. Con
+  // zócalo simple el frente ocupa la zona inferior dentro del casco y el
+  // fondo mantiene el descuento.
   const zDescuento = zocaloSimple
     ? (Number(zocaloSimple.alto) || 0)
-    : marcoZocaloHeight(state.pieces);
+    : 0;
   const cascoIds = {
     base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? dims.prof - espesor : dims.prof],
     tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],

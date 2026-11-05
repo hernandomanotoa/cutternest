@@ -157,7 +157,10 @@ export class IsometricRenderer {
 
     const dims = getModuleDimensions(allPieces, inferThickness(allPieces), family);
     let moduleW = dims.width;
-    const moduleH = dims.height;
+    // Con marco estructural el lateral mide el CASCO (apoyado sobre el
+    // marco): la altura del módulo es casco + marco, para que tapa/base/
+    // contenido se posicionen hasta la tapa real del mueble.
+    const moduleH = dims.height + (marcoFrame ? zocaloHeight : 0);
     const moduleD = getModuleDepth(pieces);
     const thickness = dims.thickness;
 
@@ -196,7 +199,7 @@ export class IsometricRenderer {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
         const subGeometries = this._buildModuleGeometries(
-          group, dims.width, moduleD, dims.height, dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame
+          group, dims.width, moduleD, dims.height + (marcoFrame ? zocaloHeight : 0), dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame
         );
         const useProjection = this.moduleGapMode === 'projected';
         const bounds = this._computeModuleBounds(subGeometries, useProjection);

@@ -254,6 +254,19 @@ submódulos se numeran con un contador unificado por módulo (11, 12, 13…);
 con contadores separados por tipo, cajón 1 y zapatera 1 colisionaban en el
 submódulo `'11'` y el renderer podía cruzar las cajas.
 
+### Convención de altura con marco estructural (2026-11)
+
+El casco **apoya sobre el marco**: al aplicarlo (`applyStructuralPlinth`)
+los laterales se acortan en `altoZocalo` (600×2280 con total 2380 y marco
+100) y el 3D los dibuja `z = altoZocalo → tapa` (`moduleGeometry`,
+`moduleH = casco + marco` en `isometricRenderer`). El fondo recorre TODO
+el casco (`alto = casco − 2E`, sin descuento de zócalo — `editModuleDimensions`
+solo descuenta con zócalo SIMPLE). La tarjeta de edición muestra el Alto
+TOTAL (casco + marco) y descuenta al regenerar. `removeStructuralPlinth`
+devuelve el alto a los laterales (fondo consistente con el frente simple
+restaurado). Marcar **Regenerar marco** no duplica el acortamiento: las
+piezas `glb-*` se reemplazan y el casco ya viene acortado.
+
 ### Ajuste de frentes al aplicar el zócalo estructural
 
 `applyStructuralPlinth` (Generar marco, `app.js`): al aplicar el marco, el

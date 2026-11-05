@@ -323,8 +323,11 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
     // del lateral ES el del CSV (el marco vive dentro del cajón y la tapa
     // externa cubre sus cabezas). Fuera de ese modo se conserva el alto
     // derivado del hueco (zócalo-cajón de catálogo).
+    // Convención 2026-11: con marco estructural el casco APOYA sobre el
+    // marco — el lateral (alto = casco) arranca en z = altoZocalo y llega
+    // hasta la tapa (moduleH = casco + marco).
     const h = marcoFrame ? Math.max(0, Number(side.alto) || 0) : sideH;
-    const z = marcoFrame ? 0 : sideStartZ;
+    const z = marcoFrame ? zocaloHeight : sideStartZ;
     geometries.push({
       x, y: 0, z, w: thickness, d: moduleD, h,
       color: side.color, role: isFront ? 'side_panel_front' : 'side_panel_rear', name: side.nombre, id: side.id,
@@ -357,10 +360,20 @@ export function buildModuleGeometries(renderer, pieces, moduleW, moduleD, module
     const plinthBase = zocaloDrawerHeight || 0;
     const encajaReducido = plinthBase > 0
       && Math.abs(backDims.h - (moduleH - plinthBase - 2 * thickness)) <= tol;
+    // Convención 2026-11 (marco estructural del Constructor): el casco
+    // APOYA sobre el marco (moduleH = casco + marco). El fondo recorre el
+    // casco: se apoya sobre la base interior (z = marco + espesor) y el
+    // encaje se mide contra la altura del casco, no contra moduleH.
+    const marcoBase = marcoFrame ? zocaloHeight : 0;
+    const cascoH = moduleH - marcoBase;
+    const encajaCasco = marcoFrame
+      && Math.abs(backDims.h - (cascoH - 2 * thickness)) <= tol;
     geometries.push({
       x: fitOffset(backDims.w, moduleW),
       y: 0,
-      z: encajaReducido ? plinthBase + thickness : fitOffset(backDims.h, moduleH),
+      z: encajaReducido ? plinthBase + thickness
+        : encajaCasco ? marcoBase + thickness
+          : fitOffset(backDims.h, cascoH) + marcoBase,
       w: backDims.w,
       d: backThickness,
       h: backDims.h,

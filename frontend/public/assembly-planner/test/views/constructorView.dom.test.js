@@ -1104,9 +1104,10 @@ test('Altura fija del mueble: el fondo descuenta el zócalo y se apoya sobre la 
   click(container, '[data-action="apply-plinth"]');
   const fondoMarco = store.get().pieces.find((p) => p.id === 'm1-fondo');
   assert.equal(fondoMarco.alto, 2400 - 100 - 2 * 15, 'fondo reajustado al Z del marco');
-  // Altura total del mueble: inalterada (2400) — el zócalo ocupa su zona.
+  // Altura TOTAL del mueble inalterada (2400): el casco APOYA sobre el
+  // marco — el lateral se acorta al alto del casco (2400 − 100 = 2300).
   const lateral = store.get().pieces.find((p) => p.id === 'm1-lateral-izq');
-  assert.equal(lateral.alto, 2400, 'el alto del módulo es el total (fijo)');
+  assert.equal(lateral.alto, 2300, 'el lateral mide el casco (total 2400 − marco 100)');
   assert.equal(lateral.ancho, 600, 'el ancho del lateral es la profundidad');
   // Quitar el marco: frente simple restaurado (Z=100) y fondo consistente.
   click(container, '[data-action="remove-plinth"]');
