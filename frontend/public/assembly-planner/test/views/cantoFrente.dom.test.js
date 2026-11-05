@@ -154,3 +154,19 @@ test('Prof. caja: define la profundidad, calcula la holgura y persiste ante edic
   assert.equal(Number(lat().ancho), 500, 'el tag [prof500] se preserva al editar dimensiones: ' + lat().ancho);
   assert.ok(f().nombre.includes('[prof500]'), 'tag intacto: ' + f().nombre);
 });
+
+test('el select Frentes en Datos de obra persiste el modo (ras/tapajunta/interno)', () => {
+  const { container } = armarModuloYVista();
+  const sel = container.querySelector('[data-obra="frontgap"]');
+  assert.ok(sel, 'select Frentes presente en Datos de obra');
+  assert.equal(sel.value, 'ras', 'default a ras');
+  sel.value = 'interno';
+  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+  console.log('DEBUG A:', JSON.stringify(loadUserConfig().frontGapMode));
+  console.log('DEBUG B:', JSON.stringify(loadUserConfig().frontGapMode));
+  assert.equal(loadUserConfig().frontGapMode, 'interno', 'persistido');
+  // Re-render refleja el modo elegido (happy-dom no recalcula select.value
+  // tras re-render; se verifica el atributo selected en el HTML).
+  const htmlSel = container.querySelector('[data-obra="frontgap"]')?.outerHTML || '';
+  assert.ok(/value="interno" selected/.test(htmlSel), 'el re-render marca Interno como seleccionado: ' + htmlSel);
+});

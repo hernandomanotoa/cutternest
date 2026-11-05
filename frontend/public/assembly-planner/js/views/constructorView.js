@@ -433,6 +433,15 @@ export function createConstructorView(store) {
         if (e.target.value === 'marco') doApplyPlinth();
         else doRemovePlinth();
       }
+      if (e.target.dataset.obra === 'frontgap') {
+        const value = e.target.value;
+        if (['ras', 'tapajunta', 'interno'].includes(value)) {
+          saveUserConfig({ frontGapMode: value });
+          store.set({ userConfig: loadUserConfig() });
+          recalculateAll();
+        }
+        return;
+      }
       if (e.target.dataset.obra === 'canto') {
         const value = Number(e.target.value);
         if (Number.isFinite(value)) {
@@ -1210,6 +1219,13 @@ export function createConstructorView(store) {
               </div>
               <label class="form-group">Color cuerpo
                 <input type="color" data-cfg="color" value="${escapeHtml(state.userConfig?.colorCuerpo || '#c19a6b')}" />
+              </label>
+              <label class="form-group" title="Posición del frente de cajón/zapatera respecto de los laterales: 'A ras' termina alineado (no sobresale); 'Tapajunta' cubre la cara frontal de los laterales (un espesor por delante); 'Interno' queda retranqueado un espesor ENTRE los laterales (se ven los laterales como marco). La caja gana/pierde profundidad en consecuencia y la gola lo sigue">Frentes
+                <select data-obra="frontgap">
+                  <option value="ras" ${(state.userConfig?.frontGapMode ?? 'ras') === 'ras' ? 'selected' : ''}>A ras</option>
+                  <option value="tapajunta" ${state.userConfig?.frontGapMode === 'tapajunta' ? 'selected' : ''}>Tapajunta</option>
+                  <option value="interno" ${state.userConfig?.frontGapMode === 'interno' ? 'selected' : ''}>Interno</option>
+                </select>
               </label>
               <label class="form-group" title="Espesor del canto (PVC o melamina) de los lados del frente: descuenta 2×espesor del ancho de corte para que el frente canteado conserve la holgura en el vano (con 1–2 mm sin descuento quedaría al ras o no entraría) y alimenta la lista de herrajes. '↻ Todo' reconstruye los frentes existentes del mueble con el nuevo valor">Canto PVC (mm)
                 <select data-obra="canto">
