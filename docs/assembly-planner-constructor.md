@@ -254,18 +254,23 @@ submódulos se numeran con un contador unificado por módulo (11, 12, 13…);
 con contadores separados por tipo, cajón 1 y zapatera 1 colisionaban en el
 submódulo `'11'` y el renderer podía cruzar las cajas.
 
-### Tapa embutida (convención 2026-11, opción B del taller)
+### Casco = caja completa (convención 2026-11)
 
-La tapa del casco va **embutida**: entre los laterales (ancho = exterior −
-2E) y **ras al frente** (profundidad = prof − E, trasera contra el fondo).
-Los laterales llegan hasta arriba (sin descuento de tapa). Canto solo en
-el frente (`B`). El ancho exterior del casco se deriva del **fondo**
- (siempre embutido: ancho + 2E) — nunca de la tapa — en `moduleDims`
-(app.js), `rootModuleDims` (plinthFrameService), `cascoDims`
+El casco es una **caja completa**: laterales a todo lo alto, **base y tapa
+entre los laterales (exterior − 2E) y a TODA la profundidad** (ras al
+frente y al trasero). Solo el **fondo** va embutido de todos los lados
+(ancho − 2E × alto útil − 2E, o − zócalo − 2E con marco) y se apoya sobre
+la base / bajo la tapa en su franja trasera de E: así no queda hueco de
+polvo detrás de la base y el piso útil gana E. Solo la arista frontal de
+la tapa queda visible → canto `B`. El ancho exterior del casco se deriva
+del **fondo** (siempre embutido: ancho + 2E) — nunca de la tapa — en
+`moduleDims` (app.js), `rootModuleDims` (plinthFrameService), `cascoDims`
 (golaService/frontElevationService), el parser (csvParser vía
-`constructorCascoWidth`) y el renderer (isometricRenderer). La firma
-`tapa == fondo` + tapa ras en profundidad distingue el casco del
-Constructor de un trasero externo de catálogo del mismo ancho (caso
+`constructorCascoWidth`) y el renderer (isometricRenderer). La firma del
+casco: `tapa.ancho == fondo.ancho` + tapa a toda la profundidad
+(`tapa.alto == lateral.ancho`) + **fondo más bajo que el lateral**
+(embutido verticalmente) — distingue el casco del Constructor de un
+catálogo legacy con tapa y trasero externos del mismo ancho (caso
 dimensionalmente idéntico, intención distinta).
 
 ### Convención de altura con marco estructural (2026-11)

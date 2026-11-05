@@ -1816,7 +1816,9 @@ export function applyStructuralPlinth(opts = {}) {
     const extW = anchoExterior.get(mm[1]) || 0;
     const prof = profLateral.get(mm[1]) || 0;
     if (extW && Number(p.ancho) >= extW - 2 && prof) {
-      return { ...p, ancho: extW - 2 * e, alto: prof - e };
+      // Casco = caja completa: la base interna cubre TODA la profundidad
+      // (ras al frente y al trasero); el fondo embutido se apoya en ella.
+      return { ...p, ancho: extW - 2 * e, alto: prof };
     }
     return p;
   });
@@ -2136,8 +2138,8 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
     ? (Number(zocaloSimple.alto) || 0)
     : 0;
   const cascoIds = {
-    base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? dims.prof - espesor : dims.prof],
-    tapa: [`m${moduleId}-tapa`, anchoUtil, dims.prof - espesor],
+    base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, dims.prof],
+    tapa: [`m${moduleId}-tapa`, anchoUtil, dims.prof],
     'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
     'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],
     fondo: [`m${moduleId}-fondo`, anchoUtil, Math.max(100, dims.alto - zDescuento - 2 * espesor)],

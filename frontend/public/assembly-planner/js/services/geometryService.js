@@ -214,13 +214,14 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
   return { width: moduleW, height: moduleH, depth: moduleD, thickness: inferredThickness };
 }
 
-// Convención 2026-11 (tapa embutida del Constructor): el casco trae
-// `m{N}-tapa` y `m{N}-fondo` del MISMO ancho (interior) y las
+// Convención 2026-11 (casco = CAJA COMPLETA del Constructor): el casco
+// trae `m{N}-tapa` y `m{N}-fondo` del MISMO ancho (interior), y la tapa
+// cubre TODA la profundidad (tapa.alto == lateral.ancho). Las
 // clasificaciones por anchos no pueden distinguirlo de un trasero externo
-// de catálogo (mismo ancho = mismo caso dimensional). Con esa firma exacta
-// —tapa también ras en profundidad (alto = prof − E)— el ancho exterior es
-// fondo.ancho + 2E (el fondo del Constructor va siempre embutido). Catálogo
-// legacy sin la pareja, o con tapa corrida, no se toca.
+// de catálogo (mismo ancho = mismo caso dimensional); con esa firma exacta
+// el ancho exterior es fondo.ancho + 2E (el fondo va siempre embutido).
+// Catálogo legacy sin la pareja, o con tapa recortada en profundidad, no se
+// toca.
 export function constructorCascoWidth(pieces, baseW) {
   let w = baseW;
   const laterales = (pieces || []).filter((p) => /^m\d+-lateral-izq$/.test(String(p.id)));
@@ -233,7 +234,13 @@ export function constructorCascoWidth(pieces, baseW) {
     // Sin el lateral del Constructor (nomenclatura `m{N}-lateral-izq`) no
     // hay firma completa: casos legacy (p. ej. `m1-lat-izq`) no se tocan.
     if (!lat) continue;
-    if (Math.abs((Number(t.alto) || 0) - ((Number(lat.ancho) || 0) - (Number(t.espesor) || 15))) > 2) continue;
+    // Firma de caja completa: la tapa cubre TODA la profundidad (como el
+    // ancho del lateral) y el FONDO es más bajo que el lateral (embutido
+    // verticalmente: H − 2E, o − zócalo − 2E con marco). Un catálogo legacy
+    // con tapa y trasero externos del mismo ancho tiene el trasero a TODA
+    // la altura del lateral — eso lo excluye.
+    if (Math.abs((Number(t.alto) || 0) - (Number(lat.ancho) || 0)) > 2) continue;
+    if (!((Number(f.alto) || 0) < (Number(lat.alto) || 0) - (Number(t.espesor) || 15) / 2)) continue;
     w = Math.max(w, (Number(f.ancho) || 0) + 2 * (Number(f.espesor) || 15));
   }
   return w;

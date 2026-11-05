@@ -66,17 +66,19 @@ describe('createModule', () => {
     assert.ok(r.ok);
     const base = r.pieces.find((p) => p.id === 'm1-base');
     const tapa = r.pieces.find((p) => p.id === 'm1-tapa');
-    assert.equal(base.ancho, 820);  // 850 - 2*15 (entre laterales)
-    assert.equal(base.alto, 585);   // 600 - 15 (hasta la pared: front_flush)
-    // Convención 2026-11 (tapa embutida): la tapa va ENTRE los laterales
-    // (850 − 2·15) y ras al frente (600 − 15); canto solo en el frente.
+    // Casco = CAJA COMPLETA: base y tapa ENTRE los laterales (850 − 2·15)
+    // y a TODA la profundidad (600); solo el fondo va embutido y se apoya
+    // sobre la base / bajo la tapa.
+    assert.equal(base.ancho, 820);
+    assert.equal(base.alto, 600);
     assert.equal(tapa.ancho, 820);
-    assert.equal(tapa.alto, 585);
-    // El renderer clasifica la base 'front_flush' en profundidad; el ancho
-    // interno manda para apoyarla sobre el zócalo (bottomPanelOffset).
-    // = altura del zocalo (se apoya sobre el, no en el suelo).
-    const { classifyTopBottomMount } = geometryService;
-    assert.equal(classifyTopBottomMount(base, 850, 600, 15), 'internal');
+    assert.equal(tapa.alto, 600);
+    // El ancho interno (820 = 850 − 2E) es lo que manda para apoyar la
+    // base sobre el zócalo (bottomPanelOffset); la profundidad es externa
+    // (600 = profundidad total de la caja completa).
+    const { classifyTopBottomMountAxes } = geometryService;
+    assert.equal(classifyTopBottomMountAxes(base, 850, 600, 15).width, 'internal');
+    assert.equal(classifyTopBottomMountAxes(base, 850, 600, 15).depth, 'external');
     const { result } = reparse(r.pieces);
     assert.equal(result.ok, true, result.errors?.join('; '));
   });

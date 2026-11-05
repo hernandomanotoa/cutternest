@@ -164,22 +164,23 @@ export function createModule({ ancho, alto, prof, espesor = 15, colorCuerpo = '#
   if (errors.length) return { ok: false, errors };
 
   const E = espesor;
+  // Casco = CAJA COMPLETA (convención 2026-11): laterales a todo lo alto,
+  // base y tapa a TODA la profundidad (ras al frente Y al trasero); solo el
+  // FONDO va embutido de todos los lados (ancho − 2E × alto útil − 2E) y se
+  // apoya sobre la base / bajo la tapa en su franja trasera. La base puede
+  // ser interna (entre laterales, apoyada sobre el marco) o externa.
   const baseW = baseInterna ? ancho - 2 * E : ancho;
-  // Base con zócalo: entre laterales (ancho−2E) y hasta la pared (prof−E,
-  // 'front_flush': trasero contra el fondo/zócalo-trasero, sellando el
-  // cajón del zócalo por arriba; el frente queda oculto tras el retraso).
-  const baseD = baseInterna ? prof - E : prof;
+  const baseD = prof;
   // Fondo: embutido (alto − 2E); con zócalo se descuenta además la zona del
   // zócalo para apoyarse sobre la base interior (altura total fija).
   const plinthDrop = baseInterna ? Math.max(0, Number(alturaZocalo) || 0) : 0;
   const fondoH = Math.max(100, alto - 2 * E - plinthDrop);
   const pieces = [
     piece(`m${modulo}-base`, `Base modulo M${modulo}`, baseW, baseD, { rol: 'bottom_panel', color, espesor: E, modulo }),
-    // Tapa EMBUTIDA (convención 2026-11, opción B del taller): entre los
-    // laterales (ancho − 2E) y ras al frente (prof − E, trasera contra el
-    // fondo). Los laterales llegan hasta arriba; solo el frente de la tapa
-    // queda visible → canto 'B' (L/R entre laterales, T contra la pared).
-    piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho - 2 * E, prof - E, { rol: 'top_panel', color, espesor: E, cantos: 'B', modulo }),
+    // Tapa embutida entre los laterales (ancho − 2E) y a TODA la
+    // profundidad (caja completa); solo su arista frontal queda visible →
+    // canto 'B' (L/R entre laterales, T contra la pared).
+    piece(`m${modulo}-tapa`, `Tapa modulo M${modulo}`, ancho - 2 * E, prof, { rol: 'top_panel', color, espesor: E, cantos: 'B', modulo }),
     // Orientación de mueble (congruente con el taller): ancho/alto = como
     // está la pieza en el módulo. La veta la deriva la tabla por rol.
     // Cantos 2026-11 (auditoría, solo aristas vistas): para el lateral, la

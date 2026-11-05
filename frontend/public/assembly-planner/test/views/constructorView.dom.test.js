@@ -60,13 +60,14 @@ test('agregar módulo con zócalo: casco 6 piezas, base INTERNA apoyada sobre z�
 
   const piezas = store.get().pieces;
   assert.equal(piezas.filter((p) => p.modulo === '1').length, 6); // casco 5 + zocalo 1
-  // Convención 2026-11 (tapa embutida): base y tapa van ENTRE los
-  // laterales (mismo ancho interior) y ras al frente (misma profundidad
-  // prof − E). El renderer apoya la base sobre el zócalo (z=150).
+  // Convención 2026-11 (casco = caja completa): base y tapa van ENTRE los
+  // laterales (mismo ancho interior) y a TODA la profundidad. El renderer
+  // apoya la base sobre el zócalo (z=150).
   const base = piezas.find((p) => p.id === 'm1-base');
   const tapa = piezas.find((p) => p.id === 'm1-tapa');
   assert.equal(base.ancho, tapa.ancho, 'base y tapa embutidas al mismo ancho');
-  assert.equal(base.alto, tapa.alto, 'ambas ras al frente');
+  assert.equal(base.alto, tapa.alto, 'ambas a toda la profundidad (caja completa)');
+  assert.equal(Number(base.alto), 600);
   assert.match(container.textContent, /Módulo 1/);
   view.destroy();
 });
@@ -1129,7 +1130,7 @@ test('Marco sobre módulo sin "con zócalo": la base externa pasa a interna', ()
   click(container, '[data-action="apply-plinth"]');
   const base = store.get().pieces.find((p) => p.id === 'm1-base');
   assert.equal(base.ancho, 850 - 2 * 15, 'base interna (apoyada sobre el marco)');
-  assert.equal(base.alto, 600 - 15, 'profundidad hasta el fondo (front_flush)');
+  assert.equal(base.alto, 600, 'caja completa: base a TODA la profundidad');
   view.destroy();
 });
 
