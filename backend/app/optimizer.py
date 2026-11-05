@@ -458,6 +458,12 @@ def _pack_guillotine_phase(
         })
         item["_placed"] = (pw, ph)
 
+    return _render_tableros(boards, bid_to_offcut_id, items, margin_mm, kerf_mm)
+
+
+def _render_tableros(boards, bid_to_offcut_id, items, margin_mm, kerf_mm):
+    """Formatea los tableros empaquetados (placements por bin) tal como
+    espera optimize_cuts. Compartido por las fases guillotina y mixta."""
     out: Dict[str, Dict[str, Any]] = {}
     by_rid = {it["rid"]: it for it in items}
     for board in boards:
@@ -496,6 +502,170 @@ def _pack_guillotine_phase(
             "placements": placements,
         }
     return out
+
+
+def _pack_mixto_phase(
+    rects: List[Tuple[float, float, float, float, str, bool, Dict[str, Any]]],
+    offcut_boards: List[Dict[str, Any]],
+    usable_w: float,
+    usable_h: float,
+    kerf_mm: float,
+    margin_mm: float,
+    phase: str,
+    frac_big: float = 0.5,
+) -> Dict[str, Dict[str, Any]]:
+    """MODO MIXTO (cortes completos): COLUMNAS de piezas GRANDES y luego
+    FILAS de pequeñas hacia la derecha.
+
+    Fase columnas: se siembra una columna con la pieza grande más alta
+    restante (alto >= frac_big del tablero, en su mejor orientación); su
+    ancho fija la franja y se COMPLETA la columna apilando la pieza más alta
+    que quepa (grande o pequeña) hasta agotar el alto. Así cada columna es
+    una franja vertical de corte completo sin desperdicio horizontal. Fase
+    filas: las piezas que quedan (las pequeñas) se empacan de izquierda a
+    derecha en ESTANTES dentro de la franja que sobra a la derecha de las
+    columnas; cada estante es una franja horizontal de corte completo. Todo
+    corte es lineal completo (guillotina), sin cortes en T. Las piezas que
+    no caben en un tablero pasan al siguiente (los sobrantes se ofrecen
+    primero, como en la fase guillotina)."""
+    items = []
+    for w, h, ow, oh, rid, rot, original in rects:
+        items.append({
+            "w": w + kerf_mm, "h": h + kerf_mm,  # huella de corte (con sierra)
+            "ow": ow, "oh": oh, "rid": rid, "rot": rot, "original": original,
+            "placed": False, "_placed": None,
+        })
+
+    def orientaciones(it):
+        orient = [(it["w"], it["h"])]  # la natural primero (empate la favorece)
+        if it["rot"] and abs(it["w"] - it["h"]) > 1e-9:
+            orient.append((it["h"], it["w"]))
+        return orient
+
+    def alto_max(it):
+        return max(ph for _pw, ph in orientaciones(it))
+
+    def colocar(board, it, pw, ph, x, y):
+        board["placements"].append({
+            "rid": it["rid"],
+            "x": x + (margin_mm if board["is_new"] else 0),
+            "y": y + (margin_mm if board["is_new"] else 0),
+            "w": pw - kerf_mm,
+            "h": ph - kerf_mm,
+        })
+        it["placed"] = True
+        it["_placed"] = (pw, ph)
+
+    bid_to_offcut_id = {off["bid"]: off.get("id") for off in offcut_boards}
+    boards: List[Dict[str, Any]] = []
+    for off in offcut_boards:
+        boards.append({
+            "bid": f"{phase}__{off['bid']}",
+            "width": float(off["width"]),
+            "height": float(off["height"]),
+            "is_new": False,
+            "placements": [],
+        })
+
+    def new_board() -> Dict[str, Any]:
+        idx = sum(1 for b in boards if b["is_new"])
+        b = {
+            "bid": f"{phase}__nuevo_{idx}",
+            "width": usable_w,
+            "height": usable_h,
+            "is_new": True,
+            "placements": [],
+        }
+        boards.append(b)
+        return b
+
+    def pack_en_tablero(board) -> int:
+        """Las dos fases sobre un tablero. Devuelve cuántas piezas colocó."""
+        W, H = board["width"], board["height"]
+        antes = len(board["placements"])
+        x0 = 0.0  # frontera derecha de las columnas (las filas van de x0 a W)
+
+        # ── FASE COLUMNAS: piezas grandes (alto >= frac_big · H) ──
+        grandes = [it for it in items
+                   if not it["placed"] and alto_max(it) >= frac_big * H]
+        grandes.sort(key=lambda it: (-alto_max(it), it["rid"]))
+        for seed in grandes:
+            if seed["placed"]:
+                continue
+            elegida = None
+            for pw, ph in orientaciones(seed):
+                if ph <= H + 1e-9 and pw <= W - x0 + 1e-9:
+                    elegida = (pw, ph)
+                    break
+            if elegida is None:
+                continue  # no cabe en este tablero → pasa al siguiente
+            col_w = elegida[0]
+            colocar(board, seed, *elegida, x0, 0.0)
+            y = elegida[1]  # la huella (w/h) ya incluye el kerf
+            # Completar la columna: la pieza MÁS ALTA que quepa (cualquiera).
+            while True:
+                cand = None
+                for it in items:
+                    if it["placed"]:
+                        continue
+                    for pw, ph in orientaciones(it):
+                        if pw <= col_w + 1e-9 and ph <= H - y + 1e-9:
+                            if cand is None or ph > cand[0]:
+                                cand = (ph, it, pw, ph)
+                            break
+                if cand is None:
+                    break
+                _ph, it, pw, ph = cand
+                colocar(board, it, pw, ph, x0, y)
+                y += ph  # huella con kerf incluido
+            x0 += col_w  # huella con kerf incluido
+
+        # ── FASE FILAS: las pequeñas en estantes (x0..W), de izq. a der. ──
+        shelf_y, shelf_h, shelf_x = 0.0, 0.0, x0
+        pequenas = [it for it in items if not it["placed"]]
+        pequenas.sort(key=lambda it: (-alto_max(it), it["rid"]))
+        for it in pequenas:
+            colocado = False
+            for pw, ph in orientaciones(it):
+                if shelf_h > 0 and ph <= shelf_h + 1e-9 \
+                        and shelf_x + pw <= W + 1e-9:
+                    colocar(board, it, pw, ph, shelf_x, shelf_y)
+                    shelf_x += pw
+                    colocado = True
+                    break
+            if colocado:
+                continue
+            # Abrir estante nuevo (o el primero) en la franja.
+            base_y = shelf_y + shelf_h if shelf_h > 0 else 0.0  # huella con kerf
+            for pw, ph in orientaciones(it):
+                if ph <= H - base_y + 1e-9 and pw <= W - x0 + 1e-9:
+                    shelf_y, shelf_h, shelf_x = base_y, ph, x0 + pw
+                    colocar(board, it, pw, ph, x0, shelf_y)
+                    colocado = True
+                    break
+            # Si no cabe en ninguna orientación, queda para el siguiente tablero.
+        return len(board["placements"]) - antes
+
+    # Empaquetado: sobrantes primero (en orden), tableros nuevos después.
+    pendientes = [it for it in items if not it["placed"]]
+    while pendientes:
+        tablero = next((b for b in boards if not b["is_new"] and not b["placements"]), None)
+        if tablero is None:
+            tablero = new_board()
+        colocadas = pack_en_tablero(tablero)
+        if colocadas == 0:
+            # Ninguna cabe aquí: fuerza la mayor en el origen (la validación
+            # garantiza que cada pieza cabe sola en un tablero nuevo).
+            it = pendientes[0]
+            for pw, ph in orientaciones(it):
+                if pw <= tablero["width"] + 1e-9 and ph <= tablero["height"] + 1e-9:
+                    colocar(tablero, it, pw, ph, 0.0, 0.0)
+                    break
+            if not it["placed"]:
+                it["placed"] = True  # degenerado: no debería pasar
+                it["_placed"] = (it["w"], it["h"])
+        pendientes = [it for it in items if not it["placed"]]
+    return _render_tableros(boards, bid_to_offcut_id, items, margin_mm, kerf_mm)
 
 
 def _pack_guillotine_multi(
@@ -568,6 +738,12 @@ def optimize_cuts(
     (default) rellena el tablero por FILAS (cortes longitudinales que separan
     filas); 'alto' rellena por COLUMNAS (cortes transversales que separan
     columnas) — para cuando la guillotina no admite el tablero en vertical.
+    modo='mixto': cortes completos en DOS FASES — primero COLUMNAS con las
+    piezas grandes (alto >= 50% del tablero; cada columna se siembra con la
+    más alta y se completa apilando lo que quepa) y luego FILAS con las
+    pequeñas en el ancho que sobra a la derecha. Con max_aprovechamiento=True
+    prueba los umbrales 50% y 65% del mixto Y el lote guillotina clásico, y
+    se queda con el mejor de todos.
     """
     offcuts = offcuts or []
     kerf_mm = kerf_mm if kerf_mm is not None else settings.kerf_mm
@@ -600,7 +776,35 @@ def optimize_cuts(
     usable_h = board_height_mm - 2 * margin_mm
 
     bins: Dict[str, Dict[str, Any]] = {}
-    if use_guillotine:
+    if modo == "mixto":
+        # Dos fases de cortes completos: columnas de grandes + filas de
+        # pequeñas. Máximo aprovechamiento: prueba los umbrales de "grande"
+        # (50% y 65%) y TAMBIÉN el lote guillotina clásico, y se queda con el
+        # mejor — el mixto gana con piezas grandes altas y angostas; el
+        # guillotina, cuando los grandes son anchos (dejan franja estrecha).
+        if rects:
+            if max_aprovechamiento:
+                def _clave_lote(r):
+                    usada = sum(p["w"] * p["h"] for b in r.values() for p in b["placements"])
+                    return (len(r), -round(usada, 3))
+
+                candidatos = [
+                    _pack_mixto_phase(
+                        rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+                        phase=f"mix_{int(frac*100)}", frac_big=frac,
+                    )
+                    for frac in (0.5, 0.65)
+                ]
+                candidatos.append(_pack_guillotine_multi(
+                    rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+                ))
+                bins.update(min(candidatos, key=_clave_lote))
+            else:
+                bins.update(_pack_mixto_phase(
+                    rects, offcut_boards, usable_w, usable_h, kerf_mm, margin_mm,
+                    phase="mix",
+                ))
+    elif use_guillotine:
         # Una sola fase: las piezas libres rotan solo si mejora la cabida y
         # las bloqueadas van con su huella de veta; los sobrantes se ofrecen
         # a todo el lote (el mejor encaje gana), no repartidos por fases.

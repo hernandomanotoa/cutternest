@@ -97,7 +97,7 @@ interface PersistedConfig {
   tablero?: BoardInput
   materialType?: string
   useOffcuts?: boolean
-  modoCorte?: 'guillotina' | 'nesting'
+  modoCorte?: 'guillotina' | 'nesting' | 'mixto'
   maxAprovechamiento?: boolean
 }
 
@@ -164,7 +164,7 @@ export function OptimizerPage() {
   const [view3D, setView3D] = useState(false)
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(config.useOffcuts ?? false)
-  const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting'>(config.modoCorte ?? 'guillotina')
+  const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting' | 'mixto'>(config.modoCorte ?? 'guillotina')
   const [maxAprovechamiento, setMaxAprovechamiento] = useState(config.maxAprovechamiento ?? false)
   const [sortMode, setSortMode] = useState<SortMode>('tamano')
   const [colorTodas, setColorTodas] = useState('#C19A6B')
@@ -787,15 +787,19 @@ export function OptimizerPage() {
                 <select
                   className='flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
                   value={modoCorte}
-                  onChange={(e) => setModoCorte(e.target.value as 'guillotina' | 'nesting')}
+                  onChange={(e) => setModoCorte(e.target.value as 'guillotina' | 'nesting' | 'mixto')}
                 >
                   <option value='guillotina'>Corte lineal completo (guillotina)</option>
+                  <option value='mixto'>Mixto (columnas grandes + filas pequeñas)</option>
                   <option value='nesting'>Nesting 2D libre</option>
                 </select>
                 <p className='mt-1 text-xs text-muted-foreground'>
                   Guillotina: cada corte es una pasada completa (a lo largo o ancho) sobre lo que
                   queda del tablero; las piezas más bajas no interrumpen — la franja sobre ellas
-                  recibe sus propios cortes completos. Nesting: mejor aprovechamiento, con cortes en T.
+                  recibe sus propios cortes completos. Mixto: primero COLUMNAS completas con las
+                  piezas grandes (alto ≥ 50% del tablero) y luego FILAS con las pequeñas en el ancho
+                  que sobra a la derecha; con 'Máximo aprovechamiento' prueba ambos y se queda con
+                  el mejor lote. Nesting: mejor aprovechamiento, con cortes en T.
                 </p>
               </div>
 
