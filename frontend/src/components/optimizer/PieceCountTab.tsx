@@ -1,4 +1,5 @@
 import type { PieceGroup } from '../../utils/pieceCounter'
+import { nombreCategoria } from '../../utils/pieceCounter'
 import {
   Card,
   CardContent,
@@ -44,6 +45,7 @@ export function PieceCountTab({ groups, totalPieces, totalGroups }: PieceCountTa
                 <th className='p-3 text-left font-medium'>Dimensiones</th>
                 <th className='p-3 text-left font-medium'>Espesor</th>
                 <th className='p-3 text-left font-medium'>Cantidad total</th>
+                <th className='p-3 text-left font-medium'>Cantos</th>
                 <th className='p-3 text-left font-medium'>Nombres</th>
                 <th className='p-3 text-left font-medium'>Colores</th>
               </tr>
@@ -56,6 +58,19 @@ export function PieceCountTab({ groups, totalPieces, totalGroups }: PieceCountTa
                   </td>
                   <td className='p-3 text-foreground'>{g.espesor} mm</td>
                   <td className='p-3 font-medium text-foreground'>{g.cantidad}</td>
+                  <td className='p-3'>
+                    <div className='space-y-0.5'>
+                      {g.cantos.map((c) => (
+                        <div key={c.patron} className='flex items-baseline gap-1.5' title={nombreCategoria(c.categoria)}>
+                          <span className='font-mono text-xs text-foreground'>{c.patron || '—'}</span>
+                          <span className='text-[11px] text-muted-foreground'>
+                            {nombreCategoria(c.categoria)}
+                            {g.cantos.length > 1 ? ` · ${c.unidades} und` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
                   <td className='p-3 text-foreground'>{g.nombres.join(', ')}</td>
                   <td className='p-3'>
                     <div className='flex gap-1'>

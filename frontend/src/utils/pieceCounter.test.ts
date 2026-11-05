@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupPiecesByDimensions, totalPieces } from './pieceCounter'
+import { groupPiecesByDimensions, nombreCategoria, totalPieces } from './pieceCounter'
 import type { PieceInput } from '../types'
 
 describe('pieceCounter', () => {
@@ -30,5 +30,23 @@ describe('pieceCounter', () => {
   it('sorts groups by quantity descending', () => {
     const groups = groupPiecesByDimensions(pieces)
     expect(groups[0].cantidad).toBeGreaterThanOrEqual(groups[1].cantidad)
+  })
+
+  it('agrupa los cantos por par canónico (T=B, L=R) con su clasificación', () => {
+    const conCantos: PieceInput[] = [
+      // laterales: 3 con T,B,L + 2 con T,B,R → un solo patrón T,B,L/R (5 und)
+      { id: 'li', nombre: 'Lateral izq', ancho: 500, alto: 1800, cantidad: 3, rotate: false, color: '#45B7D1', espesor: 18, cantos: 'T,B,L' },
+      { id: 'ld', nombre: 'Lateral der', ancho: 500, alto: 1800, cantidad: 2, rotate: false, color: '#45B7D1', espesor: 18, cantos: 'T,B,R' },
+      // mismas medidas pero sin laminar → segundo patrón en el mismo grupo
+      { id: 'fo', nombre: 'Fondo', ancho: 500, alto: 1800, cantidad: 4, rotate: false, color: '#F2F2F2', espesor: 18, cantos: '' },
+    ]
+    const groups = groupPiecesByDimensions(conCantos)
+    expect(groups).toHaveLength(1)
+    const g = groups[0]
+    expect(g.cantidad).toBe(9)
+    expect(g.cantos).toHaveLength(2)
+    expect(g.cantos[0]).toEqual({ patron: 'T,B,L/R', unidades: 5, categoria: 7 })
+    expect(nombreCategoria(g.cantos[0].categoria)).toBe('1 Largo + 2 Cortos')
+    expect(g.cantos[1]).toEqual({ patron: '', unidades: 4, categoria: 0 })
   })
 })
