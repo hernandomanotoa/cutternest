@@ -80,3 +80,23 @@ def test_generate_cantos_pdf_clasificacion_9_categorias(tmp_path):
     assert abs(tapa["metros"] - 5 * 650 / 1000) < 1e-9
     assert by_medidas[(590, 60, "")]["categoria"] == 0
     assert c["total_unidades"] == 14
+
+
+def test_leyenda_agrupada_por_medidas_con_concatenacion():
+    """La leyenda agrupa por WxH y concatena ids/nombres/cantos distintos."""
+    from app.pdf_generator import _leyenda_agrupada
+
+    placements = [
+        {"id": "m1-base", "nombre": "Base", "w": 646, "h": 585, "x": 0, "y": 0, "cantos": ""},
+        {"id": "m1-repisa", "nombre": "Repisa", "w": 646, "h": 585, "x": 0, "y": 600, "cantos": "T,B"},
+        {"id": "m2-base", "nombre": "Base", "w": 646, "h": 585, "x": 0, "y": 1200, "cantos": ""},
+        {"id": "m1-tapa", "nombre": "Tapa", "w": 646, "h": 600, "x": 700, "y": 0, "cantos": "T,B,L,R"},
+    ]
+    lineas = _leyenda_agrupada(placements)
+    assert lineas[0].startswith("646x585 ×3")
+    assert "m1-base / m1-repisa / m2-base" in lineas[0]
+    assert "Base / Repisa" in lineas[0]
+    # Mezcla con/sin cantos: se marca el vacío.
+    assert "cantos — / T,B" in lineas[0]
+    # Pieza única: formato clásico.
+    assert lineas[1] == "646x600 · m1-tapa · Tapa · cantos T,B,L,R"

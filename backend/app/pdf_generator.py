@@ -340,7 +340,10 @@ def generate_layouts_pdf(
                     c.setFillColor(colors.HexColor("#1f2937"))
                     c.drawString(x + 1.5, y + h - 5.5, id_visible)
 
-        # Leyenda lateral.
+        # Leyenda lateral: AGRUPADA POR MEDIDAS — una línea por WxH; los
+        # datos que no coinciden en el grupo (ids/nombres/cantos) se
+        # concatenan. El orden sigue la lectura del tablero (y, x del
+        # primer ejemplar del grupo).
         lx = ox + tab_w + 16
         ancho_leyenda = page_w - lx - margen
         c.setFont("Helvetica-Bold", 10)
@@ -350,15 +353,9 @@ def generate_layouts_pdf(
         c.setFillColor(colors.HexColor("#15803d"))
         c.drawString(lx, oy + tab_h - 21, "Borde verde = canto PVC")
         c.setFillColor(textoOscuro)
-        ordenadas = sorted(board["placements"],
-                           key=lambda p: (round(float(p["y"]), 1), round(float(p["x"]), 1)))
         ly = oy + tab_h - 33
         c.setFont("Helvetica", 6.5)
-        for p in ordenadas:
-            linea = (f"{p.get('id', '')} · {p.get('nombre', '')} · "
-                     f"{float(p['w']):.0f}x{float(p['h']):.0f}")
-            if p.get("cantos"):
-                linea += f" · cantos {p['cantos']}"
+        for linea in _leyenda_agrupada(board["placements"]):
             visible = truncar(linea, "Helvetica", 6.5, ancho_leyenda)
             if ly < margen:
                 c.drawString(lx, ly, "… (ver cut list para el resto)")
@@ -374,6 +371,50 @@ def generate_layouts_pdf(
 
     c.save()
     return _web_path(path)
+
+
+def _leyenda_agrupada(placements):
+    """Líneas de leyenda AGRUPADAS POR MEDIDAS (W×H redondeadas).
+
+    Una línea por grupo; los datos que difieren entre ejemplares del grupo
+    (ids, nombres, cantos) se concatenan con " / " en el orden de aparición.
+    El orden de los grupos sigue la lectura del tablero (y, x del primer
+    ejemplar). Pieza única: formato clásico con su id.
+    """
+    ordenadas = sorted(placements,
+                       key=lambda p: (round(float(p["y"]), 1), round(float(p["x"]), 1)))
+    grupos = {}
+    for p in ordenadas:
+        clave = (round(float(p["w"])), round(float(p["h"])))
+        g = grupos.setdefault(clave, {
+            "ids": [], "nombres": [], "cantos": [], "n": 0,
+            "orden": (round(float(p["y"]), 1), round(float(p["x"]), 1)),
+        })
+        g["n"] += 1
+        for campo, valor in (("ids", p.get("id", "")),
+                             ("nombres", p.get("nombre", "")),
+                             ("cantos", p.get("cantos", ""))):
+            if valor and valor not in g[campo]:
+                g[campo].append(valor)
+
+    lineas = []
+    for (w, h), g in sorted(grupos.items(), key=lambda kv: kv[1]["orden"]):
+        linea = f"{w}x{h}"
+        if g["n"] > 1:
+            linea += f" ×{g['n']}"
+        if g["ids"]:
+            linea += f" · {' / '.join(g['ids'])}"
+        if g["nombres"]:
+            linea += f" · {' / '.join(g['nombres'])}"
+        if g["cantos"]:
+            # Si no todos los ejemplares del grupo tienen cantos, se marca
+            # el vacío para no dar a entender que las ×N van canteadas.
+            marcas = list(g["cantos"])
+            if len(marcas) < g["n"]:
+                marcas.insert(0, "—")
+            linea += f" · cantos {' / '.join(marcas)}"
+        lineas.append(linea)
+    return lineas
 
 
 # ── Clasificación de cantos (9 categorías, spec taller) ──────────────────
