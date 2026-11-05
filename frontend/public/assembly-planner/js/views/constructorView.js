@@ -276,6 +276,35 @@ export function createConstructorView(store) {
     container.addEventListener('click', onClick);
     container.addEventListener('keydown', onKeydown);
     container.addEventListener('change', onChange);
+    // Cálculo cruzado Prof. caja ↔ Holgura fondo: la holgura es lo que
+    // SOBRA de profundidad hasta el fondo del módulo (ras el frente). Editar
+    // cualquiera de los dos recalcula el otro.
+    function onProfCajaInput(e) {
+      if (!e.target.matches('[data-prof-caja], [data-holgura-fondo]')) return;
+      const scoped3 = e.target.closest('[data-module-scoped]');
+      if (!scoped3) return;
+      const modId3 = scoped3.dataset.moduleScoped;
+      const lat = store.get().pieces.find((p) => p.id === `m${modId3}-lateral-izq`);
+      const tapa = store.get().pieces.find((p) => p.id === `m${modId3}-tapa`);
+      if (!lat || !tapa) return;
+      const E = Number(tapa.espesor) || 15;
+      const modo = ['ras', 'tapajunta', 'interno'].includes(store.get().userConfig?.frontGapMode)
+        ? store.get().userConfig.frontGapMode : 'ras';
+      // disponible = prof − retranqueo(frentes) − E(fondo embutido)
+      const retrx = modo === 'ras' ? E : modo === 'interno' ? 2 * E : 0;
+      const disp = Math.max(0, (Number(lat.ancho) || 0) - retrx - E);
+      const profEl = scoped3.querySelector('[data-prof-caja]');
+      const holgEl = scoped3.querySelector('[data-holgura-fondo]');
+      if (e.target === profEl) {
+        const prof = Number(profEl.value) || 0;
+        if (prof > 0 && holgEl) holgEl.value = String(Math.max(0, Math.round(disp - prof)));
+      } else if (e.target === holgEl) {
+        const prof = Number(profEl?.value) || 0;
+        if (prof > 0 && profEl) profEl.value = String(Math.max(100, Math.round(disp - (Number(holgEl.value) || 0))));
+      }
+    }
+
+    container.addEventListener('input', onProfCajaInput);
     container.addEventListener('wheel', onWheel, { passive: false });
     container.addEventListener('mouseover', onMouseover);
     container.addEventListener('mouseleave', onMouseleave);
@@ -666,6 +695,11 @@ export function createConstructorView(store) {
       const refuerzoRepisa = container.querySelector(`${scoped} [data-refuerzo-repisa]`)?.checked !== false;
       // Holgura caja→fondo del módulo (regla de taller: 10 mm).
       const holguraFondo = Math.max(0, Number(container.querySelector(`${scoped} [data-holgura-fondo]`)?.value ?? 10) || 0);
+      // Profundidad de caja explícita (vacío = automática por riel). Al
+      // fijarla, la holgura pasada al servicio es el SOBRANTE resultante
+      // (disponible − profundidad), para que la validación de holgura use
+      // el valor que el usuario ve en la tarjeta.
+      const profCajaVal = Number(container.querySelector(`${scoped} [data-prof-caja]`)?.value) || 0;
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
       // Va DENTRO del mismo saveUserConfig de abajo: saveUserConfig REEMPLAZA
       // el storage completo, un segundo call la borraría (por eso el input
@@ -691,10 +725,12 @@ export function createConstructorView(store) {
         contentRefuerzoRepisa: refuerzoRepisa ? 1 : 0,
         repisaAlFrente: repisaAlFrente ? 1 : 0,
         holguraFondoCajon: holguraFondo,
+        contentProfCaja: profCajaVal || 0,
       });
       store.set({ userConfig: loadUserConfig() });
       const r = addContentToModule(moduleId, kind, {
         altoVano,
+        profundidadCaja: profCajaVal > 0 ? profCajaVal : null,
         tipo: null, // los tipos de catálogo se eliminaron del UI (vano libre)
         tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente,
         division, conFrente, modoFrente: modoZapatera, altoFrente: altoFrenteZ,
@@ -1692,7 +1728,10 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
                 <option value="marco" ${sel(cfg.contentRiel, 'marco')}>Marco aluminio regulable (zapatera, sin cajón)</option>
               </select>
             </label>
-            <label class="form-group" style="margin:0;" title="Espacio recomendado entre la cara trasera de la caja (cajón/zapatera) y el fondo del módulo. 10 mm = regla de taller (tolerancias de corte, montaje y ventilación); el riel 'Catálogo' conserva su regla propia de 25 mm">Holgura fondo (mm)
+            <label class="form-group" style="margin:0;" title="Profundidad de la caja del cajón/zapatera. Vacío = automática por regla del riel (telescópica −26, etc.). Al fijarla, la 'Holgura fondo' se recalcula con lo que sobra hasta el fondo del módulo — y al editar la holgura se recalcula esta profundidad. El valor se guarda en el frente (tag [profN]) y sobrevive al CSV y a ediciones">Prof. caja (mm)
+              <input type="number" data-prof-caja value="${Number(cfg.contentProfCaja) > 0 ? Number(cfg.contentProfCaja) : ''}" placeholder="auto (riel)" min="100" step="5" />
+            </label>
+            <label class="form-group" style="margin:0;" title="Espacio recomendado entre la cara trasera de la caja (cajón/zapatera) y el fondo del módulo. 10 mm = regla de taller (tolerancias de corte, montaje y ventilación); el riel 'Catálogo' conserva su regla propia de 25 mm. Si fijas 'Prof. caja', este valor es el SOBRANTE (editable: recalcula la profundidad)">Holgura fondo (mm)
               <input type="number" data-holgura-fondo value="${Number(cfg.holguraFondoCajon ?? 10)}" min="0" max="50" step="1" />
             </label>
             <label class="form-group cn-toggle" style="margin:0;" title="Sistema de montaje del fondo (solo cajones). Apoyado: fondo sobre la base, interno a los laterales. Ranurado: fondo embutido en ranura corrida en cada lateral — se corta más ancho (cantos enterrados) y sube casi a la cara superior del lateral">

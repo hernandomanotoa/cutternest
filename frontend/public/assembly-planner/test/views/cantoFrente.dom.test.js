@@ -121,3 +121,36 @@ test('la Luz frente se conserva al editar las dimensiones del módulo', () => {
   // W = 870; luz 2 (persistida) → 866.
   assert.equal(Number(f.ancho), 866, 'la luz persistida se aplica en la regeneración: ' + f.ancho);
 });
+
+test('Prof. caja: define la profundidad, calcula la holgura y persiste ante ediciones', () => {
+  const { container } = armarModuloYVista();
+  container.querySelector('[data-prof-caja]').value = '500';
+  container.querySelector('[data-prof-caja]').dispatchEvent(new window.Event('input', { bubbles: true }));
+  // Módulo 600, frentes ras (default userConfig): disponible = 600 − 15 − 15 = 570
+  // → holgura resultante = 70 (auto-recalculada en el input de holgura).
+  const holg = container.querySelector('[data-holgura-fondo]');
+  assert.equal(holg.value, '70', 'la holgura se recalcula con lo que sobra (570 − 500)');
+  agregarCajon(container);
+
+  const lat = () => getStore().get().pieces.find((p) => p.id.endsWith('cajon1-lateral-izq'));
+  const f = () => getStore().get().pieces.find((p) => p.id.endsWith('-frente'));
+  assert.equal(Number(lat().ancho), 500, 'la caja mide la profundidad fijada');
+  assert.ok(f().nombre.includes('[prof500]'), 'tag persistido en el frente: ' + f().nombre);
+
+  // Editar la holgura recalcula la profundidad (cross-calc). El agregar
+  // re-renderiza la tarjeta: se re-consultan los nodos nuevos.
+  const holg2 = container.querySelector('[data-holgura-fondo]');
+  holg2.value = '100';
+  holg2.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.equal(container.querySelector('[data-prof-caja]').value, '470', 'prof = disponible(570) − holgura(100)');
+
+  // Editar el módulo conserva el tag [profN].
+  container.querySelector('[data-prof-caja]').value = '500';
+  container.querySelector('[data-prof-caja]').dispatchEvent(new window.Event('input', { bubbles: true }));
+  const scoped = '[data-module-scoped="1"]';
+  container.querySelector(`${scoped} [data-action="edit-module"]`).click();
+  container.querySelector(`${scoped} [data-edit-ancho]`).value = '900';
+  container.querySelector(`${scoped} [data-action="apply-edit-module"]`).click();
+  assert.equal(Number(lat().ancho), 500, 'el tag [prof500] se preserva al editar dimensiones: ' + lat().ancho);
+  assert.ok(f().nombre.includes('[prof500]'), 'tag intacto: ' + f().nombre);
+});

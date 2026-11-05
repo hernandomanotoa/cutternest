@@ -15,6 +15,7 @@ import {
   addDoubleRail,
   addDrawer,
   addShoeTray,
+  profundidadCajaDisponible,
   nextModuleId,
   countRootModules,
   rootModuleIds,
@@ -822,5 +823,46 @@ describe('frenteLuz (luz perimetral del frente)', () => {
     // W = 820; corte = 820 − 2·2 − 2·1 = 814; canteado = 814 + 2 = 816 = W − 2·2 ✓
     const r = addDrawer('1', 1, { ...BASE, frenteLuz: 2, cantoFrente: 1 });
     assert.equal(r.pieces.find((p) => p.id.endsWith('-frente')).ancho, 814);
+  });
+});
+
+describe('profundidadCaja (profundidad explícita de caja, tag [profN])', () => {
+  const BASE = { anchoModulo: 850, profundidadModulo: 600, altoVano: 200 };
+
+  it('fija la profundidad de la caja y estampa [profN] en el frente', () => {
+    const r = addDrawer('1', 1, { ...BASE, profundidadCaja: 500 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const lat = r.pieces.find((p) => p.id.endsWith('-lateral-izq'));
+    assert.equal(lat.ancho, 500, 'el lateral de la caja mide la profundidad fijada');
+    const f = r.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.ok(f.nombre.includes('[prof500]'), 'tag en el nombre: ' + f.nombre);
+    // Disponible con tapajunta = prof − 0(retranqueo) − E = 585; la holgura
+    // resultante al fondo es 585 − 500 = 85 mm.
+    assert.equal(profundidadCajaDisponible(600, 15, 'tapajunta'), 585);
+    assert.equal(profundidadCajaDisponible(600, 15, 'ras'), 570);
+    assert.equal(profundidadCajaDisponible(600, 15, 'interno'), 555);
+  });
+
+  it('valida el rango: profundidad mayor que la disponible → error con consejo', () => {
+    const r = addDrawer('1', 1, { ...BASE, profundidadCaja: 600 });
+    assert.equal(r.ok, false);
+    assert.match(r.errors[0], /entre 100 y 585 mm/);
+  });
+
+  it('zapatera: profundidad explícita en laterales y base de la bandeja', () => {
+    const r = addShoeTray('1', 1, { ...BASE, altoVano: 200, profundidadCaja: 480 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const lat = r.pieces.find((p) => p.id.endsWith('-lateral-izq'));
+    assert.equal(lat.ancho, 480);
+    const base = r.pieces.find((p) => p.id.endsWith('-base'));
+    assert.equal(base.alto, 480 - 30, 'base confinada: prof − 2E');
+    const f = r.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.ok(f.nombre.includes('[prof480]'), 'tag: ' + f.nombre);
+  });
+
+  it('sin profundidadCaja: comportamiento automático por riel (sin tag)', () => {
+    const r = addDrawer('1', 1, { ...BASE });
+    const f = r.pieces.find((p) => p.id.endsWith('-frente'));
+    assert.ok(!f.nombre.includes('[prof'), 'sin tag en automático: ' + f.nombre);
   });
 });

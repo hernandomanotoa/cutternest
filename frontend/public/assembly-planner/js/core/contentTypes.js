@@ -65,6 +65,22 @@ export function stampCantoTag(nombre, cantoMm) {
   return String(nombre).replace(/(\S+(?:\s+\[[^\]]+\])?)/, `$1 [canto${txt}]`);
 }
 
+// Contrato de profundidad de caja explícita (mm): cuando el usuario fija
+// la profundidad del cajón/zapatera en la tarjeta, el valor se estampa como
+// [profN] en el nombre del frente y sobrevive al CSV y a regeneraciones
+// (igual que [cantoN]). Sin tag = profundidad automática por regla del riel.
+export function stampProfTag(nombre, profMm) {
+  const v = Number(profMm);
+  if (!Number.isFinite(v) || v <= 0) return nombre;
+  return String(nombre).replace(/(\S+(?:\s+\[[^\]]+\])?)/, `$1 [prof${Math.round(v)}]`);
+}
+
+// Extrae la profundidad del tag ('Frente [prof560] cajon…' → 560).
+export function profTagDe(nombre) {
+  const m = String(nombre || '').match(/\[prof(\d+(?:[.,]\d+)?)\]/i);
+  return m ? Number(m[1].replace(',', '.')) : null;
+}
+
 // Extrae el canto del tag ('Frente [canto1] cajon…' → 1; sin tag → null).
 export function cantoTagDe(nombre) {
   const m = String(nombre || '').match(/\[canto(\d+(?:[.,]\d+)?)\]/i);

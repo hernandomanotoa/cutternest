@@ -14,6 +14,8 @@ import {
   stampTipoTag,
   stampCantoTag,
   cantoTagDe,
+  stampProfTag,
+  profTagDe,
   tipoTagDe,
   vanoDesdeCara,
   fondoMetodoDeTipo,
@@ -224,5 +226,21 @@ describe('tag [cantoN] (contrato de canto del frente)', () => {
     assert.equal(tipoTagDe(n), 'bandeja', 'el tag de tipo sigue siendo el primero genérico');
     assert.equal(cantoTagDe(n), 1);
     assert.ok(n.includes('[bandeja]') && n.includes('[canto1]'));
+  });
+});
+
+describe('tag [profN] (contrato de profundidad de caja)', () => {
+  it('round-trip: estampa y extrae la profundidad', () => {
+    assert.equal(profTagDe(stampProfTag('Frente cajon 1 M1', 560)), 560);
+    assert.equal(profTagDe(stampProfTag('Frente cajon 1 M1', 500)), 500);
+  });
+
+  it('no estampa con valor vacío/inválido y coexiste con [cantoN] y [tipo]', () => {
+    assert.equal(stampProfTag('Frente cajon 1 M1', null), 'Frente cajon 1 M1');
+    assert.equal(profTagDe('Frente cajon 1 M1'), null);
+    const n = stampProfTag(stampCantoTag(stampTipoTag('Frente zapatera extraible 1 M1', 'v180'), 1), 560);
+    assert.equal(tipoTagDe(n), 'v180');
+    assert.equal(cantoTagDe(n), 1);
+    assert.equal(profTagDe(n), 560);
   });
 });

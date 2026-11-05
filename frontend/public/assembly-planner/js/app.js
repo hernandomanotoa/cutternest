@@ -50,7 +50,7 @@ import {
   MARCO_PIECE_RE,
   PLINTH_DRAWER_FRONT_LIFT_MM,
 } from './services/plinthFrameService.js';
-import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, cantoTagDe, vanoDesdeCara, fondoMetodoDeTipo, vanoTagId } from './core/contentTypes.js';
+import { getContentType, RAIL_SIDE_HEIGHT, BANDEJA_RIM_HEIGHT, ZAPATERA_FRENTE_DROP, tipoTagDe, cantoTagDe, profTagDe, vanoDesdeCara, fondoMetodoDeTipo, vanoTagId } from './core/contentTypes.js';
 import {
   createModule,
   addZocalo,
@@ -754,6 +754,8 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         ...frenteBoxOpts(state.userConfig),
         // Canto del frente (0/0,4/1/2): preferencia global del usuario.
         cantoFrente: cantoFrenteDeCfg(state.userConfig),
+        // Profundidad de caja explícita de la tarjeta (tag [profN]).
+        profundidadCaja: Number(opts.profundidadCaja) > 0 ? Number(opts.profundidadCaja) : null,
       });
     } else {
       result = addDrawer(moduleId, idx, {
@@ -775,6 +777,7 @@ export function addContentToModule(moduleId, kind, opts = {}) {
         fondoMetodo: ['apoyado', 'ranurado'].includes(opts.fondoMetodo) ? opts.fondoMetodo : null,
         ...frenteBoxOpts(state.userConfig),
         cantoFrente: cantoFrenteDeCfg(state.userConfig),
+        profundidadCaja: Number(opts.profundidadCaja) > 0 ? Number(opts.profundidadCaja) : null,
       });
     }
   } else if (kind === 'divider') {
@@ -2062,6 +2065,9 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
         // sin ella la regeneración caía siempre a 1 y perdía el ajuste del
         // usuario al editar dimensiones.
         frenteLuz: luzFrenteDeCfg(getStore().get().userConfig),
+        // Profundidad de caja explícita: el tag [profN] del frente conserva
+        // el valor ante ediciones; sin tag, automática por regla del riel.
+        profundidadCaja: profTagDe(frente?.nombre) ?? null,
       })
       : addDrawer(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
@@ -2088,6 +2094,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
         ...frenteBoxOpts(getStore().get().userConfig),
         cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? 0,
         frenteLuz: luzFrenteDeCfg(getStore().get().userConfig),
+        profundidadCaja: profTagDe(frente?.nombre) ?? null,
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };

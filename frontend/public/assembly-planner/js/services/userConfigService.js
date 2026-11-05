@@ -69,6 +69,12 @@ export function loadUserConfig() {
         for (const key of STRING_PREFS) {
           if (typeof parsed[key] === 'string') config[key] = parsed[key];
         }
+        for (const key of NUMERIC_PREFS) {
+          if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+            const value = Number(parsed[key]);
+            if (Number.isFinite(value)) config[key] = value;
+          }
+        }
       }
     }
   } catch {
@@ -81,6 +87,9 @@ export function loadUserConfig() {
 // Preferencias de texto persistibles (selects del formulario de contenido
 // del Constructor). Se guardan tal cual; loadUserConfig las rehidrata.
 export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel', 'golaFijacion', 'contentModoZapatera', 'colorCuerpo', 'frontGapMode'];
+
+// Preferencias numéricas persistibles fuera de VERTICAL_POSITIONS.
+const NUMERIC_PREFS = ['contentProfCaja'];
 
 
 export function saveUserConfig(overrides) {
@@ -137,6 +146,13 @@ export function saveUserConfig(overrides) {
     for (const key of STRING_PREFS) {
       if (typeof overrides?.[key] === 'string') {
         if (overrides[key]) diff[key] = overrides[key];
+        else delete diff[key];
+      }
+    }
+    for (const key of NUMERIC_PREFS) {
+      const value = overrides?.[key];
+      if (Object.prototype.hasOwnProperty.call(overrides || {}, key) && Number.isFinite(value)) {
+        if (value > 0) diff[key] = value;
         else delete diff[key];
       }
     }
