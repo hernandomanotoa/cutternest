@@ -23,9 +23,15 @@ export interface PieceGroup {
 export function groupPiecesByDimensions(pieces: PieceInput[]): PieceGroup[] {
   const map = new Map<string, PieceGroup>()
   for (const p of pieces) {
-    const key = `${p.ancho.toFixed(3)}|${p.alto.toFixed(3)}|${p.espesor.toFixed(3)}`
-    const canonico = cantosCanonicos(p.cantos || '')
+    // La clasificación largo/corto se deriva SOLO de las dimensiones de la
+    // pieza (la arista más larga es el largo; los opuestos son iguales: dos
+    // largos o dos cortos). Las letras T,B,L,R solo referencian qué aristas
+    // se cantean, no determinan largo/corto. El grupo se parte por
+    // clasificación: medidas iguales con clasificación distinta generan
+    // registros (filas) adicionales en el Conteo.
     const categoria = categoriaCanto(p.cantos || '', p.ancho, p.alto)
+    const key = `${p.ancho.toFixed(3)}|${p.alto.toFixed(3)}|${p.espesor.toFixed(3)}|${categoria}`
+    const canonico = cantosCanonicos(p.cantos || '')
     const existing = map.get(key)
     if (existing) {
       existing.cantidad += p.cantidad

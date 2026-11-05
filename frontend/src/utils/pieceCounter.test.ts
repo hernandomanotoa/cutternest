@@ -32,21 +32,42 @@ describe('pieceCounter', () => {
     expect(groups[0].cantidad).toBeGreaterThanOrEqual(groups[1].cantidad)
   })
 
-  it('agrupa los cantos por par canónico (T=B, L=R) con su clasificación', () => {
+  it('agrupa por medidas + clasificación: cantos distintos → registros adicionales', () => {
     const conCantos: PieceInput[] = [
-      // laterales: 3 con T,B,L + 2 con T,B,R → un solo patrón T,B,L/R (5 und)
+      // laterales: 3 con T,B,L + 2 con T,B,R → MISMA clasificación
+      // (600×2380: L/R largos, T/B cortos → 1 Largo + 2 Cortos) y MISMO par
+      // canónico: un solo registro de 5 und.
       { id: 'li', nombre: 'Lateral izq', ancho: 500, alto: 1800, cantidad: 3, rotate: false, color: '#45B7D1', espesor: 18, cantos: 'T,B,L' },
       { id: 'ld', nombre: 'Lateral der', ancho: 500, alto: 1800, cantidad: 2, rotate: false, color: '#45B7D1', espesor: 18, cantos: 'T,B,R' },
-      // mismas medidas pero sin laminar → segundo patrón en el mismo grupo
+      // mismas medidas pero sin laminar → clasificación distinta (Sin
+      // laminar) → registro ADICIONAL, no se mezcla con el anterior.
       { id: 'fo', nombre: 'Fondo', ancho: 500, alto: 1800, cantidad: 4, rotate: false, color: '#F2F2F2', espesor: 18, cantos: '' },
     ]
     const groups = groupPiecesByDimensions(conCantos)
-    expect(groups).toHaveLength(1)
-    const g = groups[0]
-    expect(g.cantidad).toBe(9)
-    expect(g.cantos).toHaveLength(2)
-    expect(g.cantos[0]).toEqual({ patron: 'T,B,L/R', unidades: 5, categoria: 7 })
-    expect(nombreCategoria(g.cantos[0].categoria)).toBe('1 Largo + 2 Cortos')
-    expect(g.cantos[1]).toEqual({ patron: '', unidades: 4, categoria: 0 })
+    expect(groups).toHaveLength(2)
+    const sinLaminar = groups.find((g) => g.cantos[0].categoria === 0)!
+    expect(sinLaminar.cantidad).toBe(4)
+    expect(sinLaminar.cantos).toEqual([{ patron: '', unidades: 4, categoria: 0 }])
+    const cantedos = groups.find((g) => g.cantos[0].categoria === 7)!
+    expect(cantedos.cantidad).toBe(5)
+    expect(cantedos.cantos).toEqual([{ patron: 'T,B,L/R', unidades: 5, categoria: 7 }])
+    expect(nombreCategoria(cantedos.cantos[0].categoria)).toBe('1 Largo + 2 Cortos')
+  })
+
+  it('mismas medidas con clasificación largo/corto distinta → registros separados', () => {
+    // 646×585 (apaisada: T/B largos, L/R cortos): 'T,B' = 2 Largos;
+    // 'L,R' = 2 Cortos. Clasificaciones distintas pese a medidas idénticas.
+    const mixtas: PieceInput[] = [
+      { id: 'r', nombre: 'Repisa', ancho: 646, alto: 585, cantidad: 2, rotate: false, color: '#D9C2A3', espesor: 15, cantos: 'T,B' },
+      { id: 'm', nombre: 'Montante', ancho: 646, alto: 585, cantidad: 3, rotate: false, color: '#C19A6B', espesor: 15, cantos: 'L,R' },
+    ]
+    const groups = groupPiecesByDimensions(mixtas)
+    expect(groups).toHaveLength(2)
+    const dosLargos = groups.find((g) => g.cantos[0].categoria === 4)!
+    expect(dosLargos.cantidad).toBe(2)
+    expect(dosLargos.cantos[0].patron).toBe('T,B')
+    const dosCortos = groups.find((g) => g.cantos[0].categoria === 2)!
+    expect(dosCortos.cantidad).toBe(3)
+    expect(dosCortos.cantos[0].patron).toBe('L,R')
   })
 })

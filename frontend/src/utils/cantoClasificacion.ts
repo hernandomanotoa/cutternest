@@ -21,7 +21,11 @@ export const CATEGORIAS_CANTO = [
   '4 Lados',
 ] as const
 
-/** Letras de los dos lados LARGOS (paralelos al lado más largo). */
+/** Aristas LARGAS de la pieza, referenciadas por letra: las que miden lo
+ * del lado más largo de la pieza. La decisión es 100% por las dimensiones
+ * (el que mida más = largo; los opuestos son iguales: dos largos o dos
+ * cortos) — las letras T,B,L,R solo identifican qué arista es cada una, no
+ * determinan largo/corto. */
 export function ladosLargo(ancho: number, alto: number): Set<string> {
   return ancho >= alto ? new Set(['T', 'B']) : new Set(['L', 'R'])
 }

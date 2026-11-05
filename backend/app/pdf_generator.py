@@ -384,6 +384,10 @@ CATEGORIAS_CANTO = [
 
 
 def _lados_largo(ancho: float, alto: float) -> set:
+    """Aristas largas referenciadas por letra: las que miden lo del lado más
+    largo de la pieza. La decisión es 100% por las dimensiones (los opuestos
+    son iguales: dos largos o dos cortos); las letras T,B,L,R solo
+    identifican qué arista es cada una."""
     return {"T", "B"} if ancho >= alto else {"L", "R"}
 
 
