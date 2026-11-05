@@ -13,7 +13,8 @@ import { createAperturaControls, createGapModeToggle } from '../components/apert
 import { MODULE_GAP_MM } from '../core/config.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import { createModuleSelector } from '../components/moduleSelector.js';
-import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza } from '../app.js';
+import { setAperturaGlobal, setAperturaPieza, setAnguloPieza, clearAnguloPieza, recolorMueble } from '../app.js';
+import { toast } from '../components/toast.js';
 
 export function createRenderer3DView(store) {
   let unsubscribe = null;
@@ -244,6 +245,10 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-veta" ${Number(state.userConfig?.renderVeta) !== 0 ? 'checked' : ''} style="cursor:pointer;">
               <span>Veta</span>
             </label>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Color del cuerpo de TODO el mueble (casco, zócalo y gola de todos los módulos). Frentes y cajas conservan su color de contraste. Se guarda en las piezas: persiste en el CSV exportado, las versiones y el autoguardado; los módulos nuevos salen de este color">
+              <span>Cuerpo</span>
+              <input type="color" id="r3d-body-color" value="${(state.pieces.find((pz) => /^m\d+-(base|tapa|lateral-izq|lateral-der|zocalo)$/.test(String(pz.id)))?.color) || state.userConfig?.colorCuerpo || '#c19a6b'}" style="width:1.5rem;height:1.2rem;padding:0;border:none;background:transparent;cursor:pointer;">
+            </label>
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;" title="Frentes de cajón/zapatera: 'A ras' termina alineado con los laterales del módulo; 'Tapajunta' cubre su cara frontal (un espesor por delante); 'Interno' queda retranqueado un espesor entre los laterales (la gola lo acompaña detrás)">
               <span>Frentes</span>
               <select id="r3d-front-gap" style="cursor:pointer;background:transparent;border:none;color:inherit;font-size:inherit;">
@@ -458,6 +463,11 @@ container.querySelector('#r3d-dims')?.addEventListener('change', (e) => renderer
       renderer.setMostrarVeta(e.target.checked);
       saveUserConfig({ renderVeta: e.target.checked ? 1 : 0 });
       store.set({ userConfig: loadUserConfig() });
+    });
+    container.querySelector('#r3d-body-color')?.addEventListener('change', (e) => {
+      const r = recolorMueble(e.target.value);
+      if (r.ok) toast(`Mueble recoloreado: ${r.recoloreadas} piezas de cuerpo`, { type: 'success' });
+      else toast(r.errors.join('; '), { type: 'error' });
     });
     container.querySelector('#r3d-front-gap')?.addEventListener('change', (e) => {
       renderer.setFrontGapMode(e.target.value);

@@ -1279,6 +1279,39 @@ export function recolorModule(moduleId, color) {
   return { ok: true };
 }
 
+// Recolorea el cuerpo de TODO el mueble desde la vista 3D: casco (base/tapa/
+// laterales/zócalo), tiras de gola y marco de zócalo global de todos los
+// módulos. Frentes y cajas conservan su color de contraste (mismo criterio
+// que recolorModule). El cambio escribe el color de las piezas: persiste en
+// el CSV exportado, las versiones y el autoguardado. Además guarda
+// colorCuerpo en la config para que los módulos NUEVOS ya salgan del color.
+export function recolorMueble(color) {
+  snapshotUndo("Recolorear mueble");
+  const store = getStore();
+  const state = store.get();
+  if (!/^#[0-9A-Fa-f]{6}$/.test(String(color || ''))) {
+    return { ok: false, errors: [`Color invalido "${color}"`] };
+  }
+  // ^m\d+- fija el casco raíz: 'm1-base' sí, 'm1cajon1-base' (caja) no.
+  const esCuerpo = (p) => {
+    const id = String(p.id);
+    return /^m\d+-(base|tapa|lateral-izq|lateral-der|zocalo)$/.test(id)
+      || id.includes('-gola-')
+      || id.startsWith('glb-zocalo');
+  };
+  let recoloreadas = 0;
+  const pieces = state.pieces.map((p) => {
+    if (!esCuerpo(p)) return p;
+    recoloreadas += 1;
+    return { ...p, color: String(color) };
+  });
+  store.set({ pieces });
+  saveUserConfig({ colorCuerpo: String(color) });
+  store.set({ userConfig: loadUserConfig() });
+  recalculateAll();
+  return { ok: true, recoloreadas };
+}
+
 // ── Sistema gola (golaService) ────────────────────────────────────
 
 // Metadatos de round-trip por módulo (alturas/pos_z originales de frentes),
