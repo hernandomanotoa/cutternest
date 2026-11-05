@@ -237,12 +237,19 @@ function cascoDims(pieces, moduleId) {
     || delMod.find((p) => inferRole(p) === 'side_panel');
   if (!tapa && !lateral) return null;
   const espesor = Number((tapa || lateral).espesor) || 15;
-  const anchoModulo = tapa ? Number(tapa.ancho) || 0 : 0;
+  // Convención 2026-11: la tapa va EMBUTIDA — el ancho exterior se deriva
+  // del FONDO (siempre embutido: ancho + 2E) y la profundidad del LATERAL
+  // (la tapa embutida es ras al frente: prof − E, que subestimaría la prof).
+  const fondo = delMod.find((p) => String(p.id) === `m${moduleId}-fondo`)
+    || delMod.find((p) => inferRole(p) === 'back_panel');
+  const anchoModulo = fondo
+    ? (Number(fondo.ancho) || 0) + 2 * espesor
+    : tapa ? Number(tapa.ancho) || 0 : 0;
   const altoModulo = lateral ? Number(lateral.alto) || 0 : 0;
   if (!anchoModulo || !altoModulo) return null;
-  // Profundidad del casco: el ALTO de la tapa (se modela ancho × prof) o, en
-  // su defecto, el ANCHO de un lateral (profundidad). 0 = no derivable.
-  const profundidad = (tapa && Number(tapa.alto)) || (lateral && Number(lateral.ancho)) || 0;
+  // Profundidad del casco: el ANCHO de un lateral (profundidad); la tapa
+  // embutida mide prof − E (ras al frente) y ya no es referencia.
+  const profundidad = (lateral && Number(lateral.ancho)) || (tapa && Number(tapa.alto)) || 0;
   return {
     anchoModulo,
     altoModulo,

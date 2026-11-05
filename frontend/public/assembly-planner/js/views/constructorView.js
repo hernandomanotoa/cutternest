@@ -58,6 +58,7 @@ import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { isGolaEnabled, drawerUnits, getGolaCfg, esUnidadFijaGola } from '../services/golaService.js';
 import { RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
+import { constructorCascoWidth } from '../services/geometryService.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
   computeLiftCheck,
@@ -1869,6 +1870,11 @@ function renderEditForm(moduleId, piezas) {
   const tapa = piezas.find((p) => p.id.endsWith('-tapa'));
   const lateral = piezas.find((p) => p.id.endsWith('-lateral-izq'));
   if (!tapa || !lateral) return '';
+  // Convención 2026-11: la tapa va EMBUTIDA — el ancho del módulo se
+  // deriva del FONDO (embutido: ancho + 2E), no de la tapa.
+  const fondo = piezas.find((p) => p.id.endsWith('-fondo'));
+  const e = Number(tapa.espesor) || 15;
+  const anchoModulo = fondo ? (Number(fondo.ancho) || 0) + 2 * e : Number(tapa.ancho) || 0;
   // Convención 2026-11: con marco estructural el lateral mide el CASCO
   // (apoyado sobre el marco). El campo Alto muestra la altura TOTAL del
   // mueble (casco + marco) y apply-edit descuenta el marco al regenerar.
@@ -1877,7 +1883,7 @@ function renderEditForm(moduleId, piezas) {
   return `
     <div class="cn-constructor__edit-form is-hidden" data-edit-form>
       <label class="form-group" style="margin:0;">Ancho
-        <input type="number" data-edit-ancho value="${Number(tapa.ancho)}" min="100" step="10" />
+        <input type="number" data-edit-ancho value="${anchoModulo}" min="100" step="10" />
       </label>
       <label class="form-group" style="margin:0;" title="${marcoH ? `Con marco estructural: altura TOTAL (casco ${Number(lateral.alto)} + marco ${marcoH})` : 'Altura del módulo'}">Alto${marcoH ? ' (total)' : ''}
         <input type="number" data-edit-alto data-marco-h="${marcoH}" value="${altoTotal}" min="100" step="10" />
@@ -2079,6 +2085,14 @@ function renderWarningsPanel(pieces, state = {}) {
 }
 
 function anchoTotal(pieces) {
+  // Convención 2026-11: la tapa va EMBUTIDA — el ancho del módulo se
+  // deriva del FONDO (constructorCascoWidth), no de la tapa.
+  const grupos = new Map();
+  for (const p of pieces) {
+    const mod = String(p.modulo).split('.')[0];
+    if (!grupos.has(mod)) grupos.set(mod, []);
+    grupos.get(mod).push(p);
+  }
   let total = 0;
   const vistos = new Set();
   for (const p of pieces) {
@@ -2086,7 +2100,7 @@ function anchoTotal(pieces) {
     const mod = String(p.modulo).split('.')[0];
     if (vistos.has(mod)) continue;
     vistos.add(mod);
-    total += Number(p.ancho) || 0;
+    total += constructorCascoWidth(grupos.get(mod) || [p], Number(p.ancho) || 0);
   }
   return total;
 }

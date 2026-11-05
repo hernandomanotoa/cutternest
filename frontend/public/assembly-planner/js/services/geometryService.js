@@ -214,6 +214,28 @@ export function getModuleDimensions(pieces, thickness = DEFAULT_THICKNESS, famil
   return { width: moduleW, height: moduleH, depth: moduleD, thickness: inferredThickness };
 }
 
+// Convención 2026-11 (tapa embutida del Constructor): el casco trae
+// `m{N}-tapa` y `m{N}-fondo` del MISMO ancho (interior) y las
+// clasificaciones por anchos no pueden distinguirlo de un trasero externo
+// de catálogo (mismo ancho = mismo caso dimensional). Con esa firma exacta
+// —tapa también ras en profundidad (alto = prof − E)— el ancho exterior es
+// fondo.ancho + 2E (el fondo del Constructor va siempre embutido). Catálogo
+// legacy sin la pareja, o con tapa corrida, no se toca.
+export function constructorCascoWidth(pieces, baseW) {
+  let w = baseW;
+  const laterales = (pieces || []).filter((p) => /^m\d+-lateral-izq$/.test(String(p.id)));
+  for (const t of pieces || []) {
+    if (!/^m\d+-tapa$/.test(String(t.id))) continue;
+    const f = (pieces || []).find((p) => String(p.id) === String(t.id).replace(/-tapa$/, '-fondo'));
+    if (!f || Math.abs((Number(t.ancho) || 0) - (Number(f.ancho) || 0)) > 2) continue;
+    const mod = String(t.id).match(/^m(\d+)-tapa$/)[1];
+    const lat = laterales.find((p) => String(p.id) === `m${mod}-lateral-izq`);
+    if (lat && Math.abs((Number(t.alto) || 0) - ((Number(lat.ancho) || 0) - (Number(t.espesor) || 15))) > 2) continue;
+    w = Math.max(w, (Number(f.ancho) || 0) + 2 * (Number(f.espesor) || 15));
+  }
+  return w;
+}
+
 export function shelfRank(name) {
   const n = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (n.includes('superior') || n.includes('sup')) return 0;

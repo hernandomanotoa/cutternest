@@ -68,7 +68,11 @@ export function rootModuleDims(pieces) {
     if (!/^\d+$/.test(m)) continue;
     if (!mods.has(m)) mods.set(m, { id: m, ancho: 0, alto: 0, profundidad: 0, espesor: 15 });
     const dims = mods.get(m);
-    if (/^m\d+-tapa$/.test(p.id)) { dims.ancho = Number(p.ancho) || 0; dims.alto = Number(p.alto) || 0; dims.espesor = Number(p.espesor) || 15; }
+    // Convención 2026-11: la tapa va EMBUTIDA (no representa el ancho
+    // exterior). El ancho exterior se deriva del FONDO (siempre embutido:
+    // ancho + 2E); tapa/base quedan de fallback para catálogo legacy.
+    if (/^m\d+-fondo$/.test(p.id)) { dims.ancho = (Number(p.ancho) || 0) + 2 * dims.espesor; dims.espesor = Number(p.espesor) || 15; }
+    else if (/^m\d+-tapa$/.test(p.id) && !dims.ancho) { dims.ancho = Number(p.ancho) || 0; dims.alto = Number(p.alto) || 0; dims.espesor = Number(p.espesor) || 15; }
     else if (/^m\d+-base$/.test(p.id) && !dims.ancho) { dims.ancho = (Number(p.ancho) || 0) + 2 * dims.espesor; dims.espesor = Number(p.espesor) || 15; }
     else if (/^m\d+-lateral-izq$/.test(p.id)) {
       dims.profundidad = Number(p.ancho) || 0;

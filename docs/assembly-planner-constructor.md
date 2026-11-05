@@ -254,6 +254,20 @@ submódulos se numeran con un contador unificado por módulo (11, 12, 13…);
 con contadores separados por tipo, cajón 1 y zapatera 1 colisionaban en el
 submódulo `'11'` y el renderer podía cruzar las cajas.
 
+### Tapa embutida (convención 2026-11, opción B del taller)
+
+La tapa del casco va **embutida**: entre los laterales (ancho = exterior −
+2E) y **ras al frente** (profundidad = prof − E, trasera contra el fondo).
+Los laterales llegan hasta arriba (sin descuento de tapa). Canto solo en
+el frente (`B`). El ancho exterior del casco se deriva del **fondo**
+ (siempre embutido: ancho + 2E) — nunca de la tapa — en `moduleDims`
+(app.js), `rootModuleDims` (plinthFrameService), `cascoDims`
+(golaService/frontElevationService), el parser (csvParser vía
+`constructorCascoWidth`) y el renderer (isometricRenderer). La firma
+`tapa == fondo` + tapa ras en profundidad distingue el casco del
+Constructor de un trasero externo de catálogo del mismo ancho (caso
+dimensionalmente idéntico, intención distinta).
+
 ### Convención de altura con marco estructural (2026-11)
 
 El casco **apoya sobre el marco**: al aplicarlo (`applyStructuralPlinth`)
@@ -353,8 +367,10 @@ del mueble queda a la izquierda → `L` = frente; para el der, `R`); para
 horizontales B = arista frontal y T = trasera (vista en planta con el
 frente abajo). Regla: **canto solo en aristas vistas**. Asignaciones del
 Constructor: laterales `L`/`R` (solo el frente; las cabezas quedan bajo
-tapa y sobre zócalo); tapa `B,L,R` (conservador: los lados aunque en
-módulos internos queden enfrentados); repisa `B` (frente); divisor `L,R`;
+tapa y sobre zócalo); tapa `B` (convención 2026-11: tapa EMBUTIDA entre
+los laterales —ancho − 2E, ras al frente con prof − E—, así que solo su
+arista frontal queda a la vista; los lados van contra los laterales y la
+trasera contra la pared); repisa `B` (frente); divisor `L,R`;
 zócalo simple `T`; marco del zócalo: frente `T` y trasero/costados/
 montantes `''` (bandeja: nadie ve sus aristas); frentes de cajón/zapatera
 `T,B,L,R` (visibles por los gaps); cajas enteras sin cantos (la corredera

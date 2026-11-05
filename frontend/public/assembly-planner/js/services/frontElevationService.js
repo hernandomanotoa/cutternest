@@ -55,7 +55,13 @@ function cascoDims(pieces, moduleId) {
     || delMod.find((p) => inferRole(p) === 'side_panel');
   if (!tapa && !lateral) return null;
   const espesor = Number((tapa || lateral).espesor) || DEFAULT_THICKNESS;
-  const ancho = tapa ? Number(tapa.ancho) || 0 : 0;
+  // Convención 2026-11: la tapa va EMBUTIDA — el ancho exterior se deriva
+  // del FONDO (siempre embutido: ancho + 2E), como en golaService.cascoDims.
+  const fondo = delMod.find((p) => String(p.id) === `m${moduleId}-fondo`)
+    || delMod.find((p) => inferRole(p) === 'back_panel');
+  const ancho = fondo
+    ? (Number(fondo.ancho) || 0) + 2 * espesor
+    : tapa ? Number(tapa.ancho) || 0 : 0;
   const alto = lateral ? Number(lateral.alto) || 0 : 0;
   if (!ancho || !alto) return null;
   return { ancho, alto, espesor, anchoInterior: ancho - 2 * espesor };

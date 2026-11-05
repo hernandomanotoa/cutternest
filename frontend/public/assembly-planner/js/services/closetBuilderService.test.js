@@ -67,7 +67,10 @@ describe('createModule', () => {
     const tapa = r.pieces.find((p) => p.id === 'm1-tapa');
     assert.equal(base.ancho, 820);  // 850 - 2*15 (entre laterales)
     assert.equal(base.alto, 585);   // 600 - 15 (hasta la pared: front_flush)
-    assert.equal(tapa.ancho, 850);  // la tapa sigue externa
+    // Convención 2026-11 (tapa embutida): la tapa va ENTRE los laterales
+    // (850 − 2·15) y ras al frente (600 − 15); canto solo en el frente.
+    assert.equal(tapa.ancho, 820);
+    assert.equal(tapa.alto, 585);
     // El renderer clasifica la base 'front_flush' en profundidad; el ancho
     // interno manda para apoyarla sobre el zócalo (bottomPanelOffset).
     // = altura del zocalo (se apoya sobre el, no en el suelo).
@@ -707,11 +710,11 @@ describe('zapatera: rim configurable por contrato (tipo.rim)', () => {
 describe('cantos — convención "solo aristas vistas" (auditoría 2026-11)', () => {
   const cantosDe = (pieces, id) => pieces.find((p) => p.id === id)?.cantos;
 
-  it('casco: laterales solo arista frontal (L/R), tapa B,L,R, base y fondo sin cantos', () => {
+  it('casco: laterales solo arista frontal (L/R), tapa embutida con canto solo en frente (B), base y fondo sin cantos', () => {
     const casco = createModule({ ancho: 850, alto: 2400, prof: 600, espesor: 15, modulo: '1' }).pieces;
     assert.equal(cantosDe(casco, 'm1-lateral-izq'), 'L', 'izq: frente a la izquierda (cara exterior)');
     assert.equal(cantosDe(casco, 'm1-lateral-der'), 'R');
-    assert.equal(cantosDe(casco, 'm1-tapa'), 'B,L,R', 'frente + lados; trasera contra la pared');
+    assert.equal(cantosDe(casco, 'm1-tapa'), 'B', 'tapa embutida: solo el frente queda a la vista (L/R entre laterales, T contra la pared)');
     assert.equal(cantosDe(casco, 'm1-base'), '');
     assert.equal(cantosDe(casco, 'm1-fondo'), '');
   });

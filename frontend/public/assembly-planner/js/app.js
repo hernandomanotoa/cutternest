@@ -597,10 +597,16 @@ function moduleDims(modPieces, moduleId) {
   if (!base && !tapa) return null;
   const espesor = Number((base || tapa).espesor) || 15;
   const baseEsInterna = base && tapa ? Number(base.ancho) < Number(tapa.ancho) : false;
-  const anchoModulo = tapa ? Number(tapa.ancho)
-    : baseEsInterna || !tapa ? Number(base.ancho) + 2 * espesor : Number(base.ancho);
-  const profModulo = tapa ? Number(tapa.alto)
-    : Number(base.alto) + (baseEsInterna ? 2 * espesor : 0);
+  // Convención 2026-11: la tapa va EMBUTIDA (ancho − 2E) — ya no es
+  // referencia del ancho exterior. El ancho exterior sale del FONDO
+  // (siempre embutido: ancho + 2E) y la profundidad del LATERAL.
+  const fondo = modPieces.find((p) => p.id === `m${moduleId}-fondo`);
+  const anchoModulo = fondo ? Number(fondo.ancho) + 2 * espesor
+    : tapa ? Number(tapa.ancho)
+      : baseEsInterna || !tapa ? Number(base.ancho) + 2 * espesor : Number(base.ancho);
+  const profModulo = lateral ? Number(lateral.ancho)
+    : tapa ? Number(tapa.alto)
+      : Number(base.alto) + (baseEsInterna ? 2 * espesor : 0);
   return { anchoModulo, profModulo, altoModulo: lateral ? Number(lateral.alto) : null, espesor, colorCuerpo: (base || tapa).color || '#C19A6B' };
 }
 
@@ -1769,13 +1775,15 @@ export function applyStructuralPlinth(opts = {}) {
   // marco (los cascos pueden haberse generado con otro alto de zócalo), y
   // las bases externas se convierten a internas (apoyadas sobre el marco).
   const altoLateral = new Map();
-  const anchoTapa = new Map();
+  const anchoExterior = new Map();
   const profLateral = new Map();
   pieces.forEach((p) => {
     const ml = String(p.id).match(/^m(\d+)-lateral-izq$/);
     if (ml) { altoLateral.set(ml[1], Number(p.alto) || 0); profLateral.set(ml[1], Number(p.ancho) || 0); }
-    const mt = String(p.id).match(/^m(\d+)-tapa$/);
-    if (mt) anchoTapa.set(mt[1], Number(p.ancho) || 0);
+    // Ancho exterior por módulo: del FONDO (siempre embutido: ancho + 2E);
+    // la tapa ya no sirve (convención 2026-11: tapa embutida).
+    const mf = String(p.id).match(/^m(\d+)-fondo$/);
+    if (mf) anchoExterior.set(mf[1], (Number(p.ancho) || 0) + 2 * (Number(p.espesor) || espesor));
   });
   const piecesFinales = pieces.map((p) => {
     // Convención de taller (2026-11): el marco es un cajón sobre el que
@@ -1800,11 +1808,12 @@ export function applyStructuralPlinth(opts = {}) {
       // regeneración el casco ya la descontó: el fondo recorre el casco.
       return { ...p, alto: Math.max(100, altoMod - (yaHabiaMarco ? 0 : altoZocalo) - 2 * e) };
     }
-    // Base externa (ancho ≈ tapa): pasa a interna, apoyada sobre el marco.
-    const tapaW = anchoTapa.get(mm[1]) || 0;
+    // Base externa: pasa a interna (ancho exterior − 2E), apoyada sobre el
+    // marco. Sin el ancho exterior derivado, no se toca.
+    const extW = anchoExterior.get(mm[1]) || 0;
     const prof = profLateral.get(mm[1]) || 0;
-    if (tapaW && Number(p.ancho) >= tapaW - 2 && prof) {
-      return { ...p, ancho: tapaW - 2 * e, alto: prof - e };
+    if (extW && Number(p.ancho) >= extW - 2 && prof) {
+      return { ...p, ancho: extW - 2 * e, alto: prof - e };
     }
     return p;
   });
@@ -2121,7 +2130,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
     : 0;
   const cascoIds = {
     base: [`m${moduleId}-base`, baseEsInterna ? anchoUtil : dims.ancho, baseEsInterna ? dims.prof - espesor : dims.prof],
-    tapa: [`m${moduleId}-tapa`, dims.ancho, dims.prof],
+    tapa: [`m${moduleId}-tapa`, anchoUtil, dims.prof - espesor],
     'lateral-izq': [`m${moduleId}-lateral-izq`, dims.prof, dims.alto],
     'lateral-der': [`m${moduleId}-lateral-der`, dims.prof, dims.alto],
     fondo: [`m${moduleId}-fondo`, anchoUtil, Math.max(100, dims.alto - zDescuento - 2 * espesor)],

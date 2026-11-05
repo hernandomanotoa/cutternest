@@ -60,12 +60,13 @@ test('agregar módulo con zócalo: casco 6 piezas, base INTERNA apoyada sobre z�
 
   const piezas = store.get().pieces;
   assert.equal(piezas.filter((p) => p.modulo === '1').length, 6); // casco 5 + zocalo 1
-  // Base (820x585, front_flush: hasta la pared): el renderer la apoya sobre
-  // el zócalo (z=150).
+  // Convención 2026-11 (tapa embutida): base y tapa van ENTRE los
+  // laterales (mismo ancho interior) y ras al frente (misma profundidad
+  // prof − E). El renderer apoya la base sobre el zócalo (z=150).
   const base = piezas.find((p) => p.id === 'm1-base');
   const tapa = piezas.find((p) => p.id === 'm1-tapa');
-  assert.equal(base.ancho, tapa.ancho - 2 * base.espesor);
-  assert.equal(base.alto, tapa.alto - base.espesor);
+  assert.equal(base.ancho, tapa.ancho, 'base y tapa embutidas al mismo ancho');
+  assert.equal(base.alto, tapa.alto, 'ambas ras al frente');
   assert.match(container.textContent, /Módulo 1/);
   view.destroy();
 });
@@ -126,7 +127,7 @@ test('Datos generales del mueble: todos los campos persisten y se re-aplican al 
   // Y el alta usa los valores persistidos.
   segunda.container.querySelector('[data-action="add-module"]').click();
   const tapa = segunda.store.get().pieces.find((p) => p.id === 'm1-tapa');
-  assert.equal(tapa.ancho, 900, 'el módulo nuevo nace con el ancho persistido');
+  assert.equal(tapa.ancho, 864, 'tapa embutida: 900 − 2·18 (espesor persistido 18)');
   assert.equal(tapa.espesor, 18, 'y con el espesor persistido');
   assert.ok(!segunda.store.get().pieces.some((p) => p.id === 'm1-zocalo'), 'sin zócalo: no se genera');
   segunda.view.destroy();
@@ -260,7 +261,7 @@ test('editar dimensiones reajusta casco Y contenido interior al nuevo vano', () 
   const pieces = store.get().pieces;
   assert.equal(pieces.length, totalAntes, 'misma cantidad de piezas (regeneración 1:1)');
   // Casco: tapa externa al nuevo ancho, base/zocalo internos.
-  assert.equal(pieces.find((p) => p.id === 'm1-tapa').ancho, 700);
+  assert.equal(pieces.find((p) => p.id === 'm1-tapa').ancho, 670, 'tapa embutida: 700 − 2·15');
   assert.equal(pieces.find((p) => p.id === 'm1-zocalo').ancho, 670); // 700 - 2*15
   // Contenido adaptado al nuevo vano util (670).
   const frente = pieces.find((p) => p.id === 'm1cajon1-frente');

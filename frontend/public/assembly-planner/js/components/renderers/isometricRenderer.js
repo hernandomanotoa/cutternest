@@ -22,7 +22,7 @@
  *   - globalGeometry.js    piezas globales (zócalo, tapa, fondo, espejo...)
  */
 
-import { getModuleDimensions } from '../../services/geometryService.js';
+import { getModuleDimensions, constructorCascoWidth } from '../../services/geometryService.js';
 import { getModuleDepth, inferThickness } from '../../services/isoGeometryService.js';
 import { detectFamily, inferRole } from '../../services/classifierService.js';
 import { applyExplode } from '../../services/isoGeometryService.js';
@@ -156,7 +156,7 @@ export class IsometricRenderer {
     }
 
     const dims = getModuleDimensions(allPieces, inferThickness(allPieces), family);
-    let moduleW = dims.width;
+    let moduleW = constructorCascoWidth(allPieces, dims.width);
     // Con marco estructural el lateral mide el CASCO (apoyado sobre el
     // marco): la altura del módulo es casco + marco, para que tapa/base/
     // contenido se posicionen hasta la tapa real del mueble.
@@ -198,8 +198,9 @@ export class IsometricRenderer {
       sortedIds.forEach((mid, idx) => {
         const group = moduleGroups[mid];
         const dims = getModuleDimensions(group, inferThickness(group), family);
+        const groupW = constructorCascoWidth(group, dims.width);
         const subGeometries = this._buildModuleGeometries(
-          group, dims.width, moduleD, dims.height + (marcoFrame ? zocaloHeight : 0), dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame
+          group, groupW, moduleD, dims.height + (marcoFrame ? zocaloHeight : 0), dims.thickness, family, zocaloHeight, coronaHeight, zocaloDrawerHeight, marcoFrame
         );
         const useProjection = this.moduleGapMode === 'projected';
         const bounds = this._computeModuleBounds(subGeometries, useProjection);
@@ -207,7 +208,7 @@ export class IsometricRenderer {
         subGeometries.forEach((g) => { g.x += offsetX; });
         subGeometries.forEach((g) => { g.moduleSeq = idx; });
         geometries.push(...subGeometries);
-        moduleSpans.push({ base: offsetX, width: dims.width });
+        moduleSpans.push({ base: offsetX, width: groupW });
         // Gap entre módulos configurable ("Separar módulos"): 0 = pegados
         // (default), MODULE_GAP_MM = separados. En 'projected' el gap nunca
         // baja del espesor (skew de profundidad).

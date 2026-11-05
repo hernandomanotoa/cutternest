@@ -4,7 +4,7 @@ import { isHexColor, normalizeColor } from '../utils/helpers.js';
 import { normalizeName, nameIncludes } from '../utils/normalize.js';
 import { inferRole } from './classifierService.js';
 import { migraPiezasAMueble } from './cutOrientationService.js';
-import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes } from './geometryService.js';
+import { getModuleDimensions, classifyBackPanelMount, classifyTopBottomMountAxes, constructorCascoWidth } from './geometryService.js';
 import { inferRailType, getRailType, drawerBoxInteriorWidth, drawerBoxMaxHeight, drawerBackMaxHeight } from './railService.js';
 import { tipoTagDe, fondoMetodoDeTipo } from '../core/contentTypes.js';
 import { validateShoeClearance } from './shoeClearanceService.js';
@@ -154,6 +154,9 @@ function validateDimensions(pieces, warnings) {
     // Dimensiones de la caja exterior del módulo (normaliza piezas internas).
     const sideThickness = laterals.length ? laterals[0].espesor : base ? base.espesor : 15;
     const moduleBox = getModuleDimensions(modPieces, sideThickness);
+    // Convención 2026-11 (tapa embutida): el ancho exterior del casco del
+    // Constructor se deriva del fondo (ver constructorCascoWidth).
+    moduleBox.width = constructorCascoWidth(modPieces, moduleBox.width);
     const interiorWidth = Math.max(0, moduleBox.width - 2 * sideThickness);
     const backThickness = back ? Number(back.espesor) || sideThickness : 0;
 
