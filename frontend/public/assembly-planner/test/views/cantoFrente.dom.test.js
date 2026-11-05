@@ -43,46 +43,61 @@ const agregarCajon = (container, vano = '200') => {
 };
 const frenteDe = () => getStore().get().pieces.find((p) => p.id.endsWith('-frente'));
 
-test('el select Canto PVC existe con las 4 opciones y default 0', () => {
+test('el Canto PVC único vive en Datos de obra (0/0,4/0,8/1/2, default 0 = opt-in)', () => {
   const { container } = armarModuloYVista();
-  const sel = container.querySelector('[data-canto-frente]');
-  assert.ok(sel, 'select presente en la tarjeta');
-  assert.deepEqual([...sel.options].map((o) => o.value), ['0', '0.4', '1', '2']);
-  assert.equal(sel.value, '0', 'default sin descuento (comportamiento histórico)');
+  const sel = container.querySelector('[data-obra="canto"]');
+  assert.ok(sel, 'select presente en Datos de obra');
+  assert.deepEqual([...sel.options].map((o) => o.value), ['0', '0.4', '0.8', '1', '2']);
+  assert.equal(sel.value, '0', 'default sin descuento: no se mueven las medidas existentes');
   assert.ok(container.querySelector('[data-action="apply-canto-global"]'), 'botón ↻ Todo el mueble');
+  assert.equal(container.querySelectorAll('[data-obra="canto"]').length, 1, 'un solo control de canto en toda la vista');
 });
+
+test('con el default 0 el frente se genera sin descuento (818) y sin tag', () => {
+  const { container } = armarModuloYVista();
+  agregarCajon(container);
+  const f = frenteDe();
+  assert.equal(Number(f.ancho), 818, 'sin descuento con default 0');
+  assert.ok(!f.nombre.includes('[canto'), 'sin tag: ' + f.nombre);
+});
+
+const ponerCanto = (container, valor) => {
+  const sel = container.querySelector('[data-obra="canto"]');
+  sel.value = String(valor);
+  sel.dispatchEvent(new window.Event('change', { bubbles: true }));
+};
 
 test('agregar un cajón con Canto PVC=2 descuenta 2·2 del frente y estampa [canto2]', () => {
   const { container } = armarModuloYVista();
-  container.querySelector('[data-canto-frente]').value = '2';
+  ponerCanto(container, 2);
   agregarCajon(container);
   const f = frenteDe();
   // Vano W = 850 − 30 = 820; base 818; canto 2 → 814.
   assert.equal(Number(f.ancho), 814, '818 − 2·2');
   assert.ok(f.nombre.includes('[canto2]'), 'tag en el nombre: ' + f.nombre);
   // Persistido para los siguientes contenidos.
-  assert.equal(Number(loadUserConfig().cantoFrente), 2);
+  assert.equal(Number(loadUserConfig().cantoEspesor), 2);
 });
 
 test('«↻ Todo el mueble» reconstruye los frentes existentes con el nuevo canto', () => {
   const { container } = armarModuloYVista();
-  agregarCajon(container); // canto 0 → frente 818, sin tag
+  agregarCajon(container); // default 0 → frente 818, sin tag
   assert.equal(Number(frenteDe().ancho), 818);
-  container.querySelector('[data-canto-frente]').value = '1';
+  ponerCanto(container, 1);
   container.querySelector('[data-action="apply-canto-global"]').click();
   const f = frenteDe();
-  assert.equal(Number(f.ancho), 816, '818 − 2·1 tras la reconstrucción global');
+  assert.equal(Number(f.ancho), 816, '818 − 2·1 = 816 tras la reconstrucción global');
   assert.ok(f.nombre.includes('[canto1]'), 'tag reestampado: ' + f.nombre);
 });
 
 test('el valor del canto se conserva al editar las dimensiones del módulo (tag de round-trip)', () => {
   const { container } = armarModuloYVista();
-  container.querySelector('[data-canto-frente]').value = '2';
+  ponerCanto(container, 2);
   agregarCajon(container);
   assert.ok(frenteDe().nombre.includes('[canto2]'));
   // Editar el ancho del módulo: el contenido se regenera y el tag manda
   // sobre el userConfig (aunque este último cambie).
-  container.querySelector('[data-canto-frente]').value = '0';
+  ponerCanto(container, 0);
   const scoped = '[data-module-scoped="1"]';
   container.querySelector(`${scoped} [data-action="edit-module"]`).click();
   container.querySelector(`${scoped} [data-edit-ancho]`).value = '900';

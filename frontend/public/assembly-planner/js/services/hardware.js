@@ -240,7 +240,10 @@ export function calculateHardware(piezas, dependencies, cfg = {}) {
     herrajes.push({
       nombre: 'Cantos PVC',
       cantidad: Math.ceil(cantoTotal / 1000),
-      especificacion: `${Number(cfg.cantoEspesor) || 0.8} mm, color a juego`,
+      especificacion: (() => {
+        const c = Number(cfg.cantoEspesor) || 0;
+        return c > 0 ? `${c} mm, color a juego` : 'sin canto';
+      })(),
       unidad: 'metros',
       prioridad: 'Alta',
       bloqueante: false,

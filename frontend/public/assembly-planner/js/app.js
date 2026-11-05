@@ -619,10 +619,11 @@ function frenteBoxOpts(userConfig) {
   return { frontGapMode: modo, holguraFondo: Number.isFinite(h) && h >= 0 ? h : null };
 }
 
-// Canto del frente (PVC/melamina en lados L/R) de la config del usuario:
-// 0 (sin descuento, default), 0.4, 1 o 2 mm. Valida rango; fuera de rango 0.
+// Canto del frente (PVC/melamina en lados L/R): la preferencia única del
+// usuario es cantoEspesor (control 'Canto PVC' de Datos de obra; default 0
+// = sin descuento, opt-in). Valida rango 0..3; fuera de rango cae a 0.
 function cantoFrenteDeCfg(userConfig) {
-  const v = Number(userConfig?.cantoFrente);
+  const v = Number(userConfig?.cantoEspesor);
   return Number.isFinite(v) && v >= 0 && v <= 3 ? v : 0;
 }
 
@@ -1977,8 +1978,10 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
         riel: frente ? inferRailType(frente) : 'catalogo',
         ...frenteBoxOpts(getStore().get().userConfig),
         // Canto del frente: el tag [cantoN] del frente viejo conserva el
-        // valor ante ediciones; sin tag, la preferencia global.
-        cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? cantoFrenteDeCfg(getStore().get().userConfig),
+        // valor ante ediciones; sin tag (contenido previo al feature) NO se
+        // descuenta nada — el valor global solo entra en contenido nuevo o
+        // con '↻ Todo el mueble' (reconstrucción explícita).
+        cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? 0,
       })
       : addDrawer(moduleId, idxViejo, {
         anchoModulo: dims.ancho,
@@ -2003,7 +2006,7 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
             return caraW > 0 && Number(fondoViejo?.ancho) > caraW + 1 ? 'ranurado' : 'apoyado';
           })(),
         ...frenteBoxOpts(getStore().get().userConfig),
-        cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? cantoFrenteDeCfg(getStore().get().userConfig),
+        cantoFrente: opts.cantoFrenteOverride ?? cantoTagDe(frente?.nombre) ?? 0,
       });
     if (!regenerado.ok) {
       return { ok: false, errors: [`${(frente || cara).nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
@@ -2119,7 +2122,7 @@ export function aplicarCantoFrente(valor) {
     return { ok: false, errors: [`Canto PVC debe estar entre 0 y 3 mm (recibido "${valor}")`] };
   }
   snapshotUndo('Canto PVC global');
-  saveUserConfig({ cantoFrente: v });
+  saveUserConfig({ cantoEspesor: v });
   const store = getStore();
   store.set({ userConfig: loadUserConfig() });
   const state = store.get();

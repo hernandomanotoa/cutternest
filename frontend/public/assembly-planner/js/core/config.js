@@ -370,7 +370,10 @@ export const VERTICAL_POSITIONS = {
   contentAltoLateralZapatera: 0,  // 0 = default (RAIL_SIDE_HEIGHT, 100 mm)
   contentAltoFondoZapatera: 0,    // 0 = default (= alto de los laterales)
   contentAltoDivisionZapatera: 0, // 0 = default (= alto de los laterales)
-  cantoEspesor: 0.8,         // espesor del canto PVC (mm) para la lista de herrajes
+  cantoEspesor: 0,           // Canto PVC (mm) de los lados del frente: 0 = sin canto
+                            // (default; el descuento 2·canto en el ancho de
+                            // corte es opt-in). Alimenta la lista de
+                            // herrajes y el descuento del frente.
 
   // ── Sistema gola (tiras de melamina entre frentes) ─────────────
   // Valores de taller extraídos de GOLA_PERFIL_TALLER (fuente:
