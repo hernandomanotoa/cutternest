@@ -3,7 +3,11 @@ import { letrasCanto } from './cantoSummary'
 
 // Clasificación de cantos en 9 categorías (spec del taller): se cuenta
 // cuántas aristas canteadas son LARGAS (las dos paralelas al lado más
-// largo de la pieza) y cuántas CORTAS.
+// largo de la pieza) y cuántas CORTAS. El lado es indistinto (T = B y
+// L = R): la laminación va por pares de cortes lineales, así que la
+// agrupación usa la forma canónica (T/B, L/R) sin distinguir izquierda de
+// derecha ni arriba de abajo. La identificación individual (T,B,L,R) y los
+// metros lineales se conservan pieza a pieza.
 
 export const CATEGORIAS_CANTO = [
   'Sin laminar',
@@ -20,6 +24,22 @@ export const CATEGORIAS_CANTO = [
 /** Letras de los dos lados LARGOS (paralelos al lado más largo). */
 export function ladosLargo(ancho: number, alto: number): Set<string> {
   return ancho >= alto ? new Set(['T', 'B']) : new Set(['L', 'R'])
+}
+
+/** Cantos en forma canónica: el lado es indistinto (T = B y L = R — la
+ * laminación va por pares de cortes lineales y el tablero se lamina a los
+ * dos lados). Un lado del par → 'T/B'; ambos → 'T,B'. Igual con L/R. */
+export function cantosCanonicos(cantos: string): string {
+  const letras = letrasCanto(cantos)
+  const tiene = (l: string) => letras.includes(l)
+  const partes: string[] = []
+  const tb = (tiene('T') ? 1 : 0) + (tiene('B') ? 1 : 0)
+  if (tb === 2) partes.push('T,B')
+  else if (tb === 1) partes.push('T/B')
+  const lr = (tiene('L') ? 1 : 0) + (tiene('R') ? 1 : 0)
+  if (lr === 2) partes.push('L,R')
+  else if (lr === 1) partes.push('L/R')
+  return partes.join(',')
 }
 
 /** Índice (0–8) de la categoría de la pieza según sus cantos. */
@@ -72,8 +92,12 @@ export function clasificarCantos(pieces: PieceInput[]): ClasificacionCantos {
   for (const p of pieces) {
     if (!(Number(p.ancho) > 0) || !(Number(p.alto) > 0)) continue
     const cantos = (p.cantos || '').trim()
+    // Agrupación por lado indistinto: T=B y L=R (cortes lineares por pares);
+    // los metros se calculan con las letras reales (la arista mide igual en
+    // ambos lados del par).
+    const canonico = cantosCanonicos(cantos)
     const cat = categoriaCanto(cantos, p.ancho, p.alto)
-    const key = `${cat}|${p.ancho}|${p.alto}|${p.espesor}|${cantos}`
+    const key = `${cat}|${p.ancho}|${p.alto}|${p.espesor}|${canonico}`
     const und = Math.max(1, Number(p.cantidad) || 1)
     const metros = metrosCanto({ ...p, cantidad: und })
     const existente = mapa.get(key)
@@ -87,7 +111,7 @@ export function clasificarCantos(pieces: PieceInput[]): ClasificacionCantos {
         ancho: Number(p.ancho),
         alto: Number(p.alto),
         espesor: Number(p.espesor),
-        cantos,
+        cantos: canonico,
         unidades: und,
         metros,
       })

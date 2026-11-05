@@ -32,7 +32,10 @@ export function ClasificacionCantos({ pieces, projectId }: { pieces: PieceInput[
   return (
     <div className='mt-4 rounded-md border border-border'>
       <div className='flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2'>
-        <h3 className='text-sm font-semibold text-foreground'>Clasificación de cantos</h3>
+        <h3 className='text-sm font-semibold text-foreground'>
+          Clasificación de cantos
+          <span className='ml-2 text-xs font-normal text-muted-foreground'>lado indistinto: T = B · L = R</span>
+        </h3>
         <Button variant='outline' size='sm' onClick={exportarPdf} disabled={!projectId} leftIcon={<FileText className='h-4 w-4' />}>
           PDF cantos
         </Button>

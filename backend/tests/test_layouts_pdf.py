@@ -48,12 +48,15 @@ def test_generate_layouts_pdf_crea_un_pdf_con_una_pagina_por_tablero(tmp_path):
 
 
 def test_generate_cantos_pdf_clasificacion_9_categorias(tmp_path):
-    """El PDF de clasificación cubre las 9 categorías con unidades y metros."""
+    """El PDF de clasificación cubre las 9 categorías con unidades y metros.
+    Agrupación lado-indistinto (T=B, L=R): piezas que difieren solo en el
+    lado del par (T vs B, L vs R) suman en la misma fila."""
     pieces = [
         {"ancho": 644, "alto": 227, "cantidad": 2, "cantos": "T,B,L,R"},
         {"ancho": 644, "alto": 227, "cantidad": 1, "cantos": "T,L"},
         {"ancho": 600, "alto": 2400, "cantidad": 4, "cantos": "L"},
         {"ancho": 650, "alto": 585, "cantidad": 3, "cantos": "B"},
+        {"ancho": 650, "alto": 585, "cantidad": 2, "cantos": "T"},
         {"ancho": 590, "alto": 60, "cantidad": 2, "cantos": ""},
     ]
     path = pdf_generator.generate_cantos_pdf("Closet Demo", "p9", pieces, str(tmp_path))
@@ -68,8 +71,12 @@ def test_generate_cantos_pdf_clasificacion_9_categorias(tmp_path):
     frente = by_medidas[(644, 227, "T,B,L,R")]
     assert frente["categoria"] == 8 and frente["unidades"] == 2
     assert frente["metros"] > 0
-    lateral = by_medidas[(600, 2400, "L")]
+    lateral = by_medidas[(600, 2400, "L/R")]
     assert lateral["categoria"] == 3, "largo vertical: L es arista larga"
     assert abs(lateral["metros"] - 4 * 2400 / 1000) < 1e-9
+    # T y B (ambos largos en pieza apaisada) suman en la misma fila canónica.
+    tapa = by_medidas[(650, 585, "T/B")]
+    assert tapa["categoria"] == 3 and tapa["unidades"] == 5
+    assert abs(tapa["metros"] - 5 * 650 / 1000) < 1e-9
     assert by_medidas[(590, 60, "")]["categoria"] == 0
-    assert c["total_unidades"] == 12
+    assert c["total_unidades"] == 14

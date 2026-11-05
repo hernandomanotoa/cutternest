@@ -416,9 +416,30 @@ def _categoria_canto(cantos: str, ancho: float, alto: float) -> int:
     return 8
 
 
+def _cantos_canonicos(cantos: str) -> str:
+    """Forma canónica con lado indistinto (T = B y L = R): la laminación va
+    por pares de cortes lineales. Un lado del par → 'T/B'; ambos → 'T,B'.
+    Igual con L/R. La identificación individual se conserva pieza a pieza."""
+    letras = set(_letras_canto(cantos))
+    partes = []
+    tb = int("T" in letras) + int("B" in letras)
+    if tb == 2:
+        partes.append("T,B")
+    elif tb == 1:
+        partes.append("T/B")
+    lr = int("L" in letras) + int("R" in letras)
+    if lr == 2:
+        partes.append("L,R")
+    elif lr == 1:
+        partes.append("L/R")
+    return ",".join(partes)
+
+
 def _clasificar_cantos(pieces: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Agrupa por categoría + medidas + cantos; suma unidades y metros
-    lineales de tapacanto (mm de arista canteadas × unidades)."""
+    """Agrupa por categoría + medidas + cantos canónicos (lado indistinto:
+    T=B, L=R); suma unidades y metros lineales de tapacanto (mm de arista
+    canteadas × unidades, con las letras reales — la arista mide igual en
+    ambos lados del par)."""
     grupos: Dict[str, Dict[str, Any]] = {}
     for p in pieces:
         ancho = float(p.get("ancho") or p.get("width_mm") or 0)
@@ -428,8 +449,8 @@ def _clasificar_cantos(pieces: List[Dict[str, Any]]) -> Dict[str, Any]:
         cantos = str(p.get("cantos") or p.get("edge_banding") or "").strip()
         und = max(1, int(p.get("cantidad") or p.get("quantity") or 1))
         cat = _categoria_canto(cantos, ancho, alto)
-        key = f"{cat}|{ancho}|{alto}|{cantos}"
-        largos = _lados_largo(ancho, alto)
+        canonico = _cantos_canonicos(cantos)
+        key = f"{cat}|{ancho}|{alto}|{canonico}"
         # Longitud de arista: T/B corren a lo largo del ancho, L/R del alto.
         mm = sum((ancho if l in ("T", "B") else alto) for l in _letras_canto(cantos))
         metros = mm * und / 1000.0
@@ -440,7 +461,7 @@ def _clasificar_cantos(pieces: List[Dict[str, Any]]) -> Dict[str, Any]:
         else:
             grupos[key] = {
                 "categoria": cat, "ancho": ancho, "alto": alto,
-                "cantos": cantos, "unidades": und, "metros": metros,
+                "cantos": canonico, "unidades": und, "metros": metros,
             }
     filas = sorted(
         grupos.values(),
@@ -477,7 +498,9 @@ def generate_cantos_pdf(
         Paragraph(f"Proyecto: {project_name}", styles["Heading2"]),
         Paragraph(
             "Largo = arista paralela al lado más largo de la pieza. Metros lineales = "
-            "longitud de las aristas canteadas × unidades.",
+            "longitud de las aristas canteadas × unidades. Lado indistinto: T = B y "
+            "L = R (la laminación va por pares de cortes lineales); T/B = un lado del "
+            "par, T,B = ambos.",
             styles["Normal"],
         ),
         Spacer(1, 5 * mm),

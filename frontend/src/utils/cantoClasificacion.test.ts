@@ -62,10 +62,29 @@ describe('clasificarCantos', () => {
     expect(r.filas).toHaveLength(3)
     const porCat = (c: number) => r.filas.filter((f) => f.categoria === c)
     expect(porCat(0)[0].unidades).toBe(4) // Sin laminar
-    expect(porCat(3)[0].unidades).toBe(10) // 1 Largo (600×2400, 'L')
+    expect(porCat(3)[0].unidades).toBe(10) // 1 Largo (600×2400, 'L/R')
+    expect(porCat(3)[0].cantos).toBe('L/R')
     expect(porCat(8)[0].unidades).toBe(3) // 4 Lados
     expect(r.totalUnidades).toBe(17)
     // lateral 10×2400 mm = 24 m + frentes 3×1742 mm = 5.226 m
     expect(r.totalMetros).toBeCloseTo(24 + 5.226)
+  })
+
+  it('lado indistinto (T=B, L=R): piezas que difieren solo en el lado del par suman en la misma fila', () => {
+    const r = clasificarCantos([
+      pieza(650, 585, 'B', 3), // apaisada: B es largo
+      pieza(650, 585, 'T', 2), // mismo par → misma fila
+      pieza(400, 300, 'L', 1), // apaisada: L es corto
+      pieza(400, 300, 'R', 4), // mismo par → misma fila
+    ])
+    expect(r.filas).toHaveLength(2)
+    const filaLargo = r.filas.find((f) => f.categoria === 3)
+    expect(filaLargo?.cantos).toBe('T/B')
+    expect(filaLargo?.unidades).toBe(5)
+    expect(filaLargo?.metros).toBeCloseTo(5 * 650 / 1000)
+    const filaCorta = r.filas.find((f) => f.categoria === 1)
+    expect(filaCorta?.cantos).toBe('L/R')
+    expect(filaCorta?.unidades).toBe(5)
+    expect(filaCorta?.metros).toBeCloseTo(5 * 300 / 1000)
   })
 })
