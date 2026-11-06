@@ -99,6 +99,7 @@ interface PersistedConfig {
   useOffcuts?: boolean
   modoCorte?: 'guillotina' | 'nesting' | 'mixto'
   maxAprovechamiento?: boolean
+  sortMode?: SortMode
 }
 
 function loadConfig(): PersistedConfig {
@@ -117,6 +118,31 @@ function saveConfig(config: PersistedConfig) {
   window.localStorage.setItem(CONFIG_KEY, JSON.stringify(config))
 }
 
+// Overrides por proyecto (modo de corte / ordenación / máx. aprovechamiento):
+// la config global sigue siendo el fallback y el valor inicial de un
+// proyecto nuevo; cada proyecto recuerda su propio modo al volver.
+const PROJECT_CONFIG_KEY = 'cutternest-optimizer-project-config'
+function loadProjectConfig(projectId: string | null): Partial<PersistedConfig> {
+  if (!projectId || typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(PROJECT_CONFIG_KEY)
+    if (!raw) return {}
+    const all = JSON.parse(raw) as Record<string, Partial<PersistedConfig>>
+    return all[projectId] || {}
+  } catch {
+    return {}
+  }
+}
+function saveProjectConfig(projectId: string, patch: Partial<PersistedConfig>) {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = window.localStorage.getItem(PROJECT_CONFIG_KEY)
+    const all = raw ? JSON.parse(raw) as Record<string, Partial<PersistedConfig>> : {}
+    all[projectId] = { ...all[projectId], ...patch }
+    window.localStorage.setItem(PROJECT_CONFIG_KEY, JSON.stringify(all))
+  } catch { /* sin storage: la config por proyecto se omite */ }
+}
+
 function utilizationTone(value: number): 'success' | 'warning' | 'danger' {
   if (value >= 85) return 'success'
   if (value >= 70) return 'warning'
@@ -129,6 +155,7 @@ export function OptimizerPage() {
   const initialPieces = (location.state as Record<string, unknown>)?.pieces as PieceInput[] | undefined
 
   const config = loadConfig()
+  const proyectoCfg = loadProjectConfig(initialProjectId ?? null)
 
   const [projectId, setProjectId] = useState<string | null>(initialProjectId || null)
   const [projectName, setProjectName] = useState('Proyecto nuevo')
@@ -164,11 +191,18 @@ export function OptimizerPage() {
   const [view3D, setView3D] = useState(false)
   const [selectedBoard, setSelectedBoard] = useState(0)
   const [useOffcuts, setUseOffcuts] = useState(config.useOffcuts ?? false)
-  const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting' | 'mixto'>(config.modoCorte ?? 'guillotina')
+  const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting' | 'mixto'>(proyectoCfg.modoCorte ?? config.modoCorte ?? 'guillotina')
   const [maxAprovechamiento, setMaxAprovechamiento] = useState(config.maxAprovechamiento ?? false)
-  const [sortMode, setSortMode] = useState<SortMode>('tamano')
+  const [sortMode, setSortMode] = useState<SortMode>((proyectoCfg as { sortMode?: SortMode }).sortMode ?? 'tamano')
   const [colorTodas, setColorTodas] = useState('#C19A6B')
   const [csvMenuOpen, setCsvMenuOpen] = useState(false)
+  const [comparacion, setComparacion] = useState<Array<{ modo: string; tableros: number; aprovech: number; error: string | null }> | null>(null)
+  const [busquedaPiezas, setBusquedaPiezas] = useState('')
+  const piezasFiltradas = useMemo(() => {
+    const q = busquedaPiezas.trim().toLowerCase()
+    if (!q) return piezas
+    return piezas.filter((p) => p.id.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q))
+  }, [piezas, busquedaPiezas])
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo' | 'cantos' | 'resultados'>('piezas')
@@ -211,7 +245,10 @@ export function OptimizerPage() {
 
   useEffect(() => {
     saveConfig({ tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento })
-  }, [tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento])
+    if (projectId) {
+      saveProjectConfig(projectId, { modoCorte, maxAprovechamiento, sortMode })
+    }
+  }, [tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento, sortMode, projectId])
 
   useEffect(() => {
     saveTemplate(piezas)
@@ -418,7 +455,13 @@ export function OptimizerPage() {
 
   const groupedPieces = useMemo(() => groupPiecesByDimensions(piezas), [piezas])
   const totalPiecesCount = useMemo(() => totalPieces(piezas), [piezas])
-  const order = useMemo(() => displayOrder(piezas, sortMode), [piezas, sortMode])
+  const order = useMemo(() => {
+    const base = displayOrder(piezas, sortMode)
+    const q = busquedaPiezas.trim().toLowerCase()
+    if (!q) return base
+    return base.filter((i) =>
+      piezas[i].id.toLowerCase().includes(q) || piezas[i].nombre.toLowerCase().includes(q))
+  }, [piezas, sortMode, busquedaPiezas])
 
   // Rotación: grupos por dimensiones con los índices originales (marcar /
   // desmarcar por grupo) + estado global del checkbox "todas".
@@ -498,6 +541,49 @@ export function OptimizerPage() {
       toast.success(`Optimizado en ${data.total_tableros} tablero(s)`)
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err) || 'Error al optimizar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Comparador de modos: corre guillotina / mixto / nesting con la misma
+  // config y tabula tableros, área usada y aprovechamiento para elegir.
+  const compararModos = async () => {
+    if (!piezas.length) {
+      toast.error('Agrega piezas antes de comparar')
+      return
+    }
+    setLoading(true)
+    try {
+      const pid = await ensureProject()
+      if (!pid) {
+        setLoading(false)
+        return
+      }
+      const ordenadas = sortMode === 'manual' ? piezas : sortPieces(piezas, sortMode)
+      const modos = ['guillotina', 'mixto', 'nesting'] as const
+      const filas = await Promise.all(modos.map(async (m) => {
+        try {
+          const response = await api.post(`/projects/${pid}/optimize`, {
+            tablero, piezas: ordenadas, use_offcuts: useOffcuts,
+            material_type: materialType, modo_corte: m,
+            max_aprovechamiento: maxAprovechamiento,
+          })
+          const data = response.data as { tableros: BoardResult[]; total_tableros: number }
+          const usada = data.tableros.reduce((sum, b) =>
+            sum + b.placements.reduce((s, pl) => s + pl.w * pl.h, 0), 0)
+          const areaTableros = data.tableros.reduce((sum, b) => sum + b.ancho * b.alto, 0)
+          const aprovech = areaTableros > 0 ? (usada / areaTableros) * 100 : 0
+          return { modo: m, tableros: data.total_tableros, aprovech: Math.round(aprovech * 10) / 10, error: null as string | null }
+        } catch (err: unknown) {
+          return { modo: m, tableros: 0, aprovech: 0, error: getApiErrorMessage(err) || 'Error' }
+        }
+      }))
+      setComparacion(filas)
+      toast.success('Comparación lista (pestaña Resultados)')
+      setActiveTab('resultados')
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err) || 'Error al comparar')
     } finally {
       setLoading(false)
     }
@@ -1195,11 +1281,26 @@ export function OptimizerPage() {
                   </div>
                 ) : (
                   <>
+                    <div className='mb-2 flex items-center gap-2'>
+                      <input
+                        type='search'
+                        value={busquedaPiezas}
+                        onChange={(e) => setBusquedaPiezas(e.target.value)}
+                        placeholder='Buscar por id o nombre…'
+                        aria-label='Buscar piezas'
+                        className='h-8 w-64 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring'
+                      />
+                      {busquedaPiezas && (
+                        <span className='text-xs text-muted-foreground'>
+                          {piezasFiltradas.length} de {piezas.length} piezas
+                        </span>
+                      )}
+                    </div>
                     <div className='overflow-x-auto overflow-y-auto rounded-md border max-h-[50vh] lg:max-h-[calc(100vh-22rem)]'>
                     <table className='w-full text-sm'>
                       <thead className='sticky top-0 z-10 bg-muted/95 text-muted-foreground backdrop-blur-sm'>
                         <tr>
-                          <th className='p-2 text-left font-medium'>ID</th>
+                          <th className='sticky left-0 z-10 bg-muted/95 p-2 text-left font-medium backdrop-blur-sm'>ID</th>
                           <th className='p-2 text-left font-medium'>Nombre</th>
                           <th className='p-2 text-left font-medium'>Ancho</th>
                           <th className='p-2 text-left font-medium'>Alto</th>
@@ -1306,7 +1407,7 @@ export function OptimizerPage() {
                                   : 'hover:bg-muted/30'
                               }`}
                             >
-                              <td className='p-2'>
+                              <td className='sticky left-0 z-0 bg-background p-2'>
                                 <Input
                                   value={p.id || ''}
                                   onChange={(e) =>
@@ -1506,7 +1607,52 @@ export function OptimizerPage() {
                 >
                   Optimizar
                 </Button>
+                <Button
+                  variant='outline'
+                  onClick={compararModos}
+                  disabled={loading || piezas.length === 0}
+                  title='Prueba guillotina, mixto y nesting con la misma configuración y tabula el resultado'
+                >
+                  Comparar modos
+                </Button>
               </div>
+              )}
+
+              {activeTab === 'resultados' && comparacion && (
+                <div className='mb-4 overflow-x-auto rounded-md border'>
+                  <table className='w-full text-sm'>
+                    <thead className='bg-muted/60 text-xs text-muted-foreground'>
+                      <tr>
+                        <th className='p-2 text-left font-medium'>Modo</th>
+                        <th className='p-2 text-right font-medium'>Tableros</th>
+                        <th className='p-2 text-right font-medium'>Aprovechamiento</th>
+                        <th className='p-2 text-left font-medium'>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y divide-border'>
+                      {comparacion.map((fila) => (
+                        <tr key={fila.modo} className={fila.modo === modoCorte ? 'bg-muted/30' : ''}>
+                          <td className='p-2 capitalize'>{fila.modo}{fila.modo === modoCorte ? ' (actual)' : ''}</td>
+                          <td className='p-2 text-right'>{fila.error ? '—' : fila.tableros}</td>
+                          <td className='p-2 text-right'>{fila.error ? '—' : `${fila.aprovech}%`}</td>
+                          <td className='p-2'>
+                            {fila.error ? (
+                              <span className='text-xs text-red-600'>{fila.error}</span>
+                            ) : (
+                              <button
+                                type='button'
+                                className='text-xs text-primary hover:underline'
+                                onClick={() => { setModoCorte(fila.modo as typeof modoCorte); setComparacion(null); optimize() }}
+                              >
+                                Usar este modo
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
               {activeTab === 'resultados' && (

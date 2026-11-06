@@ -58,6 +58,7 @@ import { GOLA_TOUR_STEPS } from '../data/golaTour.js';
 import { listCloudVersions } from '../services/designVersionsClient.js';
 import { isGolaEnabled, drawerUnits, getGolaCfg, esUnidadFijaGola } from '../services/golaService.js';
 import { RAIL_SIDE_HEIGHT } from '../core/contentTypes.js';
+import { inferRole } from '../services/classifierService.js';
 import { constructorCascoWidth } from '../services/geometryService.js';
 import { saveUserConfig, loadUserConfig } from '../services/userConfigService.js';
 import {
@@ -772,6 +773,18 @@ export function createConstructorView(store) {
       } else {
         toast(r.errors.join('; '), { type: 'error' });
       }
+    } else if (action === 'ir-obra' || action === 'ir-versiones') {
+      // El checklist enlaza a las secciones del rail (zócalo y obra / versiones).
+      const sel = action === 'ir-obra' ? '[data-obra="tipo"]' : '[data-action="save-version"]';
+      const el = container.querySelector(sel);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const sec = el.closest('.cn-rail__section');
+        if (sec) {
+          sec.style.outline = '2px solid var(--color-primary, #b45309)';
+          setTimeout(() => { sec.style.outline = ''; }, 1600);
+        }
+      }
     } else if (action === 'apply-canto-global') {
       // Control único en Datos de obra: aplica el valor PERSISTIDO (el
       // change del select ya lo guardó) a TODO el mueble. Leer del storage
@@ -1327,7 +1340,8 @@ export function createConstructorView(store) {
               <button class="btn btn--danger" data-action="clear-all" ${pieces.length ? '' : 'disabled'}>Nuevo mueble</button>
             </div>
           </div>
-          ${renderWarningsPanel(pieces, state)}
+          ${renderChecklistMueble(pieces, state)}
+        ${renderWarningsPanel(pieces, state)}
         </div>
       </section>
 
@@ -1959,6 +1973,38 @@ function renderModuleRail(groups, pieces, selectedModuleId = null) {
             }).join('')}
           </ul>`}
     </section>`;
+}
+
+// Checklist de progreso del mueble: guía el flujo de trabajo (obra →
+// módulos → contenido → gola → marco → versionar) con el estado real de
+// las piezas. Cada pendiente enlaza a la acción que lo completa.
+function renderChecklistMueble(pieces, state) {
+  const mods = countRootModules(pieces);
+  const conContenido = pieces.some((p) => ['shelf', 'drawer_face', 'drawer_part', 'hanger_rail'].includes(inferRole(p)));
+  const cajones = drawerUnits(pieces).filter((u) => !esUnidadFijaGola(u)).length;
+  const golaAplicable = cajones >= 2;
+  const golaHecha = pieces.some((p) => String(p.id).includes('-gola-')) || pieces.some((p) => isGolaEnabled(pieces, String(p.modulo).charAt(0)));
+  const marcoHecho = pieces.some((p) => /^glb-zocalo/.test(String(p.id))) || pieces.some((p) => /-zocalo$/.test(String(p.id)));
+  const versionada = listVersions().length > 0;
+  const pasos = [
+    { label: 'Datos de obra (espesor, color, Frentes, Canto)', ok: mods > 0, ir: null },
+    { label: `Módulos (${mods})`, ok: mods > 0, ir: null },
+    { label: 'Contenido (repisa / cajón / zapatera / barra)', ok: conContenido, ir: null },
+    { label: 'Gola entre cajones', ok: golaHecha, opcional: !golaAplicable, ir: null },
+    { label: 'Zócalo (simple o marco estructural)', ok: marcoHecho, ir: 'ir-obra' },
+    { label: 'Versión guardada', ok: versionada, ir: 'ir-versiones' },
+  ];
+  const filas = pasos.map((p, i) => {
+    const icono = p.ok ? '✓' : (p.opcional ? '—' : '○');
+    const cls = p.ok ? 'cn-checklist__ok' : (p.opcional ? 'cn-checklist__opt' : 'cn-checklist__pend');
+    return `<li class="${cls}"><span class="cn-checklist__icon">${icono}</span> ${escapeHtml(p.label)}${
+      p.ir && !p.ok && !p.opcional ? ` <button type="button" class="btn btn--sm" data-action="${p.ir}">Ir</button>` : ''
+    }</li>`;
+  }).join('');
+  return `<section class="cn-rail__section">
+    <div class="cn-rail__head"><h3 class="t-label">Progreso</h3></div>
+    <ul class="cn-checklist">${filas}</ul>
+  </section>`;
 }
 
 function renderEditForm(moduleId, piezas) {

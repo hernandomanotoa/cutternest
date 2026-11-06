@@ -2518,3 +2518,47 @@ input[type="search"]:focus-visible {
 .cn-pref-group[data-collapsed="1"] > .cn-pref-group__fields {
   display: none;
 }
+
+/* ── Modal de atajos ───────────────────────────────────────────────── */
+.cn-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cn-modal[hidden] { display: none; }
+.cn-modal__panel {
+  width: min(34rem, 92vw);
+  max-height: 84vh;
+  overflow: auto;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2ddd6);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.cn-modal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+.cn-modal__head h3 { margin: 0; }
+.cn-modal__body h4 { margin: 0.8rem 0 0.3rem; font-size: 0.85rem; }
+.cn-atajos { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cn-atajos td { padding: 0.2rem 0.4rem 0.2rem 0; vertical-align: top; }
+.cn-atajos kbd {
+  background: var(--color-muted, #efe9e2);
+  border: 1px solid var(--color-border, #e2ddd6);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  font-size: 0.78rem;
+}
+.cn-atajos__lista { margin: 0.2rem 0 0; padding-left: 1.2rem; font-size: 0.85rem; }
+.cn-atajos__lista li { margin-bottom: 0.25rem; }
+
+/* ── Checklist de progreso ─────────────────────────────────────────── */
+.cn-checklist { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; }
+.cn-checklist li { display: flex; align-items: center; gap: 0.4rem; padding: 0.18rem 0; }
+.cn-checklist__icon { width: 1rem; text-align: center; font-weight: 700; }
+.cn-checklist__ok .cn-checklist__icon { color: #15803d; }
+.cn-checklist__pend .cn-checklist__icon { color: #b45309; }
+.cn-checklist__opt { color: var(--color-text-muted, #8a7f72); }
+.cn-checklist li .btn { margin-left: auto; padding: 0.05rem 0.5rem; font-size: 0.72rem; }

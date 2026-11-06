@@ -97,8 +97,40 @@
         <input id="file-input" type="file" accept=".csv" hidden />
         <button id="btn-export-csv" class="btn btn--secondary">Exportar CSV</button>
         <button id="btn-save-example" class="btn btn--secondary">💾 Guardar como ejemplo</button>
+        <button id="btn-atajos" class="btn btn--secondary" title="Atajos y ayuda" aria-label="Atajos y ayuda">?</button>
       </div>
     </header>
+
+    <div id="modal-atajos" class="cn-modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-atajos-title">
+      <div class="cn-modal__panel">
+        <div class="cn-modal__head">
+          <h3 id="modal-atajos-title">Atajos y ayuda</h3>
+          <button id="btn-atajos-cerrar" class="btn btn--icon btn--sm" aria-label="Cerrar">✕</button>
+        </div>
+        <div class="cn-modal__body">
+          <h4>Teclado</h4>
+          <table class="cn-atajos">
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Deshacer la última acción (pila de 25 pasos)</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Cerrar este panel / cancelar el tour</td></tr>
+          </table>
+          <h4>Flujo de trabajo sugerido</h4>
+          <ol class="cn-atajos__lista">
+            <li><strong>Datos de obra</strong> (rail izquierdo): espesor, color, Frentes, Canto PVC y zócalo.</li>
+            <li><strong>Constructor</strong>: agregar módulos y contenido (repisa, cajón, zapatera, barra).</li>
+            <li><strong>Gola</strong>: con ≥2 cajones, el toggle aparece en la tarjeta del módulo.</li>
+            <li><strong>Marco estructural</strong>: sección «Zócalo y obra» (simple o marco, N zócalos).</li>
+            <li><strong>Revisar</strong>: Isométrica / 3D para verificar; <strong>Auditoría</strong> para hallazgos (⚠ en la pestaña).</li>
+            <li><strong>Versionar</strong>: guardar versión local o en la nube (el autoguardado cubre cierres).</li>
+          </ol>
+          <h4>Reglas que el Constructor aplica</h4>
+          <ul class="cn-atajos__lista">
+            <li>Frente = vano − 2·Luz − 2·Canto PVC (tags <code>[cantoN]</code>, <code>[profN]</code>, <code>[rielN]</code> en el nombre).</li>
+            <li>Casco = caja completa; fondo embutido; laterales sobre el marco.</li>
+            <li>La división de la zapatera va apoyada sobre su base (bandeja − E).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
     <nav class="tabs" role="tablist" aria-label="Vistas">
       <span class="tabs__group-label" title="Diseño del mueble">Diseño</span>

@@ -224,8 +224,50 @@ export function recalculateAll() {
   renderCurrentView();
 }
 
+// Badge de hallazgos en la pestaña Auditoría (⚠ N). La auditoría re-parsea
+// el lote completo: se recalcula con debounce y solo cuando cambian las
+// piezas, nunca en caliente.
+let _badgeTimer = null;
+let _badgePiecesRef = null;
+function actualizarBadgeAuditoria(pieces) {
+  const badge = document.getElementById('tab-auditoria-badge');
+  if (!badge) return;
+  if (_badgePiecesRef === pieces) return; // mismo array: nada nuevo
+  _badgePiecesRef = pieces;
+  clearTimeout(_badgeTimer);
+  _badgeTimer = setTimeout(async () => {
+    try {
+      const { buildAuditReport } = await import('./services/auditReportService.js');
+      const reporte = buildAuditReport(pieces || [], {});
+      const n = (reporte.errores?.length || 0) + (reporte.warnings?.length || 0);
+      const el = document.getElementById('tab-auditoria-badge');
+      if (!el) return;
+      if (n > 0) {
+        el.textContent = String(n);
+        el.hidden = false;
+      } else {
+        el.hidden = true;
+      }
+    } catch { /* la auditoría nunca debe romper la app */ }
+  }, 400);
+}
+
+// Modal de atajos (?) del header: abrir/cerrar con el botón y con Escape.
+function initAtajosModal() {
+  const modal = document.getElementById('modal-atajos');
+  const btn = document.getElementById('btn-atajos');
+  if (!modal || !btn || btn.dataset.atajosInit) return;
+  btn.dataset.atajosInit = '1';
+  const cerrar = () => { modal.hidden = true; };
+  btn.addEventListener('click', () => { modal.hidden = !modal.hidden; });
+  document.getElementById('btn-atajos-cerrar')?.addEventListener('click', cerrar);
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrar(); });
+}
+
 export function updateSummary() {
   const state = getStore().get();
+  actualizarBadgeAuditoria(state.pieces);
   const activePieces = getActivePieces(state);
   const summaryModule = $('#summary-module');
   if (summaryModule) summaryModule.textContent = getModuleLabel(state.currentModule, state.pieces);
@@ -2635,6 +2677,7 @@ export function resetUserConfig() {
 }
 
 function init() {
+  initAtajosModal();
   if (!getStore()) {
     setStore(createStore());
   }
