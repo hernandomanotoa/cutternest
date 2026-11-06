@@ -230,9 +230,28 @@ export function createRenderer3DView(store) {
       <div class="card" style="height:100%;display:flex;flex-direction:column;">
         <div class="card__header">
           <h2 class="card__title">Vista 3D — ${getModuleLabel(targetModule, state.pieces)}</h2>
-          <div class="r3d-controls flex gap-1 flex-wrap">
+          <div class="r3d-controls flex gap-1 flex-wrap" style="border-bottom:1px solid ${RENDERER3D_THEME.rowBorder};padding-bottom:0.35rem;">
             <button id="r3d-reset" class="btn btn--secondary btn--sm">↺ Reset</button>
             <button id="r3d-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
+            <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="front">Frente</button>
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="side">Lado</button>
+              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="top">Arriba</button>
+            </span>
+            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
+              <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
+              <span>Perspectiva</span>
+            </label>
+            <button id="r3d-step-mode" class="btn btn--secondary btn--sm" ${pieces.length ? '' : 'disabled'}>Modo paso</button>
+            <span id="r3d-step-bar" style="display:none;align-items:center;gap:0.4rem;">
+              <button id="r3d-step-prev" class="btn btn--secondary btn--sm">◀</button>
+              <span id="r3d-step-label" style="font-size:0.8rem;color:${RENDERER3D_THEME.textPrimary};white-space:nowrap;">Paso 1/1</span>
+              <button id="r3d-step-next" class="btn btn--secondary btn--sm">▶</button>
+              <button id="r3d-step-play" class="btn btn--secondary btn--sm">▶ Play</button>
+            </span>
+          </div>
+          <div class="r3d-controls flex gap-1 flex-wrap" style="padding-top:0.35rem;">
             <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
               <input type="checkbox" id="r3d-dims" style="cursor:pointer;">
               <span>Cotas</span>
@@ -266,23 +285,6 @@ export function createRenderer3DView(store) {
               <input type="checkbox" id="r3d-gola-focus" ${golaFocus ? 'checked' : ''} style="cursor:pointer;">
               <span>Foco gola (sin cajones)</span>
             </label>
-            <label class="btn btn--secondary btn--sm" style="cursor:pointer;align-items:center;display:inline-flex;gap:0.25rem;">
-              <input type="checkbox" id="r3d-projection" style="cursor:pointer;">
-              <span>Perspectiva</span>
-            </label>
-            <button id="r3d-step-mode" class="btn btn--secondary btn--sm" ${pieces.length ? '' : 'disabled'}>Modo paso</button>
-            <span id="r3d-step-bar" style="display:none;align-items:center;gap:0.4rem;">
-              <button id="r3d-step-prev" class="btn btn--secondary btn--sm">◀</button>
-              <span id="r3d-step-label" style="font-size:0.8rem;color:${RENDERER3D_THEME.textPrimary};white-space:nowrap;">Paso 1/1</span>
-              <button id="r3d-step-next" class="btn btn--secondary btn--sm">▶</button>
-              <button id="r3d-step-play" class="btn btn--secondary btn--sm">▶ Play</button>
-            </span>
-            <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
-              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
-              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="front">Frente</button>
-              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="side">Lado</button>
-              <button class="r3d-preset btn btn--secondary btn--sm" data-preset="top">Arriba</button>
-            </span>
           </div>
         </div>
         <div class="r3d-sliders card__body" style="padding:0.5rem 1rem;">

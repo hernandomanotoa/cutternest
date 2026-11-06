@@ -101,12 +101,14 @@
     </header>
 
     <nav class="tabs" role="tablist" aria-label="Vistas">
-      <button id="tab-csv" class="tab tab--active" data-view="csv" role="tab" aria-selected="true" aria-controls="view-container" tabindex="0">CSV</button>
+      <span class="tabs__group-label" title="Diseño del mueble">Diseño</span>
       <button id="tab-constructor" class="tab" data-view="constructor" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">🔧 Constructor</button>
       <button id="tab-estructural" class="tab" data-view="estructural" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">Estructural</button>
-      <button id="tab-auditoria" class="tab" data-view="auditoria" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">📋 Auditoría</button>
+      <span class="tabs__group-label" title="Revisión y datos">Revisar</span>
       <button id="tab-isometric" class="tab" data-view="isometric" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">🧊 Isométrica</button>
       <button id="tab-renderer3d" class="tab" data-view="renderer3d" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">🧊 3D</button>
+      <button id="tab-auditoria" class="tab" data-view="auditoria" role="tab" aria-selected="false" aria-controls="view-container" tabindex="-1">📋 Auditoría<span id="tab-auditoria-badge" class="tabs__badge" title="Hallazgos de la auditoría" hidden></span></button>
+      <button id="tab-csv" class="tab tab--active" data-view="csv" role="tab" aria-selected="true" aria-controls="view-container" tabindex="0">📄 Datos</button>
     </nav>
 
     <main class="main-layout">

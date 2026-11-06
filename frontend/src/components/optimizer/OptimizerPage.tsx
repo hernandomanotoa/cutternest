@@ -168,6 +168,7 @@ export function OptimizerPage() {
   const [maxAprovechamiento, setMaxAprovechamiento] = useState(config.maxAprovechamiento ?? false)
   const [sortMode, setSortMode] = useState<SortMode>('tamano')
   const [colorTodas, setColorTodas] = useState('#C19A6B')
+  const [csvMenuOpen, setCsvMenuOpen] = useState(false)
   const [rotMenuOpen, setRotMenuOpen] = useState(false)
   const rotAllRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'piezas' | 'conteo' | 'cantos' | 'resultados'>('piezas')
@@ -1098,61 +1099,48 @@ export function OptimizerPage() {
               {activeTab === 'piezas' && (
               <>
               <div className='flex flex-wrap gap-2'>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={descargarCsv}
-                  leftIcon={<Download className='h-4 w-4' />}
-                >
-                  Formato CSV
-                </Button>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => fileInputRef.current?.click()}
-                  leftIcon={<Upload className='h-4 w-4' />}
-                >
-                  Cargar CSV
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type='file'
-                  accept='.csv'
-                  onChange={cargarCsv}
-                  className='hidden'
-                />
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={pegarCsv}
-                  leftIcon={<Clipboard className='h-4 w-4' />}
-                >
-                  Pegar CSV
-                </Button>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={guardarPlantilla}
-                  leftIcon={<Save className='h-4 w-4' />}
-                >
-                  Guardar plantilla
-                </Button>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={cargarPlantilla}
-                  leftIcon={<Layers className='h-4 w-4' />}
-                >
-                  Cargar plantilla
-                </Button>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={restaurarEjemplo}
-                  leftIcon={<RefreshCcw className='h-4 w-4' />}
-                >
-                  Restaurar ejemplo
-                </Button>
+                <div className='relative'>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setCsvMenuOpen((v) => !v)}
+                    leftIcon={<Upload className='h-4 w-4' />}
+                  >
+                    Importar / Exportar
+                  </Button>
+                  {csvMenuOpen && (
+                    <>
+                      <div className='fixed inset-0 z-40' onClick={() => setCsvMenuOpen(false)} />
+                      <div className='absolute left-0 top-full z-50 mt-1 w-52 rounded-md border border-border bg-background py-1 shadow-lg'>
+                        {[
+                          { label: 'Formato CSV (descargar)', icon: <Download className='h-4 w-4' />, fn: () => { descargarCsv(); setCsvMenuOpen(false) } },
+                          { label: 'Cargar CSV…', icon: <Upload className='h-4 w-4' />, fn: () => { setCsvMenuOpen(false); fileInputRef.current?.click() } },
+                          { label: 'Pegar CSV', icon: <Clipboard className='h-4 w-4' />, fn: () => { pegarCsv(); setCsvMenuOpen(false) } },
+                          { label: 'Guardar plantilla', icon: <Save className='h-4 w-4' />, fn: () => { guardarPlantilla(); setCsvMenuOpen(false) } },
+                          { label: 'Cargar plantilla', icon: <Layers className='h-4 w-4' />, fn: () => { cargarPlantilla(); setCsvMenuOpen(false) } },
+                          { label: 'Restaurar ejemplo', icon: <RefreshCcw className='h-4 w-4' />, fn: () => { restaurarEjemplo(); setCsvMenuOpen(false) } },
+                        ].map((item) => (
+                          <button
+                            key={item.label}
+                            type='button'
+                            className='flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-muted'
+                            onClick={item.fn}
+                          >
+                            {item.icon}
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type='file'
+                    accept='.csv'
+                    onChange={(e) => { cargarCsv(e); setCsvMenuOpen(false) }}
+                    className='hidden'
+                  />
+                </div>
                 <Button
                   variant='outline'
                   size='sm'

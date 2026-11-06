@@ -274,6 +274,22 @@ export function createConstructorView(store) {
     container = parent;
     unsubscribe = store.subscribe('state:changed', render);
     container.addEventListener('click', onClick);
+    container.addEventListener('click', (e) => {
+      const lg = e.target.closest('fieldset.cn-pref-group > legend');
+      if (!lg) return;
+      e.preventDefault();
+      const fs = lg.parentElement;
+      const titulo = lg.textContent.trim();
+      const estado = colapsoFieldsets();
+      if (fs.getAttribute('data-collapsed') === '1') {
+        fs.removeAttribute('data-collapsed');
+        delete estado[titulo];
+      } else {
+        fs.setAttribute('data-collapsed', '1');
+        estado[titulo] = 1;
+      }
+      try { localStorage.setItem(FIELDSET_COLLAPSE_KEY, JSON.stringify(estado)); } catch {}
+    });
     container.addEventListener('keydown', onKeydown);
     container.addEventListener('change', onChange);
     // Cálculo cruzado Prof. caja ↔ Holgura fondo: la holgura es lo que
@@ -1089,6 +1105,21 @@ export function createConstructorView(store) {
     else toast(`Zócalo estructural eliminado${r.restored ? `; se restauraron ${r.restored} frente(s) simple(s)` : ''}`, { type: 'success' });
   }
 
+  // Fieldsets colapsables: el estado vive en localStorage (por título del
+  // legend) y se aplica tras cada render (el innerHTML reescribe el DOM).
+  const FIELDSET_COLLAPSE_KEY = 'cn-fieldset-collapsed';
+  const colapsoFieldsets = () => {
+    try { return JSON.parse(localStorage.getItem(FIELDSET_COLLAPSE_KEY) || '{}'); }
+    catch { return {}; }
+  };
+  function aplicarColapsoFieldsets(root) {
+    const estado = colapsoFieldsets();
+    root.querySelectorAll('fieldset.cn-pref-group > legend').forEach((lg) => {
+      const titulo = lg.textContent.trim();
+      if (estado[titulo]) lg.parentElement.setAttribute('data-collapsed', '1');
+    });
+  }
+
   function render() {
     if (!container) return;
     const state = store.get();
@@ -1101,6 +1132,7 @@ export function createConstructorView(store) {
     collapseDefault = groups.length > 3;
     container.innerHTML = `
       <div class="cn-constructor${railCollapsed ? ' cn-rail-off' : ''}">
+
       ${pieces.length === 0 && hasAutosave() ? renderAutosaveBanner() : ''}
       <div class="cn-constructor__layout">
       <aside class="cn-rail" style="position:relative;">
@@ -1326,6 +1358,8 @@ export function createConstructorView(store) {
       </div>
       </div>
     `;
+
+    aplicarColapsoFieldsets(container);
     // Fijar el valor de los selects de modo de zapatera: happy-dom (tests)
     // no respeta el atributo `selected` en opciones 3ª+ al parsear el HTML
     // (devuelve la 2ª opción); en navegador esto es un no-op.

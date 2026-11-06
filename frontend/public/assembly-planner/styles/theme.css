@@ -2478,3 +2478,43 @@ input[type="search"]:focus-visible {
   background: var(--bg-secondary);
 }
 .plano-fijacion { font-size: 0.78rem; color: var(--text-secondary); max-width: 90ch; }
+
+/* ── Grupos de pestañas (Diseño / Revisar) ─────────────────────────── */
+.tabs__group-label {
+  align-self: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted, #8a7f72);
+  padding: 0 0.25rem 0 0.6rem;
+  user-select: none;
+}
+.tabs__badge {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ── Fieldsets colapsables (tarjeta del Constructor) ───────────────── */
+.cn-pref-group > legend {
+  cursor: pointer;
+  user-select: none;
+}
+.cn-pref-group > legend::before {
+  content: "▾ ";
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #8a7f72);
+}
+.cn-pref-group[data-collapsed="1"] > legend::before {
+  content: "▸ ";
+}
+.cn-pref-group[data-collapsed="1"] > .cn-pref-group__fields {
+  display: none;
+}

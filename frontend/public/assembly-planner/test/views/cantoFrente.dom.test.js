@@ -188,3 +188,20 @@ test('Holgura riel: input persiste, aplica al cajón y sobrevive a ediciones', (
   assert.equal(Number(cara().ancho), 818, 'W(870) − 2·11 − 2E(30) con el tag preservado');
   assert.ok(f().nombre.includes('[riel11]'), 'tag intacto tras la edición');
 });
+
+test('los fieldsets de la tarjeta son colapsables y persisten su estado', () => {
+  const { container } = armarModuloYVista();
+  const legend = [...container.querySelectorAll('fieldset.cn-pref-group > legend')]
+    .find((l) => l.textContent.trim() === 'Cajón');
+  assert.ok(legend, 'legend del fieldset Cajón');
+  legend.click();
+  const fs = legend.parentElement;
+  assert.equal(fs.getAttribute('data-collapsed'), '1', 'colapsa al hacer clic');
+  // Re-render conserva el estado (persistido en localStorage).
+  assert.equal(
+    [...container.querySelectorAll('fieldset.cn-pref-group > legend')]
+      .find((l) => l.textContent.trim() === 'Cajón').parentElement.getAttribute('data-collapsed'),
+    '1', 'sigue colapsado tras el re-render');
+  legend.click();
+  assert.equal(fs.getAttribute('data-collapsed'), null, 'se reabre con otro clic');
+});
