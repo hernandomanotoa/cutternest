@@ -10,6 +10,12 @@ import { UI_COLORS } from '../core/config.js';
 
 export function createCSVView(store) {
   let unsubscribe = null;
+  let filtroCsv = '';
+  function aplicarFiltroCsv(root, q) {
+    root.querySelectorAll('tr[data-index]').forEach((tr) => {
+      tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
   let container = null;
   let onContainerInput = null;
   let onContainerClick = null;
@@ -19,12 +25,26 @@ export function createCSVView(store) {
     // Delegación a nivel contenedor: se registra UNA vez por mount y se
     // remueve en destroy. Leen el estado vivo del store, así sobreviven al
     // re-render de innerHTML sin necesidad de re-registrarse.
-    onContainerInput = (e) => handleFieldInput(e, store.get());
+    onContainerInput = (e) => {
+      // Filtro de búsqueda de la vista Datos (sin segundo listener: la
+      // delegación queda en un único handler 'input').
+      if (e.target.matches('[data-csv-buscar]')) {
+        filtroCsv = e.target.value.trim().toLowerCase();
+        aplicarFiltroCsv(container, filtroCsv);
+        return;
+      }
+      handleFieldInput(e, store.get());
+    };
     onContainerClick = (e) => handleRowDelete(e, store.get());
     container.addEventListener('input', onContainerInput);
     container.addEventListener('click', onContainerClick);
     unsubscribe = store.subscribe('state:changed', () => render(container, store.get()));
     render(container, store.get());
+    if (filtroCsv) {
+      const input = container.querySelector('[data-csv-buscar]');
+      if (input) input.value = filtroCsv;
+      aplicarFiltroCsv(container, filtroCsv);
+    }
   }
 
   function destroy() {
@@ -67,6 +87,15 @@ function render(container, state) {
         </div>
         ${warnings.length ? renderWarnings(warnings) : ''}
         <div class="table-container mt-2">
+          <div style="margin-bottom:0.5rem;">
+            <input
+              type="search"
+              data-csv-buscar
+              placeholder="Buscar por id o nombre…"
+              aria-label="Buscar piezas en el CSV"
+              style="width:16rem;padding:0.3rem 0.5rem;border:1px solid var(--color-border,#e2ddd6);border-radius:6px;font-size:0.85rem;"
+            />
+          </div>
           <table>
             <thead>
               <tr>

@@ -252,6 +252,29 @@ function actualizarBadgeAuditoria(pieces) {
   }, 400);
 }
 
+// Puente al Optimizador de cortes: serializa el diseño actual como CSV en
+// sessionStorage y abre /optimizer en pestaña nueva; el optimizer lo recibe
+// al montar (sessionStorage, no location.state: funciona entre apps).
+function initEnviarAOptimizador() {
+  const btn = document.getElementById('btn-to-optimizer');
+  if (!btn || btn.dataset.init) return;
+  btn.dataset.init = '1';
+  btn.addEventListener('click', () => {
+    try {
+      const state = getStore().get();
+      if (!state.pieces?.length) {
+        toast('Agrega al menos un modulo antes de optimizar');
+        return;
+      }
+      sessionStorage.setItem('cn-optimizer-handoff', piecesToCSV(state.pieces));
+      window.open('/optimizer', '_blank', 'noopener');
+      toast('Diseno enviado al Optimizador (pestaña nueva)');
+    } catch (err) {
+      toast(`No se pudo enviar al optimizador: ${err?.message || err}`);
+    }
+  });
+}
+
 // Modal de atajos (?) del header: abrir/cerrar con el botón y con Escape.
 function initAtajosModal() {
   const modal = document.getElementById('modal-atajos');
@@ -2500,6 +2523,12 @@ export function initAutosave({ debounceMs = AUTOSAVE_DEBOUNCE_MS } = {}) {
     if (!state.pieces.length) return;
     autosaveTimer = setTimeout(() => {
       saveAutosave(getStore().get().pieces);
+      // Señal visible de confianza en el header: hora del último guardado.
+      const el = document.getElementById('autosave-indicator');
+      if (el) {
+        el.textContent = `✓ Autoguardado ${new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`;
+        el.hidden = false;
+      }
     }, debounceMs);
   });
 }
@@ -2678,6 +2707,7 @@ export function resetUserConfig() {
 
 function init() {
   initAtajosModal();
+  initEnviarAOptimizador();
   if (!getStore()) {
     setStore(createStore());
   }

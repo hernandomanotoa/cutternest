@@ -92,6 +92,8 @@ const ejemploEstanteria: PieceInput[] = [
 const DEFAULT_MATERIAL = 'MDF Melamina'
 const DEFAULT_THICKNESS = 18
 const CONFIG_KEY = 'cutternest-optimizer-config'
+const DRAFT_KEY = 'cutternest-optimizer-draft'
+const HIST_KEY = 'cutternest-optimizer-history'
 
 interface PersistedConfig {
   tablero?: BoardInput
@@ -100,6 +102,7 @@ interface PersistedConfig {
   modoCorte?: 'guillotina' | 'nesting' | 'mixto'
   maxAprovechamiento?: boolean
   sortMode?: SortMode
+  precioTableroM2?: number
 }
 
 function loadConfig(): PersistedConfig {
@@ -170,8 +173,34 @@ export function OptimizerPage() {
     }
   )
   const [materialType, setMaterialType] = useState(config.materialType ?? DEFAULT_MATERIAL)
+  const [handoff] = useState<PieceInput[] | null>(() => {
+    // Puente desde el Assembly Planner: CSV entregado por sessionStorage.
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = window.sessionStorage.getItem('cn-optimizer-handoff')
+      if (!raw) return null
+      window.sessionStorage.removeItem('cn-optimizer-handoff')
+      const parsed = parseCsv(raw)
+      return parsed.valid && parsed.pieces.length ? parsed.pieces : null
+    } catch {
+      return null
+    }
+  })
+  const [borradorInicial] = useState<PieceInput[] | null>(() => {
+    // Borrador automático: las piezas sobreviven a la recarga sin proyecto.
+    if (typeof window === 'undefined') return null
+    try {
+      if (initialPieces || window.sessionStorage.getItem('cn-optimizer-handoff')) return null
+      const raw = window.localStorage.getItem(DRAFT_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as PieceInput[]
+      return Array.isArray(parsed) && parsed.length ? parsed : null
+    } catch {
+      return null
+    }
+  })
   const [piezas, setPiezas] = useState<PieceInput[]>(() =>
-    loadTemplate(initialPieces ? [...initialPieces] : [...ejemploEstanteria])
+    loadTemplate(initialPieces ? [...initialPieces] : handoff ? [...handoff] : borradorInicial ? [...borradorInicial] : [...ejemploEstanteria])
   )
   const [currentPiece, setCurrentPiece] = useState<PieceInput>({
     id: '',
@@ -194,9 +223,21 @@ export function OptimizerPage() {
   const [modoCorte, setModoCorte] = useState<'guillotina' | 'nesting' | 'mixto'>(proyectoCfg.modoCorte ?? config.modoCorte ?? 'guillotina')
   const [maxAprovechamiento, setMaxAprovechamiento] = useState(config.maxAprovechamiento ?? false)
   const [sortMode, setSortMode] = useState<SortMode>((proyectoCfg as { sortMode?: SortMode }).sortMode ?? 'tamano')
+  const [precioM2, setPrecioM2] = useState<number>(config.precioTableroM2 ?? 0)
   const [colorTodas, setColorTodas] = useState('#C19A6B')
   const [csvMenuOpen, setCsvMenuOpen] = useState(false)
   const [comparacion, setComparacion] = useState<Array<{ modo: string; tableros: number; aprovech: number; error: string | null }> | null>(null)
+  const [handoffAvisado, setHandoffAvisado] = useState(false)
+  const [historial, setHistorial] = useState<Array<{ fecha: string; modo: string; tableros: number; aprovech: number }>>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const raw = window.localStorage.getItem(HIST_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+  const [borradorRestaurado, setBorradorRestaurado] = useState(false)
+  const historyRef = useRef<PieceInput[][]>([])
+  const skipHistoryPushRef = useRef(false)
   const [busquedaPiezas, setBusquedaPiezas] = useState('')
   const piezasFiltradas = useMemo(() => {
     const q = busquedaPiezas.trim().toLowerCase()
@@ -244,11 +285,11 @@ export function OptimizerPage() {
   }, [])
 
   useEffect(() => {
-    saveConfig({ tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento })
+    saveConfig({ tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento, precioTableroM2: precioM2 })
     if (projectId) {
       saveProjectConfig(projectId, { modoCorte, maxAprovechamiento, sortMode })
     }
-  }, [tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento, sortMode, projectId])
+  }, [tablero, materialType, useOffcuts, modoCorte, maxAprovechamiento, sortMode, projectId, precioM2])
 
   useEffect(() => {
     saveTemplate(piezas)
@@ -538,6 +579,7 @@ export function OptimizerPage() {
       setResult(data.tableros)
       setSelectedBoard(0)
       setActiveTab('resultados')
+      registrarHistorial(modoCorte, data)
       toast.success(`Optimizado en ${data.total_tableros} tablero(s)`)
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err) || 'Error al optimizar')
@@ -545,6 +587,74 @@ export function OptimizerPage() {
       setLoading(false)
     }
   }
+
+  // Borrador automático: persiste las piezas con debounce para sobrevivir
+  // recargas sin proyecto.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        if (piezas.length) window.localStorage.setItem(DRAFT_KEY, JSON.stringify(piezas))
+      } catch { /* sin storage: no hay borrador */ }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [piezas])
+
+  // Pila de deshacer: captura CADA mutación de piezas (edición, borrado,
+  // carga, pegado). skipHistoryPush evita re-apilar al deshacer.
+  useEffect(() => {
+    if (skipHistoryPushRef.current) {
+      skipHistoryPushRef.current = false
+      return
+    }
+    historyRef.current.push(piezas)
+    if (historyRef.current.length > 26) historyRef.current.shift()
+  }, [piezas])
+
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      const editable = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !editable) {
+        e.preventDefault()
+        const prev = historyRef.current.pop()
+        if (!prev) {
+          toast('Nada que deshacer')
+          return
+        }
+        skipHistoryPushRef.current = true
+        setPiezas(prev)
+        toast.success('Cambio deshecho')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    if (borradorInicial && !initialPieces) setBorradorRestaurado(true)
+  }, [borradorInicial, initialPieces])
+
+  // Historial de optimizaciones: las últimas 5 corridas (modo, tableros,
+  // aprovechamiento, fecha) para comparar sin re-ejecutar.
+  const registrarHistorial = (modo: string, data: { tableros: BoardResult[]; total_tableros: number }) => {
+    const usada = data.tableros.reduce((sum, b) => sum + b.placements.reduce((s2, pl) => s2 + pl.w * pl.h, 0), 0)
+    const area = data.tableros.reduce((sum, b) => sum + b.ancho * b.alto, 0)
+    const aprovech = area > 0 ? Math.round((usada / area) * 1000) / 10 : 0
+    setHistorial((prev) => {
+      const fila = { fecha: new Date().toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }), modo, tableros: data.total_tableros, aprovech }
+      const next = [fila, ...prev].slice(0, 5)
+      try { window.localStorage.setItem(HIST_KEY, JSON.stringify(next)) } catch { /* sin storage */ }
+      return next
+    })
+  }
+
+  // Aviso del puente: el diseño llegó del Assembly Planner.
+  useEffect(() => {
+    if (handoff && !handoffAvisado && !initialPieces) {
+      toast.success(`Diseno recibido del Assembly Planner (${handoff.length} piezas)`)
+      setHandoffAvisado(true)
+    }
+  }, [handoff, handoffAvisado, initialPieces])
 
   // Comparador de modos: corre guillotina / mixto / nesting con la misma
   // config y tabula tableros, área usada y aprovechamiento para elegir.
@@ -849,6 +959,23 @@ export function OptimizerPage() {
 
               <div>
                 <label className='mb-1 block text-xs font-medium text-muted-foreground'>
+                  Precio tablero ($ / m²)
+                </label>
+                <Input
+                  type='number'
+                  min='0'
+                  step='0.5'
+                  value={precioM2 || ''}
+                  placeholder='0 = sin costo'
+                  onChange={(e) => setPrecioM2(Math.max(0, Number(e.target.value) || 0))}
+                />
+                <p className='mt-1 text-xs text-muted-foreground'>
+                  Costo estimado del lote y por tablero en Resultados.
+                </p>
+              </div>
+
+              <div>
+                <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                   Veta del tablero
                 </label>
                 <select
@@ -937,7 +1064,14 @@ export function OptimizerPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+                e.preventDefault()
+                addPiece()
+              }
+            }}
+          >
             <CardHeader className='pb-2'>
               <CardTitle className='text-base'>Agregar pieza</CardTitle>
             </CardHeader>
@@ -1060,6 +1194,14 @@ export function OptimizerPage() {
                     <p className='text-xs text-muted-foreground'>Área total</p>
                     <p className='text-2xl font-bold text-foreground'>{totalAreaM2 ?? '—'} m²</p>
                   </div>
+                  {precioM2 > 0 && totalAreaM2 !== null && (
+                    <div>
+                      <p className='text-xs text-muted-foreground'>Costo estimado</p>
+                      <p className='text-2xl font-bold text-foreground'>
+                        ${Math.round(Number(totalAreaM2) * precioM2).toLocaleString('es')}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <p className='text-sm text-muted-foreground'>Utilización promedio</p>
@@ -1185,6 +1327,24 @@ export function OptimizerPage() {
               {activeTab === 'piezas' && (
               <>
               <div className='flex flex-wrap gap-2'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => {
+                    const prev = historyRef.current.pop()
+                    if (!prev) {
+                      toast('Nada que deshacer')
+                      return
+                    }
+                    skipHistoryPushRef.current = true
+                    setPiezas(prev)
+                    toast.success('Cambio deshecho')
+                  }}
+                  disabled={historyRef.current.length <= 1}
+                  title='Deshacer el último cambio de piezas (Ctrl+Z)'
+                >
+                  ↩ Deshacer
+                </Button>
                 <div className='relative'>
                   <Button
                     variant='outline'
@@ -1251,6 +1411,24 @@ export function OptimizerPage() {
                 </label>
               </div>
               </>
+              )}
+
+              {activeTab === 'piezas' && borradorRestaurado && (
+                <div className='mb-2 flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2 text-sm'>
+                  <span>Borrador automático recuperado ({piezas.length} piezas): sobrevive a recargas sin proyecto.</span>
+                  <button
+                    type='button'
+                    className='text-xs text-muted-foreground hover:underline'
+                    onClick={() => {
+                      window.localStorage.removeItem(DRAFT_KEY)
+                      setPiezas(loadTemplate([...ejemploEstanteria]))
+                      setBorradorRestaurado(false)
+                      historyRef.current = []
+                    }}
+                  >
+                    Descartar y volver al ejemplo
+                  </button>
+                </div>
               )}
 
               {activeTab === 'piezas' && (
@@ -1648,6 +1826,31 @@ export function OptimizerPage() {
                               </button>
                             )}
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeTab === 'resultados' && historial.length > 0 && (
+                <div className='mb-4 overflow-x-auto rounded-md border'>
+                  <table className='w-full text-sm'>
+                    <thead className='bg-muted/60 text-xs text-muted-foreground'>
+                      <tr>
+                        <th className='p-2 text-left font-medium'>Fecha</th>
+                        <th className='p-2 text-left font-medium'>Modo</th>
+                        <th className='p-2 text-right font-medium'>Tableros</th>
+                        <th className='p-2 text-right font-medium'>Aprovech.</th>
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y divide-border'>
+                      {historial.map((h, i) => (
+                        <tr key={i} className={i === 0 ? 'bg-muted/20' : ''}>
+                          <td className='p-2 text-xs text-muted-foreground'>{h.fecha}</td>
+                          <td className='p-2 capitalize'>{h.modo}</td>
+                          <td className='p-2 text-right'>{h.tableros}</td>
+                          <td className='p-2 text-right'>{h.aprovech}%</td>
                         </tr>
                       ))}
                     </tbody>

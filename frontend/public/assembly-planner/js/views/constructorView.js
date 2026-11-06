@@ -10,6 +10,7 @@ import { listVersions, suggestedVersionName, togglePinVersion } from '../service
 import { parseCSV, piecesToCSV } from '../services/csvParser.js';
 import { toast } from '../components/toast.js';
 import {
+  loadExample,
   applyGolaFix,
   addModuleFromBuilder,
   addContentToModule,
@@ -773,6 +774,18 @@ export function createConstructorView(store) {
       } else {
         toast(r.errors.join('; '), { type: 'error' });
       }
+    } else if (action === 'quickstart') {
+      const ejemplo = btn.dataset.example;
+      if (ejemplo === '__blank__') {
+        store.set({ pieces: [] });
+        if (typeof addModuleFromBuilder === 'function') {
+          addModuleFromBuilder({ ancho: 850, alto: 2400, prof: 600, espesor: 15, colorCuerpo: '#c19a6b', conZocalo: true, alturaZocalo: 150 });
+        }
+        toast('Modulo en blanco agregado', { type: 'success' });
+      } else {
+        // Reusa la carga de ejemplos del header (fetch + parse + versionado).
+        loadExample(ejemplo);
+      }
     } else if (action === 'ir-obra' || action === 'ir-versiones') {
       // El checklist enlaza a las secciones del rail (zócalo y obra / versiones).
       const sel = action === 'ir-obra' ? '[data-obra="tipo"]' : '[data-action="save-version"]';
@@ -1352,7 +1365,23 @@ export function createConstructorView(store) {
         </div>
         <div class="card__body">
           ${groups.length === 0
-            ? '<p class="empty-state">Todavía no hay módulos. Agrega el primero arriba.</p>'
+            ? `<div class="cn-quickstart">
+                <p class="empty-state">Todavía no hay módulos. Empieza con:</p>
+                <div class="cn-quickstart__cards">
+                  <button type="button" class="cn-quickstart__card" data-action="quickstart" data-example="./data/ejemplo-closet-auditoria.csv">
+                    <strong>🧪 Clóset de auditoría</strong>
+                    <span>5 módulos con zapateras, gola y marco — el ejemplo completo</span>
+                  </button>
+                  <button type="button" class="cn-quickstart__card" data-action="quickstart" data-example="./data/ejemplo-closet-zapatera-mixta.csv">
+                    <strong>👟 Zapatera mixta</strong>
+                    <span>Clóset por tipo de calzado con bandejas extraíbles</span>
+                  </button>
+                  <button type="button" class="cn-quickstart__card" data-action="quickstart" data-example="__blank__">
+                    <strong>🔧 Módulo en blanco</strong>
+                    <span>Casco vacío 850×2400×600 para armar a tu medida</span>
+                  </button>
+                </div>
+              </div>`
             : (() => {
               // Se revela el módulo seleccionado; si la selección es nula o
               // quedó stale (otro diseño cargado), el PRIMER módulo se ve por

@@ -2562,3 +2562,23 @@ input[type="search"]:focus-visible {
 .cn-checklist__pend .cn-checklist__icon { color: #b45309; }
 .cn-checklist__opt { color: var(--color-text-muted, #8a7f72); }
 .cn-checklist li .btn { margin-left: auto; padding: 0.05rem 0.5rem; font-size: 0.72rem; }
+
+/* ── Indicador de autoguardado ─────────────────────────────────────── */
+.autosave-indicator {
+  align-self: center;
+  font-size: 0.72rem;
+  color: #15803d;
+  white-space: nowrap;
+}
+
+/* ── Quick-start del Constructor vacío ─────────────────────────────── */
+.cn-quickstart__cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 0.5rem; }
+.cn-quickstart__card {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  padding: 0.7rem 0.8rem; text-align: left;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2ddd6);
+  border-radius: 8px; cursor: pointer;
+}
+.cn-quickstart__card:hover { border-color: var(--color-primary, #b45309); }
+.cn-quickstart__card span { font-size: 0.75rem; color: var(--color-text-muted, #8a7f72); }
