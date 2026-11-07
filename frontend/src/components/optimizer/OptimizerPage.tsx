@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import toast from 'react-hot-toast'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Box,
   Clipboard,
@@ -20,6 +20,7 @@ import {
   Maximize2,
   Palette,
   Plus,
+  Presentation,
   RefreshCcw,
   RotateCw,
   Save,
@@ -74,6 +75,14 @@ import { Badge } from '../ui/Badge'
 import { Tabs, TabsTrigger } from '../ui/Tabs'
 import { Tooltip } from '../ui/Tooltip'
 import { useSelectionStore } from '../../stores/selectionStore'
+import {
+  PIECE_STATES,
+  PIECE_STATE_LABELS,
+  usePieceStates,
+  type PieceState,
+} from '../../hooks/usePieceStates'
+import { PresentationSheet } from './PresentationSheet'
+import { OffcutRegistrar } from './OffcutRegistrar'
 
 const ejemploEstanteria: PieceInput[] = [
   { id: 'base', nombre: 'Base', ancho: 1200, alto: 600, cantidad: 1, rotate: true, color: '#FF6B6B', espesor: 18, cantos: 'T,B,L,R' },
@@ -154,8 +163,19 @@ function utilizationTone(value: number): 'success' | 'warning' | 'danger' {
 
 export function OptimizerPage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const initialProjectId = (location.state as Record<string, unknown>)?.projectId as string | undefined
   const initialPieces = (location.state as Record<string, unknown>)?.pieces as PieceInput[] | undefined
+
+  // Modo taller (?modo=taller o ?modo_taller): solo lectura — se ocultan las
+  // acciones de edición y solo el avance de piezas (estados) queda editable.
+  const isTaller = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    return params.has('modo_taller') || params.get('modo') === 'taller'
+  }, [location.search])
+  const salirTaller = () => {
+    navigate({ pathname: location.pathname, search: '' }, { replace: true })
+  }
 
   const config = loadConfig()
   const proyectoCfg = loadProjectConfig(initialProjectId ?? null)
@@ -259,6 +279,8 @@ export function OptimizerPage() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { selectedPieceCode, setSelectedPieceCode, clearSelection } = useSelectionStore()
+  const { getEstado, setEstado, enabled: estadosEnabled } = usePieceStates(projectId)
+  const [presentacionOpen, setPresentacionOpen] = useState(false)
 
   useEffect(() => {
     fetchCatalog()
@@ -784,6 +806,24 @@ export function OptimizerPage() {
     return Math.round(result.reduce((sum, b) => sum + b.utilizacion, 0) / result.length)
   }, [result])
 
+  // Avance del lote: piezas (ids únicos de los placements) que ya superaron
+  // 'pendiente' — se muestra como 'Cortadas X/Y' en Resultados.
+  const avancePiezas = useMemo(() => {
+    if (!result?.length) return null
+    const ids = new Set<string>()
+    result.forEach((b) => b.placements.forEach((pl) => pl.id && ids.add(pl.id)))
+    const total = ids.size
+    const avanzadas = Array.from(ids).filter((id) => getEstado(id) !== 'pendiente').length
+    return { total, avanzadas }
+  }, [result, getEstado])
+
+  const ESTADO_VARIANT: Record<PieceState, 'outline' | 'warning' | 'default' | 'success'> = {
+    pendiente: 'outline',
+    cortada: 'warning',
+    cantada: 'default',
+    lista: 'success',
+  }
+
   const totalAreaM2 = useMemo(() => {
     if (!result?.length) return null
     return (result.reduce((sum, b) => sum + b.ancho * b.alto, 0) / 1_000_000).toFixed(2)
@@ -851,6 +891,22 @@ export function OptimizerPage() {
           </Button>
         </div>
       </div>
+
+      {isTaller && (
+        <div
+          role='status'
+          className='flex items-center justify-between gap-3 rounded-md border border-warning bg-warning/10 px-3 py-2 text-sm text-foreground'
+        >
+          <span>Modo taller — solo lectura (solo se puede marcar el avance de las piezas).</span>
+          <button
+            type='button'
+            className='text-primary hover:underline'
+            onClick={salirTaller}
+          >
+            salir
+          </button>
+        </div>
+      )}
 
       <div className='grid grid-cols-1 gap-6 lg:grid-cols-12'>
         {/* Panel izquierdo: tablero + agregar pieza */}
@@ -1064,6 +1120,7 @@ export function OptimizerPage() {
             </CardContent>
           </Card>
 
+          {!isTaller && (
           <Card
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
@@ -1174,6 +1231,7 @@ export function OptimizerPage() {
               </Button>
             </CardContent>
           </Card>
+          )}
 
           {result && (
             <Card className='border-l-4 border-l-primary'>
@@ -1324,7 +1382,7 @@ export function OptimizerPage() {
               </div>
             </CardHeader>
             <CardContent className='space-y-3'>
-              {activeTab === 'piezas' && (
+              {activeTab === 'piezas' && !isTaller && (
               <>
               <div className='flex flex-wrap gap-2'>
                 <Button
@@ -1416,6 +1474,7 @@ export function OptimizerPage() {
               {activeTab === 'piezas' && borradorRestaurado && (
                 <div className='mb-2 flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2 text-sm'>
                   <span>Borrador automático recuperado ({piezas.length} piezas): sobrevive a recargas sin proyecto.</span>
+                  {!isTaller && (
                   <button
                     type='button'
                     className='text-xs text-muted-foreground hover:underline'
@@ -1428,6 +1487,7 @@ export function OptimizerPage() {
                   >
                     Descartar y volver al ejemplo
                   </button>
+                  )}
                 </div>
               )}
 
@@ -1439,22 +1499,26 @@ export function OptimizerPage() {
                       No hay piezas todavía. Agrega una pieza, pega un CSV o carga el ejemplo.
                     </p>
                     <div className='flex flex-wrap justify-center gap-2'>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        onClick={restaurarEjemplo}
-                        leftIcon={<RefreshCcw className='h-4 w-4' />}
-                      >
-                        Cargar ejemplo
-                      </Button>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        onClick={pegarCsv}
-                        leftIcon={<Clipboard className='h-4 w-4' />}
-                      >
-                        Pegar CSV
-                      </Button>
+                      {!isTaller && (
+                        <>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            onClick={restaurarEjemplo}
+                            leftIcon={<RefreshCcw className='h-4 w-4' />}
+                          >
+                            Cargar ejemplo
+                          </Button>
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            onClick={pegarCsv}
+                            leftIcon={<Clipboard className='h-4 w-4' />}
+                          >
+                            Pegar CSV
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1566,6 +1630,7 @@ export function OptimizerPage() {
                           </th>
                           <th className='p-2 text-left font-medium'>Color</th>
                           <th className='p-2 text-left font-medium'>Cantos</th>
+                          <th className='p-2 text-left font-medium w-28'>Estado</th>
                           <th className='p-2 text-right font-medium'></th>
                         </tr>
                       </thead>
@@ -1594,6 +1659,7 @@ export function OptimizerPage() {
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   placeholder='auto'
                                   className='h-8 min-w-[6rem]'
+                                  disabled={isTaller}
                                 />
                               </td>
                               <td className='p-2'>
@@ -1604,6 +1670,7 @@ export function OptimizerPage() {
                                   }
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 min-w-[8rem]'
+                                  disabled={isTaller}
                                 />
                               </td>
                               <td className='p-2'>
@@ -1617,6 +1684,7 @@ export function OptimizerPage() {
                                   }
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-20'
+                                  disabled={isTaller}
                                 />
                               </td>
                               <td className='p-2'>
@@ -1630,6 +1698,7 @@ export function OptimizerPage() {
                                   }
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-20'
+                                  disabled={isTaller}
                                 />
                               </td>
                               <td className='p-2'>
@@ -1643,6 +1712,7 @@ export function OptimizerPage() {
                                   }
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-16'
+                                  disabled={isTaller}
                                 />
                               </td>
                               <td className='p-2'>
@@ -1656,6 +1726,7 @@ export function OptimizerPage() {
                                   }
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   className='h-8 w-16'
+                                  disabled={isTaller}
                                 />
                               </td>
                               <td className='p-2'>
@@ -1665,11 +1736,19 @@ export function OptimizerPage() {
                                   onChange={(e) =>
                                     updatePiece(globalIndex, { rotate: e.target.checked })
                                   }
-                                  className='h-4 w-4 rounded border-border text-primary focus:ring-ring'
+                                  disabled={isTaller}
+                                  className='h-4 w-4 rounded border-border text-primary focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
                                 />
                               </td>
                               <td className='p-2'>
                                 <div className='flex items-center gap-2'>
+                                  {isTaller ? (
+                                    <span
+                                      className='h-6 w-6 rounded-full border-2 border-border'
+                                      style={{ backgroundColor: p.color }}
+                                      title={p.color}
+                                    />
+                                  ) : (
                                   <button
                                     type='button'
                                     onClick={() => {
@@ -1680,6 +1759,7 @@ export function OptimizerPage() {
                                     style={{ backgroundColor: p.color }}
                                     title={p.color}
                                   />
+                                  )}
                                   {colorPickerOpenIndex === globalIndex && (
                                     <div className='relative z-10'>
                                       <HexColorPicker
@@ -1710,7 +1790,33 @@ export function OptimizerPage() {
                                   onKeyDown={(e) => handleRowKeyDown(e, globalIndex)}
                                   placeholder='T,B,L,R'
                                   className='h-8 min-w-[5rem]'
+                                  disabled={isTaller}
                                 />
+                              </td>
+                              <td className='p-2'>
+                                <Tooltip
+                                  content={
+                                    estadosEnabled
+                                      ? 'Avance de la pieza en el taller'
+                                      : 'Guarda el proyecto para registrar el avance'
+                                  }
+                                >
+                                  <select
+                                    aria-label={`Estado de ${p.nombre || p.id || 'pieza'}`}
+                                    className='h-8 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50'
+                                    value={getEstado(p.id)}
+                                    onChange={(e) =>
+                                      setEstado(p.id, e.target.value as PieceState)
+                                    }
+                                    disabled={!estadosEnabled}
+                                  >
+                                    {PIECE_STATES.map((s) => (
+                                      <option key={s} value={s}>
+                                        {PIECE_STATE_LABELS[s]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </Tooltip>
                               </td>
                               <td className='p-2 text-right'>
                                 <div className='flex items-center justify-end gap-1'>
@@ -1721,6 +1827,8 @@ export function OptimizerPage() {
                                       </Badge>
                                     </Tooltip>
                                   )}
+                                  {!isTaller && (
+                                  <>
                                   <Button
                                     variant='ghost'
                                     size='icon'
@@ -1739,6 +1847,8 @@ export function OptimizerPage() {
                                   >
                                     <Trash2 className='h-4 w-4 text-destructive' />
                                   </Button>
+                                  </>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1767,6 +1877,7 @@ export function OptimizerPage() {
 
               {activeTab === 'piezas' && (
               <div className='flex flex-wrap gap-3'>
+                {!isTaller && (
                 <Button
                   variant='secondary'
                   onClick={savePieces}
@@ -1776,6 +1887,7 @@ export function OptimizerPage() {
                 >
                   Guardar piezas
                 </Button>
+                )}
                 <Button
                   onClick={optimize}
                   disabled={loading || piezas.length === 0}
@@ -1785,6 +1897,7 @@ export function OptimizerPage() {
                 >
                   Optimizar
                 </Button>
+                {!isTaller && (
                 <Button
                   variant='outline'
                   onClick={compararModos}
@@ -1793,6 +1906,7 @@ export function OptimizerPage() {
                 >
                   Comparar modos
                 </Button>
+                )}
               </div>
               )}
 
@@ -1896,6 +2010,15 @@ export function OptimizerPage() {
                         >
                           PDF
                         </Button>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => setPresentacionOpen(true)}
+                          disabled={!projectId || !result}
+                          leftIcon={<Presentation className='h-4 w-4' />}
+                        >
+                          Presentación
+                        </Button>
                       </div>
                     </div>
                     <div className='flex flex-wrap gap-2'>
@@ -1927,6 +2050,39 @@ export function OptimizerPage() {
                       <Layout2D board={selectedBoardResult} margenMm={tablero.margen_mm} />
                     )}
 
+                    {avancePiezas && avancePiezas.total > 0 && (
+                      <div className='space-y-2'>
+                        <div className='flex items-center gap-2 text-sm'>
+                          <span className='text-muted-foreground'>Avance del lote:</span>
+                          <Badge variant='secondary'>
+                            Cortadas {avancePiezas.avanzadas}/{avancePiezas.total}
+                          </Badge>
+                        </div>
+                        <div className='flex flex-wrap gap-1.5'>
+                          {selectedBoardResult.placements.map((pl, i) => {
+                            const estado = getEstado(pl.id)
+                            return (
+                              <Badge
+                                key={`${pl.id}-${i}`}
+                                variant={ESTADO_VARIANT[estado]}
+                                className='pointer-events-none'
+                              >
+                                {pl.nombre || pl.id} · {PIECE_STATE_LABELS[estado]}
+                              </Badge>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {projectId && (
+                      <OffcutRegistrar
+                        key={selectedBoard}
+                        projectId={projectId}
+                        boardIndex={selectedBoard}
+                      />
+                    )}
+
                     {selectedPieceCode && (
                       <div className='rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground'>
                         Pieza seleccionada: <span className='font-medium'>{selectedPieceCode}</span>
@@ -1946,6 +2102,17 @@ export function OptimizerPage() {
           </Card>
         </div>
       </div>
+
+      {presentacionOpen && projectId && result && (
+        <PresentationSheet
+          projectName={projectName}
+          projectId={projectId}
+          boards={result}
+          totalPieces={totalPiecesCount}
+          precioM2={precioM2}
+          onClose={() => setPresentacionOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -113,3 +113,11 @@
            focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 }
+
+/* Impresión de la hoja de presentación: cuando el body lleva la clase
+   cn-printing, solo el portal de la presentación se imprime. */
+@media print {
+  body.cn-printing > *:not(.cn-presentation-sheet) {
+    display: none !important;
+  }
+}
