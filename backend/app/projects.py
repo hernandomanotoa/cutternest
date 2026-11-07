@@ -169,6 +169,20 @@ def optimize_project(db: Session, project_id: str, payload: OptimizeRequest) -> 
     for offcut_id in used_offcut_ids:
         inventory_service.consume_inventory(db, offcut_id, cantidad=1)
 
+    # Consumir del inventario los tableros NUEVOS usados (los basados en
+    # sobrantes ya se descontaron arriba). Solo con piezas y optimización
+    # exitosa; se desactiva con descontar_inventario=False.
+    if payload.descontar_inventario and payload.piezas:
+        tableros_nuevos = sum(
+            1
+            for board in result["tableros"]
+            if not all(pl.get("en_sobrante") for pl in board["placements"])
+        )
+        if tableros_nuevos:
+            result["inventario_descuento"] = inventory_service.consume_tableros_nuevos(
+                db, project, tableros_nuevos
+            )
+
     for board in result["tableros"]:
         board_area = board["ancho"] * board["alto"]
         used_area = sum(p["w"] * p["h"] for p in board["placements"])
@@ -208,6 +222,7 @@ def create_quote(db: Session, project_id: str, payload: QuoteRequest) -> Dict[st
         payload.costo_m2_mdf,
         payload.costo_hora_mano_obra,
         payload.margen,
+        incluir_mano_obra=payload.incluir_mano_obra,
     )
     pdf_path = pdf_generator.generate_quote_pdf(quote, project.name, "/app/data/exports")
     from app.models import Quote as QuoteModel
@@ -246,7 +261,7 @@ def generate_labels(db: Session, project_id: str, label_size: str = "50x30") -> 
         }
         for l in layouts
     ]
-    return pdf_generator.generate_labels_pdf(project.name, boards, "/app/data/exports", label_size)
+    return pdf_generator.generate_labels_pdf(project.name, boards, "/app/data/exports", label_size, project_id=project.id)
 
 
 def generate_layouts_pdf(db: Session, project_id: str) -> str:

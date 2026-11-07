@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -263,3 +263,64 @@ def consume_offcut_unit(db: Session, offcut_id: str) -> Optional[Offcut]:
     db.commit()
     db.refresh(item)
     return item
+
+
+def consume_tableros_nuevos(
+    db: Session,
+    project: Project,
+    cantidad: int,
+    motivo: Optional[str] = None,
+) -> Dict[str, int]:
+    """Descuenta del inventario los tableros NUEVOS consumidos por una
+    optimización. Consume una unidad por tablero de las filas de stock que
+    coincidan en material (tipo) y espesor, de las más antiguas a las más
+    recientes; cada consumo registra un movement de tipo 'salida'. Si no hay
+    stock suficiente, descuenta lo disponible y reporta el resto como
+    `sin_stock` (sin lanzar error: la optimización ya ocurrió)."""
+    consumidos = 0
+    for _ in range(cantidad):
+        item = (
+            db.query(Inventory)
+            .filter(
+                Inventory.consumed_at.is_(None),
+                Inventory.cantidad > 0,
+                Inventory.estado == InventoryState.nuevo,
+                Inventory.espesor_mm == project.board_thickness_mm,
+                Inventory.tipo.ilike(project.material_type or "MDF"),
+            )
+            .order_by(Inventory.created_at.asc())
+            .first()
+        )
+        if item is None:
+            break
+        consume_inventory(
+            db,
+            item.id,
+            1,
+            motivo or f"Optimización del proyecto '{project.name}'",
+        )
+        consumidos += 1
+    return {"solicitados": cantidad, "consumidos": consumidos, "sin_stock": cantidad - consumidos}
+
+
+def registrar_sobrantes_layout(
+    db: Session,
+    project: Project,
+    rectangulos: List[Dict[str, Any]],
+) -> List[Offcut]:
+    """Da de alta rectángulos libres (mm) en la tabla offcuts, cantidad 1 cada uno."""
+    creados: List[Offcut] = []
+    for r in rectangulos:
+        creados.append(
+            create_offcut(
+                db,
+                OffcutCreate(
+                    material=project.material_type or "MDF",
+                    width_mm=max(1, int(round(r["ancho"]))),
+                    height_mm=max(1, int(round(r["alto"]))),
+                    thickness_mm=max(1, int(round(project.board_thickness_mm or 18))),
+                    quantity=1,
+                ),
+            )
+        )
+    return creados

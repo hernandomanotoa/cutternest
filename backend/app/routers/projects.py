@@ -6,8 +6,11 @@ from sqlalchemy.orm import Session
 
 from app import assembly as assembly_service
 from app import catalog as catalog_service
+from app import cutting as cutting_service
+from app import inventory as inventory_service
 from app import projects as projects_service
 from app import quotes as quotes_service
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import (
     PrincipalOrGuest,
@@ -163,6 +166,64 @@ def list_project_quotes(
 ):
     require_project_owner(db, project_id, current_user)
     return quotes_service.list_quotes(db, project_id)
+
+
+@router.post("/{project_id}/layouts/{layout_index}/offcuts")
+def layout_offcuts(
+    project_id: str,
+    layout_index: int,
+    registrar: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Sobrantes del layout (hasta 3 rectángulos libres maximales,
+    guillotina-compatibles, >= umbral configurable). Con ?registrar=true se
+    dan de alta en la tabla offcuts y se devuelven sus ids."""
+    require_project_owner(db, project_id, current_user)
+    layouts = projects_service.get_layouts(db, project_id)
+    layout = next((l for l in layouts if l.board_index == layout_index), None)
+    if not layout:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layout no encontrado")
+
+    settings = get_settings()
+    rectangulos = cutting_service.calcular_sobrantes_layout(
+        layout.board_width_mm,
+        layout.board_height_mm,
+        layout.placements or [],
+        threshold_mm=settings.offcut_threshold_mm,
+        limite=3,
+    )
+    respuesta: Dict[str, Any] = {"layout_index": layout_index, "sobrantes": rectangulos}
+    if registrar:
+        project = projects_service.get_project(db, project_id)
+        creados = inventory_service.registrar_sobrantes_layout(db, project, rectangulos)
+        respuesta["offcut_ids"] = [o.id for o in creados]
+    return respuesta
+
+
+@router.get("/{project_id}/layouts/{layout_index}/secuencia")
+def layout_secuencia(
+    project_id: str,
+    layout_index: int,
+    db: Session = Depends(get_db),
+    current_user: PrincipalOrGuest = Depends(get_current_user_or_guest),
+):
+    """Secuencia de cortes guillotina para reproducir el layout: cortes
+    verticales (x ascendente) y luego horizontales (y ascendente), deducidos
+    de los placements."""
+    require_project_access(db, project_id, current_user)
+    project = projects_service.get_project(db, project_id)
+    layouts = projects_service.get_layouts(db, project_id)
+    layout = next((l for l in layouts if l.board_index == layout_index), None)
+    if not layout:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layout no encontrado")
+
+    return cutting_service.calcular_secuencia_corte(
+        layout.board_width_mm,
+        layout.board_height_mm,
+        project.kerf_mm,
+        layout.placements or [],
+    )
 
 
 @router.post("/{project_id}/cutlist")

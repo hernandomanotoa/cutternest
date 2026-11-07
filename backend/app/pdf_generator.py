@@ -44,22 +44,54 @@ def generate_quote_pdf(quote: Dict[str, Any], project_name: str, exports_dir: st
     story.append(Paragraph(f"Fecha: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
     story.append(Spacer(1, 10 * mm))
 
-    data = [
-        ["Concepto", "Monto (USD)"],
-        ["Material", f"{quote['breakdown']['material']:.2f}"],
-        ["Hardware", f"{quote['breakdown']['hardware']:.2f}"],
-        ["Mano de obra", f"{quote['breakdown']['mano_obra']:.2f}"],
-        ["Subtotal", f"{quote['breakdown']['subtotal']:.2f}"],
-        ["Total (con margen)", f"{quote['breakdown']['total']:.2f}"],
-    ]
-    table = Table(data, colWidths=[100 * mm, 50 * mm])
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-    ]))
-    story.append(table)
+    if quote.get("items"):
+        # Cotizador 1-clic: desglose por conceptos con total destacado.
+        data = [["Concepto", "Detalle", "Cantidad", "P/Unit.", "Subtotal"]]
+        for item in quote["items"]:
+            data.append([
+                item["concepto"],
+                Paragraph(str(item.get("detalle", "")), styles["Normal"]),
+                f"{item['cantidad']:g}",
+                "-" if item.get("precio_unit") is None else f"{item['precio_unit']:.2f}",
+                f"{item['subtotal']:.2f}",
+            ])
+        data.append(["", "", "", "Subtotal", f"{quote['subtotal']:.2f}"])
+        data.append(["", "", "", "TOTAL", f"{quote['total']:.2f}"])
+        table = Table(data, colWidths=[28 * mm, 72 * mm, 20 * mm, 22 * mm, 22 * mm], repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
+            ("GRID", (0, 0), (-1, -2), 0.5, colors.grey),
+            ("FONTNAME", (0, -2), (-1, -1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#dbeafe")),
+            ("LINEABOVE", (0, -2), (-1, -2), 0.8, colors.HexColor("#374151")),
+            ("TOPPADDING", (0, -2), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, -2), (-1, -1), 5),
+        ]))
+        story.append(table)
+        if quote.get("warnings"):
+            story.append(Spacer(1, 5 * mm))
+            story.append(Paragraph("<b>Advertencias</b>", styles["Heading4"]))
+            for w in quote["warnings"]:
+                story.append(Paragraph(f"• {w}", styles["Normal"]))
+    else:
+        data = [
+            ["Concepto", "Monto (USD)"],
+            ["Material", f"{quote['breakdown']['material']:.2f}"],
+            ["Hardware", f"{quote['breakdown']['hardware']:.2f}"],
+            ["Mano de obra", f"{quote['breakdown']['mano_obra']:.2f}"],
+            ["Subtotal", f"{quote['breakdown']['subtotal']:.2f}"],
+            ["Total (con margen)", f"{quote['breakdown']['total']:.2f}"],
+        ]
+        table = Table(data, colWidths=[100 * mm, 50 * mm])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        story.append(table)
 
     if quote.get("hardware"):
         story.append(Spacer(1, 10 * mm))
@@ -67,7 +99,7 @@ def generate_quote_pdf(quote: Dict[str, Any], project_name: str, exports_dir: st
         hw_data = [["Item", "Cantidad", "P/U", "Subtotal"]]
         for item in quote["hardware"]:
             subtotal = item["cantidad"] * item["precio_unit"]
-            hw_data.append([item["item"], str(item["cantidad"]), f"{item['precio_unit']:.2f}", f"{subtotal:.2f}"])
+            hw_data.append([item["item"], f"{item['cantidad']:g}", f"{item['precio_unit']:.2f}", f"{subtotal:.2f}"])
         hw_table = Table(hw_data, colWidths=[80 * mm, 25 * mm, 25 * mm, 25 * mm])
         hw_table.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.grey)]))
         story.append(hw_table)
@@ -109,7 +141,13 @@ def generate_cutlist_pdf(project_name: str, boards: List[Dict[str, Any]], export
     return _web_path(path)
 
 
-def generate_labels_pdf(project_name: str, boards: List[Dict[str, Any]], exports_dir: str, label_size: str = "50x30") -> str:
+def generate_labels_pdf(
+    project_name: str,
+    boards: List[Dict[str, Any]],
+    exports_dir: str,
+    label_size: str = "50x30",
+    project_id: str = "",
+) -> str:
     path = _labels_pdf_path(exports_dir, str(project_name))
     doc = SimpleDocTemplate(path, pagesize=A4, rightMargin=10 * mm, leftMargin=10 * mm, topMargin=10 * mm, bottomMargin=10 * mm)
     styles = getSampleStyleSheet()
@@ -118,23 +156,19 @@ def generate_labels_pdf(project_name: str, boards: List[Dict[str, Any]], exports
     story.append(Paragraph(f"<b>Etiquetas - {project_name}</b>", styles["Title"]))
     story.append(Spacer(1, 5 * mm))
 
-    # Generar una etiqueta por cada placement
-    import json
+    # Generar una etiqueta por cada placement. El QR (~12 mm) codifica la URL
+    # de la pieza en el frontend: /projects/{project_id}?pieza={piece_id}.
     for board in boards:
         for p in board["placements"]:
             label_text = f"{p['nombre']} {p['w']:.0f}x{p['h']:.0f}"
-            qr_payload = json.dumps({
-                "p": project_name,
-                "i": p["id"],
-                "d": f"{p['w']:.0f}x{p['h']:.0f}",
-            })
+            qr_payload = f"/projects/{project_id}?pieza={p['id']}"
             qr_img = qrcode.make(qr_payload)
             buffer = BytesIO()
             qr_img.save(buffer, format="PNG")
             buffer.seek(0)
-            img = RLImage(buffer, width=20 * mm, height=20 * mm)
+            img = RLImage(buffer, width=12 * mm, height=12 * mm)
             data = [[Paragraph(f"<b>{label_text}</b>", styles["Normal"]), img]]
-            table = Table(data, colWidths=[60 * mm, 25 * mm])
+            table = Table(data, colWidths=[60 * mm, 18 * mm])
             table.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.5, colors.grey)]))
             story.append(table)
             story.append(Spacer(1, 2 * mm))

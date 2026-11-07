@@ -198,6 +198,27 @@ class InventoryMovement(Base):
     inventory = relationship("Inventory")
 
 
+class PriceItemType(str, enum.Enum):
+    material_m2 = "material_m2"
+    tapacanto_ml = "tapacanto_ml"
+    herraje = "herraje"
+    mano_obra_m2 = "mano_obra_m2"
+
+
+class PriceItem(Base):
+    """Lista de precios editable del cotizador 1-clic."""
+
+    __tablename__ = "price_items"
+
+    id = Column(VARCHAR(36), primary_key=True, default=generate_uuid)
+    tipo = Column(Enum(PriceItemType), nullable=False)
+    nombre = Column(String(128), nullable=False)
+    precio = Column(Float, nullable=False)
+    moneda = Column(String(8), nullable=False, default="$")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Quote(Base):
     __tablename__ = "quotes"
 

@@ -106,6 +106,10 @@ class OptimizeRequest(BaseModel):
     # Solo guillotina: probar varios órdenes de empaquetado y quedarse con el
     # que usa menos tableros.
     max_aprovechamiento: bool = False
+    # Inventario vinculado: al optimizar un proyecto, descuenta del inventario
+    # los tableros NUEVOS consumidos (los sobrantes usados ya se descuentan por
+    # separado). Desactívelo para simulaciones sin tocar stock.
+    descontar_inventario: bool = True
 
 
 class PiecesUpdateRequest(BaseModel):
@@ -260,6 +264,30 @@ class TemplateGenerateRequest(BaseModel):
 
 
 # Cotización
+class PriceItemCreate(BaseModel):
+    tipo: Literal["material_m2", "tapacanto_ml", "herraje", "mano_obra_m2"]
+    nombre: str = Field(..., min_length=1, max_length=128)
+    precio: float = Field(..., ge=0)
+    moneda: str = Field("$", max_length=8)
+
+
+class PriceItemUpdate(BaseModel):
+    nombre: Optional[str] = Field(None, min_length=1, max_length=128)
+    precio: Optional[float] = Field(None, ge=0)
+    moneda: Optional[str] = Field(None, max_length=8)
+
+
+class PriceItemRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    tipo: str
+    nombre: str
+    precio: float
+    moneda: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class HardwareItem(BaseModel):
     item: str
     cantidad: float
@@ -277,6 +305,10 @@ class QuoteRequest(BaseModel):
     costo_m2_mdf: Optional[float] = Field(None, ge=0)
     costo_hora_mano_obra: float = Field(..., gt=0)
     margen: float = Field(1.3, gt=1.0)
+    # Cotizador 1-clic: incluye mano de obra (precio mano_obra_m2 de la lista
+    # de precios × área de piezas). Si no hay precio en la lista, se omite con
+    # warning.
+    incluir_mano_obra: bool = False
 
 
 class QuoteBreakdown(BaseModel):
