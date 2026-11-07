@@ -121,6 +121,56 @@ export function createRenderer3DView(store) {
     syncAperturaControls();
   }
 
+  // Serializa el SVG actual del lienzo 3D a canvas y descarga el PNG. El SVG
+  // vive dentro de #r3d-canvas (renderer.container.innerHTML = svg). Degrada
+  // con toast en cada punto de fallo (sin XMLSerializer, sin canvas, Image
+  // que no carga) para que el click nunca crashee.
+  function exportPng() {
+    const lienzo = container?.querySelector('#r3d-canvas');
+    const svg = lienzo?.querySelector('svg');
+    if (!svg) {
+      toast('No hay vista 3D para exportar', { type: 'info' });
+      return;
+    }
+    let url = null;
+    try {
+      const xml = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+      url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const vb = svg.viewBox?.baseVal;
+          const w = Math.max(1, Math.round(Number(vb?.width) || renderer?.width || 900));
+          const h = Math.max(1, Math.round(Number(vb?.height) || renderer?.height || 600));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('canvas 2d no disponible');
+          ctx.drawImage(img, 0, 0, w, h);
+          const a = document.createElement('a');
+          a.download = 'cutternest-3d.png';
+          a.href = canvas.toDataURL('image/png');
+          a.click();
+          toast('PNG exportado: cutternest-3d.png', { type: 'success' });
+        } catch {
+          toast('No se pudo rasterizar el PNG (canvas no soportado)', { type: 'error' });
+        } finally {
+          if (url) URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        if (url) URL.revokeObjectURL(url);
+        toast('No se pudo cargar el SVG para exportar', { type: 'error' });
+      };
+      img.src = url;
+    } catch {
+      if (url) URL.revokeObjectURL(url);
+      toast('No se pudo exportar el PNG', { type: 'error' });
+    }
+  }
+
   function mount(parent) {
     container = parent;
     unsubscribe = store.subscribe('state:changed', () => {
@@ -233,6 +283,7 @@ export function createRenderer3DView(store) {
           <div class="r3d-controls flex gap-1 flex-wrap" style="border-bottom:1px solid ${RENDERER3D_THEME.rowBorder};padding-bottom:0.35rem;">
             <button id="r3d-reset" class="btn btn--secondary btn--sm">↺ Reset</button>
             <button id="r3d-fullscreen" class="btn btn--secondary btn--sm">⛶ Pantalla completa</button>
+            <button id="r3d-export-png" class="btn btn--secondary btn--sm" title="Descarga la vista 3D actual como PNG (cutternest-3d.png)">⬇ PNG</button>
             <span class="r3d-presets flex gap-05" style="display:inline-flex;gap:0.5rem;">
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="iso">Iso</button>
               <button class="r3d-preset btn btn--secondary btn--sm" data-preset="front">Frente</button>
@@ -422,6 +473,11 @@ export function createRenderer3DView(store) {
       renderer.controls.reset();
       updateSlidersFromCamera();
     });
+    // P5b — Export PNG: el lienzo 3D es SVG propio (renderer3d/svgBuilder.js);
+    // se serializa el nodo SVG actual, se rasteriza en un canvas y se
+    // descarga. Cualquier fallo (canvas sin soporte, SVG no cargable)
+    // degrada con toast, sin crashear.
+    container.querySelector('#r3d-export-png')?.addEventListener('click', exportPng);
     if (detachFullscreen) detachFullscreen();
     detachFullscreen = attachFullscreenToggle(
       container.querySelector('#r3d-fullscreen'),

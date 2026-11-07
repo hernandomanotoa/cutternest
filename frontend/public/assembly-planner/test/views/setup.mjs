@@ -31,6 +31,8 @@ const globals = {
   InputEvent: window.InputEvent,
   FileReader: window.FileReader,
   MutationObserver: window.MutationObserver,
+  XMLSerializer: window.XMLSerializer,
+  Image: window.Image,
   getComputedStyle: window.getComputedStyle.bind(window),
   // Node no expone requestAnimationFrame; shim suficiente para mount/destroy.
   requestAnimationFrame: (cb) => setTimeout(() => cb(Date.now()), 0),

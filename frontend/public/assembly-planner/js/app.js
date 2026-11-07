@@ -59,6 +59,7 @@ import {
   addDoubleRail,
   addDrawer,
   addShoeTray,
+  addDoorBay,
   addDivider,
   nextModuleId,
   nextContentIndex,
@@ -858,6 +859,26 @@ export function addContentToModule(moduleId, kind, opts = {}) {
       color: colorCuerpo,
       index: nextContentIndex(state.pieces, moduleId, 'divider'),
     });
+  } else if (kind === 'doorBay') {
+    // Bahía de puertas abatibles: vano completo (default = vano útil del
+    // módulo, zócalo→tapa, cuando la tarjeta no trae alto). Las hojas llevan
+    // color propio (frente): NO se recolorean con el cuerpo. Contador de
+    // hojas GLOBAL por módulo (puerta1, puerta2...): varias bahías no
+    // colisionan de ids.
+    const altoModulo = Number(modPieces.find((p) => p.id.endsWith('lateral-izq'))?.alto) || 0;
+    const altoZocalo = state.pieces.find((p) => p.id === `m${moduleId}-zocalo`)?.alto || 0;
+    const altoUtil = Math.max(50, altoModulo - altoZocalo - espesor);
+    const hojaInicial = nextContentIndex(state.pieces, moduleId, 'door');
+    const nHojas = Number(opts.nHojas) === 2 ? 2 : 1;
+    result = addDoorBay(moduleId, hojaInicial, {
+      anchoModulo,
+      altoVano: altoVano > 0 ? altoVano : altoUtil,
+      espesorModulo: espesor,
+      nHojas,
+      color: opts.colorFrente || '#8B5A2B',
+      tipo: 'abatible',
+      rielBisagra: ['recta', 'curva'].includes(opts.rielBisagra) ? opts.rielBisagra : 'recta',
+    });
   } else {
     return { ok: false, errors: [`Contenido "${kind}" no soportado`] };
   }
@@ -1310,6 +1331,16 @@ function asignarPosZInsercion(piecesActuales, piezasNuevas, moduleId, kind, { st
       ? ((bandejaUniforme || frenteCorto) ? (vanoTag || altoVano || (Number(frente.alto) || 0)) : (Number(frente.alto) || 0))
       : (altoVano || (Number(frente?.alto) || 0));
     fijar(frente, ocupa + (sinGap ? 0 : drawerFrontGap));
+  } else if (kind === 'doorBay') {
+    // Bahía de puertas: TODAS las hojas comparten el pos_z de la bahía
+    // (cuelgan del mismo vano). La bahía reserva el alto de hoja + gap,
+    // como un frente de cajón apilado.
+    const frentes = piezasNuevas.filter((p) => p.id.endsWith('-frente'));
+    const ancla = frentes[0];
+    fijar(ancla, (Number(ancla?.alto) || 0) + drawerFrontGap);
+    for (const f of frentes.slice(1)) {
+      if (f && ancla) f.pos_z = ancla.pos_z;
+    }
   }
   // doubleRail trae pos_z absolutos ergonomicos (2100/1000); zocalo no ancla.
   return error;
@@ -2196,6 +2227,49 @@ export function editModuleDimensions(moduleId, { ancho, alto, prof }, opts = {})
       np.id = `${piezasGrupo[0].modulo}-extra-${s || 'pieza'}`;
     }
     grupos.push({ viejas: new Set(piezasGrupo.map((p) => p.id)), piezasNuevas: renombradas });
+  }
+
+  // 1b. Bahías de puertas abatibles (módulo raíz, rol 'door', ids
+  //     m{mod}puertaN-frente). Las hojas de una bahía son consecutivas y de
+  //     igual alto (así las genera addDoorBay); el vano se recupera como
+  //     alto de hoja + 2·luz (luz default 2 mm — el servicio no estampa el
+  //     valor) y el color del frente se preserva (las puertas NO se
+  //     recolorean con el cuerpo).
+  const hojasPuerta = state.pieces
+    .filter((p) => String(p.modulo) === String(moduleId) && /^m\d+puerta\d+-frente$/.test(String(p.id)))
+    .sort((a, b) => Number(String(a.id).match(/puerta(\d+)-/)?.[1]) - Number(String(b.id).match(/puerta(\d+)-/)?.[1]));
+  const numHoja = (p) => Number(String(p.id).match(/puerta(\d+)-/)?.[1]) || 0;
+  const bahias = [];
+  for (let i = 0; i < hojasPuerta.length;) {
+    let j = i + 1;
+    while (j < hojasPuerta.length
+      && Number(hojasPuerta[j].alto) === Number(hojasPuerta[i].alto)
+      && numHoja(hojasPuerta[j]) === numHoja(hojasPuerta[j - 1]) + 1) j += 1;
+    bahias.push(hojasPuerta.slice(i, j));
+    i = j;
+  }
+  for (const bahia of bahias) {
+    const primero = bahia[0];
+    const idxViejo = numHoja(primero) || 1;
+    const regenerado = addDoorBay(moduleId, idxViejo, {
+      anchoModulo: dims.ancho,
+      altoVano: (Number(primero.alto) || 200) + 4, // luz 2 mm por lado (default)
+      espesorModulo: espesor,
+      nHojas: bahia.length,
+      color: primero.color || '#8B5A2B',
+    });
+    if (!regenerado.ok) {
+      return { ok: false, errors: [`${primero.nombre} no cabe en ${dims.ancho} mm de ancho: ${regenerado.errors.join('; ')}`] };
+    }
+    // Renombrar hojas a los ids viejos (posición en la bahía) y conservar
+    // el pos_z anclado (todas las hojas de la bahía comparten ancla).
+    const renombradas = regenerado.pieces.map((np, k) => {
+      const vieja = bahia[Math.min(k, bahia.length - 1)];
+      const out = { ...np, id: vieja.id, modulo: vieja.modulo };
+      if (Number.isFinite(vieja.pos_z)) out.pos_z = vieja.pos_z;
+      return out;
+    });
+    grupos.push({ viejas: new Set(bahia.map((p) => p.id)), piezasNuevas: renombradas });
   }
 
   // 2. Casco redimensionado. El fondo descuenta la zona del zócalo (simple

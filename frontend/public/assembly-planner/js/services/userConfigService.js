@@ -86,7 +86,7 @@ export function loadUserConfig() {
 
 // Preferencias de texto persistibles (selects del formulario de contenido
 // del Constructor). Se guardan tal cual; loadUserConfig las rehidrata.
-export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel', 'golaFijacion', 'contentModoZapatera', 'colorCuerpo', 'frontGapMode'];
+export const STRING_PREFS = ['contentTipoCajon', 'contentTipoZapatera', 'contentRiel', 'golaFijacion', 'contentModoZapatera', 'colorCuerpo', 'frontGapMode', 'lineaPreset'];
 
 // Preferencias numéricas persistibles fuera de VERTICAL_POSITIONS.
 const NUMERIC_PREFS = ['contentProfCaja', 'contentRielHolgura'];

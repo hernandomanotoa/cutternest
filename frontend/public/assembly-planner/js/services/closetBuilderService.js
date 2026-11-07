@@ -783,6 +783,82 @@ export function addShoeTray(moduleId, index, {
 }
 
 
+// ── Puertas abatibles ─────────────────────────────────────────────
+
+// Bahía de puertas abatibles sobre un vano completo del módulo. Las hojas
+// son iguales y cierran el vano con luz perimetral (solape) de 2 mm por
+// lado por defecto; con 2 hojas queda una junta central de 3 mm (las
+// bisagras son herraje implícito: NO generan pieza) y sin tirador (dedo
+// o perfil; la apertura sin jaladera es la convención del Constructor).
+// Vano interior W = anchoModulo − 2E; cada hoja:
+//   ancho = floor((W − 2·luz − (nHojas−1)·entreHojas) / nHojas)
+//   alto  = altoVano − 2·luz
+// Piezas: m{mod}puerta{h}-frente (rol 'door' — la tabla maestra de veta
+// le fija cantos T,B,L,R y rotate 'no': veta a lo largo del ancho) en el
+// módulo raíz (sin submódulo: la hoja es una pieza única). El número de
+// hoja es GLOBAL por módulo (puerta1, puerta2...), así varias bahías no
+// colisionan de ids y el contador de contenido sigue siendo unificado.
+export function addDoorBay(moduleId, hojaInicial, {
+  anchoModulo,
+  altoVano,
+  espesorModulo = 15, // espesor REAL del casco: W descuenta E
+  nHojas = 1,
+  color = '#8B5A2B',
+  tipo = 'abatible',
+  rielBisagra = 'recta', // 'recta' | 'curva' (herraje: bisagras, no pieza)
+  luz = 2,               // luz perimetral por lado (mm)
+  entreHojas = 3,        // junta central entre hojas (mm)
+  espesorPuerta = null,  // null = espesor del tablero del módulo
+} = {}) {
+  const errors = [];
+  validateDimension(anchoModulo, 'anchoModulo', errors, { min: 100 });
+  validateDimension(altoVano, 'altoVano', errors, { min: 50 });
+  validateEspesor(espesorModulo, errors);
+  if (!Number.isInteger(Number(nHojas)) || Number(nHojas) < 1 || Number(nHojas) > 2) {
+    errors.push(`nHojas: debe ser 1 u 2 (recibido "${nHojas}")`);
+  }
+  if (!['abatible'].includes(tipo)) errors.push(`tipo: "${tipo}" no soportado (abatible)`);
+  if (!['recta', 'curva'].includes(rielBisagra)) errors.push(`rielBisagra: "${rielBisagra}" no soportado (recta|curva)`);
+  const luzEf = Number(luz) > 0 && Number(luz) <= 5 ? Number(luz) : 2;
+  const c = validateColor(color, errors, 'color');
+  if (errors.length) return { ok: false, errors };
+
+  const E = espesorModulo;
+  const W = anchoModulo - 2 * E;
+  const hojas = Number(nHojas);
+  const anchoHoja = Math.floor((W - 2 * luzEf - (hojas - 1) * entreHojas) / hojas);
+  const altoHoja = altoVano - 2 * luzEf;
+  if (anchoHoja < 50) {
+    return { ok: false, errors: [`puertas: vano de ${anchoModulo} mm demasiado estrecho para ${hojas} hoja(s) (hoja de ${anchoHoja} mm); ensanche el módulo o use 1 hoja`] };
+  }
+  if (altoHoja < 50) {
+    return { ok: false, errors: [`puertas: vano de ${altoVano} mm demasiado bajo (hoja de ${altoHoja} mm) para la luz ${luzEf} mm`] };
+  }
+
+  const espesor = espesorPuerta != null && ESPESORES_VALIDOS.includes(Number(espesorPuerta))
+    ? Number(espesorPuerta)
+    : E;
+  const pieces = [];
+  for (let i = 0; i < hojas; i += 1) {
+    const num = hojaInicial + i;
+    pieces.push(piece(
+      `m${moduleId}puerta${num}-frente`,
+      `Puerta ${tipo} ${num} M${moduleId}`,
+      anchoHoja, altoHoja,
+      { rol: 'door', color: c, espesor, modulo: moduleId },
+    ));
+  }
+  return {
+    ok: true,
+    pieces,
+    hojas: hojas,
+    hojaInicial,
+    frente: { ancho: anchoHoja, alto: altoHoja },
+    // Bisagras: herraje implícito (2–3 por hoja según alto), solo reporte.
+    bisagras: hojas,
+  };
+}
+
 // Divisor vertical entre bahias (orientación de mueble congruente):
 // ancho = espesor del panel, alto = alto útil del vano. El renderer lo
 // dibuja como panel vertical entre repisas.
@@ -822,6 +898,7 @@ export function nextContentIndex(pieces, moduleId, kind) {
     shelf: `m${moduleId}-repisa-`,
     drawer: `m${moduleId}cajon`,
     shoeRack: `m${moduleId}zapatera`,
+    door: `m${moduleId}puerta`,
     rail: `m${moduleId}-barra-`,
     zocalo: `m${moduleId}-zocalo`,
     divider: `m${moduleId}-divisor-`,

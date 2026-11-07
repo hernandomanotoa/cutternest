@@ -131,7 +131,8 @@ test('diseño: tarjeta de módulo agrupada en Contenido/Cajón/Zapatera/Módulo'
   assert.ok(contFields.textContent.includes('Contenido'), 'el grupo del vano es Contenido');
   assert.ok(contFields.querySelector('[data-color-cuerpo]'), 'Color cuerpo en el grupo Contenido');
   const addBtns = contFields.querySelectorAll('[data-action="add-content"]');
-  assert.equal(addBtns.length, 7, 'los 7 botones de alta viven en Contenido');
+  assert.equal(addBtns.length, 8, 'los 8 botones de alta viven en Contenido (incl. + Puertas)');
+  assert.ok(contFields.querySelector('[data-action="add-content"][data-kind="doorBay"]'), 'botón + Puertas en Contenido');
   assert.ok(card.querySelector('.cn-pref-group__actions'), 'fila de alta a ancho completo del grupo');
   contFields.querySelector('[data-action="add-content"][data-kind="zocalo"]').click();
   const card2 = container.querySelector('[data-module-scoped="1"]');

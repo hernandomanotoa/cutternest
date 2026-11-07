@@ -78,6 +78,34 @@ const TIPOS_CAJON = [
   { value: 'volquete', label: 'Volquete' },
 ];
 
+// P7 — Presets de línea: SOLO precargan los defaults del alta de módulo
+// (ancho/alto/prof/zócalo) y las alturas de vano sugeridas del datalist.
+// Sin lógica de geometría nueva. La elección persiste en userConfig
+// (lineaPreset, STRING_PREFS) y los campos quedan editables a mano.
+const LINEAS = {
+  closet: {
+    label: 'Clóset',
+    ancho: 850, alto: 2400, prof: 600, alturaZocalo: 150, conZocalo: true,
+    vanos: ALTO_VANO_OPCIONES,
+  },
+  cocina: {
+    label: 'Cocina',
+    ancho: 800, alto: 870, prof: 560, alturaZocalo: 150, conZocalo: true,
+    vanos: [70, 140, 280],
+  },
+  escritorio: {
+    label: 'Escritorio',
+    ancho: 1200, alto: 750, prof: 500, alturaZocalo: 150, conZocalo: false,
+    vanos: [140, 200, 280],
+  },
+  racktv: {
+    label: 'Rack TV',
+    ancho: 1200, alto: 500, prof: 400, alturaZocalo: 150, conZocalo: false,
+    vanos: [160, 200, 280],
+  },
+};
+const LINEA_DEFAULT = 'closet';
+
 // Parámetros numéricos del sistema gola editables por módulo (persistidos
 // como overrides en cn-assembly-gola-cfg, con fallback a la userConfig
 // global): clave cfg, label, min, step.
@@ -516,6 +544,35 @@ export function createConstructorView(store) {
         }
       }
     }
+    // Línea (preset): precarga los defaults del alta de módulo y persiste la
+    // elección (los campos quedan editables a mano; el datalist de vanos se
+    // actualiza al re-render).
+    if (e.target.matches('[data-cfg="linea"]')) {
+      const linea = LINEAS[e.target.value] ? e.target.value : LINEA_DEFAULT;
+      saveUserConfig({ lineaPreset: linea });
+      store.set({ userConfig: loadUserConfig() });
+      const p = LINEAS[linea];
+      const setVal = (sel, v) => {
+        const el = container.querySelector(sel);
+        if (el) el.value = String(v);
+      };
+      setVal('[data-cfg="ancho"]', p.ancho);
+      setVal('[data-cfg="alto"]', p.alto);
+      setVal('[data-cfg="prof"]', p.prof);
+      setVal('[data-cfg="altura-zocalo"]', p.alturaZocalo);
+      const z = container.querySelector('[data-cfg="zocalo"]');
+      if (z) z.checked = !!p.conZocalo;
+      saveUserConfig({
+        anchoModulo: p.ancho,
+        altoModulo: p.alto,
+        profModulo: p.prof,
+        alturaZocalo: p.alturaZocalo,
+        conZocalo: p.conZocalo ? 1 : 0,
+      });
+      store.set({ userConfig: loadUserConfig() });
+      render();
+      return;
+    }
     // Modo gola global: al activar aplica el sistema a todos los módulos
     // elegibles (resumen); al desactivar lo retira de todos.
     if (e.target.matches('[data-cfg="gola-modo"]')) {
@@ -728,6 +785,8 @@ export function createConstructorView(store) {
       // el valor que el usuario ve en la tarjeta.
       const profCajaVal = Number(container.querySelector(`${scoped} [data-prof-caja]`)?.value) || 0;
       const rielHolguraVal = Number(container.querySelector(`${scoped} [data-riel-holgura]`)?.value) || 0;
+      // Número de hojas de la bahía de puertas (solo aplica a '+ Puertas').
+      const nHojasPuerta = Number(container.querySelector(`${scoped} [data-n-hojas]`)?.value) === 2 ? 2 : 1;
       // Luz perimetral del frente (persistida; spec gola: 3 mm por lado).
       // Va DENTRO del mismo saveUserConfig de abajo: saveUserConfig REEMPLAZA
       // el storage completo, un segundo call la borraría (por eso el input
@@ -760,6 +819,7 @@ export function createConstructorView(store) {
       const r = addContentToModule(moduleId, kind, {
         altoVano,
         rielHolgura: rielHolguraVal > 0 ? rielHolguraVal : null,
+        nHojas: nHojasPuerta,
         profundidadCaja: profCajaVal > 0 ? profCajaVal : null,
         tipo: null, // los tipos de catálogo se eliminaron del UI (vano libre)
         tipoCorredera, colorFrente, separacion, insetTapa, nPorFila, espesorFrente,
@@ -1311,6 +1371,11 @@ export function createConstructorView(store) {
                 title="${nuevoModuloCollapsed ? 'Expandir formulario de nuevo módulo' : 'Colapsar formulario de nuevo módulo'}">${nuevoModuloCollapsed ? '▸' : '▾'}</button>
             </h4>
             <div class="cn-constructor__grid">
+              <label class="form-group" title="Preset de línea: precarga ancho/alto/profundidad/zócalo del alta y los vanos sugeridos. Sin lógica extra: los campos quedan editables">Línea
+                <select data-cfg="linea">
+                  ${Object.entries(LINEAS).map(([id, l]) => `<option value="${id}" ${(state.userConfig?.lineaPreset || LINEA_DEFAULT) === id ? 'selected' : ''}>${l.label}</option>`).join('')}
+                </select>
+              </label>
               <label class="form-group">Ancho total (mm)
                 <input type="number" data-cfg="ancho-total" value="${Number(state.userConfig?.anchoTotal) || ''}" placeholder="3400" min="100" step="10" />
               </label>
@@ -1444,6 +1509,7 @@ const CONTENT_ICON = {
   shoeRack: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="1.5" y1="4" x2="10.5" y2="6.5"/><line x1="1.5" y1="7" x2="10.5" y2="9.5"/></svg>',
   rail: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="1.5" y1="6" x2="10.5" y2="6"/><circle cx="1.8" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="10.2" cy="6" r="1" fill="currentColor" stroke="none"/></svg>',
   divider: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="6" y1="1.5" x2="6" y2="10.5"/></svg>',
+  doorBay: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="9" height="9" rx="0.8"/><line x1="6" y1="1.5" x2="6" y2="10.5"/><circle cx="4.6" cy="6" r="0.6" fill="currentColor" stroke="none"/><circle cx="7.4" cy="6" r="0.6" fill="currentColor" stroke="none"/></svg>',
 };
 
 // Fase plegado: estado de colapso por módulo. Override explícito del usuario
@@ -1480,6 +1546,10 @@ function contentItemsForModule(moduleId, allPieces) {
       if (root === String(moduleId) && /(cajon|zapatera)\d+-frente$/.test(id)) {
         const kind = id.includes('zapatera') ? 'shoeRack' : 'drawer';
         match = { refId: id, label: p.nombre, key: id, kind };
+      } else if (root === String(moduleId) && /^m\d+puerta\d+-frente$/.test(id)) {
+        // Puertas abatibles: una chip por hoja (cada hoja es su propio grupo
+        // de eliminación, m{mod}puertaN-); todas las hojas comparten pos_z.
+        match = { refId: id, label: p.nombre, key: id, kind: 'doorBay' };
       }
     } else if (/(cajon|zapatera)\d+-cara$/.test(id)) {
       // Cajón/zapatera SIN frente (bandeja abierta, default): la cara hace de
@@ -1579,6 +1649,7 @@ function renderModuleScheme(moduleId, allPieces, piezas, menuOpen = false) {
     shoeRack: (gy, rh) => `<line x1="${r1(inner.x + 3)}" y1="${r1(gy + rh * 0.3)}" x2="${r1(inner.x + inner.w - 3)}" y2="${r1(gy + rh * 0.55)}"/><line x1="${r1(inner.x + 3)}" y1="${r1(gy + rh * 0.65)}" x2="${r1(inner.x + inner.w - 3)}" y2="${r1(gy + rh * 0.9)}"/>`,
     rail: (gy, rh) => `<line x1="${r1(inner.x + 6)}" y1="${r1(gy + rh / 2)}" x2="${r1(inner.x + inner.w - 6)}" y2="${r1(gy + rh / 2)}"/><circle cx="${r1(inner.x + 6)}" cy="${r1(gy + rh / 2)}" r="2"/><circle cx="${r1(inner.x + inner.w - 6)}" cy="${r1(gy + rh / 2)}" r="2"/>`,
     divider: (gy, rh) => `<line x1="${r1(inner.x + inner.w / 2)}" y1="${r1(gy)}" x2="${r1(inner.x + inner.w / 2)}" y2="${r1(gy + rh)}"/>`,
+    doorBay: (gy, rh) => `<rect x="${r1(inner.x + 3)}" y="${r1(gy + 2)}" width="${r1(inner.w - 6)}" height="${r1(rh - 4)}" rx="1.5"/><line x1="${r1(inner.x + inner.w / 2)}" y1="${r1(gy + 2)}" x2="${r1(inner.x + inner.w / 2)}" y2="${r1(gy + rh - 2)}"/>`,
   };
   const escId = escapeHtml(String(moduleId));
   const addZone = `
@@ -1622,7 +1693,7 @@ function renderModuleScheme(moduleId, allPieces, piezas, menuOpen = false) {
       </svg>
       ${menuOpen ? `
       <div class="cn-scheme-menu" role="menu" aria-label="Añadir contenido al módulo ${escId}">
-        ${[['shelf', 'Repisa'], ['drawer', 'Cajón'], ['shoeRack', 'Zapatera'], ['rail', 'Barra'], ['doubleRail', 'Doble barra'], ['zocalo', 'Zócalo'], ['divider', 'Divisor']]
+        ${[['shelf', 'Repisa'], ['drawer', 'Cajón'], ['shoeRack', 'Zapatera'], ['doorBay', 'Puertas'], ['rail', 'Barra'], ['doubleRail', 'Doble barra'], ['zocalo', 'Zócalo'], ['divider', 'Divisor']]
           .map(([k, l]) => `<button type="button" role="menuitem" class="cn-scheme-menu__opt" data-action="scheme-add" data-kind="${k}">＋ ${l}</button>`).join('')}
       </div>` : ''}
     </figure>`;
@@ -1688,6 +1759,8 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
   const prefFondoRanurado = cfg.contentFondoRanurado != null
     ? Number(cfg.contentFondoRanurado) !== 0
     : false;
+  // Vanos sugeridos del datalist según la línea elegida (default Clóset).
+  const vanosSugeridos = LINEAS[cfg.lineaPreset]?.vanos || ALTO_VANO_OPCIONES;
   const sel = (actual, value) => (actual === value ? 'selected' : '');
   const moduleId = group.id;
   const piezas = allPieces.filter((p) => String(p.modulo) === String(moduleId));
@@ -1699,6 +1772,9 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
   // marco tienen frente sin cara, la abierta tiene cara sin frente, y el
   // 2-por-fila conserva su doble cuenta. Repisa/barra: cada pieza.
   const countByKind = (kind) => {
+    if (kind === 'doorBay') {
+      return allPieces.filter((p) => new RegExp(`^m${moduleId}puerta\\d+(?=-|$)`).test(String(p.id)) && p.id.endsWith('-frente')).length;
+    }
     const pref = { shelf: `m${moduleId}-repisa-`, rail: `m${moduleId}-barra-`, divider: `m${moduleId}-divisor-` }[kind];
     if (kind !== 'drawer' && kind !== 'shoeRack') {
       return allPieces.filter((p) => String(p.id).startsWith(pref)).length;
@@ -1764,10 +1840,10 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
         <fieldset class="cn-pref-group">
           <legend>Contenido</legend>
           <div class="cn-pref-group__fields">
-            <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de cajón/zapatera lo llenan automáticamente)">Vano (mm)
-              <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="${prefVano}" min="50" max="600" step="10" />
+            <label class="form-group" style="margin:0;" title="Altura del vano en mm (libre; los tipos de cajón/zapatera lo llenan automáticamente). Para puertas use el alto del vano completo a cerrar (vacío en '+ Puertas' = vano útil del módulo)">Vano (mm)
+              <input type="number" data-alto-vano list="cn-vanos-sugeridos" value="${prefVano}" min="50" max="2600" step="10" />
               <datalist id="cn-vanos-sugeridos">
-                ${ALTO_VANO_OPCIONES.map((h) => `<option value="${h}"></option>`).join('')}
+                ${vanosSugeridos.map((h) => `<option value="${h}"></option>`).join('')}
               </datalist>
             </label>
             <label class="form-group" style="margin:0;" title="Distancia desde la cara inferior de la tapa (alzamiento/maletero; gana sobre Sep. anterior)">Inset tapa (mm)
@@ -1799,10 +1875,17 @@ function renderModuleCard(group, allPieces, cfg = {}, golaPreview = null, scheme
               <input type="checkbox" data-refuerzo-repisa ${prefRefuerzoRepisa ? 'checked' : ''} />
               <span class="cn-toggle__text"><span class="cn-toggle__label">Refuerzo repisa</span></span>
             </label>
+            <label class="form-group" style="margin:0;" title="Número de hojas de la bahía de puertas abatibles: 1 hoja cierra el vano solapando sus lados; 2 hojas iguales con junta central de 3 mm (bisagras implícitas, sin tirador — dedo/push)">Hojas puerta
+              <select data-n-hojas>
+                <option value="1" selected>1 hoja</option>
+                <option value="2">2 hojas</option>
+              </select>
+            </label>
             <div class="cn-constructor__content-btns cn-pref-group__actions">
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shelf">+ Repisa (${countByKind('shelf')})</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="drawer">+ Cajón (${countByKind('drawer')})</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="shoeRack">+ Zapatera (${countByKind('shoeRack')})</button>
+              <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="doorBay" title="Bahía de puertas abatibles sobre el vano: hojas iguales con luz de 2 mm, sin tirador (dedo/push). Con 2 hojas queda junta central de 3 mm y bisagras implícitas">+ Puertas (${countByKind('doorBay')})</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="rail">+ Barra (${countByKind('rail')})</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="doubleRail">+ Doble barra</button>
               <button class="btn btn--secondary btn--sm" data-action="add-content" data-module="${escapeHtml(moduleId)}" data-kind="zocalo">+ Zócalo</button>
@@ -2286,7 +2369,7 @@ function warnIfAny(warnings) {
 
 function labelKind(kind) {  return {
     shelf: 'Repisa', drawer: 'Cajón', shoeRack: 'Zapatera', rail: 'Barra',
-    doubleRail: 'Doble barra', zocalo: 'Zócalo',
+    doubleRail: 'Doble barra', zocalo: 'Zócalo', doorBay: 'Puertas',
   }[kind] || kind;
 }
 

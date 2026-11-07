@@ -15,6 +15,7 @@ import {
   addDoubleRail,
   addDrawer,
   addShoeTray,
+  addDoorBay,
   profundidadCajaDisponible,
   nextModuleId,
   countRootModules,
@@ -897,5 +898,80 @@ describe('rielHolgura (holgura lateral del herraje por lado, tag [rielN])', () =
     const r = addDrawer('1', 1, { ...BASE, riel: 'telescopica26' });
     const f = r.pieces.find((p) => p.id.endsWith('-frente'));
     assert.ok(!f.nombre.includes('[riel'), 'sin tag en automático: ' + f.nombre);
+  });
+});
+
+describe('addDoorBay (puertas abatibles)', () => {
+  const BASE = { anchoModulo: 850, altoVano: 600, espesorModulo: 15 };
+
+  it('1 hoja: dimensiones del vano con luz 2 mm y rol/veta/cantos de puerta', () => {
+    const r = addDoorBay('1', 1, { ...BASE });
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(r.pieces.length, 1);
+    const hoja = r.pieces[0];
+    assert.equal(hoja.id, 'm1puerta1-frente');
+    assert.equal(hoja.modulo, '1');
+    // W = 850 − 2·15 = 820; ancho = 820 − 2·2 = 816; alto = 600 − 2·2 = 596.
+    assert.equal(hoja.ancho, 816);
+    assert.equal(hoja.alto, 596);
+    assert.equal(hoja.cantos, 'T,B,L,R', 'cantos perimetrales (tabla del rol door)');
+    assert.equal(hoja.rotate, false, 'veta bloqueada (rol door, vista horizontal)');
+    assert.equal(inferRole(hoja), 'door', 'inferRole clasifica la hoja como door');
+    assert.match(hoja.nombre, /Puerta abatible 1 M1/);
+    assert.equal(hoja.espesor, 15, 'espesor del tablero del módulo por default');
+  });
+
+  it('2 hojas: hojas iguales con junta central de 3 mm (bisagras implícitas, sin pieza)', () => {
+    const r = addDoorBay('1', 1, { ...BASE, nHojas: 2 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    assert.equal(r.pieces.length, 2);
+    const [h1, h2] = r.pieces;
+    assert.equal(h1.id, 'm1puerta1-frente');
+    assert.equal(h2.id, 'm1puerta2-frente');
+    // ancho = floor((820 − 2·2 − 3) / 2) = floor(813/2) = 406.
+    assert.equal(h1.ancho, 406);
+    assert.equal(h2.ancho, 406, 'hojas iguales');
+    assert.equal(h1.alto, h2.alto);
+    assert.ok(!r.pieces.some((p) => /tirador|bisagra/i.test(`${p.nombre} ${p.id}`)), 'sin tirador ni pieza de bisagra');
+    assert.equal(r.bisagras, 2, 'reporte de bisagras implícitas');
+  });
+
+  it('valida nHojas: solo 1 u 2', () => {
+    const r = addDoorBay('1', 1, { ...BASE, nHojas: 3 });
+    assert.equal(r.ok, false);
+    assert.match(r.errors.join(' '), /nHojas/);
+    const r0 = addDoorBay('1', 1, { ...BASE, nHojas: 0 });
+    assert.equal(r0.ok, false);
+  });
+
+  it('valida rielBisagra y color', () => {
+    assert.equal(addDoorBay('1', 1, { ...BASE, rielBisagra: 'corva' }).ok, false);
+    assert.ok(addDoorBay('1', 1, { ...BASE, rielBisagra: 'curva' }).ok, 'bisagra curva soportada');
+    assert.equal(addDoorBay('1', 1, { ...BASE, color: 'rojo' }).ok, false);
+  });
+
+  it('rechaza vanos donde la hoja quedaría demasiado estrecha o baja', () => {
+    const estrecha = addDoorBay('1', 1, { anchoModulo: 100, altoVano: 600, espesorModulo: 25 });
+    assert.equal(estrecha.ok, false);
+    assert.match(estrecha.errors.join(' '), /estrecho/);
+    const baja = addDoorBay('1', 1, { anchoModulo: 850, altoVano: 52 });
+    assert.equal(baja.ok, false);
+    assert.match(baja.errors.join(' '), /bajo/);
+  });
+
+  it('el contenido re-parsea limpio contra un casco (rol door estable)', () => {
+    const r = addDoorBay('1', 1, { ...BASE, nHojas: 2 });
+    assert.ok(r.ok, r.errors?.join('; '));
+    const { result, pieces } = reparseWithCasco(r.pieces);
+    assert.equal(result.errors.length, 0, 'sin errores de re-parseo');
+    assert.equal(pieces.filter((p) => inferRole(p) === 'door').length, 2, 'ambas hojas conservan el rol door');
+  });
+
+  it('nunca lanza: entradas inválidas devuelven { ok: false }', () => {
+    for (const opts of [{}, { anchoModulo: 'x' }, { anchoModulo: 850, altoVano: NaN }]) {
+      const r = addDoorBay('1', 1, opts);
+      assert.equal(r.ok, false);
+      assert.ok(Array.isArray(r.errors) && r.errors.length > 0);
+    }
   });
 });

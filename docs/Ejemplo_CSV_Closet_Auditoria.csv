@@ -5,8 +5,8 @@
 # Canto PVC 1 mm (tag [canto1]) y Luz frente 1 mm → frentes 638 mm.
 # Módulo 3 conserva solo la repisa superior. Marco estructural en 2 zócalos.
 id,nombre,ancho,alto,cantidad,rotate,color,espesor,cantos,modulo,pos_z
-m1-base,Base modulo M1,642,585,1,si,#C19A6B,15,,1,
-m1-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",1,
+m1-base,Base modulo M1,642,600,1,si,#C19A6B,15,,1,
+m1-tapa,Tapa modulo M1,642,600,1,no,#C19A6B,15,"B",1,
 m1-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",1,
 m1-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",1,
 m1-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,1,
@@ -36,8 +36,8 @@ m1cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,14,
 m1cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,14,
 m1-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",1,2000
 m1-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,1,2000
-m2-base,Base modulo M1,642,585,1,si,#C19A6B,15,,2,
-m2-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",2,
+m2-base,Base modulo M1,642,600,1,si,#C19A6B,15,,2,
+m2-tapa,Tapa modulo M1,642,600,1,no,#C19A6B,15,"B",2,
 m2-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",2,
 m2-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",2,
 m2-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,2,
@@ -67,15 +67,15 @@ m2cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,24,
 m2cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,24,
 m2-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",2,2000
 m2-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,2,2000
-m3-base,Base modulo M1,642,585,1,si,#C19A6B,15,,3,
-m3-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",3,
+m3-base,Base modulo M1,642,600,1,si,#C19A6B,15,,3,
+m3-tapa,Tapa modulo M1,642,600,1,no,#C19A6B,15,"B",3,
 m3-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",3,
 m3-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",3,
 m3-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,3,
 m3-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",3,2000
 m3-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,3,2000
-m4-base,Base modulo M1,642,585,1,si,#C19A6B,15,,4,
-m4-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",4,
+m4-base,Base modulo M1,642,600,1,si,#C19A6B,15,,4,
+m4-tapa,Tapa modulo M1,642,600,1,no,#C19A6B,15,"B",4,
 m4-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",4,
 m4-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",4,
 m4-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,4,
@@ -105,8 +105,8 @@ m4cajon4-cara,Cara cajon 4 M1,586,117,1,si,#D9C2A3,15,,44,
 m4cajon4-base,Base cajon 4 M1,586,530,1,si,#D9C2A3,15,,44,
 m4-repisa-1,Repisa superior M1,642,585,1,no,#D9C2A3,15,"B",4,2000
 m4-refuerzo-repisa-1,Refuerzo repisa 1 M1,642,100,1,si,#D9C2A3,15,,4,2000
-m5-base,Base modulo M1,642,585,1,si,#C19A6B,15,,5,
-m5-tapa,Tapa modulo M1,642,585,1,no,#C19A6B,15,"B",5,
+m5-base,Base modulo M1,642,600,1,si,#C19A6B,15,,5,
+m5-tapa,Tapa modulo M1,642,600,1,no,#C19A6B,15,"B",5,
 m5-lateral-izq,Lateral izquierdo M1,600,2280,1,no,#C19A6B,15,"L",5,
 m5-lateral-der,Lateral derecho M1,600,2280,1,no,#C19A6B,15,"R",5,
 m5-fondo,Fondo modulo M1,642,2250,1,no,#F2F2F2,15,,5,
