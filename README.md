@@ -152,6 +152,11 @@ docker logs -f cutternest-whatsapp
 - `POST /api/v1/projects/{id}/optimize`
 - `GET /api/v1/projects/{id}/layouts`
 - `GET /api/v1/projects/{id}/layouts/{index}/png`
+- `GET /api/v1/projects/{id}/layouts/{index}/secuencia` (pasadas de sierra ordenadas por tablero)
+- `POST /api/v1/projects/{id}/layouts/{index}/offcuts[?registrar=true]` (detecta y registra sobrantes del layout en el inventario)
+- `GET/POST/PATCH/DELETE /api/v1/price-list` (lista de precios del cotizador: material m², tapacanto ml, herraje, mano de obra)
+- `POST /api/v1/projects/{id}/optimize` — descuenta tableros nuevos del inventario (flag `descontar_inventario`)
+- `POST /api/v1/projects/{id}/quote` — cotizador 1-clic (desglose + PDF); `POST /projects/{id}/labels` — etiquetas con QR por pieza
 - `POST /api/v1/projects/{id}/quote`
 - `GET /api/v1/projects/{id}/quotes`
 - `POST /api/v1/projects/{id}/cutlist`
